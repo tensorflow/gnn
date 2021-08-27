@@ -1,0 +1,55 @@
+# An example graph schema matching DeepMind's GraphsTuple.
+# //third_party/py/tensorflow_gnn/proto/graph_schema.proto:GraphSchema
+
+context {
+  features {
+    key: "embedding"
+    value: {
+      description: "Globals feature vector"
+      dtype: DT_FLOAT
+      shape: { dim { size: 128 } }
+    }
+  }
+}
+
+node_sets {
+  key: "default"
+  value {
+    features {
+      key: "embedding"
+      value: {
+        description: "Encoded node features vector"
+        dtype: DT_FLOAT
+        shape: { dim { size: 64 } }
+      }
+    }
+
+    features {
+      key: "labels"
+      value: {
+        description: "Multiple ground truth text labels"
+        dtype: DT_STRING
+        shape: { dim { size: -1 } }
+      }
+    }
+
+    context: "embedding"
+    description: "Main set of node features"
+  }
+}
+
+edge_sets {
+  key: "default"
+  value {
+    features {
+      key: "embedding"
+      value: {
+        description: "Encoded edge features vector"
+        dtype: DT_FLOAT
+        shape: { dim { size: 32 } }
+      }
+    }
+    source: "default"
+    target: "default"
+  }
+}

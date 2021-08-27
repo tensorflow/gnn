@@ -1,0 +1,74 @@
+features {
+  feature {
+    key: "#source"
+    value: { bytes_list: { value: [ "amanatsu" ] } }
+  }
+  feature {
+    key: "#target"
+    value: { bytes_list: { value: [ "daidai" ] } }
+  }
+  feature {
+    key: "weights"
+    value: { float_list: { value: [ 0.1 ] } }
+  }
+}
+
+features {
+  feature {
+    key: "#source"
+    value: { bytes_list: { value: [ "amanatsu" ] } }
+  }
+  feature {
+    key: "#target"
+    value: { bytes_list: { value: [ "lumia" ] } }
+  }
+  feature {
+    key: "weights"
+    value: { float_list: { value: [ 0.2 ] } }
+  }
+}
+
+features {
+  feature {
+    key: "#source"
+    value: { bytes_list: { value: [ "kiyomi" ] } }
+  }
+  feature {
+    key: "#target"
+    value: { bytes_list: { value: [ "komikan" ] } }
+  }
+  feature {
+    key: "weights"
+    value: { float_list: { value: [ 0.3 ] } }
+  }
+}
+
+features {
+  feature {
+    key: "#source"
+    value: { bytes_list: { value: [ "mandora" ] } }
+  }
+  feature {
+    key: "#target"
+    value: { bytes_list: { value: [ "komikan" ] } }
+  }
+  feature {
+    key: "weights"
+    value: { float_list: { value: [ 0.4 ] } }
+  }
+}
+
+features {
+  feature {
+    key: "#source"
+    value: { bytes_list: { value: [ "mandora" ] } }
+  }
+  feature {
+    key: "#target"
+    value: { bytes_list: { value: [ "tangelo" ] } }
+  }
+  feature {
+    key: "weights"
+    value: { float_list: { value: [ 0.5 ] } }
+  }
+}

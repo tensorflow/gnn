@@ -1,0 +1,165 @@
+context {
+  features {
+    key: "rankings"
+    value {
+      description: "Scores for each quartile"
+      dtype: DT_FLOAT
+      shape { dim { size: 4 } }
+      sample_values { float_list {
+        value: 0.83
+        value: 0.84
+        value: 0.54
+        value: 0.29
+        value: 0.14
+        value: 0.45
+        value: 0.46
+        value: 0.26
+        value: 0.54
+        value: 0.25
+        value: 0.93
+        value: 0.79
+      } }
+    }
+  }
+}
+
+node_sets {
+  key: "items"
+  value {
+    features {
+      key: "category"
+      value {
+        description: "Purchase category"
+        dtype: DT_STRING
+        sample_values { bytes_list {
+          value: "food"
+          value: "show ticket"
+          value: "shoes"
+          value: "book"
+          value: "flight"
+          value: "groceries"
+          value: "clothing"
+          value: "taxi"
+          value: "brunch"
+          value: "phone"
+          value: "electronics"
+        } }
+      }
+    }
+    features {
+      key: "amounts"
+      value {
+        description: "Purchase price"
+        dtype: DT_FLOAT
+        shape { dim { size: -1 } }
+        sample_values { float_list {
+          value: 22.16
+          value: 55.70
+          value: 91.77
+          value: 52.85
+          value: 89.62
+          value: 67.21
+          value: 80.21
+          value: 12.75
+          value: 54.13
+          value: 70.84
+          value: 37.26
+          value: 46.32
+          value: 47.07
+          value: 42.97
+          value: 95.05
+          value: 49.45
+          value: 66.62
+          value: 57.19
+          value: 52.48
+          value: 85.01
+        } }
+      }
+    }
+  }
+}
+
+node_sets {
+  key: "persons"
+  value {
+    features {
+      key: "name"
+      value {
+        description: "First name"
+        dtype: DT_STRING
+        sample_values { bytes_list {
+          value: "Shawn"
+          value: "Jeorg"
+          value: "Yumiko"
+          value: "Sophie"
+          value: "Daniella"
+          value: "Tess"
+          value: "Hanan"
+          value: "Osian"
+          value: "Uwais"
+          value: "Myron"
+          value: "Angela"
+          value: "Aditi"
+          value: "Samual"
+          value: "Dalton"
+        } }
+      }
+    }
+    features {
+      key: "age"
+      value {
+        description: "Age"
+        dtype: DT_INT64
+        sample_values { int64_list {
+          value: 20
+          value: 52
+          value: 69
+          value: 39
+          value: 82
+          value: 38
+          value: 23
+          value: 38
+          value: 16
+          value: 49
+          value: 43
+          value: 59
+          value: 83
+          value: 17
+        } }
+      }
+    }
+    features {
+      key: "country"
+      value {
+        description: "Country of origin"
+        dtype: DT_STRING
+        sample_values { bytes_list {
+          value: "Bulgaria"
+          value: "Saint Lucia"
+          value: "Costa Rica"
+          value: "Nicaragua"
+          value: "South Africa"
+          value: "Curacao"
+          value: "San Marino"
+          value: "Somalia"
+          value: "Mauritius"
+          value: "Afghanistan"
+          value: "Mozambique"
+          value: "Ethiopia"
+          value: "Comoros"
+          value: "Guadeloupe"
+        } }
+      }
+    }
+  }
+}
+
+edge_sets {
+  key: "purchased"
+  value { source: "items" target: "persons" }
+}
+
+edge_sets {
+  key: "is-friend"
+  value { source: "persons" target: "persons" }
+}

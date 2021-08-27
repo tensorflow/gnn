@@ -1,0 +1,44 @@
+syntax = "proto2";
+
+package tensorflow_gnn.sampler;
+
+import "tensorflow/core/example/feature.proto";
+
+// A simple node container.
+message Node {
+  // Unique identifier of the node.
+  optional bytes id = 1;
+
+  // Features associated with the node.
+  optional tensorflow.Features features = 2;
+
+  // The node set this Node belongs to (used for heterogeneous graphs).
+  optional string node_set_name = 4;
+
+  // Outgoing edges of the node.
+  message Edge {
+    optional bytes neighbor_id = 1;
+
+    // Features associated with this outgoing edge.
+    optional tensorflow.Features features = 2;
+
+    // The edge set this Edge belongs to (used for heterogeneous graphs).
+    optional string edge_set_name = 4;
+  }
+  repeated Edge outgoing_edges = 3;
+}
+
+message Subgraph {
+  // A distinct/unique subgraph sample id.
+  optional bytes sample_id = 1;
+
+  // The id of the start node for this sample.
+  // Multiple samples may be rooted at the same seed node.
+  optional bytes seed_node_id = 2;
+
+  // A list of the nodes in the sample.
+  repeated Node node = 3;
+
+  // Features associated with the graph context as a whole.
+  optional tensorflow.Features features = 4;
+}

@@ -1,0 +1,128 @@
+# Example graph of transactions, credit cards, customer.
+
+context {
+  metadata {
+    filename: "month.csv"
+  }
+  features {
+    key: "month"
+    value: {
+      description: "Month of training data"
+      dtype: DT_STRING
+    }
+  }
+}
+
+node_sets {
+  key: "transaction"
+  value {
+    metadata {
+      filename: "transactions.csv"
+    }
+    features {
+      key: "merchant"
+      value: {
+        description: "Merchant"
+        dtype: DT_STRING
+      }
+    }
+    features {
+      key: "amount"
+      value: {
+        description: "Amount"
+        dtype: DT_FLOAT
+      }
+    }
+  }
+}
+
+node_sets {
+  key: "customer"
+  value {
+    metadata {
+      filename: "customer.csv"
+    }
+    features {
+      key: "name"
+      value: {
+        description: "Name"
+        dtype: DT_STRING
+      }
+    }
+    features {
+      key: "address"
+      value: {
+        description: "address"
+        dtype: DT_STRING
+      }
+    }
+    features {
+      key: "zipcode"
+      value: {
+        description: "Zipcode"
+        dtype: DT_INT64
+      }
+    }
+    features {
+      key: "score"
+      value: {
+        description: "Credit score"
+        dtype: DT_FLOAT
+      }
+    }
+  }
+}
+
+node_sets {
+  key: "creditcard"
+  value {
+    metadata {
+      filename: "creditcard.csv"
+    }
+    features {
+      key: "number"
+      value: {
+        description: "Credit card number"
+        dtype: DT_INT64
+      }
+    }
+    features {
+      key: "issuer"
+      value: {
+        description: "Credit card issuer institution"
+        dtype: DT_STRING
+      }
+    }
+  }
+}
+
+edge_sets {
+  key: "owns_card"
+  value {
+    description: "Owns and uses the credit card."
+    source: "customer"
+    target: "creditcard"
+    metadata {
+      filename: "owns_card.csv"
+    }
+  }
+}
+
+edge_sets {
+  key: "paid_with"
+  value {
+    description: "A transaction was paid for using this card."
+    source: "transaction"
+    target: "creditcard"
+    metadata {
+      filename: "paid_with.csv"
+    }
+    features {
+      key: "retries"
+      value: {
+        description: "Number of retries"
+        dtype: DT_INT64
+      }
+    }
+  }
+}

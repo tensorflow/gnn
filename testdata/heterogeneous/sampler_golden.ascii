@@ -1,0 +1,2514 @@
+# proto-file: third_party/py/tensorflow_gnn/testdata/examples.proto
+# proto-message: ExampleList
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "9c38c5c64281d719"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1876448"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#target"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.issuer"
+      value {
+        bytes_list {
+          value: "BellsGarbo"
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.number"
+      value {
+        int64_list {
+          value: 16827485386298040
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "343 Third St. Houston, TX 77016"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Ji Grindstaff"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.5174975395202637
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 77016
+        }
+      }
+    }
+  }
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "2ef522021e705074"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1372437"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#target"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.issuer"
+      value {
+        bytes_list {
+          value: "HeyBank"
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.number"
+      value {
+        int64_list {
+          value: 11470379189154620
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "9940 Prairie Ave. Deer Park, NY 11729"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Augustina Uren"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.9055414795875549
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 11729
+        }
+      }
+    }
+  }
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "ed536f6e4feb487f"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1368305"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#target"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.issuer"
+      value {
+        bytes_list {
+          value: "BellsGarbo"
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.number"
+      value {
+        int64_list {
+          value: 11163838768727470
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "478 Grove Drive Hicksville, NY 11801"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Yolonda Nave"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.24079297482967377
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 11801
+        }
+      }
+    }
+  }
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "2af7ad1902197000"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1974494"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#target"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.issuer"
+      value {
+        bytes_list {
+          value: "BellsGarbo"
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.number"
+      value {
+        int64_list {
+          value: 16011471358128450
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "909 Vermont St. Livonia, MI 48150"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Adriana Mcburney"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.34326043725013733
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 48150
+        }
+      }
+    }
+  }
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "fed4cb4e5d84da88"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1257724"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#target"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.issuer"
+      value {
+        bytes_list {
+          value: "GDBank"
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.number"
+      value {
+        int64_list {
+          value: 18569067217418250
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "7758 West Devon St. Algonquin, IL 60102"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Dione Reeb"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.5395817756652832
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 60102
+        }
+      }
+    }
+  }
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "72b08ccaf230f75b"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1758057"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#target"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.issuer"
+      value {
+        bytes_list {
+          value: "BellsGarbo"
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.number"
+      value {
+        int64_list {
+          value: 17396883707513070
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "720 Marsh Road Tucker, GA 30084"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Geri Bones"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.9270786643028259
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 30084
+        }
+      }
+    }
+  }
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "0a6d9afe928bf5fe"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1531660"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#target"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.issuer"
+      value {
+        bytes_list {
+          value: "BellsGarbo"
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.number"
+      value {
+        int64_list {
+          value: 14844931107602160
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "227 Bishop St. Bemidji, MN 56601"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Krystal Pablo"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.18714764714241028
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 56601
+        }
+      }
+    }
+  }
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "c347a294301563fe"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1489311"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "51 Ramblewood St. Hobart, IN 46342"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Tonia Behnke"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.11716438829898834
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 46342
+        }
+      }
+    }
+  }
+
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "a4e0eea7c62afac3"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1407706"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#target"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.issuer"
+      value {
+        bytes_list {
+          value: "GDBank"
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.number"
+      value {
+        int64_list {
+          value: 11290312140467510
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "714 Hilldale Ave. Cumming, GA 30040"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Fidel Speers"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.23591549694538116
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 30040
+        }
+      }
+    }
+  }
+
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "0abe23ce6bc1c485"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "196838"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#target"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.issuer"
+      value {
+        bytes_list {
+          value: "HeyBank"
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.number"
+      value {
+        int64_list {
+          value: 17861046738135650
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "14 South Grove St. Coatesville, PA 19320"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Necole Hunkins"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.0603766031563282
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 19320
+        }
+      }
+    }
+  }
+
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "c7dfa55bb9801a87"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1195675"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "136 Somerset Dr. Chester, PA 19013"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Tona Crays"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.6864072680473328
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 19013
+        }
+      }
+    }
+  }
+
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "89a6cc8d13a699db"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1659366"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#target"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.issuer"
+      value {
+        bytes_list {
+          value: "BellsGarbo"
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.number"
+      value {
+        int64_list {
+          value: 13019350102369400
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "6 Thatcher St. Hillsboro, OR 97124"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Mary Zeitz"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.6434400677680969
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 97124
+        }
+      }
+    }
+  }
+
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "c0bd66775b75582a"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1499004"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#target"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.issuer"
+      value {
+        bytes_list {
+          value: "HeyBank"
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.number"
+      value {
+        int64_list {
+          value: 11470379189154620
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "673 Elmwood Drive Fairburn, GA 30213"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Rudolph Sinquefield"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.9164648652076721
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 30213
+        }
+      }
+    }
+  }
+
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "54318f58408b12a6"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1344333"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#target"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.issuer"
+      value {
+        bytes_list {
+          value: "BellsGarbo"
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.number"
+      value {
+        int64_list {
+          value: 16283233487191600
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "7284 Young Lane Upland, CA 91784"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Marhta Rodrigue"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.6359474062919617
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 91784
+        }
+      }
+    }
+  }
+
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "e1f81934a92eff28"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1443888"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "19 Rock Creek St. Sulphur, LA 70663"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Ricardo Bundrick"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.4666323959827423
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 70663
+        }
+      }
+    }
+  }
+
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "4f46c6fcf21a3c05"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1108778"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#target"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.issuer"
+      value {
+        bytes_list {
+          value: "BofBC"
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.number"
+      value {
+        int64_list {
+          value: 14912408563871390
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "450 Boston Street Solon, OH 44139"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Myron Barrick"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.7162866592407227
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 44139
+        }
+      }
+    }
+  }
+
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "dd3b1a313bd3f5ab"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "175583"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#target"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.issuer"
+      value {
+        bytes_list {
+          value: "GDBank"
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.number"
+      value {
+        int64_list {
+          value: 11290312140467510
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "34 Old 8th Drive Carmel, NY 10512"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Nichol Poulton"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.2922429144382477
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 10512
+        }
+      }
+    }
+  }
+
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "4d3c5d2d1bce0b87"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1251872"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#target"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.issuer"
+      value {
+        bytes_list {
+          value: "GDBank"
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.number"
+      value {
+        int64_list {
+          value: 12948957000457930
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "7351 North Spring Ave. Oshkosh, WI 54901"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Boyd Padilla"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.4839780628681183
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 54901
+        }
+      }
+    }
+  }
+
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "58652a542adf6ce7"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1493851"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "7805 Newport Street Sylvania, OH 43560"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Orpha Yokoyama"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.7630316615104675
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 43560
+        }
+      }
+    }
+  }
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "8fc0ca423c245473"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1599418"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "9138 Gates Street Braintree, MA 02184"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Ulysses Harps"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.3491518497467041
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 1284
+        }
+      }
+    }
+  }
+
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "a0cc25561f2fef46"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1768701"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#target"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.issuer"
+      value {
+        bytes_list {
+          value: "GDBank"
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.number"
+      value {
+        int64_list {
+          value: 18362223127059380
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "42 South Wayne St. Hollywood, FL 33020"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Sulema Aguero"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.7137308120727539
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 33020
+        }
+      }
+    }
+  }
+
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "b088c365bac05678"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1549489"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "98 Corona Court Morton Grove, IL 60053"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Meredith Warman"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.5057767629623413
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 60053
+        }
+      }
+    }
+  }
+
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "7af14a70f816c4e1"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "1879799"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#target"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.issuer"
+      value {
+        bytes_list {
+          value: "GDBank"
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.number"
+      value {
+        int64_list {
+          value: 18569067217418250
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "97 Tunnel Dr. Elyria, OH 44035"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Vonda Borth"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.6586586236953735
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 44035
+        }
+      }
+    }
+  }
+
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "9b7686a222d6add6"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "125454"
+        }
+      }
+    }
+    feature {
+      key: "context/month"
+      value {
+        bytes_list {
+          value: "2020-03"
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/owns_card.#target"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.issuer"
+      value {
+        bytes_list {
+          value: "GDBank"
+        }
+      }
+    }
+    feature {
+      key: "nodes/creditcard.number"
+      value {
+        int64_list {
+          value: 18526138896540830
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.address"
+      value {
+        bytes_list {
+          value: "608 Heritage Street Harrison Township, MI 48045"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.name"
+      value {
+        bytes_list {
+          value: "Candida Uvalle"
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.score"
+      value {
+        float_list {
+          value: 0.6696323752403259
+        }
+      }
+    }
+    feature {
+      key: "nodes/customer.zipcode"
+      value {
+        int64_list {
+          value: 48045
+        }
+      }
+    }
+  }
+}
+

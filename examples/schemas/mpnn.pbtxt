@@ -1,0 +1,68 @@
+# An example graph schema matching demo graphs from MPNN modeling.
+# //third_party/py/tensorflow_gnn/proto/graph_schema.proto:GraphSchema
+
+context {
+  features {
+    key: "embedding"
+    value: {
+      description: "Global feature vector"
+      dtype: DT_FLOAT
+      shape: { dim { size: 128 } }
+    }
+  }
+}
+
+node_sets {
+  key: "videos"
+  value {
+    features {
+      key: "features"
+      value: {
+        description: "Encoded video features vector"
+        dtype: DT_FLOAT
+        shape: { dim { size: 256 } }
+      }
+    }
+  }
+}
+
+node_sets {
+  key: "channels"
+  value {
+    description: "User or Channel in YouTube."
+    context: "embedding"
+
+    features {
+      key: "features"
+      value: {
+        description: "Encoded channel features vector"
+        dtype: DT_FLOAT
+        shape: { dim { size: 128 } }
+      }
+    }
+    features {
+      key: "labels"
+      value: {
+        description: "Multiple ground truth text labels"
+        dtype: DT_STRING
+        shape: { dim { size: -1 } }
+      }
+    }
+  }
+}
+
+edge_sets {
+  key: "videos->channels"
+  value {
+    features {
+      key: "embedding"
+      value: {
+        description: "Encoded edge features vector"
+        dtype: DT_FLOAT
+        shape: { dim { size: 32 } }
+      }
+    }
+    source: "videos"
+    target: "channels"
+  }
+}

@@ -1,0 +1,64 @@
+// Schema for stats on a file of graph tensor subgraph samples.
+
+syntax = "proto2";
+
+package tensorflow_gnn.stats;
+
+// The top-level container for graph tensor stats on node sets, edge sets and
+// the context feature set.
+message GraphTensorStats {
+  // Stats for each set and feature. Each set will have a global representation
+  // via its '#size' feature. Each feature will also be represented over the
+  // distribution of its values.
+  repeated FeatureStats feature_stats = 1;
+
+  // Pairs of (num-nodes, num-edges) integers, a sample of dataset subgraph
+  // sizes. TODO(blais): This is currently unfilled.
+  optional Samples samples = 2;
+}
+
+// Some global samples to produce plots.
+message Samples {
+  repeated SizePair size_pairs = 1;
+}
+
+// A single (|V|, |E|) sample pair.
+message SizePair {
+  optional int32 num_nodes = 1;
+  optional int32 num_edges = 2;
+}
+
+// Basic descriptive statistics on any numeric values.
+//
+// Note: This is computed on the full dataset using quantile approximations and
+// may not be exact. See ApproximateQuantiles for details. In particular, min
+// and max may be outside the true min and max of the dataset.
+//
+// TODO(blais): Update to compute the actual min/max.
+message Stats {
+  optional float min = 1;
+  optional float max = 2;
+  optional float median = 3;
+  optional float mean = 4;
+  optional float std = 5;
+  repeated float quantiles = 6;
+}
+
+// Statistics on a node set or edge set.
+message FeatureStats {
+  // Set type, a string, either of "context", "nodes" or "edges". (Note that we
+  // don't define an enum here in order to match the style from rest of the
+  // code.)
+  optional string set_type = 1;
+
+  // Name of the set (for nodes and edges; this is left unset for context
+  // features).
+  optional string set_name = 2;
+
+  // Feature name. If we're describing the size of the set as a whole, the
+  // special '#size' feature name is used.
+  optional string feature_name = 3;
+
+  // Stats for each feature set.
+  optional Stats stats = 4;
+}

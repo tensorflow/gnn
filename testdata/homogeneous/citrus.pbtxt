@@ -1,0 +1,35 @@
+# TODO(blais): Test context features.
+
+node_sets {
+  key: "fruits"
+  value {
+    metadata {
+      filename: "fruits.csv"
+    }
+    features {
+      key: "name"
+      value: {
+        description: "Fruit name"
+        dtype: DT_STRING
+      }
+    }
+  }
+}
+
+edge_sets {
+  key: "tastelike"
+  value {
+    source: "fruits"
+    target: "fruits"
+    description: "Similar taste"
+    metadata {
+      filename: "tastelike.csv"
+    }
+    features {
+      key: "weight"
+      value: {
+        dtype: DT_FLOAT
+      }
+    }
+  }
+}

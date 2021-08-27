@@ -1,0 +1,4 @@
+bazel-*
+build
+dist
+*.egg-info

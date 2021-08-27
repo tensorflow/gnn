@@ -1,0 +1,98 @@
+features {
+  feature {
+    key: "#id"
+    value: { bytes_list: { value: [ "amanatsu" ] } }
+  }
+  feature {
+    key: "name"
+    value: { bytes_list: { value: [ "Amanatsu" ] } }
+  }
+}
+
+features {
+  feature {
+    key: "#id"
+    value: { bytes_list: { value: [ "daidai" ] } }
+  }
+  feature {
+    key: "name"
+    value: { bytes_list: { value: [ "Daidai" ] } }
+  }
+}
+
+features {
+  feature {
+    key: "#id"
+    value: { bytes_list: { value: [ "hassaku" ] } }
+  }
+  feature {
+    key: "name"
+    value: { bytes_list: { value: [ "Hassaku" ] } }
+  }
+}
+
+features {
+  feature {
+    key: "#id"
+    value: { bytes_list: { value: [ "kiyomi" ] } }
+  }
+  feature {
+    key: "name"
+    value: { bytes_list: { value: [ "Kiyomi" ] } }
+  }
+}
+
+features {
+  feature {
+    key: "#id"
+    value: { bytes_list: { value: [ "komikan" ] } }
+  }
+  feature {
+    key: "name"
+    value: { bytes_list: { value: [ "Komikan" ] } }
+  }
+}
+
+features {
+  feature {
+    key: "#id"
+    value: { bytes_list: { value: [ "lumia" ] } }
+  }
+  feature {
+    key: "name"
+    value: { bytes_list: { value: [ "Lumia" ] } }
+  }
+}
+
+features {
+  feature {
+    key: "#id"
+    value: { bytes_list: { value: [ "mandora" ] } }
+  }
+  feature {
+    key: "name"
+    value: { bytes_list: { value: [ "Mandora" ] } }
+  }
+}
+
+features {
+  feature {
+    key: "#id"
+    value: { bytes_list: { value: [ "reikou" ] } }
+  }
+  feature {
+    key: "name"
+    value: { bytes_list: { value: [ "Reikou" ] } }
+  }
+}
+
+features {
+  feature {
+    key: "#id"
+    value: { bytes_list: { value: [ "tangelo" ] } }
+  }
+  feature {
+    key: "name"
+    value: { bytes_list: { value: [ "Tangelo" ] } }
+  }
+}

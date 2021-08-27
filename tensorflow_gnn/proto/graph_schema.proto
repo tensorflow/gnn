@@ -1,0 +1,219 @@
+// Schema definition for graph data for training models.
+//
+// See graph_schema.py for details.
+//
+// NOTE: In the text below, the following single-character shape dimensions are:
+//   B: Mini-batch size (tensors are always batched)
+//   i: The index to a particular graph in a mini-batch of graphs.
+//   Vi: Number of nodes in a node set for graph i. Each graph potentially has a
+//       varying number of nodes, so in general V0 != V1. This dimension is
+//       ragged.
+//   Ei: Number of edges in an edge set for graph i. Each graph potentially has
+//       a varying number of edges, so in general E0 != E1. This dimension is
+//       also ragged.
+//   D: An example embedding's width.
+//
+
+syntax = "proto2";
+
+package tensorflow_gnn;
+
+import "tensorflow/core/example/feature.proto";
+import "tensorflow/core/framework/tensor_shape.proto";
+import "tensorflow/core/framework/types.proto";
+
+// An enumeration for the various types of set.
+enum SetType {
+  UNSPECIFIED = 0;
+  CONTEXT = 1;  // A set of graph-global context features.
+  NODES = 2;    // A node set, containing features per node.
+  EDGES = 3;    // An edge set, containing features per edge and indices.
+}
+
+// The top-level container for graph schemas.
+message GraphSchema {
+  // A set of global context tensors. These are referenced by name from the
+  // 'context' fields of the node sets and edge sets below.
+  optional Context context = 1;
+
+  // A list of available node sets. The keys are the NodeSet names.
+  map<string, NodeSet> node_sets = 2;
+
+  // A list of available edge sets. The keys are the EdgeSet names.
+  map<string, EdgeSet> edge_sets = 3;
+
+  // Optional metadata about the origin of the graph. Tools that produce graph
+  // tensors should provide this detail.
+  optional OriginInfo info = 4;
+}
+
+message Feature {
+  // A free-form description of the content provided by this feature.
+  optional string description = 1;
+
+  // Data type. For now only DT_STRING, DT_INT64 and DT_FLOAT are supported, due
+  // to limitations of tensorflow.Example (some of these limitations will be
+  // lifted later, either by conversion or using another encoding format).
+  //
+  // Note that we support arbitrary shaped tensors, including variable shaped
+  // ones, so you do NOT need to preprocess your data to encode all your
+  // features to a fixed-size float tensors ahead of time... If you have
+  // categorical features, for example, you can use a variable-length string
+  // feature and index it using a vocabulary and train its embedding within your
+  // model.
+  optional tensorflow.DataType dtype = 2;
+
+  // Unique shape dimensions after the common shape. For example, for a per-node
+  // embedding shaped [B, Vi, D], this shape would be [D]. Note that we allow
+  // ragged features in this shape (e.g., to allow sentences of words per node),
+  // but that an unknown rank is not allowed (so that parsing is well-defined).
+  //
+  // Scalar tensors are defined by a shape with no dimensions (you can simply
+  // choose to leave the shape out entirely as well, it's the default value).
+  // Note that feature tensors which contain a single value per node (or per
+  // edge) should be defined as scalar tensors, and NOT defined as tensor with a
+  // single dimension of 1. A common mistake is to specify a shape of `shape {
+  // dim { size: 1 } }` but that would provide a ragged tensor of shape `[B, V,
+  // 1]` which has a redundant shape at the tail. Instead, leave the shape as a
+  // scalar to obtain a simpler (and equivalent) shape of `[B, V]`.
+  optional tensorflow.TensorShapeProto shape = 3;
+
+  // Free-form metadata describing the origin of this feature, any value is
+  // legal. The semantics of this value is typically dependent on the producer
+  // for the feature, but it can be anything you like. Tools upstream from the
+  // graph tensor/schema definition may define special values to trigger
+  // particular features on this. For example, a graph sampler could declare it
+  // will change its behavior depending on the presence of particular of a value
+  // like "graph" or "external" to mean "pick up this feature from the graph,
+  // not from an external file." Since there are a very large number of possible
+  // tools handling the schema, we leave this open. The only guarantee we
+  // provide is that the graph schema code will never interpret the contents of
+  // this field itself.
+  optional string source = 4;
+
+  // Example feature data. This can be used both to document what the data looks
+  // like in the schema proto, and also to sample from when generating bogus
+  // example data. When generating random graph tensor= data, values are sampled
+  // from any array you provided here. This allows us to generate random tensors
+  // with more realistic values (that look more like the real thing).
+  optional tensorflow.Feature sample_values = 6;
+
+  // Extension to attach domain-specific metadata about the feature.
+  repeated tensorflow.Feature example_values = 5 [deprecated = true];
+  extensions 65536 to max;
+}
+
+// Extra information optionally provided on a context, node set or edge set.
+message Metadata {
+  // Arbitrary extra key/value data pairs.
+  // You can use this for a custom purpose.
+  message KeyValue {
+    optional string key = 1;
+    optional string value = 2;
+  }
+  repeated KeyValue extra = 1;
+
+  // Optional filename storing a full table of these features.
+  optional string filename = 2;
+
+  // The total number of items in the full dataset. If this is attached to a
+  // node set, for example, this is the total number of nodes in the entire
+  // graph (not just the sampled subgraph). Note that for datasets that get
+  // regenerated with a varying set of nodes, you can leave this unset. This is
+  // entirely optional.
+  optional int64 cardinality = 3;
+}
+
+// A container for named features of global scope, which may apply to the entire
+// graph or arbitrary subsets of nodes and/or edges.
+message Context {
+  // The list of feature tensors. The keys are the Feature names.
+  // Names starting with with '#' are reserved for internal use.
+  // All the tensors within are prefix-shaped by [B].
+  map<string, Feature> features = 1;
+
+  // Optional metadata associated with the context set.
+  optional Metadata metadata = 2;
+}
+
+// A set of nodes. There should be one instance of this for each unique node
+// type, even if there are no features associated with the node (those nodes are
+// "latent" aggregators of features over edges). Note that it is a valid (and
+// common) use case to have a single node set with edges from and to the same
+// set of nodes.
+message NodeSet {
+  // A free-form description of this entity.
+  optional string description = 1;
+
+  // The list of feature tensors associated with this node set. The keys are the
+  // Feature names. Names starting with with '#' are reserved for internal use.
+  // All the tensors within are prefix-shaped by [B, Vi].
+  //
+  // A node with an empty set of features is allowed; it can represent a
+  // "latent" node, which is learned entirely from the features carried by
+  // incoming edges, and has itself no explicit node features.
+  map<string, Feature> features = 2;
+
+  // Global features associated with this node set. The elements of this list
+  // refer to feature names in the Context object associated with the graph.
+  // This is metadata you can use to indicate how features are related.
+  repeated string context = 3;
+
+  // Optional metadata associated with the node set.
+  optional Metadata metadata = 4;
+}
+
+// A set of edges between two sets of nodes. For example, if you have three sets
+// of nodes A, B, and C, you might have two sets of edges A->B and B->C. Note
+// that edge sets are named, and it's okay to have multiple sets of edges
+// between the same two sets of nodes. It's also valid for edges to be defined
+// from and to the same set of nodes.
+message EdgeSet {
+  // A free-form description of this entity.
+  optional string description = 1;
+
+  // The list of feature tensors associated with this edge set. The keys are the
+  // Feature names. Names starting with with '#' are reserved for internal use.
+  // All the tensors within are prefix-shaped by [B, Ei].
+  //
+  // There are two special features here that are always present:
+  //   'source': A tensor of int32 with shape [B, Ei]
+  //   'target': A tensor of int32 with shape [B, Ei]
+  // Those tensors are not included in the schema description; they are
+  // implicitly defined.
+  map<string, Feature> features = 2;
+
+  // The names of the source and target node sets these edges index into.
+  optional string source = 3;
+  optional string target = 4;
+
+  // Global features associated with this edge set. The elements of this list
+  // refer to feature names in the Context object associated with the graph.
+  // This is metadata you can use to indicate how features are related.
+  repeated string context = 5;
+
+  // Optional metadata associated with the node set.
+  optional Metadata metadata = 6;
+}
+
+// What type of graph this is. Different generator tools (e.g. graph samplers or
+// converters) are able to generate different subsets or projections of graphs;
+// this is a simple enum that includes some of the most common cases.
+enum GraphType {
+  UNDEFINED = 0;
+  FULL = 1;          // A full graph (not a subset of another).
+  SUBGRAPH = 2;      // A subgraph patch, sampled from a larger graph.
+  RANDOM_WALKS = 3;  // Random walks.
+}
+
+// Metadata about the origin of the graph.
+message OriginInfo {
+  // The type of graph represented by this schema.
+  optional GraphType graph_type = 1;
+
+  // If the graph has a root node, this is the name of the node set where it is
+  // located. The root node is by convention the first node of that node set. It
+  // is an error to set this string to a value that is not a declared node set
+  // in the schema.
+  repeated string root_set = 2;
+}

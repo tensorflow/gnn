@@ -1,0 +1,434 @@
+# proto-file: third_party/py/tensorflow_gnn/testdata/examples.proto
+# proto-message: ExampleList
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "2fef12af6f8bdb35"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "amanatsu"
+        }
+      }
+    }
+    feature {
+      key: "edges/tastelike.#size"
+      value {
+        int64_list {
+          value: 2
+        }
+      }
+    }
+    feature {
+      key: "edges/tastelike.#source"
+      value {
+        int64_list {
+          value: 0
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/tastelike.#target"
+      value {
+        int64_list {
+          value: 1
+          value: 2
+        }
+      }
+    }
+    feature {
+      key: "edges/tastelike.weight"
+      value {
+        float_list {
+          value: 0.10000000149011612
+          value: 0.20000000298023224
+        }
+      }
+    }
+    feature {
+      key: "nodes/fruits.#size"
+      value {
+        int64_list {
+          value: 3
+        }
+      }
+    }
+    feature {
+      key: "nodes/fruits.name"
+      value {
+        bytes_list {
+          value: "Amanatsu"
+          value: "Daidai"
+          value: "Lumia"
+        }
+      }
+    }
+  }
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "25a14f2cc0db0227"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "daidai"
+        }
+      }
+    }
+    feature {
+      key: "nodes/fruits.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/fruits.name"
+      value {
+        bytes_list {
+          value: "Daidai"
+        }
+      }
+    }
+  }
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "e16150a083c529a8"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "hassaku"
+        }
+      }
+    }
+    feature {
+      key: "nodes/fruits.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/fruits.name"
+      value {
+        bytes_list {
+          value: "Hassaku"
+        }
+      }
+    }
+  }
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "7bca686ce748c5e4"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "kiyomi"
+        }
+      }
+    }
+    feature {
+      key: "edges/tastelike.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/tastelike.#source"
+      value {
+        int64_list {
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/tastelike.#target"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "edges/tastelike.weight"
+      value {
+        float_list {
+          value: 0.30000001192092896
+        }
+      }
+    }
+    feature {
+      key: "nodes/fruits.#size"
+      value {
+        int64_list {
+          value: 2
+        }
+      }
+    }
+    feature {
+      key: "nodes/fruits.name"
+      value {
+        bytes_list {
+          value: "Kiyomi"
+          value: "Komikan"
+        }
+      }
+    }
+  }
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "05e59c5d4bc2aec2"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "komikan"
+        }
+      }
+    }
+    feature {
+      key: "nodes/fruits.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/fruits.name"
+      value {
+        bytes_list {
+          value: "Komikan"
+        }
+      }
+    }
+  }
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "6ba769de05147cf1"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "lumia"
+        }
+      }
+    }
+    feature {
+      key: "nodes/fruits.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/fruits.name"
+      value {
+        bytes_list {
+          value: "Lumia"
+        }
+      }
+    }
+  }
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "daa6003167b86315"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "mandora"
+        }
+      }
+    }
+    feature {
+      key: "edges/tastelike.#size"
+      value {
+        int64_list {
+          value: 2
+        }
+      }
+    }
+    feature {
+      key: "edges/tastelike.#source"
+      value {
+        int64_list {
+          value: 0
+          value: 0
+        }
+      }
+    }
+    feature {
+      key: "edges/tastelike.#target"
+      value {
+        int64_list {
+          value: 1
+          value: 2
+        }
+      }
+    }
+    feature {
+      key: "edges/tastelike.weight"
+      value {
+        float_list {
+          value: 0.4000000059604645
+          value: 0.5
+        }
+      }
+    }
+    feature {
+      key: "nodes/fruits.#size"
+      value {
+        int64_list {
+          value: 3
+        }
+      }
+    }
+    feature {
+      key: "nodes/fruits.name"
+      value {
+        bytes_list {
+          value: "Mandora"
+          value: "Komikan"
+          value: "Tangelo"
+        }
+      }
+    }
+  }
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "08b68a62facd39a2"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "reikou"
+        }
+      }
+    }
+    feature {
+      key: "nodes/fruits.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/fruits.name"
+      value {
+        bytes_list {
+          value: "Reikou"
+        }
+      }
+    }
+  }
+}
+examples {
+  features {
+    feature {
+      key: "context/sample_id"
+      value {
+        bytes_list {
+          value: "bc3083284a452078"
+        }
+      }
+    }
+    feature {
+      key: "context/seed_id"
+      value {
+        bytes_list {
+          value: "tangelo"
+        }
+      }
+    }
+    feature {
+      key: "nodes/fruits.#size"
+      value {
+        int64_list {
+          value: 1
+        }
+      }
+    }
+    feature {
+      key: "nodes/fruits.name"
+      value {
+        bytes_list {
+          value: "Tangelo"
+        }
+      }
+    }
+  }
+}
+

@@ -1,0 +1,107 @@
+amanatsu
+features {
+  feature {
+    key: "#id"
+    value: { bytes_list: { value: [ "amanatsu" ] } }
+  }
+  feature {
+    key: "name"
+    value: { bytes_list: { value: [ "Amanatsu" ] } }
+  }
+}
+
+daidai
+features {
+  feature {
+    key: "#id"
+    value: { bytes_list: { value: [ "daidai" ] } }
+  }
+  feature {
+    key: "name"
+    value: { bytes_list: { value: [ "Daidai" ] } }
+  }
+}
+
+hassaku
+features {
+  feature {
+    key: "#id"
+    value: { bytes_list: { value: [ "hassaku" ] } }
+  }
+  feature {
+    key: "name"
+    value: { bytes_list: { value: [ "Hassaku" ] } }
+  }
+}
+
+kiyomi
+features {
+  feature {
+    key: "#id"
+    value: { bytes_list: { value: [ "kiyomi" ] } }
+  }
+  feature {
+    key: "name"
+    value: { bytes_list: { value: [ "Kiyomi" ] } }
+  }
+}
+
+komikan
+features {
+  feature {
+    key: "#id"
+    value: { bytes_list: { value: [ "komikan" ] } }
+  }
+  feature {
+    key: "name"
+    value: { bytes_list: { value: [ "Komikan" ] } }
+  }
+}
+
+lumia
+features {
+  feature {
+    key: "#id"
+    value: { bytes_list: { value: [ "lumia" ] } }
+  }
+  feature {
+    key: "name"
+    value: { bytes_list: { value: [ "Lumia" ] } }
+  }
+}
+
+mandora
+features {
+  feature {
+    key: "#id"
+    value: { bytes_list: { value: [ "mandora" ] } }
+  }
+  feature {
+    key: "name"
+    value: { bytes_list: { value: [ "Mandora" ] } }
+  }
+}
+
+reikou
+features {
+  feature {
+    key: "#id"
+    value: { bytes_list: { value: [ "reikou" ] } }
+  }
+  feature {
+    key: "name"
+    value: { bytes_list: { value: [ "Reikou" ] } }
+  }
+}
+
+tangelo
+features {
+  feature {
+    key: "#id"
+    value: { bytes_list: { value: [ "tangelo" ] } }
+  }
+  feature {
+    key: "name"
+    value: { bytes_list: { value: [ "Tangelo" ] } }
+  }
+}

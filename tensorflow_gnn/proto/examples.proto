@@ -1,0 +1,11 @@
+syntax = "proto2";
+
+package tensorflow_gnn.testdata;
+
+import "tensorflow/core/example/example.proto";
+
+// Specifies one or more Examples. This is used to aid testing readability by
+// allowing us to specify multiple Examples in an ASCII proto file.
+message ExampleList {
+  repeated tensorflow.Example examples = 1;
+}

@@ -1,0 +1,173 @@
+// Sampling configuration for heterogeneous graphs.
+//
+//
+// The `SamplingSpec` message specifies a sampling configuration. It is composed
+// of a `SeedOp` operation and various `SamplingOp` operations. Operations must
+// have unique names.
+//
+// Subgraph sampling is rooted on seed nodes described by `seed_op` (a
+// `SeedOp` message), and uses graph edges filtered by `sampling_ops`
+// (`SamplingOp` messages).
+//
+// Each `SamplingOp` message specifies one hop of sampling. They can be
+// composed arbitrarily within constraints implied by the graph schema and the
+// output of one can be the input of the next. You should cascade sampling ops
+// carefully because the growth is exponential (the product of sampling sizes).
+//
+// Example 1: Sampling from a YouTube content owners graph, their channels and
+// the videos belonging to those channels:
+//
+//   seed_op {
+//     op_name: 'seed'
+//     node_set_name: 'owner'
+//   }
+//   sampling_ops {
+//     op_name: 'hop-1'
+//     input_op_names: [ 'seed' ]
+//     strategy: TOP_K
+//     sample_size: 16
+//     edge_set_name: 'owner->channel'
+//   }
+//   sampling_ops {
+//     op_name: 'hop-2'
+//     input_op_names: [ 'hop-1' ]
+//     strategy: RANDOM_UNIFORM
+//     sample_size: 32
+//     edge_set_name: 'channel->video'
+//   }
+//
+// Sampling starts from a collection of content owners (seeds). For those seeds,
+// 'hop-1' selects up to 16 channels with the largest 'owner->channel' edge
+// weights. Subsequently 'hop-2' extracts up to 32 random videos for each
+// sampled channel.
+//
+// Example 2: Sampling graphs of users, their queries and resulting documents.
+//
+//   seed_op {
+//     op_name: 'seed'
+//     node_set_name: 'user'
+//   }
+//   sampling_ops {
+//     op_name: 'hop-1-top'
+//     input_op_names: [ 'seed' ]
+//     strategy: TOP_K
+//     sample_size: 64
+//     edge_set_name: 'user->query'
+//   }
+//   sampling_ops {
+//     op_name: 'hop-1-rnd'
+//     input_op_names: [ 'seed' ]
+//     strategy: RANDOM_UNIFORM
+//     sample_size: 64
+//     edge_set_name: 'user->query'
+//   }
+//   sampling_ops {
+//     op_name: 'hop-2'
+//     input_op_names: [ 'hop-1-rnd', 'hop-1-top' ]
+//     strategy: TOP_K
+//     sample_size: 16
+//     edge_set_name: 'query->document'
+//   }
+//
+// This configuration samples top- and random 64 queries for each user.
+// Then, 'hop-2' extracts the top 16 documents for each unique user query.
+//
+// Example 3: Ensure closed loops with seed nodes.
+//
+//   seed_op {
+//     op_name: 'seed'
+//     node_set_name: 'user'
+//   }
+//   sampling_ops {
+//     op_name: 'hop1'
+//     input_op_names: [ 'seed' ]
+//     strategy: TOP_K
+//     sample_size: 32
+//     edge_set_name: 'user->query'
+//   }
+//   sampling_ops {
+//     op_name: 'hop2'
+//     input_op_names: [ 'hop1' ]
+//     strategy: TOP_K
+//     sample_size: 16
+//     edge_set_name: 'user->query'
+//   }
+//   edge_sampling_ops {
+//     op_name: 'cycle:hop12->seed'
+//     source_nodes_op_names: [ 'hop1', 'hop2' ]
+//     target_nodes_op_names: [ 'seed' ]
+//     strategy: TOP_K
+//     sample_size: 1000
+//     edge_set_name: 'query->user'
+//   }
+//
+// This configuration first samples 32x16 TOP_K edges. Then it extracts up to
+// 1000 top-weighted 'query->user' edges (read ALL) connecting specified sets of
+// source nodes and target nodes. Source nodes are defined as results of 'hop1'
+// and 'hop2' sampling stages (`source_nodes_op_names`). Target nodes are
+// constrained to the 'seed' nodes (`source_nodes_op_names`).
+// NOTE: empty `source_nodes_op_names`/`target_nodes_op_names` lists is
+// equivalent to an edge sampling for all sampled source/target nodes.
+syntax = "proto2";
+
+package tensorflow_gnn.sampler;
+
+message SamplingSpec {
+  // The seed nodes specification. Note that actual seed IDs must be passed in
+  // elsewhere, e.g. as a flag to the binary.
+  optional SeedOp seed_op = 1;
+
+  // List of connected sampling operations.
+  repeated SamplingOp sampling_ops = 2;
+
+  // If true, insert an extra `seed_id` and `sample_id` context feature to
+  // identify the seeds/samples.
+  optional bool insert_sample_ids = 3;
+
+  // Insert an `id` feature for the node ids. This can be useful for debugging,
+  // but otherwise wasteful.
+  optional string node_id_feature = 4;
+}
+
+// Defines the nodes from where to start the sampling.
+message SeedOp {
+  // Reference name for this operation, must be unique.
+  optional string op_name = 1;
+
+  // The seed nodes set name.
+  optional string node_set_name = 2;
+}
+
+// Defines how to sample graph edges for a set of source nodes. The sampling
+// operation is defined for an `edge_set_name` edge set. Edges are sampled
+// independently for each source node. The source nodes are specified as the
+// results of upstream sampling operations (defined in `input_op_names`). The
+// sampling operation yields a set of target nodes of sampled edges which can
+// be used as an input for downstream sampling operations.
+message SamplingOp {
+  // Reference name for this operation, must be unique.
+  optional string op_name = 1;
+
+  // The list of operation names. Each of those up-stream operations yields
+  // a set of target nodes of sampled edges. The current operation takes a union
+  // without duplicates of those pairs as its input.
+  repeated string input_op_names = 2;
+
+  // The edge set name for which this operation is defined.
+  optional string edge_set_name = 3;
+
+  // The maximum number of edges to sample.
+  optional int32 sample_size = 4;
+
+  // The sampling strategy to use.
+  optional SamplingStrategy strategy = 5;
+}
+
+// Supported sampling strategies.
+enum SamplingStrategy {
+  // Extracts up to `sample_size` edges with the highest weights. The result
+  // of this operation is deterministic: in case of edges with equal weights,
+  // they are selected based on their id (or target node id if edge id is not
+  // set.)
+  TOP_K = 0;
+}
