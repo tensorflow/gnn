@@ -2,9 +2,8 @@
 
 import collections
 import copy
-from typing import Any, Callable, Dict, List, Mapping, Optional, Union
-
 import dataclasses
+from typing import Any, Callable, Dict, List, Mapping, Optional, Union
 
 from tensorflow_gnn.graph import graph_constants as const
 
