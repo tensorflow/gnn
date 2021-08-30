@@ -148,6 +148,7 @@ console_scripts = [
     'tensorflow_gnn.sampler.nx_generator',
     'tensorflow_gnn.tools.generate_training_data',
     'tensorflow_gnn.tools.print_training_data',
+    'tensorflow_gnn.tools.sampled_stats',
     'tensorflow_gnn.tools.validate_graph_schema',
 ]
 

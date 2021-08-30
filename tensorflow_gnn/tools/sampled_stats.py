@@ -202,7 +202,8 @@ class WriteTextProto(beam.PTransform):
                 self.filename, num_shards=None, shard_name_template=""))
 
 
-def main(unused_argv):
+def app_main(unused_argv):
+  FLAGS = flags.FLAGS  # pylint: disable=invalid-name
   run_pipeline(FLAGS.input_pattern,
                FLAGS.input_format,
                tfgnn.read_schema(FLAGS.graph_schema),
@@ -211,6 +212,10 @@ def main(unused_argv):
                FLAGS.runner)
 
 
+def main():
+  define_flags()
+  app.run(app_main)
+
+
 if __name__ == "__main__":
-  FLAGS = define_flags()
-  app.run(main)
+  main()
