@@ -20,7 +20,7 @@ FLAGS = flags.FLAGS
 def define_flags():
   """Define the program flags."""
 
-  flags.DEFINE_string("schema", None,
+  flags.DEFINE_string("graph_schema", None,
                       ("A filename to a text-formatted schema proto of the "
                        "available graph features."))
 
@@ -34,7 +34,7 @@ def define_flags():
   flags.DEFINE_integer("num_examples", 100,
                        "The number of examples to generate.")
 
-  flags.mark_flag_as_required("schema")
+  flags.mark_flag_as_required("graph_schema")
   flags.mark_flag_as_required("examples")
 
 
@@ -68,7 +68,7 @@ def generate_training_data(schema_filename: str,
 
 
 def app_main(_):
-  generate_training_data(FLAGS.schema,
+  generate_training_data(FLAGS.graph_schema,
                          FLAGS.examples,
                          FLAGS.file_format,
                          FLAGS.num_examples)

@@ -18,16 +18,16 @@ FLAGS = flags.FLAGS
 def define_flags():
   """Define program flags."""
 
-  flags.DEFINE_string("schema", None,
+  flags.DEFINE_string("graph_schema", None,
                       ("A filename to a text-formatted schema proto describing "
                        "the available graph features."))
 
-  flags.mark_flag_as_required("schema")
+  flags.mark_flag_as_required("graph_schema")
 
 
 def app_main(unused_argv):
   """App runner main function."""
-  schema = tfgnn.read_schema(FLAGS.schema)
+  schema = tfgnn.read_schema(FLAGS.graph_schema)
   try:
     warnings = tfgnn.validate_schema(schema)
     for warning in warnings:

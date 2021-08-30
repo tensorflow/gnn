@@ -22,7 +22,7 @@ FLAGS = flags.FLAGS
 def define_flags():
   """Define the program flags."""
 
-  flags.DEFINE_string('schema', None,
+  flags.DEFINE_string('graph_schema', None,
                       'Filename containing text-formatted schema.')
 
   flags.DEFINE_string('examples', None,
@@ -55,7 +55,7 @@ def get_dataset(pattern: str, file_format: str) -> tf.data.Dataset:
 def app_main(_):
   """Read some graph tensor training subgraph examples and print them."""
 
-  schema = tfgnn.read_schema(FLAGS.schema)
+  schema = tfgnn.read_schema(FLAGS.graph_schema)
   spec = tfgnn.create_graph_spec_from_schema_pb(schema)
 
   # Read the input Example protos.
@@ -91,7 +91,7 @@ def app_main(_):
 
 def main():
   define_flags()
-  flags.mark_flag_as_required('schema')
+  flags.mark_flag_as_required('graph_schema')
   flags.mark_flag_as_required('examples')
   app.run(app_main)
 

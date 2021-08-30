@@ -37,6 +37,6 @@ stats:
 
 print:
 	$(PYTHON) $(PREFIX)/bin/tfgnn_print_training_data	\
-		--schema=$(ROOT)/graph/schema.pbtxt		\
+		--graph_schema=$(ROOT)/graph/schema.pbtxt	\
 		--examples=$(ROOT)/training/data-?????-of-00020	\
 		--file_format=tfrecord
