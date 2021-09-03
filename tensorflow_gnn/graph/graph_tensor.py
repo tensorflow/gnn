@@ -214,7 +214,7 @@ class _NodeOrEdgeSet(_GraphPieceWithFeatures):
 
   @property
   def total_size(self) -> tf.Tensor:
-    """Returns the total number of edges across dimensions.
+    """Returns the total number of elements across dimensions.
 
     Returns:
       Scalar integer tensor equal to `tf.math.reduce_sum(sizes)`.
