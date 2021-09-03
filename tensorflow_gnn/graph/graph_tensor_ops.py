@@ -9,6 +9,7 @@ import tensorflow as tf
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import tensor_utils as utils
+from tensorflow_gnn.graph.keras import keras_tensors as kt
 
 Field = const.Field
 FieldName = const.FieldName
@@ -16,6 +17,7 @@ NodeSetName = const.NodeSetName
 EdgeSetName = const.EdgeSetName
 IncidentNodeTag = const.IncidentNodeTag
 GraphTensor = gt.GraphTensor
+GraphKerasTensor = kt.GraphKerasTensor
 
 # Unsorted reduce operation.
 #
@@ -376,6 +378,11 @@ def register_reduce_operation(reduce_type: str,
         ' to allow to redefine existing operations.')
   assert callable(unsorted_reduce_op)
   _REGISTERED_REDUCE_OPS[reduce_type] = unsorted_reduce_op
+
+
+def is_graph_tensor(value: Any) -> bool:
+  """Returns whether `value` is a GraphTensor (possibly wrapped for Keras)."""
+  return isinstance(value, (GraphTensor, GraphKerasTensor))
 
 
 def _resolve_reduce_op(reduce_type: str) -> UnsortedReduceOp:

@@ -89,6 +89,7 @@ random_graph_tensor = graph_tensor_random.random_graph_tensor
 
 # Operations.
 broadcast_node_to_edges = graph_tensor_ops.broadcast_node_to_edges
+is_graph_tensor = graph_tensor_ops.is_graph_tensor
 pool_edges_to_node = graph_tensor_ops.pool_edges_to_node
 broadcast_context_to_nodes = graph_tensor_ops.broadcast_context_to_nodes
 broadcast_context_to_edges = graph_tensor_ops.broadcast_context_to_edges
