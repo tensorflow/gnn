@@ -20,6 +20,7 @@ from tensorflow_gnn.graph import graph_tensor_ops
 from tensorflow_gnn.graph import graph_tensor_pprint
 from tensorflow_gnn.graph import graph_tensor_random
 from tensorflow_gnn.graph import keras  # For use as a subpackage.
+from tensorflow_gnn.graph import normalization_ops
 from tensorflow_gnn.graph import schema_utils
 from tensorflow_gnn.graph import schema_validation
 from tensorflow_gnn.proto import graph_schema
@@ -100,6 +101,9 @@ get_registered_reduce_operation_names = (
     graph_tensor_ops.get_registered_reduce_operation_names)
 register_reduce_operation = graph_tensor_ops.register_reduce_operation
 
+# Normalization operations.
+softmax_edges_per_node = normalization_ops.softmax_edges_per_node
+
 # Schema conversion and I/O functions.
 parse_schema = schema_utils.parse_schema
 read_schema = schema_utils.read_schema
@@ -124,6 +128,7 @@ del graph_tensor_io
 del graph_tensor_ops
 del graph_tensor_pprint
 del graph_tensor_random
+del normalization_ops
 del graph_schema
 del schema_utils
 del schema_validation

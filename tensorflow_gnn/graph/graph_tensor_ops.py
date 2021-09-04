@@ -73,7 +73,7 @@ def broadcast_node_to_edges(graph_tensor: GraphTensor,
   _assert_scalar_graph_tensor(graph_tensor)
   adjacency = graph_tensor.edge_sets[edge_set_name].adjacency
   node_name = adjacency.node_set_name(node_tag)
-  node_value = _resolve_value(
+  node_value = resolve_value(
       graph_tensor.node_sets[node_name],
       feature_value=feature_value,
       feature_name=feature_name)
@@ -123,7 +123,7 @@ def pool_edges_to_node(graph_tensor: GraphTensor,
   _assert_scalar_graph_tensor(graph_tensor)
   unsorted_reduce_op = _resolve_reduce_op(reduce_type)
 
-  edge_value = _resolve_value(
+  edge_value = resolve_value(
       graph_tensor.edge_sets[edge_set_name],
       feature_value=feature_value,
       feature_name=feature_name)
@@ -326,7 +326,7 @@ def gather_first_node(graph_tensor: GraphTensor,
   """
   _assert_scalar_graph_tensor(graph_tensor)
   node_set = graph_tensor.node_sets[node_set_name]
-  node_value = _resolve_value(
+  node_value = resolve_value(
       node_set, feature_value=feature_value, feature_name=feature_name)
 
   components_starts = tf.math.cumsum(node_set.sizes, exclusive=True)
@@ -404,11 +404,11 @@ def _assert_scalar_graph_tensor(graph_tensor: GraphTensor) -> None:
         ' graph tensor to a scalar graph tensor.'))
 
 
-def _resolve_value(values_map: Any,
-                   *,
-                   feature_value: Optional[Field] = None,
-                   feature_name: Optional[str] = None) -> Field:
-  """Resolves feature value by it name or provided value."""
+def resolve_value(values_map: Any,
+                  *,
+                  feature_value: Optional[Field] = None,
+                  feature_name: Optional[str] = None) -> Field:
+  """Resolves feature value by its name or provided value."""
   if (feature_value is None) == (feature_name is None):
     raise ValueError('One of feature name of feature value must be specified.')
 
@@ -417,7 +417,7 @@ def _resolve_value(values_map: Any,
     return feature_value
   if feature_name is not None:
     return values_map[feature_name]
-  assert False
+  assert False, 'This should never happen, please file a bug with TF-GNN.'
 
 
 def _broadcast_context(graph_tensor: GraphTensor,
@@ -429,7 +429,7 @@ def _broadcast_context(graph_tensor: GraphTensor,
 
   _assert_scalar_graph_tensor(graph_tensor)
 
-  context_value = _resolve_value(
+  context_value = resolve_value(
       graph_tensor.context,
       feature_value=feature_value,
       feature_name=feature_name)
@@ -451,7 +451,7 @@ def _pool_to_context(graph_tensor: GraphTensor,
   _assert_scalar_graph_tensor(graph_tensor)
   assert feature_name is None or isinstance(feature_name, str)
 
-  value = _resolve_value(
+  value = resolve_value(
       node_or_edge_set, feature_value=feature_value, feature_name=feature_name)
 
   sizes = node_or_edge_set.sizes
