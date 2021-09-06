@@ -300,13 +300,14 @@ def gather_first_node(graph_tensor: GraphTensor,
   """Gathers feature value from the first node of each graph component.
 
   Given a particular node set (identified by `node_set_name`), this operation
-  will gather the first node feature for each graph component.
+  will gather the given feature from the first node of each graph component.
 
   This is often used for rooted graphs created by sampling around the
   neighborhoods of seed nodes in a large graph: by convention, each seed node is
   the first node of its component in the respective node set, and this operation
   reads out the information it has accumulated there. (In other node sets, the
-  first node may be arbitrary.)
+  first node may be arbitrary -- or nonexistant, in which case this operation
+  must not be used and may raise an error at runtime.)
 
   The feature to fetch node values from is provided either by name (using
   `feature_name`) and found in the graph tensor itself, or provided explicitly
@@ -321,7 +322,7 @@ def gather_first_node(graph_tensor: GraphTensor,
     feature_name: A node feature name.
 
   Returns:
-    A tensor of node feature values, one for each graph component, like a
+    A tensor of gathered feature values, one for each graph component, like a
     context feature.
   """
   _assert_scalar_graph_tensor(graph_tensor)
@@ -329,8 +330,14 @@ def gather_first_node(graph_tensor: GraphTensor,
   node_value = resolve_value(
       node_set, feature_value=feature_value, feature_name=feature_name)
 
-  components_starts = tf.math.cumsum(node_set.sizes, exclusive=True)
-  return tf.gather(node_value, components_starts)
+  sizes = node_set.sizes
+  assert_positive_sizes = tf.debugging.assert_positive(
+      sizes,
+      message=f'tfgnn.gather_first_node(..., node_set_name={node_set_name}) '
+      'called for a graph in which one or more components contain no nodes.')
+  with tf.control_dependencies([assert_positive_sizes]):
+    components_starts = tf.math.cumsum(sizes, exclusive=True)
+    return tf.gather(node_value, components_starts)
 
 
 # TODO(b/184021014): provide min/max pooling with NN friendly default values

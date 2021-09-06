@@ -395,8 +395,8 @@ class BroadcastingTest(tf.test.TestCase, parameterized.TestCase):
           ops.broadcast_context_to_edges(graph, 'edge', feature_name=fname))
 
 
-class SeedOpsTest(tf.test.TestCase, parameterized.TestCase):
-  """Tests for seed nodes operations."""
+class FirstNodeOpsTest(tf.test.TestCase, parameterized.TestCase):
+  """Tests for operations on first nodes per component (e.g., root nodes)."""
 
   @parameterized.parameters([
       dict(
@@ -432,13 +432,23 @@ class SeedOpsTest(tf.test.TestCase, parameterized.TestCase):
               'ragged': as_ragged([[1, 2], []])
           })
   ])
-  def testGatherFromSeed(self, description: str, node_set: gt.NodeSet,
-                         expected_fields: Mapping[str, const.Field]):
+  def testGatherFirstNode(self, description: str, node_set: gt.NodeSet,
+                          expected_fields: Mapping[str, const.Field]):
     graph = gt.GraphTensor.from_pieces(node_sets={'node': node_set})
 
     for fname, expected in expected_fields.items():
       self.assertAllEqual(
           expected, ops.gather_first_node(graph, 'node', feature_name=fname))
+
+  def testGatherFirstNodeFails(self):
+    graph = gt.GraphTensor.from_pieces(node_sets={
+        'node': gt.NodeSet.from_fields(
+            sizes=as_tensor([2, 0, 1]),
+            features={'scalar': as_tensor([1., 2., 3])})})
+
+    with self.assertRaisesRegex(tf.errors.InvalidArgumentError,
+                                r'gather_first_node.* no nodes'):
+      _ = ops.gather_first_node(graph, 'node', feature_name='scalar')
 
 
 if __name__ == '__main__':
