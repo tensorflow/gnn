@@ -8,6 +8,7 @@ from tensorflow_gnn.graph.keras.layers.gat import gatv2
 Broadcast = graph_ops.Broadcast
 Pool = graph_ops.Pool
 Readout = graph_ops.Readout
+ReadoutFirstNode = graph_ops.ReadoutFirstNode
 
 EdgeSetUpdate = graph_update.EdgeSetUpdate
 NodeSetUpdate = graph_update.NodeSetUpdate

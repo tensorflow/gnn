@@ -216,6 +216,103 @@ def _format_as_kwargs(kwargs_dict):
   return ", ".join([f"{k}={repr(v)}" for k, v in kwargs_dict.items()])
 
 
+@tf.keras.utils.register_keras_serializable(package="GNN")
+class ReadoutFirstNode(UpdateInputLayerExtended):
+  """Reads a feature from the first node of each graph conponent.
+
+  Given a particular node set (identified by `node_set_name`), this layer
+  will gather the given feature from the first node of each graph component.
+
+  This is often used for rooted graphs created by sampling around the
+  neighborhoods of seed nodes in a large graph: by convention, each seed node is
+  the first node of its component in the respective node set, and this layer
+  reads out the information it has accumulated there. (In other node sets, the
+  first node may be arbitrary -- or nonexistant, in which case this operation
+  must not be used and may raise an error at runtime.)
+
+  Init args:
+    node_set_name: If set, the feature will be read from this node set.
+    feature_name: The name of the feature to read. If unset (also in call),
+      tfgnn.DEFAULT_STATE_NAME will be read.
+
+  Call args:
+    graph: The GraphTensor to read from.
+    node_set_name: Same meaning as for init. Must be passed to init, or to call,
+      or to both (with the same value).
+    feature_name: Same meaning as for init. If passed to both, the value must
+      be the same. If passed to neither, tfgnn.DEFAULT_STATE_NAME is used.
+
+  Returns:
+    A tensor of gathered feature values, one for each graph component, like a
+    context feature.
+  """
+
+  def __init__(self,
+               *,
+               node_set_name: Optional[gt.NodeSetName] = None,
+               feature_name: Optional[gt.FieldName] = None,
+               **kwargs):
+    super().__init__(**kwargs)
+    self._node_set_name = node_set_name
+    self._feature_name = feature_name
+
+  def get_config(self):
+    config = super().get_config().copy()
+    config["node_set_name"] = self._node_set_name
+    config["feature_name"] = self._feature_name
+    return config
+
+  def call(self,
+           graph: gt.GraphTensor,
+           *,
+           node_set_name: Optional[gt.NodeSetName] = None,
+           feature_name: Optional[gt.FieldName] = None) -> gt.Field:
+
+    _check_init_call_arg_consistency("ReadoutFirstNode", "node_set_name",
+                                     self._node_set_name, node_set_name)
+    if node_set_name is None:
+      node_set_name = self._node_set_name
+    if node_set_name is None:
+      raise ValueError("The ReadoutFirstNode layer requires node_set_name "
+                       "to be set at init or call time")
+
+    _check_init_call_arg_consistency("ReadoutFirstNode", "feature_name",
+                                     self._feature_name, feature_name)
+    if feature_name is None:
+      feature_name = self._feature_name
+    if feature_name is None:
+      feature_name = const.DEFAULT_STATE_NAME
+
+    return ops.gather_first_node(
+        graph, node_set_name, feature_name=feature_name)
+
+  def _call_for_edge_set(self, *args, edge_set_name: str, **kwargs):
+    """Internal use only: implements UpdateInputLayerExtended."""
+    raise ValueError("EdgeSetUpdate does not expect ReadoutFirstNode()")
+
+  def _call_for_node_set(self, *args, node_set_name: str, **kwargs):
+    """Internal use only: implements UpdateInputLayerExtended."""
+    raise ValueError("NodeSetUpdate does not expect ReadoutFirstNode()")
+
+  def _call_for_context(self, *args, **kwargs):
+    """Internal use only: implements UpdateInputLayerExtended."""
+    return self(*args, **kwargs)
+
+  @property
+  def location(self) -> Mapping[str, Any]:
+    """Returns a dict with the kwarg to init that selected the feature location.
+    """
+    if self._node_set_name is not None:
+      return dict(node_set_name=self._node_set_name)
+    else:
+      return dict()
+
+  @property
+  def feature_name(self) -> Optional[gt.FieldName]:
+    """Returns the feature_name argument to init, or None if unset."""
+    return self._feature_name
+
+
 class BroadcastPoolBase(UpdateInputLayerExtended):
   """Base class to Broadcast and Pool.
 

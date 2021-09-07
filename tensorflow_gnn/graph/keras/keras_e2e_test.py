@@ -28,6 +28,7 @@ class ExportedKerasNamesTest(tf.test.TestCase):
     self.assertIsSubclass(tfgnn.keras.layers.Broadcast, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.Pool, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.Readout, Layer)
+    self.assertIsSubclass(tfgnn.keras.layers.ReadoutFirstNode, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.EdgeSetUpdate, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.NodeSetUpdate, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.ContextUpdate, Layer)

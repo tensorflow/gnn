@@ -901,6 +901,19 @@ class ContextUpdateTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(graph.context[const.DEFAULT_STATE_NAME],
                         expected)
 
+  def testReadoutFirstNode(self):
+    """Tests input from ReadoutFirstNode."""
+    values = dict(context=tf.constant([[1.]]),
+                  nodes=tf.constant([[2.], [4.], [8.]]))
+    input_graph = _make_test_graph_01into2(values)
+    update = graph_update.ContextUpdate(
+        input_fns=[graph_ops.ReadoutFirstNode(node_set_name="nodes")],
+        update_fn=tf.keras.layers.Dense(
+            1, use_bias=False, name="update",
+            kernel_initializer=tf.keras.initializers.Constant([[10.]])))
+    graph = update(input_graph)
+    self.assertAllClose(graph.context[const.DEFAULT_STATE_NAME], [[20.]])
+
 
 class DoubleInputFromContext(tf.keras.layers.Layer):
   """Has a weight, does not implement UpdateInputLayerExtended, trains funny."""

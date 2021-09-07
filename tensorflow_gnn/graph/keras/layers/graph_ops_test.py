@@ -127,6 +127,74 @@ class ReadoutTest(tf.test.TestCase, parameterized.TestCase):
     return graph
 
 
+class ReadoutFirstNodeTest(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      ("Dense", "dense", [[11.], [13.]]),
+      ("Ragged", "ragged", [[110., 111.], [130.]]))
+  def testFeatureName(self, feature_name, expected):
+    graph = self._make_test_graph_22()
+
+    readout = graph_ops.ReadoutFirstNode(node_set_name="nodes",
+                                         feature_name=feature_name)
+    self.assertEqual(feature_name, readout.feature_name)
+    self.assertAllEqual(expected, readout(graph))
+
+    with self.assertRaisesRegex(ValueError, r"initialized .* but called with"):
+      readout(graph, feature_name="other")
+
+  def testFeatureNameDefault(self):
+    graph = self._make_test_graph_22()
+    self.assertAllEqual(
+        [[1.], [3.]],
+        graph_ops.ReadoutFirstNode(node_set_name="nodes")(graph))
+
+  def testFeatureLocation(self):
+    graph = self._make_test_graph_22()
+    value = [[1.], [3.]]
+    readout = graph_ops.ReadoutFirstNode(node_set_name="nodes")
+    self.assertEqual(dict(node_set_name="nodes"), readout.location)
+    self.assertAllEqual(value, readout(graph))
+    self.assertAllEqual(value, readout(graph, node_set_name="nodes"))
+
+    readout = graph_ops.ReadoutFirstNode()
+    self.assertEqual({}, readout.location)
+    self.assertAllEqual(value, readout(graph, node_set_name="nodes"))
+
+  def testBadFeatureLocation(self):
+    graph = self._make_test_graph_22()
+    with self.assertRaisesRegex(ValueError, r"initialized .* but called with"):
+      readout = graph_ops.ReadoutFirstNode(node_set_name="wronk")
+      _ = readout(graph, node_set_name="nodes")
+    with self.assertRaisesRegex(ValueError, "requires node_set_name"):
+      graph_ops.ReadoutFirstNode()(graph)
+
+  def testFromConfig(self):
+    graph = self._make_test_graph_22()
+    value = [[11.], [13.]]
+    kwargs = dict(node_set_name="nodes", feature_name="dense",
+                  name="test_readout_first")
+    config = graph_ops.ReadoutFirstNode(**kwargs).get_config()
+    self.assertDictContainsSubset(kwargs, config)
+
+    readout = graph_ops.ReadoutFirstNode.from_config(config)
+    self.assertEqual("dense", readout.feature_name)
+    self.assertEqual(dict(node_set_name="nodes"), readout.location)
+    self.assertAllEqual(value, readout(graph))
+
+  def _make_test_graph_22(self):
+    graph = gt.GraphTensor.from_pieces(
+        node_sets={"nodes": gt.NodeSet.from_fields(
+            sizes=tf.constant([2, 2]),
+            features={
+                "dense": tf.constant([[11.], [12.], [13.], [14.]]),
+                "ragged": tf.ragged.constant([
+                    [110., 111.], [120.], [130.], [140., 141.]]),
+                const.DEFAULT_STATE_NAME: tf.constant([[1.], [2.], [3.], [4.]]),
+            })})
+    return graph
+
+
 class BroadcastTest(tf.test.TestCase, parameterized.TestCase):
 
   def testFeatureName(self):
