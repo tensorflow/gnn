@@ -4,10 +4,11 @@
 #
 
 # Temporary installation prefix setup on Linux.
-PYTHON= python3.8
+PYVERSION = 3.9
+PYTHON = python$(PYVERSION)
 PREFIX ?= /tmp/install
 SOURCE ?= /tmp/tensorflow_gnn
-PYTHONPATH = $(PREFIX)/lib/python3.8/site-packages:$PYTHONPATH
+PYTHONPATH = $(PREFIX)/lib/$(PYTHON)/site-packages:$PYTHONPATH
 
 # Selected dataset.
 DATASET = ogbn-arxiv
