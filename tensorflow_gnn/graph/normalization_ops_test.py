@@ -1,7 +1,7 @@
+from absl.testing import parameterized
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
-from google3.testing.pybase import parameterized
 
 ct = tf.constant
 rt = tf.ragged.constant
