@@ -13,11 +13,13 @@ ReadoutFirstNode = graph_ops.ReadoutFirstNode
 EdgeSetUpdate = graph_update.EdgeSetUpdate
 NodeSetUpdate = graph_update.NodeSetUpdate
 ContextUpdate = graph_update.ContextUpdate
+GraphUpdate = graph_update.GraphUpdate
 
 GraphUpdateOptions = graph_update_options.GraphUpdateOptions
 GraphUpdateEdgeSetOptions = graph_update_options.GraphUpdateEdgeSetOptions
 GraphUpdateNodeSetOptions = graph_update_options.GraphUpdateNodeSetOptions
 GraphUpdateContextOptions = graph_update_options.GraphUpdateContextOptions
+UpdateInputEnabled = graph_update_options.UpdateInputEnabled
 
 # GATv2 model.
 GATv2 = gatv2.GATv2

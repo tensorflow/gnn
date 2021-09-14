@@ -11,6 +11,11 @@ from tensorflow_gnn.graph.keras.layers import graph_update_options as opt
 from tensorflow_gnn.graph.keras.utils import fnn_factory
 
 
+NEVER = opt.UpdateInputEnabled.NEVER
+ALWAYS = opt.UpdateInputEnabled.ALWAYS
+ON_UPDATE = opt.UpdateInputEnabled.ON_UPDATE
+
+
 class CombinedUpdateTest(tf.test.TestCase, parameterized.TestCase):
 
   def testFromDefaults(self):
@@ -425,18 +430,24 @@ class EdgeSetUpdateTest(tf.test.TestCase, parameterized.TestCase):
                         [[12., 6.], [36., 30.]])  # Reversed.
 
   @parameterized.named_parameters(
-      ("Baseline", None, None, [[3.], [3.]]),
-      ("BaselineExplicit", False, False, [[3.], [3.]]),
-      ("Recurrent", True, False, [[7.], [7.]]),
-      ("Context", False, True, [[11.], [11.]]),
-      ("Both", True, True, [[15.], [15.]]))
-  def testDefaultInputs(self, use_recurrent_state, use_context, expected):
+      ("Baseline", None, None, None, [[3.], [3.]]),
+      ("BaselineExplicit", [const.SOURCE, const.TARGET], False, False,
+       [[3.], [3.]]),
+      ("SourceOnly", [const.SOURCE], False, False, [[1.], [1.]]),
+      ("TargetOnly", [const.TARGET], False, False, [[2.], [2.]]),
+      ("Recurrent", None, True, False, [[7.], [7.]]),
+      ("RecurrentOnly", [], True, False, [[4.], [4.]]),
+      ("Context", None, False, True, [[11.], [11.]]),
+      ("ContextAndRecurrent", None, True, True, [[15.], [15.]]))
+  def testDefaultInputs(self, use_node_tags, use_recurrent_state, use_context,
+                        expected):
     values = dict(nodes=tf.constant([[1.], [1.], [2.]]),
                   edges=tf.constant([[4.], [4.]]),
                   context=tf.constant([[8.]]))
     input_graph = _make_test_graph_01into2(values)
     update_fn = tf.keras.layers.Dense(1, use_bias=False)
     options = opt.GraphUpdateOptions()
+    options.edge_set_default.update_use_node_tags = use_node_tags
     options.edge_set_default.update_use_recurrent_state = use_recurrent_state
     options.edge_set_default.update_use_context = use_context
     update = graph_update.EdgeSetUpdate(
@@ -615,21 +626,26 @@ class NodeSetUpdateTest(tf.test.TestCase, parameterized.TestCase):
                         [[12., 6.], [24., 18.], [36., 30.]])  # Reversed.
 
   @parameterized.named_parameters(
-      ("Default", None, None, None, [[2.], [4.], [8.+16.+32.]]),
-      ("DefaultContext", None, True, None, [[3.], [5.], [8.+16.+32.+1]]),
-      ("DefaultRecurrent", None, None, True, [[2.], [4.], [8.+16.+32.]]),
-      ("DefaultNonRecurrent", None, None, False, [[0.], [0.], [16.+32.]]),
-      ("Target", [const.TARGET], False, None, [[2.], [4.], [8.+16.+32.]]),
-      ("TargetContext", [const.TARGET], True, None,
+      ("Default", None, None, None, None, [[2.], [4.], [8.+16.+32.]]),
+      ("DefaultContext", None, True, None, None, [[3.], [5.], [8.+16.+32.+1]]),
+      ("DefaultRecurrent", None, None, True, None, [[2.], [4.], [8.+16.+32.]]),
+      ("DefaultNonRecurrent", None, None, False, None, [[0.], [0.], [16.+32.]]),
+      ("Target", [const.TARGET], False, None, None, [[2.], [4.], [8.+16.+32.]]),
+      ("TargetContext", [const.TARGET], True, None, None,
        [[3.], [5.], [8.+16.+32.+1]]),
-      ("Source", [const.SOURCE], False, None, [[2.+16.], [4.+32.], [8.]]),
-      ("SourceContext", [const.SOURCE], True, None,
+      ("Source", [const.SOURCE], False, None, None, [[2.+16.], [4.+32.], [8.]]),
+      ("SourceContext", [const.SOURCE], True, None, None,
        [[2.+16.+1.], [4.+32.+1.], [9.]]),
-      ("SourceTarget", [const.SOURCE, const.TARGET], False, None,
+      ("SourceTarget", [const.SOURCE, const.TARGET], False, None, None,
        [[2.+16], [4.+32.], [8.+16.+32]]),
-      ("Empty", [], False, None, [[2.], [4.], [8.]]))
+      ("SourceTargetAlways", [const.SOURCE, const.TARGET], False, None, ALWAYS,
+       [[2.+16], [4.+32.], [8.+16.+32]]),
+      ("SourceTargetNever", [const.SOURCE, const.TARGET], False, None, NEVER,
+       [[2.], [4.], [8.]]),
+      ("Empty", [], False, None, None, [[2.], [4.], [8.]]))
   def testHomogeneousDefaultInputs(
-      self, pool_tags, use_context, use_recurrent_state, expected):
+      self, pool_tags, use_context, use_recurrent_state, enable_edges,
+      expected):
     """Tests node_pool_tags, use_context, and the default reduce_type "sum"."""
     values = dict(context=tf.constant([[1.]]),
                   nodes=tf.constant([[2.], [4.], [8.]]),
@@ -639,6 +655,7 @@ class NodeSetUpdateTest(tf.test.TestCase, parameterized.TestCase):
     options = opt.GraphUpdateOptions(graph_tensor_spec=input_graph.spec)
     options.node_set_default.update_use_recurrent_state = use_recurrent_state
     options.node_set_default.update_use_context = use_context
+    options.edge_set_default.node_pool_enabled = enable_edges
     options.edge_set_default.node_pool_tags = pool_tags
     update = graph_update.NodeSetUpdate(
         "nodes", update_fn=update_fn, options=options)
@@ -846,12 +863,12 @@ class ContextUpdateTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
       ("Default", None, None, None, [[1. + (2.+4.+8.)]]),
-      ("DefaultExplicit", True, True, False, [[1. + (2.+4.+8.)]]),
+      ("DefaultExplicit", True, ALWAYS, NEVER, [[1. + (2.+4.+8.)]]),
       ("NotRecurrent", False, None, None, [[(2.+4.+8.)]]),
-      ("WithNeither", None, False, False, [[1.]]),
-      ("WithNodes", None, True, False, [[1. + (2.+4.+8.)]]),
-      ("WithEdges", None, False, True, [[1. + (16.+32.)]]),
-      ("WithBoth", None, True, True, [[1. + (2.+4.+8.) + (16.+32.)]]),
+      ("WithNeither", None, NEVER, NEVER, [[1.]]),
+      ("WithNodes", None, ALWAYS, NEVER, [[1. + (2.+4.+8.)]]),
+      ("WithEdges", None, NEVER, ALWAYS, [[1. + (16.+32.)]]),
+      ("WithBoth", None, ALWAYS, ALWAYS, [[1. + (2.+4.+8.) + (16.+32.)]]),
   )
   def testDefaultInputs(
       self, use_recurrent_state, enable_nodes, enable_edges, expected):
@@ -862,8 +879,8 @@ class ContextUpdateTest(tf.test.TestCase, parameterized.TestCase):
     input_graph = _make_test_graph_01into2(values)
     options = opt.GraphUpdateOptions(graph_tensor_spec=input_graph.spec)
     options.context.update_use_recurrent_state = use_recurrent_state
-    options.node_set_default.context_pool_enable = enable_nodes
-    options.edge_set_default.context_pool_enable = enable_edges
+    options.node_set_default.context_pool_enabled = enable_nodes
+    options.edge_set_default.context_pool_enabled = enable_edges
     update_fn = tf.keras.layers.Dense(1, use_bias=False)
     update = graph_update.ContextUpdate(update_fn=update_fn, options=options)
     _ = update(input_graph)  # Trigger building.
@@ -885,11 +902,12 @@ class ContextUpdateTest(tf.test.TestCase, parameterized.TestCase):
     input_graph = _make_test_graph_01into2(values)
     update_fn = tf.keras.layers.Dense(1, use_bias=False)
     options = opt.GraphUpdateOptions(graph_tensor_spec=input_graph.spec)
-    # Setting context_pool_factory implies context_pool_enable.
+    # Pooling nodes to context is enabled by default.
     # pylint: disable=g-long-lambda
     options.node_set_default.context_pool_factory = (
         lambda node_set_name: graph_ops.Pool(const.CONTEXT, node_reduce_type,
                                              node_set_name=node_set_name))
+    options.edge_set_default.context_pool_enabled = ALWAYS
     options.edge_set_default.context_pool_factory = (
         lambda edge_set_name: graph_ops.Pool(const.CONTEXT, edge_reduce_type,
                                              edge_set_name=edge_set_name))
@@ -932,6 +950,208 @@ class DoubleInputFromContext(tf.keras.layers.Layer):
     if training:
       feature = tf.reverse(feature, axis=[1])
     return tf.multiply(self._multiplier, feature)
+
+
+class GraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
+  """Tests GraphUpdate."""
+
+  @parameterized.named_parameters(
+      ("Basic", False, False),
+      ("WithContext", False, True),
+      ("FromConfig", True, True))
+  def testFullGraphUpdate(self, from_config, update_context):
+    """Tests update of everything if no node sets no edge sets are given."""
+    input_graph = _make_test_graph_with_singleton_node_sets(
+        [("u", [1.]), ("v", [2.]), ("w", [4.])],
+        [("u", "u", [0.]), ("u", "v", [0.]), ("u", "w", [0.])])
+    options = opt.GraphUpdateOptions(graph_tensor_spec=input_graph.spec,
+                                     update_context=update_context)
+    # Edge set updates just copy the source value.
+    # pylint: disable=g-long-lambda
+    options.edge_set_default.update_use_node_tags = [const.SOURCE]
+    options.edge_set_default.update_fn_factory = (
+        lambda: tf.keras.layers.Dense(
+            1, kernel_initializer=tf.keras.initializers.Ones(), use_bias=False))
+    # Node set updates just add the value coming in from the one edge set.
+    options.node_set_default.update_fn_factory = (
+        lambda: tf.keras.layers.Dense(
+            1, kernel_initializer=tf.keras.initializers.Ones(), use_bias=False))
+    options.context.update_use_recurrent_state = False
+    if update_context:
+      options.context.update_fn_factory = (
+          lambda: tf.keras.layers.Dense(
+              1, kernel_initializer=tf.keras.initializers.Ones(),
+              use_bias=False))
+    else:
+      options.context.update_fn_factory = (
+          lambda: self.fail("Unexpected call to context.update_fn_factory"))
+
+    update = graph_update.GraphUpdate(options=options)
+    if from_config:
+      update = graph_update.GraphUpdate.from_config(update.get_config())
+    graph = update(input_graph)
+
+    def _node_states(node_set_name):
+      return graph.node_sets[node_set_name][const.DEFAULT_STATE_NAME]
+    # The changed node state shows that the NodeSetUpdates correctly read
+    # edge states *after* EdgeSetUpdates, because they had state zero before.
+    self.assertAllClose(_node_states("u"), [[1. + 1.]])
+    self.assertAllClose(_node_states("v"), [[2. + 1.]])
+    self.assertAllClose(_node_states("w"), [[4. + 1.]])
+    if update_context:
+      # A context state of 10 (not 6 = 1+2+4) shows the ContextUpdate correctly
+      # read the node states *after* NodeSetUpdates.
+      self.assertAllClose(graph.context[const.DEFAULT_STATE_NAME], [[10.]])
+    else:
+      self.assertEmpty(graph.context.features)
+
+  @parameterized.named_parameters(
+      ("All", ALWAYS, ALWAYS, [[16. + 4. + 1. + 18. + 4. + 8.]]),
+      ("AllEdges", ALWAYS, NEVER, [[16. + 4.]]),
+      ("UpdatedEdges", ON_UPDATE, NEVER, [[4.]]),
+      ("AllNodes", NEVER, ALWAYS, [[1. + 18. + 4. + 8.]]),
+      ("UpdatedNodes", NEVER, ON_UPDATE, [[18.]]),
+      ("Default", None, None, [[18.]]),
+  )
+  def testFullyExplicitAndContextInputs(
+      self, context_enable_edges, context_enable_nodes, expected_context):
+    """Tests update of explicitly given node sets and edge sets."""
+    input_graph = _make_test_graph_with_singleton_node_sets(
+        [("u", [1.]), ("v", [2.]), ("w", [4.]), ("x", [8.])],
+        [("u", "v", [16.]), ("w", "x", [32.])])
+    options = opt.GraphUpdateOptions(graph_tensor_spec=input_graph.spec)
+    # Edge set updates just copy the source value, discarding the old state.
+    # pylint: disable=g-long-lambda
+    options.edge_set_default.update_use_node_tags = [const.SOURCE]
+    options.edge_set_default.update_fn_factory = (
+        lambda: tf.keras.layers.Dense(
+            1, kernel_initializer=tf.keras.initializers.Ones(), use_bias=False))
+    # Node set updates just add the value coming in from the one edge set.
+    options.edge_set_default.node_pool_enabled = ALWAYS
+    options.node_set_default.update_fn_factory = (
+        lambda: tf.keras.layers.Dense(
+            1, kernel_initializer=tf.keras.initializers.Ones(), use_bias=False))
+    # Context updates sum everything that's enabled.
+    options.update_context = True
+    options.edge_set_default.context_pool_enabled = context_enable_edges
+    options.node_set_default.context_pool_enabled = context_enable_nodes
+    options.context.update_use_recurrent_state = False
+    options.context.update_fn_factory = (
+        lambda: tf.keras.layers.Dense(
+            1, kernel_initializer=tf.keras.initializers.Ones(), use_bias=False))
+
+    update = graph_update.GraphUpdate(node_set_names=["v"],
+                                      edge_set_names=["w->x"],  # Unrelated.
+                                      options=options)
+    graph = update(input_graph)
+
+    def _edge_states(edge_set_name):
+      return graph.edge_sets[edge_set_name][const.DEFAULT_STATE_NAME]
+    self.assertAllClose(_edge_states("u->v"), [[16.]])  # Unchanged.
+    self.assertAllClose(_edge_states("w->x"), [[4.]])  # From "w".
+
+    def _node_states(node_set_name):
+      return graph.node_sets[node_set_name][const.DEFAULT_STATE_NAME]
+    self.assertAllClose(_node_states("u"), [[1.]])  # Unchanged.
+    self.assertAllClose(_node_states("v"), [[2. + 16.]])  # From "u->v".
+    self.assertAllClose(_node_states("w"), [[4.]])  # Unchanged.
+    self.assertAllClose(_node_states("x"), [[8.]])  # Unchanged.
+
+    self.assertAllClose(graph.context[const.DEFAULT_STATE_NAME],
+                        expected_context)
+
+  @parameterized.named_parameters(
+      ("NoEdges", NEVER, [[4.]]),
+      ("AllEdges", ALWAYS, [[4. + 1. + 32.]]),
+      ("UpdatedEdges", ON_UPDATE, [[4. + 1.]]),
+      ("Default", None, [[4 + 1.]]))
+  def testExplicitEdgesAndNodeInputs(self, enable_edges, expected):
+    """Tests update with explicit edge sets and inferred node sets."""
+    input_graph = _make_test_graph_with_singleton_node_sets(
+        [("u", [1.]), ("v", [2.]), ("w", [4.]), ("x", [8.])],
+        [("u", "w", [16.]), ("v", "w", [32.]), ("v", "x", [64.])])
+    options = opt.GraphUpdateOptions(graph_tensor_spec=input_graph.spec)
+    # Edge set updates just copy the source value, discarding the old state.
+    # pylint: disable=g-long-lambda
+    options.edge_set_default.update_use_node_tags = [const.SOURCE]
+    options.edge_set_default.update_fn_factory = (
+        lambda: tf.keras.layers.Dense(
+            1, kernel_initializer=tf.keras.initializers.Ones(), use_bias=False))
+    # Node set updates just add the value coming in from the one edge set.
+    options.edge_set_default.node_pool_enabled = enable_edges
+    options.node_set_default.update_fn_factory = (
+        lambda: tf.keras.layers.Dense(
+            1, kernel_initializer=tf.keras.initializers.Ones(), use_bias=False))
+
+    update = graph_update.GraphUpdate(edge_set_names=["u->w"], options=options)
+    graph = update(input_graph)
+
+    def _edge_states(edge_set_name):
+      return graph.edge_sets[edge_set_name][const.DEFAULT_STATE_NAME]
+    self.assertAllClose(_edge_states("u->w"), [[1.]])
+    self.assertAllClose(_edge_states("v->w"), [[32.]])  # Unchanged.
+    self.assertAllClose(_edge_states("v->x"), [[64.]])  # Unchanged.
+
+    def _node_states(node_set_name):
+      return graph.node_sets[node_set_name][const.DEFAULT_STATE_NAME]
+    self.assertAllClose(_node_states("u"), [[1.]])  # Unchanged.
+    self.assertAllClose(_node_states("v"), [[2.]])  # Unchanged.
+    self.assertAllClose(_node_states("w"), expected)
+    self.assertAllClose(_node_states("x"), [[8.]])  # Unchanged.
+
+  def testExplicitNodes(self):
+    """Tests update with explicit node sets and inferred edge sets."""
+    input_graph = _make_test_graph_with_singleton_node_sets(
+        [("u", [1.]), ("v", [2.]), ("w", [4.]), ("x", [8.])],
+        [("u", "w", [16.]), ("v", "w", [32.]), ("v", "x", [64.])])
+    options = opt.GraphUpdateOptions(graph_tensor_spec=input_graph.spec)
+    # Edge set updates just copy the source value, discarding the old state.
+    # pylint: disable=g-long-lambda
+    options.edge_set_default.update_use_node_tags = [const.SOURCE]
+    options.edge_set_default.update_fn_factory = (
+        lambda: tf.keras.layers.Dense(
+            1, kernel_initializer=tf.keras.initializers.Ones(), use_bias=False))
+    # Node set updates just add the value coming in from the one edge set.
+    options.node_set_default.update_fn_factory = (
+        lambda: tf.keras.layers.Dense(
+            1, kernel_initializer=tf.keras.initializers.Ones(),
+            bias_initializer=tf.keras.initializers.Constant([100.])))
+
+    update = graph_update.GraphUpdate(node_set_names=["v", "w"],
+                                      options=options)
+    graph = update(input_graph)
+
+    def _edge_states(edge_set_name):
+      return graph.edge_sets[edge_set_name][const.DEFAULT_STATE_NAME]
+    self.assertAllClose(_edge_states("u->w"), [[1.]])
+    self.assertAllClose(_edge_states("v->w"), [[2.]])
+    self.assertAllClose(_edge_states("v->x"), [[64.]])  # Unchanged.
+
+    def _node_states(node_set_name):
+      return graph.node_sets[node_set_name][const.DEFAULT_STATE_NAME]
+    self.assertAllClose(_node_states("u"), [[1.]])  # Unchanged.
+    self.assertAllClose(_node_states("v"), [[102.]])
+    self.assertAllClose(_node_states("w"), [[107.]])
+    self.assertAllClose(_node_states("x"), [[8.]])  # Unchanged.
+
+
+def _make_test_graph_with_singleton_node_sets(nodes, edges):
+  """Returns graph with singleton node sets and edge sets of given values."""
+  # pylint: disable=g-complex-comprehension
+  return gt.GraphTensor.from_pieces(
+      node_sets={
+          name: gt.NodeSet.from_fields(
+              sizes=tf.constant([1]),
+              features={const.DEFAULT_STATE_NAME: tf.constant([value])})
+          for name, value in nodes},
+      edge_sets={
+          f"{src}->{dst}": gt.EdgeSet.from_fields(
+              sizes=tf.constant([1]),
+              adjacency=adj.Adjacency.from_indices(
+                  (src, tf.constant([0])),
+                  (dst, tf.constant([0]))),
+              features={const.DEFAULT_STATE_NAME: tf.constant([value])})
+          for src, dst, value in edges})
 
 
 if __name__ == "__main__":

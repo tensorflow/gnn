@@ -1,7 +1,7 @@
 """Tests for GraphUpdateOptions and its pieces.
 
 These tests cover only generalities of storage and field access.
-The tests for GraphUpdate and its pieces cover the use of individual options.
+The tests for the graph update layers cover the use of individual options.
 """
 
 from absl.testing import absltest

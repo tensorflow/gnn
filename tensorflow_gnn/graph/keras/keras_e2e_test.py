@@ -1,5 +1,6 @@
 """End-to-end tests for Keras Models."""
 
+import enum
 import os
 
 from absl.testing import parameterized
@@ -32,10 +33,13 @@ class ExportedKerasNamesTest(tf.test.TestCase):
     self.assertIsSubclass(tfgnn.keras.layers.EdgeSetUpdate, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.NodeSetUpdate, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.ContextUpdate, Layer)
+    self.assertIsSubclass(tfgnn.keras.layers.GraphUpdate, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.GraphUpdateOptions, object)
     self.assertIsSubclass(tfgnn.keras.layers.GraphUpdateEdgeSetOptions, object)
     self.assertIsSubclass(tfgnn.keras.layers.GraphUpdateNodeSetOptions, object)
     self.assertIsSubclass(tfgnn.keras.layers.GraphUpdateContextOptions, object)
+    self.assertIsSubclass(tfgnn.keras.layers.UpdateInputEnabled, enum.Enum)
+
     # Test the `del` statements at the bottom of layers/__init__.py.
     self.assertFalse(hasattr(tfgnn.keras.layers, 'graph_ops'))
     self.assertFalse(hasattr(tfgnn.keras.layers, 'graph_update'))

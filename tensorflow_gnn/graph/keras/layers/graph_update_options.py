@@ -3,6 +3,7 @@
 import collections
 import copy
 import dataclasses
+import enum
 from typing import Any, Callable, Dict, List, Mapping, Optional, Union
 
 from tensorflow_gnn.graph import graph_constants as const
@@ -12,6 +13,20 @@ from tensorflow_gnn.graph import graph_constants as const
 FieldNames = Union[const.FieldName,
                    List[const.FieldName],
                    Dict[str, const.FieldName]]
+
+
+class UpdateInputEnabled(str, enum.Enum):
+  """Controls when to use an input in a GraphUpdate.
+
+  Values:
+    NEVER: The input is not used.
+    ALWAYS: The input is used unconditionally.
+    ON_UPDATE: The input is used if it has already been computed during the
+      same GraphUpdate. In other words, older values are ignored.
+  """
+  NEVER = "never"
+  ALWAYS = "always"
+  ON_UPDATE = "on_update"
 
 
 # TODO(b/193496101): Proper types for sublayers. pylint: disable=g-bare-generic
@@ -25,6 +40,9 @@ class GraphUpdateEdgeSetOptions:
   For the EdgeSetUpdate layer (see there for a detailed explanation):
     update_input_fn_factories: Can be set to a list [f1, f2, ...] of input
       factories, for use as EdgeSetUpdate(..., input_fns=[f1(), f2(), ...]).
+    update_use_node_tags: If input_fns are not set, the default input_fns
+      contain the node states from precisely the incident node sets whose tags
+      are listed here.
     update_use_recurrent_state: If input_fns are not set, this boolean controls
       whether the previous edge state is part of the default input_fns.
     update_use_context: If input_fns are not set, this boolean controls
@@ -36,6 +54,9 @@ class GraphUpdateEdgeSetOptions:
     update_output_feature: If set, the EdgeSetUpdate(..., output_feature=...).
 
   For the NodeSetUpdate layer (see there for a detailed explanation):
+    node_pool_enabled: Can be set to an enum value from UpdateInputEnabled
+      to control in which cases the state of this edge set is used as input
+      to a NodeSetUpdate.
     node_pool_tags: Can be a list of incident node sets. A NodeSetUpdate
       for any of them without explicit input_fns receives as input the
       pooled features from each edge set.
@@ -44,21 +65,23 @@ class GraphUpdateEdgeSetOptions:
       and returns the input_fn that does the pooling.
 
   For the ContextUpdate (see there for a detailed explanation):
-    context_pool_enable: If true, a ContextUpdate without an explicit list of
-      input_fns uses pooled features from this edge set. Same if
-      context_pool_factory is set and this is unset.
+    context_pool_enabled: Can be set to an enum value from UpdateInputEnabled
+      to control in which cases the state of this edge set is used as input
+      to a ContextUpdate.
     context_pool_factory: Can be set to a function that accepts arguments
       (edge_set_name=...) and returns the input_fn that does the pooling.
   """
   update_input_fn_factories: Optional[List[Callable[[], Callable]]] = None
+  update_use_node_tags: Optional[List[const.IncidentNodeTag]] = None
   update_use_recurrent_state: Optional[bool] = None
   update_use_context: Optional[bool] = None
   update_combiner_fn: Optional[Union[str, Callable]] = None
   update_fn_factory: Optional[Callable[[], Callable]] = None
   update_output_feature: Optional[FieldNames] = None
+  node_pool_enabled: Optional[UpdateInputEnabled] = None
   node_pool_tags: Optional[List[const.IncidentNodeTag]] = None
   node_pool_factory: Optional[Callable[..., Callable]] = None
-  context_pool_enable: Optional[bool] = None
+  context_pool_enabled: Optional[UpdateInputEnabled] = None
   context_pool_factory: Optional[Callable[..., Callable]] = None
 
 
@@ -85,9 +108,9 @@ class GraphUpdateNodeSetOptions:
     update_output_feature: the NodeSetUpdate(..., output_feature=...).
 
   For the ContextUpdate (see there for a detailed explanation):
-    context_pool_enable: If true, a ContextUpdate without an explicit list of
-      input_fns uses pooled features from this node set. Same if
-      context_pool_factory is set but this is unset.
+    context_pool_enabled: Can be set to an enum value from UpdateInputEnabled
+      to control in which cases the state of this node set is used as input
+      to a ContextUpdate.
     context_pool_factory: Can be set to a function that accepts arguments
       (node_set_name=...) and returns the input_fn that does the pooling.
   """
@@ -97,7 +120,7 @@ class GraphUpdateNodeSetOptions:
   update_combiner_fn: Optional[Union[str, Callable]] = None
   update_fn_factory: Optional[Callable[[], Callable]] = None
   update_output_feature: Optional[FieldNames] = None
-  context_pool_enable: Optional[bool] = None
+  context_pool_enabled: Optional[UpdateInputEnabled] = None
   context_pool_factory: Optional[Callable[..., Callable]] = None
 
 
