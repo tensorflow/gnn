@@ -10,11 +10,12 @@ This was the code at the top of the original `graph_tensor.py` implementation.
 """
 
 import functools
+import pprint
 
 from absl import app
 from absl import flags
 import tensorflow as tf
-import tensorflow_gnn as gnn
+import tensorflow_gnn as tfgnn
 
 
 FLAGS = flags.FLAGS
@@ -24,12 +25,7 @@ flags.DEFINE_string("citeseer_root", "/tmp/citeseer",
 
 
 @tf.function
-def flatten_fn(gt: gnn.GraphTensor) -> gnn.GraphTensor:
-  return gt.flatten()
-
-
-@tf.function
-def transform_fn(gt: gnn.GraphTensor) -> gnn.GraphTensor:
+def transform_fn(gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
   values = gt.values
   # Remove string fields.
   del values.context["seed_id"]
@@ -47,36 +43,30 @@ def main(_):
   batch_size = 5
   num_replicas_in_sync = 10
 
-  # See Citeseer example.
+  # Read Citeseer example files and batch them.
   ds = tf.data.TFRecordDataset(data_paths)
   if training:
     ds = ds.repeat()
     ds = ds.shuffle(1000)
-
   ds = ds.batch(batch_size, True)
 
-  # Parse multiple TF example
-  schema = gnn.read_schema(schema_path)
-  gtspec = gnn.create_graph_spec_from_schema_pb(schema)
-
-  ds = ds.map(functools.partial(gnn.parse_example, gtspec))
+  # Parse batches of TF examples.
+  schema = tfgnn.read_schema(schema_path)
+  spec = tfgnn.create_graph_spec_from_schema_pb(schema)
+  ds = ds.map(functools.partial(tfgnn.parse_example, spec))
 
   # Transform features
   ds = ds.map(transform_fn)
 
   # Convert `batch_size` graphs to single graph with `batch_size` sub-graphs
-  ds = ds.map(flatten_fn)
+  ds = ds.map(lambda graph: graph.merge_batch_to_components())
 
   # Batch by the number of worker replicas in sync (e.g. for Mirrored strategy).
   ds = ds.batch(num_replicas_in_sync, True)
 
   # Check results:
   for gt in ds:
-    flat_gt = flatten_fn(gt)
-    features = gnn.edge_gather_source_value(flat_gt,
-                                            edge_set="citation",
-                                            source_field_name="words")
-    print(features)
+    pprint.pprint(gt.edge_sets["citation"]["words"])
 
 
 if __name__ == "__main__":
