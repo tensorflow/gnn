@@ -37,7 +37,7 @@ message Subgraph {
   optional bytes seed_node_id = 2;
 
   // A list of the nodes in the sample.
-  repeated Node node = 3;
+  repeated Node nodes = 3;
 
   // Features associated with the graph context as a whole.
   optional tensorflow.Features features = 4;

@@ -45,7 +45,7 @@ def encode_subgraph_to_example(schema: gnn.GraphSchema,
   # Prepare to store edge indices.
   by_node_set_name: Dict[
       gnn.NodeSetName, List[subgraph_pb2.Node]] = collections.defaultdict(list)
-  for node in subgraph.node:
+  for node in subgraph.nodes:
     by_node_set_name[node.node_set_name].append(node)
   index_map: Dict[bytes, int] = {}
   for node_lists in by_node_set_name.values():
@@ -54,7 +54,7 @@ def encode_subgraph_to_example(schema: gnn.GraphSchema,
   # Iterate over the nodes and edges.
   node_counter = collections.defaultdict(int)
   edge_counter = collections.defaultdict(int)
-  for node in subgraph.node:
+  for node in subgraph.nodes:
     node_counter[node.node_set_name] += 1
     node_features_dict = node_features_dicts[node.node_set_name]
     _copy_features(node.features, node_features_dict)

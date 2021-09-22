@@ -17,7 +17,7 @@ class TestSubgraph(tf.test.TestCase):
         """
       sample_id: "SAMPLE_ID_1"
       seed_node_id: "center"
-      node {
+      nodes {
         id: "center"
         features {feature {key: "heft" value {int64_list {value: 50}}}}
         outgoing_edges {
@@ -37,7 +37,7 @@ class TestSubgraph(tf.test.TestCase):
         }
         node_set_name: "position"
       }
-      node {
+      nodes {
         id: "left"
         features {feature {key: "heft" value {int64_list {value: 100}}}}
         outgoing_edges {
@@ -47,7 +47,7 @@ class TestSubgraph(tf.test.TestCase):
         }
         node_set_name: "position"
       }
-      node {
+      nodes {
         id: "right"
         features {feature {key: "heft2" value {int64_list {value: 150}}}}
         outgoing_edges {
@@ -198,7 +198,7 @@ class TestSubgraph(tf.test.TestCase):
   def test_extra_features(self):
     # Insert extra features, ensure they're ignored.
     subgraph_copy = copy.copy(self.subgraph)
-    for node in subgraph_copy.node:
+    for node in subgraph_copy.nodes:
       node.features.feature["extra"].float_list.value.append(42)
     example = subgraph.encode_subgraph_to_example(self.schema, subgraph_copy)
     self.assertProtoEquals(self.expected, example)
@@ -206,7 +206,7 @@ class TestSubgraph(tf.test.TestCase):
   def test_missing_node_features(self):
     # Remove node feature, ensure error raised.
     subgraph_copy = copy.copy(self.subgraph)
-    node = random.choice(subgraph_copy.node)
+    node = random.choice(subgraph_copy.nodes)
     del node.features.feature["heft"]
     with self.assertRaises(ValueError):
       subgraph.encode_subgraph_to_example(self.schema, subgraph_copy)
@@ -214,7 +214,7 @@ class TestSubgraph(tf.test.TestCase):
   def test_missing_edge_features(self):
     # Remove edge feature, ensure error raised.
     subgraph_copy = copy.copy(self.subgraph)
-    node = random.choice(subgraph_copy.node)
+    node = random.choice(subgraph_copy.nodes)
     edge = random.choice(node.outgoing_edges)
     del edge.features.feature["weight"]
     with self.assertRaises(ValueError):
@@ -223,7 +223,7 @@ class TestSubgraph(tf.test.TestCase):
   def test_invalid_length(self):
     # Insert feature with an irregular number of values, ensure error raised.
     subgraph_copy = copy.copy(self.subgraph)
-    node = random.choice(subgraph_copy.node)
+    node = random.choice(subgraph_copy.nodes)
     edge = random.choice(node.outgoing_edges)
     edge.features.feature["weight"].float_list.value.append(42.)
     with self.assertRaises(ValueError):

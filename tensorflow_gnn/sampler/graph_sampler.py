@@ -144,7 +144,7 @@ def sample_graph(
   def node_combiner(sg: Subgraph, nodes: Iterable[Node]):
     sg = copy.copy(sg)
     for node in nodes:
-      sg.node.add().CopyFrom(node)
+      sg.nodes.add().CopyFrom(node)
     return sg
 
   # Keep track of the subgraphs generated after each operation.
@@ -171,15 +171,15 @@ def sample_graph(
       # Should never happen.
       raise ValueError("Combining subgraphs received empty list.")
     combined_subgraph = copy.copy(subgraphs_list[0])
-    del combined_subgraph.node[:]  # Will be populated next.
+    del combined_subgraph.nodes[:]  # Will be populated next.
 
     # Add all the nodes to the Subgraph.
     node_id_to_nodes = {}
     for sg in subgraphs_list:
-      for node in sg.node:
+      for node in sg.nodes:
         node_id_to_nodes[node.id] = node
     for node in node_id_to_nodes.values():
-      combined_subgraph.node.add().CopyFrom(node)
+      combined_subgraph.nodes.add().CopyFrom(node)
 
     return combined_subgraph
 
@@ -260,7 +260,7 @@ def join_initial(
   assert len(subgraphs) == 1
   assert len(nodes) == 1
   sg = copy.copy(subgraphs[0])
-  new_node = sg.node.add()
+  new_node = sg.nodes.add()
   new_node.CopyFrom(nodes[0])
   yield sg.sample_id, sg
 
@@ -358,9 +358,9 @@ def sample(sampling_op: sampling_spec_pb2.SamplingOp,
   if weight_func is None:
     weight_func = lambda _: 1.0
 
-  nodeids = {node.id for node in sg.node}
+  nodeids = {node.id for node in sg.nodes}
   weights = collections.defaultdict(float)
-  for node in sg.node:
+  for node in sg.nodes:
     for edge in node.outgoing_edges:
       if edge.edge_set_name == sampling_op.edge_set_name and edge.neighbor_id not in nodeids:
         weights[edge.neighbor_id] += weight_func(edge)
@@ -375,8 +375,8 @@ def clean_edges(
   """Removes references to edges which aren't in the subgraph."""
   sid, sg = id_subgraph
   sg = copy.copy(sg)
-  sg_node_ids = {node.id for node in sg.node}
-  for node in sg.node:
+  sg_node_ids = {node.id for node in sg.nodes}
+  for node in sg.nodes:
     edges = [
         edge for edge in node.outgoing_edges if edge.neighbor_id in sg_node_ids
     ]
