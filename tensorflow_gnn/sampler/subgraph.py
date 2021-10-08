@@ -93,12 +93,12 @@ def encode_subgraph_to_example(schema: gnn.GraphSchema,
                                       (edge_counter, edge_features_dicts)]:
     for set_name, features_dict in features_dicts.items():
       num = num_counter[set_name]
-      for out_feature in features_dict.values():
+      for feature_name, out_feature in features_dict.items():
         out_length = get_feature_length(out_feature)
         if num > 0 and out_length % num != 0:
           raise ValueError(
-              "Invalid number of nodes in subgraph '{}' for schema '{}".format(
-                  subgraph, schema))
+              "Invalid number ({}) of features '{}' for set '{}' in subgraph '{}' for schema '{}'"
+              .format(out_length, feature_name, set_name, subgraph, schema))
 
   strip_empty_features(example)
   return example
