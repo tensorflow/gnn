@@ -1,6 +1,5 @@
 """End-to-end tests for Keras Models."""
 
-import enum
 import os
 
 from absl.testing import parameterized
@@ -30,25 +29,6 @@ class ExportedKerasNamesTest(tf.test.TestCase):
     self.assertIsSubclass(tfgnn.keras.layers.Pool, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.Readout, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.ReadoutFirstNode, Layer)
-    self.assertIsSubclass(tfgnn.keras.layers.EdgeSetUpdate, Layer)
-    self.assertIsSubclass(tfgnn.keras.layers.NodeSetUpdate, Layer)
-    self.assertIsSubclass(tfgnn.keras.layers.ContextUpdate, Layer)
-    self.assertIsSubclass(tfgnn.keras.layers.GraphUpdate, Layer)
-    self.assertIsSubclass(tfgnn.keras.layers.GraphUpdateOptions, object)
-    self.assertIsSubclass(tfgnn.keras.layers.GraphUpdateEdgeSetOptions, object)
-    self.assertIsSubclass(tfgnn.keras.layers.GraphUpdateNodeSetOptions, object)
-    self.assertIsSubclass(tfgnn.keras.layers.GraphUpdateContextOptions, object)
-    self.assertIsSubclass(tfgnn.keras.layers.UpdateInputEnabled, enum.Enum)
-
-    # Test the `del` statements at the bottom of layers/__init__.py.
-    self.assertFalse(hasattr(tfgnn.keras.layers, 'graph_ops'))
-    self.assertFalse(hasattr(tfgnn.keras.layers, 'graph_update'))
-    self.assertFalse(hasattr(tfgnn.keras.layers, 'graph_update_options'))
-
-  def testUtils(self):
-    self.assertCallable(tfgnn.keras.utils.get_fnn_factory)
-    # Test the `del` statements at the bottom of utils/__init__.py.
-    self.assertFalse(hasattr(tfgnn.keras.utils, 'fnn_factory'))
 
 
 # An example of a custom Keras layer used by tests below.
@@ -85,28 +65,6 @@ class AddWeightedSwappedInEdges(tf.keras.layers.Layer):
     node_state += node_updates
     return graph.replace_features(
         node_sets={'node': {'hidden_state': node_state}})
-
-
-# A similar example of model building with tfgnn.keras.layers.*.
-def add_weighted_swapped_in_edges(graph):
-  graph = tfgnn.keras.layers.EdgeSetUpdate(
-      'edge',
-      input_fns=[tfgnn.keras.layers.Readout(feature_name='edge_weight'),
-                 tfgnn.keras.layers.Broadcast(tfgnn.SOURCE)],
-      combiner_fn='none',
-      update_fn=tf.keras.layers.Lambda(lambda x: tf.multiply(x[0], x[1]))
-  )(graph)
-  graph = tfgnn.keras.layers.NodeSetUpdate(
-      'node',
-      input_fns=[
-          tfgnn.keras.layers.Readout(),
-          tfgnn.keras.layers.Pool(tfgnn.TARGET, 'sum', edge_set_name='edge')],
-      update_fn=tf.keras.layers.Dense(
-          units=2, name='add_swapped_message', use_bias=False,
-          kernel_initializer=tf.keras.initializers.Constant([[1., 0., 0., 1.],
-                                                             [0., 1., 1., 0.]]))
-  )(graph)
-  return graph
 
 
 class GraphTensorKerasModelTest(tf.test.TestCase, parameterized.TestCase):
@@ -182,26 +140,6 @@ class GraphTensorKerasModelTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(spec.edge_sets_spec['edge']['edge_weight'],
                         tf.TensorSpec(tf.TensorShape([None, 1]), tf.float32))
     return spec
-
-  @parameterized.parameters([True, False])
-  def testStdLayerModel(self, static_shapes):
-
-    # A Keras Model build from tfgnn.keras.layers.*.
-    inputs = tf.keras.layers.Input(
-        type_spec=self._get_input_spec(static_shapes))
-    graph = add_weighted_swapped_in_edges(inputs)
-    outputs = tfgnn.keras.layers.Readout(node_set_name='node')(graph)
-    model = tf.keras.Model(inputs, outputs)
-
-    # Save and restore the model.
-    export_dir = os.path.join(self.get_temp_dir(), 'stdlayer-tf')
-    tf.saved_model.save(model, export_dir)
-    restored_model = tf.saved_model.load(export_dir)
-
-    expected_1 = as_tensor([[10., -6.], [12., 5.]], tf.float32)
-    graph_1 = self._create_graph_tensor(static_shapes, factor=1)
-    self.assertAllClose(model(graph_1), expected_1)
-    self.assertAllClose(restored_model(graph_1), expected_1)
 
   @parameterized.parameters([True, False])
   def testCustomGraphToGraphModel(self, static_shapes):

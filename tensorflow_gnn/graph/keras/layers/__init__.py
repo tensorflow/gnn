@@ -1,8 +1,6 @@
 """The tfgnn.keras.layers package."""
 
 from tensorflow_gnn.graph.keras.layers import graph_ops
-from tensorflow_gnn.graph.keras.layers import graph_update
-from tensorflow_gnn.graph.keras.layers import graph_update_options
 from tensorflow_gnn.graph.keras.layers.gat import gatv2
 
 Broadcast = graph_ops.Broadcast
@@ -10,22 +8,9 @@ Pool = graph_ops.Pool
 Readout = graph_ops.Readout
 ReadoutFirstNode = graph_ops.ReadoutFirstNode
 
-EdgeSetUpdate = graph_update.EdgeSetUpdate
-NodeSetUpdate = graph_update.NodeSetUpdate
-ContextUpdate = graph_update.ContextUpdate
-GraphUpdate = graph_update.GraphUpdate
-
-GraphUpdateOptions = graph_update_options.GraphUpdateOptions
-GraphUpdateEdgeSetOptions = graph_update_options.GraphUpdateEdgeSetOptions
-GraphUpdateNodeSetOptions = graph_update_options.GraphUpdateNodeSetOptions
-GraphUpdateContextOptions = graph_update_options.GraphUpdateContextOptions
-UpdateInputEnabled = graph_update_options.UpdateInputEnabled
-
 # GATv2 model.
 GATv2 = gatv2.GATv2
 
 # Prune imported module symbols so they're not accessible implicitly.
 del gatv2
 del graph_ops
-del graph_update
-del graph_update_options
