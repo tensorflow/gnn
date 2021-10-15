@@ -1,7 +1,7 @@
 """Constant strings used throughout the package."""
 
 import re
-from typing import List, Mapping, Optional, Tuple, Union
+from typing import Any, List, Mapping, Optional, Sequence, Tuple, Union
 
 import tensorflow as tf
 
@@ -50,6 +50,8 @@ NodeSetName = str  # Name of a NodeSet within a GraphTensor
 EdgeSetName = str  # Name of an EdgeSet within a GraphTensor
 SetName = str  # A NodeSetName or EdgeSetName
 
+FieldNameOrNames = Union[FieldName, Sequence[FieldName]]
+
 ShapeLike = Union[tf.TensorShape, Tuple[Optional[int], ...],
                   List[Optional[int]]]
 Field = Union[tf.Tensor, tf.RaggedTensor]
@@ -57,6 +59,10 @@ FieldSpec = Union[tf.TensorSpec, tf.RaggedTensorSpec]
 
 Fields = Mapping[FieldName, Field]
 FieldsSpec = Mapping[FieldName, FieldSpec]
+
+FieldOrFields = Union[Field, Fields]
+# An arbitrarily deep nest of fields. Pytype cannot express this.
+FieldsNest = Union[Field, List[Any], Tuple[Any], Mapping[str, Any]]
 
 # If set, enables validation for objects contructed within the library. This
 # flag does not interfere with validation flags controlled by user. It is used
