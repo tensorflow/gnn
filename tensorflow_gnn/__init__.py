@@ -47,8 +47,9 @@ FieldSpec = graph_constants.FieldSpec
 Fields = graph_constants.Fields
 FieldsSpec = graph_constants.FieldsSpec
 
-# Names of node sets and edge sets.
+# Names and types of node sets and edge sets.
 SetName = graph_constants.SetName
+SetType = graph_constants.SetType
 NodeSetName = graph_constants.NodeSetName
 EdgeSetName = graph_constants.EdgeSetName
 
