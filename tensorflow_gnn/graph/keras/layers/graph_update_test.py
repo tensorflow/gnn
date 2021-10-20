@@ -1,6 +1,6 @@
 """Tests for graph_update Keras layers."""
 
-# from absl.testing import parameterized
+from absl.testing import parameterized
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
@@ -11,41 +11,50 @@ from tensorflow_gnn.graph.keras.layers import graph_update
 from tensorflow_gnn.graph.keras.layers import next_state as next_state_lib
 
 
-class GraphUpdateTest(tf.test.TestCase):  # , parameterized.TestCase):
+class GraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
 
-  def testEndToEndWithEdgeStates(self):
+  @parameterized.named_parameters(
+      ("InstantInit", False),
+      ("DeferredInit", True))
+  def testEndToEndWithConvolutions(self, use_deferred_init):
     input_graph = _make_test_graph_with_singleton_node_sets(
         [("a", [1.]), ("b", [2.]), ("c", [4.])],
         [("a", "c", [100.]), ("b", "c", [100.]),
          ("c", "a", [100.]), ("b", "a", [100.])])
 
-    conv_sum_sources = convolutions.SimpleConvolution(
-        node_input_tags=[const.SOURCE],
-        message_fn=tf.keras.layers.Dense(
-            1, use_bias=False, kernel_initializer=tf.keras.initializers.Ones()),
-        reduce_type="sum")
-    conv_sum_endpoints = convolutions.SimpleConvolution(
-        # node_input_tags=[const.SOURCE, const.TARGET],  # The default.
-        message_fn=tf.keras.layers.Dense(
-            1, use_bias=False, kernel_initializer=tf.keras.initializers.Ones()),
-        reduce_type="sum")
-    state_add_edges = next_state_lib.NextStateFromConcat(
-        tf.keras.layers.Dense(
-            1, use_bias=False, kernel_initializer=tf.keras.initializers.Ones()))
-    double_state_add_edges = next_state_lib.ResidualNextState(
-        tf.keras.layers.Dense(
-            1, use_bias=False, kernel_initializer=tf.keras.initializers.Ones()))
+    def get_kwargs(graph_tensor_spec):
+      self.assertEqual(graph_tensor_spec, input_graph.spec)
+      conv_sum_sources = convolutions.SimpleConvolution(
+          node_input_tags=[const.SOURCE],
+          message_fn=tf.keras.layers.Dense(
+              1, use_bias=False, kernel_initializer="ones"),
+          reduce_type="sum")
+      conv_sum_endpoints = convolutions.SimpleConvolution(
+          # node_input_tags=[const.SOURCE, const.TARGET],  # The default.
+          message_fn=tf.keras.layers.Dense(
+              1, use_bias=False, kernel_initializer="ones"),
+          reduce_type="sum")
+      state_add_edges = next_state_lib.NextStateFromConcat(
+          tf.keras.layers.Dense(
+              1, use_bias=False, kernel_initializer="ones"))
+      double_state_add_edges = next_state_lib.ResidualNextState(
+          tf.keras.layers.Dense(
+              1, use_bias=False, kernel_initializer="ones"))
+      node_sets = {
+          "c": graph_update.NodeSetUpdate(
+              {"b->c": conv_sum_endpoints,
+               "a->c": conv_sum_sources},
+              state_add_edges),
+          "a": graph_update.NodeSetUpdate(
+              {"c->a": conv_sum_sources,
+               "b->a": conv_sum_sources},
+              double_state_add_edges)}
+      return dict(node_sets=node_sets)
 
-    update = graph_update.GraphUpdate(
-        node_sets={
-            "c": graph_update.NodeSetUpdate(
-                {"b->c": conv_sum_endpoints,
-                 "a->c": conv_sum_sources},
-                state_add_edges),
-            "a": graph_update.NodeSetUpdate(
-                {"c->a": conv_sum_sources,
-                 "b->a": conv_sum_sources},
-                double_state_add_edges)})
+    if use_deferred_init:
+      update = graph_update.GraphUpdate(deferred_init_callback=get_kwargs)
+    else:
+      update = graph_update.GraphUpdate(**get_kwargs(input_graph.spec))
     graph = update(input_graph)
 
     def node_state(node_set_name):
@@ -66,55 +75,63 @@ class GraphUpdateTest(tf.test.TestCase):  # , parameterized.TestCase):
     self.assertAllEqual([[100.]], edge_state("c->a"))
     self.assertAllEqual([[100.]], edge_state("b->a"))
 
-  def testEndToEndWithConvolutions(self):
+  @parameterized.named_parameters(
+      ("InstantInit", False),
+      ("DeferredInit", True))
+  def testEndToEndWithEdgeStates(self, use_deferred_init):
     input_graph = _make_test_graph_with_singleton_node_sets(
         [("a", [1.]), ("b", [2.]), ("c", [4.])],
         [("a", "c", [100.]), ("b", "c", [100.]),
          ("c", "a", [100.]), ("b", "a", [100.])])
-    edge_sum_sources = graph_update.EdgeSetUpdate(
-        next_state_lib.NextStateFromConcat(
-            tf.keras.layers.Dense(
-                1, use_bias=False,
-                kernel_initializer=tf.keras.initializers.Ones()),
-        ),
-        node_input_tags=[const.SOURCE],
-        edge_input_feature=())
-    edge_sum_endpoints = graph_update.EdgeSetUpdate(
-        next_state_lib.NextStateFromConcat(
-            tf.keras.layers.Dense(
-                1, use_bias=False,
-                kernel_initializer=tf.keras.initializers.Ones())),
-        # node_input_tags=[const.SOURCE, const.TARGET] is the default.
-        edge_input_feature=())
-    state_add_edges = next_state_lib.NextStateFromConcat(
-        tf.keras.layers.Dense(
-            1, use_bias=False, kernel_initializer=tf.keras.initializers.Ones()))
-    double_state_add_edges = next_state_lib.ResidualNextState(
-        tf.keras.layers.Dense(
-            1, use_bias=False, kernel_initializer=tf.keras.initializers.Ones()))
-    ctx_add_node_sets = next_state_lib.NextStateFromConcat(
-        tf.keras.layers.Dense(
-            1, use_bias=False, kernel_initializer=tf.keras.initializers.Ones()))
 
-    update = graph_update.GraphUpdate(
-        edge_sets={
-            "b->c": edge_sum_endpoints,
-            "a->c": edge_sum_sources,
-            "c->a": edge_sum_sources,
-            "b->a": edge_sum_sources},
-        node_sets={
-            "c": graph_update.NodeSetUpdate(
-                {"b->c": graph_ops.Pool(const.TARGET, "sum"),
-                 "a->c": graph_ops.Pool(const.TARGET, "sum")},
-                state_add_edges),
-            "a": graph_update.NodeSetUpdate(
-                {"c->a": graph_ops.Pool(const.TARGET, "sum"),
-                 "b->a": graph_ops.Pool(const.TARGET, "sum")},
-                double_state_add_edges)},
-        context=graph_update.ContextUpdate(
-            {node_set_name: graph_ops.Pool(const.CONTEXT, "sum")
-             for node_set_name in ["a", "b", "c"]},
-            ctx_add_node_sets, context_input_feature=()))
+    def get_kwargs(graph_tensor_spec):
+      self.assertEqual(graph_tensor_spec, input_graph.spec)
+      edge_sum_sources = graph_update.EdgeSetUpdate(
+          next_state_lib.NextStateFromConcat(
+              tf.keras.layers.Dense(
+                  1, use_bias=False, kernel_initializer="ones")),
+          node_input_tags=[const.SOURCE],
+          edge_input_feature=())
+      edge_sum_endpoints = graph_update.EdgeSetUpdate(
+          next_state_lib.NextStateFromConcat(
+              tf.keras.layers.Dense(
+                  1, use_bias=False,
+                  kernel_initializer="ones")),
+          # node_input_tags=[const.SOURCE, const.TARGET] is the default.
+          edge_input_feature=())
+      state_add_edges = next_state_lib.NextStateFromConcat(
+          tf.keras.layers.Dense(
+              1, use_bias=False, kernel_initializer="ones"))
+      double_state_add_edges = next_state_lib.ResidualNextState(
+          tf.keras.layers.Dense(
+              1, use_bias=False, kernel_initializer="ones"))
+      ctx_add_node_sets = next_state_lib.NextStateFromConcat(
+          tf.keras.layers.Dense(
+              1, use_bias=False, kernel_initializer="ones"))
+      edge_sets = {
+          "b->c": edge_sum_endpoints,
+          "a->c": edge_sum_sources,
+          "c->a": edge_sum_sources,
+          "b->a": edge_sum_sources}
+      node_sets = {
+          "c": graph_update.NodeSetUpdate(
+              {"b->c": graph_ops.Pool(const.TARGET, "sum"),
+               "a->c": graph_ops.Pool(const.TARGET, "sum")},
+              state_add_edges),
+          "a": graph_update.NodeSetUpdate(
+              {"c->a": graph_ops.Pool(const.TARGET, "sum"),
+               "b->a": graph_ops.Pool(const.TARGET, "sum")},
+              double_state_add_edges)}
+      context = graph_update.ContextUpdate(
+          {node_set_name: graph_ops.Pool(const.CONTEXT, "sum")
+           for node_set_name in ["a", "b", "c"]},
+          ctx_add_node_sets, context_input_feature=())
+      return dict(edge_sets=edge_sets, node_sets=node_sets, context=context)
+
+    if use_deferred_init:
+      update = graph_update.GraphUpdate(deferred_init_callback=get_kwargs)
+    else:
+      update = graph_update.GraphUpdate(**get_kwargs(input_graph.spec))
     graph = update(input_graph)
 
     def edge_state(edge_set_name):

@@ -1,6 +1,6 @@
 """The GraphUpdate layer and its pieces."""
 
-from typing import Mapping, Optional, Sequence
+from typing import Any, Callable, Mapping, Optional, Sequence
 
 import tensorflow as tf
 
@@ -70,7 +70,12 @@ EdgesToContextPooling = tf.keras.layers.Layer
 
 @tf.keras.utils.register_keras_serializable(package="GNN")
 class GraphUpdate(tf.keras.layers.Layer):
-  """Applies one round of updates to EgdeSets, NodeSets and Context.
+  """Applies one round of updates to EdgeSets, NodeSets and Context.
+
+  The updates of EdgeSets, NodeSets and Context can either be passed as
+  init arguments, or constructed later by passing a deferred_init_callback,
+  which allows advanced users to adjust the updates to the GraphTensorSpec
+  of the input (which EdgeSets and NodeSets even exist).
 
   Init args:
     edge_sets: A dict `{edge_set_name: edge_set_update, ...}` of EdgeSetUpdate
@@ -90,6 +95,14 @@ class GraphUpdate(tf.keras.layers.Layer):
       node set updates (if any). Its results are merged back into the context
       feature map. This argument can be omitted, which is common in models
       without a context state.
+    deferred_init_callback: Can be set to a function that accepts a
+      GraphTensorSpec and returns a dictionary with the kwargs
+      edge_sets=..., node_sets=... and context=... that would otherwise be
+      passed directly at initialization time. If this argument is set,
+      edge_sets, node_sets and context must all be unset.
+      The object is initialized upon its first call from the results of
+      the callback on the spec of the input. Before that, the object cannot
+      be saved.
 
   Call result:
     A graph tensor with feature maps that have all configured updates merged in:
@@ -105,13 +118,36 @@ class GraphUpdate(tf.keras.layers.Layer):
                node_sets: Optional[Mapping[const.NodeSetName,
                                            AbstractNodeSetUpdate]] = None,
                context: Optional[AbstractContextUpdate] = None,
+               deferred_init_callback: Optional[
+                   Callable[[gt.GraphTensorSpec], Mapping[str, Any]]] = None,
                **kwargs):
     super().__init__(**kwargs)
+    if not deferred_init_callback:
+      self._deferred_init_callback = None
+      self._init_from_updates(edge_sets, node_sets, context)
+      assert self._is_initialized
+    else:
+      self._deferred_init_callback = deferred_init_callback
+      self._is_initialized = False
+      if (edge_sets, node_sets, context) != (None, None, None):
+        raise ValueError(
+            "GraphUpdate(deferred_init_callback=...) is mutually exclusive "
+            "with any of edge_sets=..., node_sets=..., context=...")
+      self._edge_set_updates = None
+      self._node_set_updates = None
+      self._context_update = None
+
+  def _init_from_updates(self, edge_sets=None, node_sets=None, context=None):
     self._edge_set_updates = dict(edge_sets or {})
     self._node_set_updates = dict(node_sets or {})
     self._context_update = context
+    self._is_initialized = True
 
   def get_config(self):
+    if not self._is_initialized:
+      raise ValueError(
+          "GraphUpdate(deferred_init_callback=...) must be called "
+          "to trigger deferred initialization before it can be saved.")
     return dict(
         edge_sets=self._edge_set_updates,
         node_sets=self._node_set_updates,
@@ -119,6 +155,12 @@ class GraphUpdate(tf.keras.layers.Layer):
         **super().get_config())
 
   def call(self, graph: gt.GraphTensor) -> gt.GraphTensor:
+    if not self._is_initialized:
+      with tf.init_scope():
+        self._init_from_updates(**self._deferred_init_callback(graph.spec))
+        self._deferred_init_callback = None  # Enable garbage collection.
+    assert self._is_initialized
+
     if self._edge_set_updates:
       edge_set_features = {}
       for edge_set_name, update_fn in sorted(self._edge_set_updates.items()):
