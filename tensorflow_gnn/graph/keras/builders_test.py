@@ -6,7 +6,7 @@ import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
-from tensorflow_gnn.graph.keras.layers import builder
+from tensorflow_gnn.graph.keras import builders
 from tensorflow_gnn.graph.keras.layers import convolutions
 from tensorflow_gnn.graph.keras.layers import next_state as next_state_lib
 
@@ -18,7 +18,7 @@ class ConvGNNBuilderTest(tf.test.TestCase):  # , parameterized.TestCase):
   def testHomogeneousCase(self):
     input_graph = _make_test_graph_with_singleton_node_sets(
         [("node", [1.])], [("node", "node", [100.])])
-    gnn_builder = builder.ConvGNNBuilder(
+    gnn_builder = builders.ConvGNNBuilder(
         lambda _: convolutions.SimpleConvolution(IdentityLayer()),
         lambda _: next_state_lib.NextStateFromConcat(IdentityLayer()))
     graph = gnn_builder.Convolve()(input_graph)
@@ -46,7 +46,7 @@ class ConvGNNBuilderTest(tf.test.TestCase):  # , parameterized.TestCase):
               use_bias=False,
               kernel_initializer=tf.keras.initializers.Ones()))
 
-    gnn_builder = builder.ConvGNNBuilder(sum_sources_conv, add_edges_state)
+    gnn_builder = builders.ConvGNNBuilder(sum_sources_conv, add_edges_state)
     gnn_layer = tf.keras.models.Sequential([
         gnn_builder.Convolve({"a"}),
         gnn_builder.Convolve({"b"}),
@@ -100,8 +100,8 @@ class ConvGNNBuilderTest(tf.test.TestCase):  # , parameterized.TestCase):
     def next_state_factory(node_set: const.NodeSetName):
       return state_add_edges if node_set == "c" else double_state_add_edges
 
-    gnn_builder = builder.ConvGNNBuilder(convolutions_factory,
-                                         next_state_factory)
+    gnn_builder = builders.ConvGNNBuilder(convolutions_factory,
+                                          next_state_factory)
     model = tf.keras.models.Sequential([
         gnn_builder.Convolve({"a", "c"}),
         gnn_builder.Convolve({"c"}),

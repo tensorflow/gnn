@@ -6,7 +6,6 @@ from absl.testing import parameterized
 import tensorflow as tf
 import tensorflow_gnn as tfgnn  # Test user-visibe names.
 
-
 as_tensor = tf.convert_to_tensor
 
 
@@ -39,6 +38,9 @@ class ExportedKerasNamesTest(tf.test.TestCase):
     self.assertIsSubclass(tfgnn.keras.layers.ContextUpdate, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.GraphUpdate, Layer)
 
+  def testBuilders(self):
+    self.assertIsSubclass(tfgnn.keras.ConvGNNBuilder, object)
+
 
 # An example of a custom Keras layer used by tests below.
 class AddWeightedSwappedInEdges(tf.keras.layers.Layer):
@@ -63,9 +65,8 @@ class AddWeightedSwappedInEdges(tf.keras.layers.Layer):
   def call(self, graph):
     weight = graph.edge_sets['edge']['edge_weight']
     node_state = graph.node_sets['node']['hidden_state']
-    source_value = tf.gather(
-        graph.node_sets['node']['hidden_state'],
-        graph.edge_sets['edge'].adjacency[tfgnn.SOURCE])
+    source_value = tf.gather(graph.node_sets['node']['hidden_state'],
+                             graph.edge_sets['edge'].adjacency[tfgnn.SOURCE])
     message = tf.multiply(weight, source_value)
     pooled_message = tf.math.unsorted_segment_sum(
         message, graph.edge_sets['edge'].adjacency[tfgnn.TARGET],
@@ -73,11 +74,14 @@ class AddWeightedSwappedInEdges(tf.keras.layers.Layer):
     node_updates = self.fnn(pooled_message)
     node_state += node_updates
     return graph.replace_features(
-        node_sets={'node': {'hidden_state': node_state}})
+        node_sets={'node': {
+            'hidden_state': node_state
+        }})
 
 
 # A similar example of model building with tfgnn.keras.layers.*.
 def add_weighted_swapped_in_edges(graph, use_deferred_init):
+
   def _source_times_weight(inputs):
     edge_inputs, node_inputs, _ = inputs
     return tf.multiply(edge_inputs['edge_weight'], node_inputs[tfgnn.SOURCE])
@@ -86,19 +90,24 @@ def add_weighted_swapped_in_edges(graph, use_deferred_init):
     del graph_tensor_spec  # Unused.
     return dict(
         edge_sets={
-            'edge': tfgnn.keras.layers.EdgeSetUpdate(
-                tf.keras.layers.Lambda(_source_times_weight),
-                edge_input_feature=['edge_weight'],
-                node_input_tags=[tfgnn.SOURCE])},
+            'edge':
+                tfgnn.keras.layers.EdgeSetUpdate(
+                    tf.keras.layers.Lambda(_source_times_weight),
+                    edge_input_feature=['edge_weight'],
+                    node_input_tags=[tfgnn.SOURCE])
+        },
         node_sets={
-            'node': tfgnn.keras.layers.NodeSetUpdate(
-                {'edge': tfgnn.keras.layers.Pool(tfgnn.TARGET, 'sum')},
-                tfgnn.keras.layers.NextStateFromConcat(
-                    tf.keras.layers.Dense(
-                        units=2, name='add_swapped_message', use_bias=False,
-                        kernel_initializer=tf.keras.initializers.Constant(
-                            [[1., 0., 0., 1.],
-                             [0., 1., 1., 0.]]))))})
+            'node':
+                tfgnn.keras.layers.NodeSetUpdate(
+                    {'edge': tfgnn.keras.layers.Pool(tfgnn.TARGET, 'sum')},
+                    tfgnn.keras.layers.NextStateFromConcat(
+                        tf.keras.layers.Dense(
+                            units=2,
+                            name='add_swapped_message',
+                            use_bias=False,
+                            kernel_initializer=tf.keras.initializers.Constant(
+                                [[1., 0., 0., 1.], [0., 1., 1., 0.]]))))
+        })
 
   if use_deferred_init:
     update = tfgnn.keras.layers.GraphUpdate(deferred_init_callback=get_kwargs)
@@ -117,8 +126,8 @@ class GraphTensorKerasModelTest(tf.test.TestCase, parameterized.TestCase):
             <<-- -0.5 --/
 
     Args:
-      static_shapes: If true, shape dimensions reflect the concrete values.
-        If false, shape dimensions are set to None.
+      static_shapes: If true, shape dimensions reflect the concrete values. If
+        false, shape dimensions are set to None.
       factor: size multiplier.
     """
     factor = tf.cast(factor, tf.int32)
@@ -135,24 +144,27 @@ class GraphTensorKerasModelTest(tf.test.TestCase, parameterized.TestCase):
                     features={
                         'edge_weight':
                             tile(
-                                as_tensor([[0.5], [-0.5]], tf.float32),
-                                factor)
+                                as_tensor([[0.5], [-0.5]], tf.float32), factor)
                     },
                     sizes=as_tensor([2]) * factor,
                     adjacency=tfgnn.HyperAdjacency.from_indices(
                         indices={
-                            tfgnn.SOURCE: (
-                                'node', tile(as_tensor([0, 1]), factor)),
-                            tfgnn.TARGET: (
-                                'node', tile(as_tensor([1, 0]), factor)),
+                            tfgnn.SOURCE: ('node',
+                                           tile(as_tensor([0, 1]), factor)),
+                            tfgnn.TARGET: ('node',
+                                           tile(as_tensor([1, 0]), factor)),
                         }))
         },
         node_sets={
-            'node': tfgnn.NodeSet.from_fields(
-                features={'hidden_state': tile(
-                    as_tensor([[10, 0.], [12., 0.]], tf.float32),
-                    factor)},
-                sizes=as_tensor([2]) * factor)
+            'node':
+                tfgnn.NodeSet.from_fields(
+                    features={
+                        'hidden_state':
+                            tile(
+                                as_tensor([[10, 0.], [12., 0.]], tf.float32),
+                                factor)
+                    },
+                    sizes=as_tensor([2]) * factor)
         })
 
   def _get_input_spec(self, static_shapes):
@@ -163,8 +175,8 @@ class GraphTensorKerasModelTest(tf.test.TestCase, parameterized.TestCase):
     Each node has a state of shape [2] and each edge has a weight of shape [1].
 
     Args:
-      static_shapes: If true, shape dimensions reflect the concrete values.
-        If false, shape dimensions are set to None.
+      static_shapes: If true, shape dimensions reflect the concrete values. If
+        false, shape dimensions are set to None.
     """
     if static_shapes:
       spec = self._create_graph_tensor(static_shapes, 1).spec
@@ -173,25 +185,25 @@ class GraphTensorKerasModelTest(tf.test.TestCase, parameterized.TestCase):
                           tf.TensorSpec(tf.TensorShape([2, 1]), tf.float32))
       return spec
 
-    ds = tf.data.Dataset.range(1, 3).map(
-        lambda factor: self._create_graph_tensor(static_shapes, factor))
+    ds = tf.data.Dataset.range(
+        1,
+        3).map(lambda factor: self._create_graph_tensor(static_shapes, factor))
     spec = ds.element_spec
     # Check that dataset spec has relaxed component dimensions.
     self.assertAllEqual(spec.edge_sets_spec['edge']['edge_weight'],
                         tf.TensorSpec(tf.TensorShape([None, 1]), tf.float32))
     return spec
 
-  @parameterized.named_parameters(
-      ('StaticShapes', True),
-      ('DynamicShapes', False),
-      ('DeferredInit', False, True))
+  @parameterized.named_parameters(('StaticShapes', True),
+                                  ('DynamicShapes', False),
+                                  ('DeferredInit', False, True))
   def testStdLayerModel(self, static_shapes, use_deferred_init=False):
 
     # A Keras Model build from tfgnn.keras.layers.*.
     inputs = tf.keras.layers.Input(
         type_spec=self._get_input_spec(static_shapes))
-    graph = add_weighted_swapped_in_edges(inputs,
-                                          use_deferred_init=use_deferred_init)
+    graph = add_weighted_swapped_in_edges(
+        inputs, use_deferred_init=use_deferred_init)
     outputs = tfgnn.keras.layers.Readout(node_set_name='node')(graph)
     model = tf.keras.Model(inputs, outputs)
 
@@ -256,20 +268,22 @@ class GraphTensorKerasModelTest(tf.test.TestCase, parameterized.TestCase):
     inputs = net = tf.keras.layers.Input(
         type_spec=self._get_input_spec(static_shapes))
     net = AddWeightedSwappedInEdges(supports_get_config=True)(net)
-    net = tfgnn.keras.layers.Readout(node_set_name='node',
-                                     feature_name='hidden_state')(net)
+    net = tfgnn.keras.layers.Readout(
+        node_set_name='node', feature_name='hidden_state')(
+            net)
     model = tf.keras.Model(inputs, net)
     # Save and restore the model as a Keras model.
     export_dir = os.path.join(self.get_temp_dir(), 'graph2tensor-keras')
     model.save(export_dir)
     restored_model = tf.keras.models.load_model(
-        export_dir, custom_objects=dict(
+        export_dir,
+        custom_objects=dict(
             AddWeightedSwappedInEdges=AddWeightedSwappedInEdges))
     self.assertIsInstance(restored_model, tf.keras.Model)
-    self.assertIsInstance(restored_model.get_layer(index=1),
-                          AddWeightedSwappedInEdges)
-    self.assertIsInstance(restored_model.get_layer(index=2),
-                          tfgnn.keras.layers.Readout)
+    self.assertIsInstance(
+        restored_model.get_layer(index=1), AddWeightedSwappedInEdges)
+    self.assertIsInstance(
+        restored_model.get_layer(index=2), tfgnn.keras.layers.Readout)
 
     expected_1 = as_tensor([[10., -6.], [12., 5.]], tf.float32)
     graph_1 = self._create_graph_tensor(static_shapes, factor=1)
