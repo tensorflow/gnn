@@ -51,8 +51,8 @@ class ConvGNNBuilder:
   """
 
   def __init__(
-      self, convolutions_factory: Callable[[const.EdgeSetName],
-                                           graph_update_lib.EdgesToNodePooling],
+      self, convolutions_factory: Callable[
+          [const.EdgeSetName], graph_update_lib.EdgesToNodePoolingLayer],
       nodes_next_state_factory: Callable[[const.NodeSetName],
                                          next_state_lib.NextStateForNodeSet]):
     self._convolutions_factory = convolutions_factory

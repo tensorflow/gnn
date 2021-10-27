@@ -36,7 +36,7 @@ class ConvolutionFromEdgeSetUpdate(tf.keras.layers.Layer):
   """
 
   def __init__(self,
-               edge_set_update: graph_update.AbstractEdgeSetUpdate,
+               edge_set_update: graph_update.EdgeSetUpdateLayer,
                *,
                destination_tag: const.IncidentNodeTag = const.TARGET,
                reduce_type: str = "sum",
