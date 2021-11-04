@@ -1,6 +1,6 @@
 """Tests for GraphPiece extension type."""
 
-from functools import partial  # pylint: disable=g-importing-member
+import functools
 import os
 from typing import Mapping, Tuple, Union
 
@@ -48,7 +48,7 @@ class TestPiece(gp.GraphPieceBase):
     return TestPieceSpec
 
   def relax_num_components(self) -> 'TestPiece':
-    field_map_fn = partial(gp.relax_dim, self.rank)
+    field_map_fn = functools.partial(gp.relax_dim, self.rank)
     return self._apply(field_map_fn, lambda piece: piece.relax_num_components())
 
 

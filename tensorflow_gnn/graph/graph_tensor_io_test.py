@@ -1,6 +1,6 @@
 """Tests for gt.GraphTensor extension type (go/tf-gnn-api)."""
 
-from functools import partial  # pylint: disable=g-importing-member
+import functools
 from typing import Any, Callable, Iterable, List, Mapping, Optional
 
 from absl.testing import parameterized
@@ -185,7 +185,7 @@ class TfExampleParsingFromSpecTest(TfExampleParsingTestBase):
       expected_values: List[gc.Fields],
   ):
     ds = self.pbtxt_to_dataset(examples)
-    ds = ds.map(partial(io.parse_single_example, spec))
+    ds = ds.map(functools.partial(io.parse_single_example, spec))
     self.assertAllEqual(ds.element_spec, spec)
     ds = ds.map(_flatten_homogeneous_graph)
     self.assertFieldsSeqEqual(expected_values, ds)
@@ -376,8 +376,8 @@ class TfExampleParsingFromSpecTest(TfExampleParsingTestBase):
     batch_size = len(examples)
     ds = self.pbtxt_to_dataset(examples)
     ds = ds.batch(batch_size, drop_remainder=drop_remainder)
-    ds = ds.map(partial(io.parse_example, spec,
-                        prefix=prefix, validate=validate))
+    ds = ds.map(functools.partial(io.parse_example, spec,
+                                  prefix=prefix, validate=validate))
     self.assertAllEqual(ds.element_spec,
                         spec._batch(batch_size if drop_remainder else None))
     ds = ds.map(_flatten_homogeneous_graph)
@@ -397,9 +397,9 @@ class TfExampleParsingFromSchemaTest(TfExampleParsingTestBase):
     ds = self.pbtxt_to_dataset(examples)
     if batch_then_parse:
       ds = ds.batch(batch_size, drop_remainder=drop_remainder)
-      ds = ds.map(partial(io.parse_example, graph_spec))
+      ds = ds.map(functools.partial(io.parse_example, graph_spec))
     else:
-      ds = ds.map(partial(io.parse_single_example, graph_spec))
+      ds = ds.map(functools.partial(io.parse_single_example, graph_spec))
       ds = ds.batch(batch_size, drop_remainder=drop_remainder)
 
     ds = ds.map(result_map_fn)
@@ -409,8 +409,8 @@ class TfExampleParsingFromSchemaTest(TfExampleParsingTestBase):
   def _test_all_cases(self, schema_pb: schema_pb2.GraphSchema,
                       examples: List[str], expected_value: ResultValue,
                       result_map_fn):
-    test_case = partial(self._test_impl, schema_pb, examples, expected_value,
-                        result_map_fn)
+    test_case = functools.partial(self._test_impl, schema_pb, examples,
+                                  expected_value, result_map_fn)
     test_case(batch_then_parse=True, drop_remainder=True)
     test_case(batch_then_parse=True, drop_remainder=False)
     test_case(batch_then_parse=False, drop_remainder=True)

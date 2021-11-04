@@ -1,7 +1,7 @@
 """Base classes for all CompositeTensors used inside a GraphTensor.
 """
 import abc
-from functools import partial  # pylint: disable=g-importing-member
+import functools
 from typing import Any, Callable, Mapping, Optional, Union
 from typing import cast
 from typing import List, Tuple
@@ -315,7 +315,7 @@ class GraphPieceBase(composite_tensor.CompositeTensor, metaclass=abc.ABCMeta):
     """
     # pylint: disable=protected-access
     return self._apply(
-        partial(remove_batch_dimensions, self.rank),
+        functools.partial(remove_batch_dimensions, self.rank),
         lambda piece: piece._merge_batch_to_components(*args, **kwargs),
         tf.TensorShape([]))
 
@@ -344,7 +344,8 @@ class GraphPieceSpecBase(type_spec.BatchableTypeSpec, metaclass=abc.ABCMeta):
       # TODO(b/187011656): currently ragged-rank0 dimensions are not supported.
       tf.nest.map_structure(_assert_not_rank0_ragged, data_spec)
       tf.nest.map_structure(
-          partial(_assert_batch_shape_compatible_with_spec, shape), data_spec)
+          functools.partial(_assert_batch_shape_compatible_with_spec, shape),
+          data_spec)
 
     self._shape = shape
     self._indices_dtype = indices_dtype
