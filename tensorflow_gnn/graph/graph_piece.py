@@ -51,17 +51,19 @@ class GraphPieceBase(composite_tensor.CompositeTensor, metaclass=abc.ABCMeta):
 
    - `GraphPiece` and `GraphPieceSpec` are immutable objects.
 
-   - Each `GraphPiece` supports batching, which may introduce ragged dimensions
-     (e.g., when batching node features of graphs with different numbers of
-     nodes).
-
    - Each `GraphPiece` defines a `shape` attribute that reflects common batching
-     dimensions.
+     dimensions. These are dense (i.e., non-ragged) dimensions, a dimension
+     `None` is statically unknown (but must be the same for all constituent
+     tensors of one `GraphPiece` tensor).
 
    - `GraphPiece` rank is by definition its `shape.rank`.
 
    - All `GraphPiece` field shapes must have the shape of the `GraphPiece` as a
      prefix. Fields rank is strictly greater than the `GraphPiece` rank.
+
+   - Each `GraphPiece` supports batching, which may introduce ragged dimensions
+     after the batching dimensions (e.g., when batching node features of graphs
+     with different numbers of nodes).
 
    - The first field dimension after the `GraphPiece` rank ranges over graph
      items (nodes, edges or components; see `GraphTensor` for an explanation of
@@ -146,22 +148,38 @@ class GraphPieceBase(composite_tensor.CompositeTensor, metaclass=abc.ABCMeta):
                  metadata: Metadata = None) -> 'GraphPieceBase':
     """Creates a GraphPiece from its data and attributes.
 
-    Method transfroms data to match other attributes (shape and indices_dtype).
-
     Args:
-      data: nest of Field or sublcasses of GraphPieceBase.
-      shape: desired GraphPiece shape.
+      data: a nest of Field and GraphPiece objects. The batch dimensions of all
+        Fields (incl. those nested in GraphPiece objects) must be exactly equal.
+        (In particular, if a dimension is None for one, it must be None for
+        all.)
+      shape: A hint for the shape of the result. This shape must have a known
+        rank. It must be compatible with (but not necessary equal to) the
+        common batch dimensions of the Fields nested in data. (This is meant to
+        align this function with the requirements of TypeSpec._from_components()
+        and BatchableTypeSpec._from_compatible_tensor_list().)
       indices_dtype: indices type to use for potentially ragged fields batching.
       metadata: optional mapping from a string key to hashable values.
 
     Returns:
-      Result instance of the GraphPieceBase object.
+      An instance of GraphPieceBase, holding the data, after GraphPieces in the
+      data has been transformed to match `indices_dtype` and `metadata`.
+      The shape of the result and its constituent GraphPieces is the common
+      shape of all data Fields if there are any, or else the `shape` passed
+      in as an argument. In either case, the shape of the result is compatible
+      with the passed-in shape (but not necessarily equal).
+
+    Raises:
+      ValueError: if the data Fields do not have equal batch shapes.
     """
+    # TODO(aferludin,edloper): Clarify the requirements of
+    # TypeSpec._from_components(). Why can I safely construct from components
+    # with a different dynamic shape, but only if that is statically unknown?
 
     # pylint: disable=protected-access
-    def update_fn(
-        value: Union['GraphPieceBase',
-                     Field]) -> Union['GraphPieceBase', Field]:
+    def update_fn(value: Union['GraphPieceBase', Field], shape: tf.TensorShape,
+                  indices_dtype: tf.dtypes.DType,
+                  metadata: Metadata) -> Union['GraphPieceBase', Field]:
       """Updates data with new attributes."""
       if isinstance(value, GraphPieceBase):
         return value._with_attributes(shape, indices_dtype, metadata)
@@ -170,7 +188,22 @@ class GraphPieceBase(composite_tensor.CompositeTensor, metaclass=abc.ABCMeta):
             f'Invalid type for: {value}; should be tensor or ragged tensor')
       return value
 
-    data = tf.nest.map_structure(update_fn, data)
+    shape_from_data = _get_batch_shape_from_fields(data, shape.rank)
+    if shape_from_data is not None:
+      if shape.is_compatible_with(shape_from_data):
+        shape = shape_from_data
+      else:
+        raise ValueError('Fields have batch dimensions that are not compatible'
+                         ' with the GraphPiece shape,'
+                         f' fields batch dimensions {shape_from_data},'
+                         f' GraphPiece shape {shape}')
+
+    data = tf.nest.map_structure(
+        functools.partial(
+            update_fn,
+            shape=shape,
+            indices_dtype=indices_dtype,
+            metadata=metadata), data)
     data_spec = tf.nest.map_structure(type_spec.type_spec_from_value, data)
 
     cls_spec = cls._type_spec_cls()
@@ -458,9 +491,11 @@ class GraphPieceSpecBase(type_spec.BatchableTypeSpec, metaclass=abc.ABCMeta):
 
   def _from_components(self, components: Any) -> GraphPieceBase:
     """Extension Types API: Inverse to `_to_components`. No TF OPS."""
+    # pylint: disable=protected-access
     cls = self.value_type
     assert issubclass(cls, GraphPieceBase), cls
-    return cls(components, self)
+    return cls._from_data(components, self._shape, self._indices_dtype,
+                          self._metadata)
 
   def _batch(self, batch_size: Optional[int]) -> 'GraphPieceSpecBase':
     """Extension Types API: Batching."""
@@ -527,7 +562,8 @@ class GraphPieceSpecBase(type_spec.BatchableTypeSpec, metaclass=abc.ABCMeta):
     fields = tf.nest.pack_sequence_as(self._data_spec, flat_values)
     cls = self.value_type
     assert issubclass(cls, GraphPieceBase)
-    return cls(fields, self)
+    return cls._from_data(fields, self._shape, self._indices_dtype,
+                          self._metadata)
 
   @property
   def _flat_tensor_specs(self) -> List[tf.TensorSpec]:
@@ -874,3 +910,56 @@ def _set_batch_shape_in_spec(batch_shape: tf.TensorShape,
     return tf.TensorSpec(shape=new_shape, dtype=field_spec.dtype)
 
   raise ValueError(f'Unsupported field spec type {type(field_spec).__name__}')
+
+
+def _get_fields_list(data: Data) -> List[Field]:
+  """Extracts all nested fields from the data as a flat list."""
+  result = []
+
+  def map_fn(value):
+    if isinstance(value, GraphPieceBase):
+      # pylint: disable=protected-access
+      tf.nest.map_structure(map_fn, value._data)
+    else:
+      result.append(value)
+
+  tf.nest.map_structure(map_fn, data)
+  return result
+
+
+def _get_batch_shape_from_fields(data: Data,
+                                 batch_rank: int) -> Optional[tf.TensorShape]:
+  """Extracts common batch dimensions from data fields.
+
+  Args:
+    data: nest of GraphPiece fields.
+    batch_rank: number of batch dimensions.
+
+  Returns:
+    Returns common batch dimensions (as TensorShape) for all fields or None if
+    data has no fields.
+
+  Raises:
+    ValueError: if batch dimensions are unequal between fields. In particular,
+      if some dimension is None for one field, it must be None for all.
+  """
+
+  def get_batch_shape(field: Field) -> tf.TensorShape:
+    if field.shape.rank is None or field.shape.rank <= batch_rank:
+      raise ValueError('Field rank must be greater than the batch rank:'
+                       f' field shape={field.shape}, batch_rank={batch_rank}')
+    return field.shape[:batch_rank]
+
+  fields = _get_fields_list(data)
+  if not fields:
+    return None
+
+  result = get_batch_shape(fields[0])
+  for field in fields[1:]:
+    shape = get_batch_shape(field)
+    if shape.as_list() != result.as_list():
+      raise ValueError('Fields batch dimensions do not match:'
+                       f' batch_rank={batch_rank},'
+                       f' 1st field shape: {fields[0].shape},'
+                       f' 2nd field shape: {field.shape}')
+  return result

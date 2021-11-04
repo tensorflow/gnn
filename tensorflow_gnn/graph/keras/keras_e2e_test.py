@@ -3,6 +3,7 @@
 import os
 
 from absl.testing import parameterized
+import numpy as np
 import tensorflow as tf
 import tensorflow_gnn as tfgnn  # Test user-visibe names.
 
@@ -289,6 +290,30 @@ class GraphTensorKerasModelTest(tf.test.TestCase, parameterized.TestCase):
     graph_1 = self._create_graph_tensor(static_shapes, factor=1)
     self.assertAllClose(model(graph_1), expected_1)
     self.assertAllClose(restored_model(graph_1), expected_1)
+
+  def testPredict(self):
+
+    def features_fn(index):
+      label = tf.cast(index, tf.float32)
+      graph = tfgnn.GraphTensor.from_pieces(
+          context=tfgnn.Context.from_fields(
+              features={'h': tf.expand_dims(label, -1)}))
+      return graph, label
+
+    ds = tf.data.Dataset.range(4)
+    ds = ds.map(features_fn)
+    ds = ds.batch(2)
+    model = tf.keras.models.Sequential(
+        [tf.keras.layers.Lambda(lambda gt: tf.squeeze(gt.context['h'], -1))])
+
+    model.compile(loss='mae')
+    model.fit(ds)
+    predictions = model.predict(ds.map(lambda graph, _: graph))
+    self.assertAllClose(predictions, np.array([0., 1., 2., 3.]))
+
+    graph_batch = next(iter(ds))[0]
+    predictions_on_batch = model.predict_on_batch(graph_batch)
+    self.assertAllClose(predictions_on_batch, np.array([0., 1.]))
 
 
 if __name__ == '__main__':

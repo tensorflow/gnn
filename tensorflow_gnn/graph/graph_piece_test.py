@@ -1,6 +1,5 @@
 """Tests for GraphPiece extension type."""
 
-import functools
 import os
 from typing import Mapping, Tuple, Union
 
@@ -47,10 +46,6 @@ class TestPiece(gp.GraphPieceBase):
   def _type_spec_cls():
     return TestPieceSpec
 
-  def relax_num_components(self) -> 'TestPiece':
-    field_map_fn = functools.partial(gp.relax_dim, self.rank)
-    return self._apply(field_map_fn, lambda piece: piece.relax_num_components())
-
 
 @type_spec.register('tensorflow_gnn.TestPieceSpec')
 class TestPieceSpec(gp.GraphPieceSpecBase):
@@ -87,8 +82,8 @@ class NestingTest(tf.test.TestCase, parameterized.TestCase):
         np.array([[[1], [0]], [[2], [0]], [[3], [0]]]), shape_dims=())
     self.assertAllEqual(leaf.shape, tf.TensorShape([]))
     root = TestPiece.from_value(TestPiece.from_value(leaf), batch_shape)
-    self.assertAllEqual(root.shape, batch_shape)
-    self.assertAllEqual(root.value.value.shape, batch_shape)
+    self.assertTrue(root.shape.is_compatible_with(batch_shape))
+    self.assertTrue(root.value.value.shape.is_compatible_with(batch_shape))
 
   @parameterized.parameters([((1,),), ((2,),), ((4,),), ((3, 1),), ((3, 3),),
                              ((None, 3),), ((2, None),)])
@@ -96,7 +91,8 @@ class NestingTest(tf.test.TestCase, parameterized.TestCase):
     leaf = TestPiece.from_value(
         np.array([[[1], [0]], [[2], [0]], [[3], [0]]]), shape_dims=())
     self.assertAllEqual(leaf.shape, tf.TensorShape([]))
-    err_msg = 'shape is not compatible with the batch shape'
+    err_msg = ('Fields have batch dimensions that are not compatible'
+               ' with the GraphPiece shape')
     self.assertRaisesRegex(
         ValueError, err_msg,
         lambda: TestPiece.from_value(TestPiece.from_value(leaf), batch_shape))
@@ -239,78 +235,6 @@ class TfFunctionTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(inc_metadata.experimental_get_tracing_count(), 3)
     self.assertAllEqual(piece.spec._metadata['ttl'], 3)
 
-  @parameterized.product((dict(value1=np.array([0]), value2=np.array([1, 2])),
-                          dict(
-                              value1=np.array([[1, 2], [3, 4]]),
-                              value2=np.array([[2, 1], [4, 3], [5, 4]])),
-                          dict(
-                              value1=tf.ragged.constant([[1., 2.], [3.]]),
-                              value2=tf.ragged.constant([[], [], []]))),
-                         depth=(1, 2, 3, 4))
-  def testEqTracesAfterShapesRelaxation(self, value1, value2, depth):
-
-    def create(value):
-      for _ in range(depth):
-        value = TestPiece.from_value(value)
-      return value
-
-    def readout(value):
-      for _ in range(depth):
-        value = value.value
-      return value
-
-    @tf.function
-    def add1(piece):
-      return create(readout(piece) + 1)
-
-    piece1 = create(value1).relax_num_components()
-    piece2 = create(value2).relax_num_components()
-
-    piece2 = add1(piece2)
-    piece2 = add1(piece2)
-    piece1 = add1(piece1)
-    piece1 = add1(piece1)
-    piece1 = add1(piece1)
-    piece2 = add1(piece2)
-    self.assertEqual(add1.experimental_get_tracing_count(), 1)
-    self.assertAllEqual(readout(piece1), value1 + 3)
-    self.assertAllEqual(readout(piece2), value2 + 3)
-
-  @parameterized.product(
-      (dict(value1=np.array([0]), value2=np.array([[1]])),
-       dict(
-           value1=np.array([[1, 2], [3, 4]]), value2=np.array([[2], [4], [5]])),
-       dict(
-           value1=tf.ragged.constant([[1., 2.], [3.]]),
-           value2=tf.ragged.constant([[[]], [], []]))),
-      depth=(1, 2, 3, 4))
-  def testNotEqTracesAfterShapesRelaxation(self, value1, value2, depth):
-
-    def create(value):
-      for _ in range(depth):
-        value = TestPiece.from_value(value)
-      return value
-
-    def readout(value):
-      for _ in range(depth):
-        value = value.value
-      return value
-
-    @tf.function
-    def add1(piece):
-      return create(readout(piece) + 1)
-
-    piece1 = create(value1).relax_num_components()
-    piece2 = create(value2).relax_num_components()
-
-    piece2 = add1(piece2)
-    piece1 = add1(piece1)
-    piece1 = add1(piece1)
-    piece2 = add1(piece2)
-    self.assertEqual(add1.experimental_get_tracing_count(), 2)
-    self.assertAllEqual(readout(piece1), value1 + 2)
-    self.assertAllEqual(readout(piece2), value2 + 2)
-
   @parameterized.parameters([
       (np.array([0]), np.array([1])),
       (np.array([0, 1]), np.array([1, 2])),
@@ -334,6 +258,62 @@ class TfFunctionTest(tf.test.TestCase, parameterized.TestCase):
     piece2 = nest(piece2)
     self.assertEqual(nest.experimental_get_tracing_count(), 2)
     self.assertAllEqual(piece2.value.value.value, value2)
+
+  @parameterized.parameters([
+      (0, np.array([0]), np.array([1])),
+      (1, np.array([[0], [1]]), np.array([[1], [2], [3]])),
+      (2, np.array([[[0]], [[1]]]), np.array([[[1]], [[2]], [[3]]])),
+      (1, tf.ragged.constant([[1, 2], [3]]), tf.ragged.constant([[1], [2, 3]])),
+  ])
+  def testShapesInEagerMode(self, batch_rank, true_value, false_value):
+    shape_dims = [None] * batch_rank
+
+    @tf.function
+    def cond_fn(pred: tf.Tensor) -> tf.Tensor:
+      return tf.cond(
+          pred,  #
+          lambda: TestPiece.from_value(true_value, shape_dims=shape_dims),
+          lambda: TestPiece.from_value(false_value, shape_dims=shape_dims))
+
+    true_piece = cond_fn(tf.convert_to_tensor(True))
+    self.assertEqual(true_piece.shape.rank, batch_rank)
+    self.assertTrue(true_piece.shape.is_fully_defined())
+    self.assertEqual(true_piece.shape, true_value.shape[:batch_rank])
+
+    false_piece = cond_fn(tf.convert_to_tensor(False))
+    self.assertEqual(false_piece.shape.rank, batch_rank)
+    self.assertTrue(false_piece.shape.is_fully_defined())
+    self.assertEqual(false_piece.shape, false_piece.shape[:batch_rank])
+
+    self.assertEqual(cond_fn.experimental_get_tracing_count(), 1)
+
+  @parameterized.parameters([
+      (0, np.array([0]), np.array([1])),
+      (1, np.array([[0], [1]]), np.array([[1], [2], [3]])),
+      (2, np.array([[[0]], [[1]]]), np.array([[[1]], [[2]], [[3]]])),
+      (1, tf.ragged.constant([[1, 2], [3]]), tf.ragged.constant([[1], [2, 3]])),
+  ])
+  def testShapesRelaxation(self, batch_rank, true_value, false_value):
+    shape_dims = [None] * batch_rank
+
+    @tf.function
+    def readout(value: TestPiece) -> tf.Tensor:
+      return value.value
+
+    @tf.function
+    def cond_fn(pred: tf.Tensor) -> tf.Tensor:
+      result = tf.cond(
+          pred,  #
+          lambda: TestPiece.from_value(true_value, shape_dims=shape_dims),
+          lambda: TestPiece.from_value(false_value, shape_dims=shape_dims))
+
+      return readout(result)
+
+    self.assertAllEqual(true_value, cond_fn(tf.convert_to_tensor(True)))
+    self.assertAllEqual(false_value, cond_fn(tf.convert_to_tensor(False)))
+
+    self.assertEqual(readout.experimental_get_tracing_count(), 1)
+    self.assertEqual(cond_fn.experimental_get_tracing_count(), 1)
 
 
 class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
@@ -438,6 +418,41 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(ds.element_spec._data_spec,
                         tf.TensorSpec(shape=[1, 2, 3], dtype=tf.int64))
 
+  def testBatchShapes(self):
+
+    def generate(offset):
+      value = tf.range(offset)
+      return TestPiece.from_value(value=value)
+
+    ds = tf.data.Dataset.range(0, 3)
+    ds = ds.map(generate)
+    ds = ds.batch(2)
+    self.assertAllEqual(ds.element_spec.shape, tf.TensorShape([None]))
+    itr = iter(ds)
+    self.assertAllEqual(next(itr).shape, tf.TensorShape([2]))
+    self.assertAllEqual(next(itr).shape, tf.TensorShape([1]))
+
+  def testShapesRelaxation(self):
+
+    def cond_fn(pred):
+      return tf.cond(pred, lambda: TestPiece.from_value(np.array([0])),
+                     lambda: TestPiece.from_value(np.array([0, 1])))
+
+    ds = tf.data.Dataset.from_tensor_slices([True, False])
+    ds = ds.map(cond_fn)
+    self.assertAllEqual(ds.element_spec.shape, tf.TensorShape([]))
+    itr = iter(ds)
+    self.assertAllEqual(next(itr).value, np.array([0]))
+    self.assertAllEqual(next(itr).value, np.array([0, 1]))
+
+    ds = ds.batch(2, drop_remainder=True)
+    self.assertAllEqual(ds.element_spec.shape, tf.TensorShape([2]))
+    self.assertAllEqual(next(iter(ds)).value, tf.ragged.constant([[0], [0, 1]]))
+    ds = ds.unbatch()
+    itr = iter(ds)
+    self.assertAllEqual(next(itr).value, np.array([0]))
+    self.assertAllEqual(next(itr).value, np.array([0, 1]))
+
   def testFixedSize(self):
 
     @tf.function
@@ -517,28 +532,6 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
     element = next(iter(ds))
     self.assertAllEqual(element.value.value,
                         np.array([[[0, 1], [1, 2]], [[2, 3], [3, 4]]]))
-
-  def testShapesRelaxation(self):
-
-    @tf.function
-    def generate(offset):
-      value = tf.range(offset, offset + 2)
-      value = tf.ensure_shape(value, [2])
-      return TestPiece.from_value(
-          TestPiece.from_value(value=value)).relax_num_components()
-
-    ds = tf.data.Dataset.range(0, 7)
-    ds = ds.map(generate)
-    ds = ds.batch(3, True)
-    element = next(iter(ds))
-    self.assertAllEqual(
-        element.value.value,
-        tf.ragged.constant([[0, 1], [1, 2], [2, 3]], ragged_rank=1))
-    ds = ds.unbatch().batch(2, True).batch(2, True)
-    element = next(iter(ds))
-    self.assertAllEqual(
-        element.value.value,
-        tf.ragged.constant([[[0, 1], [1, 2]], [[2, 3], [3, 4]]], ragged_rank=2))
 
   def testRagged(self):
 
@@ -746,34 +739,6 @@ class KerasModelSavingLoadingTest(tf.test.TestCase, parameterized.TestCase):
 
     self.assertAllClose(readout_x(model(value)), y)
     self.assertAllClose(readout_x(restored_model(value)), y)
-
-  @parameterized.parameters([True, False])
-  def testSignatureRelaxation(self, relax_signature: bool):
-
-    def add1(p: TestPiece) -> TestPiece:
-      return TestPiece.from_value(p.value + 1)
-
-    example = TestPiece.from_value(np.array([0]))
-    if relax_signature:
-      example = example.relax_num_components()
-
-    inputs = tf.keras.layers.Input(type_spec=example.spec)
-    outputs = tf.keras.layers.Lambda(add1)(inputs)
-    model = tf.keras.Model(inputs, outputs)
-    restored_model = self._save_and_restore_model(model)
-
-    def readout_x(piece):
-      return piece.value
-
-    input_value = TestPiece.from_value(np.array([0, 1, 2]))
-    if relax_signature:
-      expected = np.array([1, 2, 3])
-      self.assertAllClose(readout_x(restored_model(input_value)), expected)
-    else:
-      self.assertRaisesRegex(ValueError,
-                             ('Could not find matching concrete function'
-                              ' to call loaded from the SavedModel'),
-                             lambda: readout_x(restored_model(input_value)))
 
 
 class CreateEmptyValueTest(tf.test.TestCase, parameterized.TestCase):

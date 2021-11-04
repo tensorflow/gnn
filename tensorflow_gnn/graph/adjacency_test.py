@@ -84,20 +84,6 @@ class HyperAdjacencyTest(tf.test.TestCase, parameterized.TestCase):
         r'Adjacency indices are not compatible: \(0, a\) and \(1, b\)',
         lambda: adjacency.HyperAdjacency.from_indices(indices))
 
-  def testShapeRelaxation(self):
-    strict = adjacency.HyperAdjacency.from_indices({
-        const.SOURCE: ('node.a', tf.ragged.constant([[0, 1], [0]])),
-        const.TARGET: ('node.b', tf.ragged.constant([[1, 2], [1]])),
-    })
-    self.assertEqual(strict.shape, tf.TensorShape([2]))
-    self.assertEqual(strict.spec[const.SOURCE].shape.as_list(), [2, None])
-    self.assertEqual(strict.spec[const.TARGET].shape.as_list(), [2, None])
-
-    relaxed = strict.set_shape([None])
-    self.assertEqual(relaxed.shape.as_list(), [None])
-    self.assertEqual(relaxed.spec[const.SOURCE].shape.as_list(), [None, None])
-    self.assertEqual(relaxed.spec[const.TARGET].shape.as_list(), [None, None])
-
   def testNodeSetName(self):
     adj = adjacency.HyperAdjacency.from_indices({
         const.SOURCE: ('node.a', tf.ragged.constant([[0, 1], [0]])),
@@ -186,8 +172,7 @@ class AdjacencyTest(tf.test.TestCase, parameterized.TestCase):
           target=('node.b', as_tensor([[0], [1], [2]])),
           expected_shape=[3]),
   ])
-  def testShapeResolution(self, description: str,
-                          source: adjacency.Index,
+  def testShapeResolution(self, description: str, source: adjacency.Index,
                           target: adjacency.Index,
                           expected_shape: tf.TensorShape):
     result = adjacency.Adjacency.from_indices(source, target)
@@ -218,19 +203,6 @@ class AdjacencyTest(tf.test.TestCase, parameterized.TestCase):
         Exception,
         r'Adjacency indices are not compatible: \(0, a\) and \(1, b\)',
         lambda: adjacency.Adjacency.from_indices(source, target))
-
-  def testShapeRelaxation(self):
-    strict = adjacency.Adjacency.from_indices(
-        source=('node.a', tf.ragged.constant([[0, 1], [0]])),
-        target=('node.b', tf.ragged.constant([[1, 2], [1]])))
-    self.assertEqual(strict.shape, tf.TensorShape([2]))
-    self.assertEqual(strict.source.shape.as_list(), [2, None])
-    self.assertEqual(strict.target.shape.as_list(), [2, None])
-
-    relaxed = strict.set_shape([None])
-    self.assertEqual(relaxed.shape.as_list(), [None])
-    self.assertEqual(relaxed.spec.source.shape.as_list(), [None, None])
-    self.assertEqual(relaxed.spec.target.shape.as_list(), [None, None])
 
   def testNodeSetName(self):
     adj = adjacency.Adjacency.from_indices(
