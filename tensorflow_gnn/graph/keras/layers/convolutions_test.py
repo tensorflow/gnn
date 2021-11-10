@@ -25,7 +25,7 @@ class SimpleConvolutionTest(tf.test.TestCase, parameterized.TestCase):
         message_fn,
         node_input_tags=[const.TARGET] if reverse else [const.SOURCE],
         edge_input_feature=const.DEFAULT_STATE_NAME if include_edges else None,
-        destination_tag=const.SOURCE if reverse else const.TARGET)
+        receiver_tag=const.SOURCE if reverse else const.TARGET)
 
     actual = conv(input_graph, edge_set_name="edges")
     if reverse:

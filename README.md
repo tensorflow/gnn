@@ -44,3 +44,41 @@ platform. It contains the following components:
 This library is an OSS port of a Google internal library used in a broad variety
 of contexts, on homogeneous and heterogeneous graphs, and in conjunction with
 other scalable graph mining tools.
+
+
+## Installation Instructions
+
+##### Installation from source.
+
+This is currently the only way to install the preview release of ```tensorflow_gnn```.
+A virtual environment is highly recommended.
+
+1.  **Clone tensorflow_gnn**
+
+    > `$> git clone https://github.com/tensorflow/gnn.git tensorflow_gnn`
+
+2.  **Install Tensorflow Nightly** (`tf-nightly`)
+
+    TF-GNN currently uses ExtensionTypes, which will be released as part of
+    TensorFlow 2.7. As such, you will need to install the TensorFlow Nightly
+    build, following the instructions here:
+    https://www.tensorflow.org/install/pip.
+
+    > `$> pip install tf-nightly`
+
+3.  **Install Bazel**
+
+    Bazel is required to build the source of this package. Follow the
+    instructions here to install Bazel for your OS:
+    https://docs.bazel.build/versions/main/install.html
+
+4.  **Install GraphViz**
+
+    This package uses GraphViz for visualization tools. Installation
+    instructions vary depending on your operating system. E.g. for Ubuntu:
+
+    > `$> sudo apt-get install graphviz graphviz-dev`
+
+5.  **Install tensorflow_gnn**
+
+    > `$> cd tensorflow_gnn && python3 -m pip install .`

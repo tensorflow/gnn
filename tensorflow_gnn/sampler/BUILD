@@ -16,6 +16,7 @@ py_proto_library(
     ],
 )
 
+# copybara:strip_begin(Sampling spec)
 py_proto_library(
     name = "sampling_spec_py_proto",
     srcs = ["sampling_spec.proto"],
@@ -26,3 +27,4 @@ py_proto_library(
         "@com_google_protobuf//:protobuf_python",
     ],
 )
+# copybara:strip_end

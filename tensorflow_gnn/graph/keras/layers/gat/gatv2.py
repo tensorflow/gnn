@@ -211,7 +211,7 @@ class GATv2AttentionPool(tf.keras.layers.Layer):
         separate weights for each head.
       tag: The incident node tag to pool to.
       edge_set_name: If set, the feature will be pooled from this edge set to
-        the given destination.
+        the given receiver `tag`.
       **kwargs: Any extra arguments to pass to the super class's init.
 
     Raises:

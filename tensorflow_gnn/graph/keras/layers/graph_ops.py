@@ -456,14 +456,14 @@ class Broadcast(BroadcastPoolBase):
 
   There are two kinds of broadcast that this layer can be used for:
     * From a node set to an edge set. This is selected by specifying
-      the origin by tag `tgnn.SOURCE` or `tfgnn.TARGET` and the destination
+      the origin by tag `tgnn.SOURCE` or `tfgnn.TARGET` and the receiver
       as `edge_set_name=...`; the node set name is implied.
       The result is a tensor shaped like an edge feature in which each edge
       has a copy of the feature that is present at its SOURCE or TARGET node.
       From a node's point of view, SOURCE means broadcast to outgoing edges,
       and TARGET means broadcast to incoming edges.
     * From the context to a node set or edge set. This is selected by
-      specifying the origin by tag `tfgnn.CONTEXT` and the destination as either
+      specifying the origin by tag `tfgnn.CONTEXT` and the receiver as either
       a `node_set_name=...` or an `edge_set_name=...`.
       The result is a tensor shaped like a node/edge feature in which each
       node/edge has a copy of the context feature in its graph component.
@@ -556,7 +556,7 @@ class Pool(BroadcastPoolBase):
 
   There are two kinds of pooling that this layer can be used for:
     * From an edge set to a node set. This is selected by specifying the
-      origin as `edge_set_name=...` and the destination with tag `tgnn.SOURCE`
+      origin as `edge_set_name=...` and the receiver with tag `tgnn.SOURCE`
       or `tfgnn.TARGET`; the corresponding node set name is implied.
       The result is a tensor shaped like a node feature in which each node
       has the aggregated feature values from the edges of the edge set that
@@ -564,7 +564,7 @@ class Pool(BroadcastPoolBase):
       incoming edges of the node.
     * From a node set or edge set to the context. This is selected by specifying
       the origin as either a `node_set_name=...` or an `edge_set_name=...` and
-      the destination with tag `tfgnn.CONTEXT`. The result is a tensor shaped
+      the receiver with tag `tfgnn.CONTEXT`. The result is a tensor shaped
       like a context feature in which each graph component has the aggregated
       feature values from those nodes/edges in the selected node or edge set
       that belong to the component.
@@ -576,20 +576,21 @@ class Pool(BroadcastPoolBase):
   "sum", "mean", "max" and "min".
 
   Both the initialization of and the call to this layer accept arguments for
-  the destination tag, the node/edge_set_name, the reduce_type and the
+  the receiver tag, the node/edge_set_name, the reduce_type and the
   feature_name. The call arguments take effect for that call only and can
   supply missing values, but they are not allowed to contradict initialization
   arguments.
   The feature name can be left unset to select tfgnn.DEFAULT_STATE_NAME.
 
   Init args:
-    tag: Can be set to one of tfgnn.SOURCE, tfgnn.TARGET or tfgnn.CONTEXT.
+    tag: Can be set to one of tfgnn.SOURCE, tfgnn.TARGET or tfgnn.CONTEXT
+      to select the receiver/
     reduce_type: Can be set to any name from
       tfgnn.get_registered_reduce_operation_names().
     edge_set_name: If set, the feature will be pooled from this edge set
-      to the given destination. Mutually exclusive with node_set_name.
+      to the given receiver `tag`. Mutually exclusive with node_set_name.
     node_set_name: If set, the feature will be pooled from this node set.
-      Destination must be CONTEXT. Mutually exclusive with edge_set_name.
+      The `tag` must be CONTEXT. Mutually exclusive with edge_set_name.
     feature_name: The name of the feature to read. If unset (also in call),
       the default state feature will be read.
 
@@ -665,7 +666,7 @@ class Pool(BroadcastPoolBase):
     """Internal use only: implements UpdateInputLayerExtended."""
     if self.tag == const.CONTEXT:
       raise ValueError("NodeSetUpdate does not expect Pool(CONTEXT, ...)")
-    # TODO(b/192858913): Check that Pool has node_set_name as destination.
+    # TODO(b/192858913): Check that Pool has node_set_name as receiver.
     return self(*args, **kwargs)
 
   def _call_for_context(self, *args, **kwargs):

@@ -68,12 +68,18 @@ class EdgesToNodePoolingLayer(Protocol):
 
   Typical implementations of this protocol are:
     * Convolutions, which propagate state from adjacent nodes along the edge set
-      and pool it for the destination node. They may use edge features,
+      and pool it for the receiver node. They may use edge features,
       but do not update them (that is, the edge set has no evolving state).
     * Edge state poolings, which pool already-computed states from incident
-      edges of the edge set for the destination node. Using these in a
+      edges of the edge set for the receiver node. Using these in a
       NodeSetUpdate typically requires a corresponding EdgeSetUpdate
       in the same GraphUpdate.
+
+  A typical implementation accepts an initializer argument with an
+  IncidentNodeTag (like tfgnn.SOURCE or tfgnn.TARGET) to select which
+  incident node of each edge is the receiver. The conventional terms
+  source and target distinguish between the endpoints of the edge,
+  but the data can flow in either direction.
   """
 
   def call(self, graph: gt.GraphTensor, *,

@@ -21,35 +21,38 @@ class ConvolutionFromEdgeSetUpdate(tf.keras.layers.Layer):
 
   Init args:
     edge_set_update: An EdgeSetUpdate layer (or custom reimplementation) that
-     computes new edge states from the input graph tensor. Its results are
-      pooled for the destination node set and returned from this layer.
-    destination_tag: This layer's result is obtained by pooling the per-edge
+      computes new edge states from the input graph tensor. Its results are
+      pooled for the receiver node set and returned from this layer.
+    receiver_tag: This layer's result is obtained by pooling the per-edge
       results at this endpoint of each edge (by default, `tfgnn.TARGET`).
     reduce_type: Specifies how to pool the per-edge results to each edge's
-      destination node. Defaults to "sum", can be set to any name from
+      receiver node. Defaults to "sum", can be set to any name from
       tfgnn.get_registered_reduce_operation_names().
 
   Call returns:
     A tensor or dict of tensors with the result of edge_set_update, pooled for
-    the destination node set. (Typically, the caller combines this with results
-    from other edge sets to compute a node set update at the destination.)
+    the receiver node set. (Typically, the caller combines this with results
+    from other edge sets to compute a node set update at the receiving end.)
   """
 
   def __init__(self,
                edge_set_update: graph_update.EdgeSetUpdateLayer,
                *,
-               destination_tag: const.IncidentNodeTag = const.TARGET,
+               receiver_tag: const.IncidentNodeTag = const.TARGET,
                reduce_type: str = "sum",
                **kwargs):
+    if "destination_tag" in kwargs:  # TODO(b/192858913): Remove in 2022.
+      raise TypeError(
+          "Argument destination_tag has been renamed to receiver_tag")
     super().__init__(**kwargs)
     self._edge_set_update = edge_set_update
-    self._destination_tag = destination_tag
+    self._receiver_tag = receiver_tag
     self._reduce_type = reduce_type
 
   def get_config(self):
     return dict(
         edge_set_update=self._edge_set_update,
-        destination_tag=self._destination_tag,
+        receiver_tag=self._receiver_tag,
         reduce_type=self._reduce_type,
         **super().get_config())
 
@@ -58,7 +61,7 @@ class ConvolutionFromEdgeSetUpdate(tf.keras.layers.Layer):
     messages = self._edge_set_update(graph, edge_set_name=edge_set_name)
     def pool(feature_value):
       return ops.pool_edges_to_node(
-          graph, edge_set_name, self._destination_tag, self._reduce_type,
+          graph, edge_set_name, self._receiver_tag, self._reduce_type,
           feature_value=feature_value)
     pooled_messages = tf.nest.map_structure(pool, messages)
     return pooled_messages
@@ -75,9 +78,9 @@ class SimpleConvolution(ConvolutionFromEdgeSetUpdate):
     message_fn: A Keras layer that takes input features concatenated into a
       single tensor and computes the message of each edge.
       Input and output tensors are shaped like edge features. (See `reduce_type`
-      and `destination_tag` about the pooling that happens afterwards.)
+      and `receiver_tag` about the pooling that happens afterwards.)
     reduce_type: Specifies how to pool the per-edge results to each edge's
-      destination node. Defaults to "sum", can be set to any name from
+      receiver node. Defaults to "sum", can be set to any name from
       tfgnn.get_registered_reduce_operation_names().
     node_input_tags: The incident nodes of each edge whose states are used
       as an input, specified as IncidentNodeTags (tfgnn.SOURCE and tfgnn.TARGET
@@ -85,12 +88,16 @@ class SimpleConvolution(ConvolutionFromEdgeSetUpdate):
     edge_input_feature: Can be set to a feature name of the EdgeSet (or a
       sequence of those) for use as additional inputs to message_fn.
       By default, no edge features are used.
-    destination_tag: This layer's result is obtained by pooling the per-edge
-      results at this endpoint of each edge (by default, `tfgnn.TARGET`).
+    receiver_tag: This layer's result is obtained by pooling the per-edge
+      results at this endpoint of each edge. The default is `tfgnn.TARGET`,
+      but it is perfectly reasonable to do a convolution towards the
+      `tfgnn.SOURCE` instead. (Source and target are conventional names for
+      the incident nodes of a directed edge, data flow in a GNN may happen
+      in either direction.)
 
   Call returns:
     A tensor or dict of tensors with the result of edge_set_update, pooled for
-    the destination node set.
+    the receiver node set.
   """
 
   def __init__(
@@ -101,7 +108,7 @@ class SimpleConvolution(ConvolutionFromEdgeSetUpdate):
       node_input_tags: Sequence[const.IncidentNodeTag] = (
           const.SOURCE, const.TARGET),
       edge_input_feature: Optional[const.FieldNameOrNames] = None,
-      destination_tag: const.IncidentNodeTag = const.TARGET):
+      receiver_tag: const.IncidentNodeTag = const.TARGET):
     next_state = next_state_lib.NextStateFromConcat(transformation=message_fn)
     edge_set_update = graph_update.EdgeSetUpdate(
         next_state,
@@ -109,5 +116,5 @@ class SimpleConvolution(ConvolutionFromEdgeSetUpdate):
         edge_input_feature=edge_input_feature,
         context_input_feature=None)
     super().__init__(
-        edge_set_update, destination_tag=destination_tag,
+        edge_set_update, receiver_tag=receiver_tag,
         reduce_type=reduce_type)
