@@ -17,19 +17,20 @@ def softmax_edges_per_node(
     feature_name: Optional[gt.FieldName] = None) -> gt.Field:
   """Softmaxes all the edges in the graph over their incident nodes.
 
-  This function performs a per-edge softmax operation, grouped by all
-  the edges per node the direction of `node_tag`.
+  This function performs an element-wise softmax normalization of edge values
+  across the edges that have a common incident node at `node_tag` (e.g., SOURCE
+  or TARGET).
 
   Args:
     graph_tensor: A scalar GraphTensor.
-    edge_set_name: The name of the edge set from which values are pooled.
+    edge_set_name: The name of the edge set on which values are normalized.
     node_tag: The incident node of each edge at which values are aggregated,
       identified by its tag in the edge set.
     feature_value: A ragged or dense edge feature value.
     feature_name: An edge feature name.
 
   Raises:
-    ValueError is `edge_set_name` is not in the `graph_tensor` edges.
+    ValueError: if `edge_set_name` is not in the `graph_tensor.edge_sets`.
 
   Returns:
     The edge values softmaxed per incident node. The dimensions do not change.
