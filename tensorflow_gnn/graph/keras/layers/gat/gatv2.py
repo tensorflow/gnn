@@ -1,5 +1,5 @@
 """Contains a Graph Attention Network v2 and associated layers."""
-from typing import Optional, Tuple
+from typing import Any, Callable, Optional, Tuple, Union
 
 import tensorflow as tf
 from tensorflow_gnn.graph import graph_constants as const
@@ -15,9 +15,14 @@ class GATv2(tf.keras.layers.Layer):
   improvements over the original GAT (https://arxiv.org/abs/1710.10903) by
   allowing the network to compute a more expressived "dynamic" instead of
   just "static" attention. See the above papers for more details.
+
+  This implementation of GAT attends only to edges that are explicitly stored
+  in the input GraphTensor. Attention of a node to itself requires having an
+  explicit loop in the edge set at hand.
   """
 
   def __init__(self,
+               *,
                num_heads: int,
                per_head_channels: int,
                edge_set_name: str,
@@ -25,6 +30,8 @@ class GATv2(tf.keras.layers.Layer):
                output_feature_name: str = const.DEFAULT_STATE_NAME,
                use_bias: bool = True,
                edge_dropout: float = 0.,
+               attention_activation: Union[str,
+                                           Callable[..., Any]] = 'leaky_relu',
                query_kernel_initializer: Optional[
                    tf.keras.initializers.Initializer] = None,
                key_kernel_initializer: Optional[
@@ -54,6 +61,12 @@ class GATv2(tf.keras.layers.Layer):
           a bias term is not used in the attention weights.
       edge_dropout: The percentage (between 0 and 1) of edges to randomly drop
         during training.
+      attention_activation: The nonlinearity used on the transformed inputs
+        before multiplying with the trained weights of the attention layer.
+        This can be specified as a Keras layer, a tf.keras.activations.*
+        function, or a string understood by tf.keras.layers.Activation().
+        Defaults to "leaky_relu", which in turn defaults to a negative slope
+        of alpha=0.2.
       query_kernel_initializer: An initializer for the `query` part of the
         linear transformation of the input.
       key_kernel_initializer: An initializer for the `key` part of the linear
@@ -78,16 +91,17 @@ class GATv2(tf.keras.layers.Layer):
 
     self._num_heads = num_heads
     self._per_head_channels = per_head_channels
-    self._use_bias = use_bias
     self._edge_set_name = edge_set_name
     self._feature_name = feature_name
     self._output_feature_name = output_feature_name
+    self._use_bias = use_bias
     self._edge_dropout = edge_dropout
+    self._attention_activation = tf.keras.activations.get(attention_activation)
     self._query_kernel_initializer = query_kernel_initializer
     self._key_kernel_initializer = key_kernel_initializer
     self._attention_kernel_initializers = attention_kernel_initializers
 
-    # Decompose W into W_query (left) and W_key (right). See impl for details.
+    # Decompose W into W_query (left) and W_key (right). See call() for details.
     self._w_query = tf.keras.layers.Dense(
         per_head_channels * num_heads,
         kernel_initializer=query_kernel_initializer,
@@ -104,6 +118,8 @@ class GATv2(tf.keras.layers.Layer):
         num_heads,
         per_head_channels,
         edge_dropout=edge_dropout,
+        attention_activation=attention_activation,
+        # TODO(b/205960151): Expose setting, possibly rename to receiver_tag.
         tag=const.TARGET,
         edge_set_name=self._edge_set_name,
         attention_kernel_initializers=attention_kernel_initializers)
@@ -133,22 +149,25 @@ class GATv2(tf.keras.layers.Layer):
       raise ValueError(f'Edge {self._edge_set_name} not in Graph edge sets')
     adjacency = graph.edge_sets[self._edge_set_name].adjacency
 
-    query_node = graph.node_sets[adjacency.source_name]
-    key_node = graph.node_sets[adjacency.target_name]
+    # The *query* is posed by the prospective receiver of the pooled values.
+    # The *keys* (and their baked-in values) come from the data sources.
+    query_node = graph.node_sets[adjacency.target_name]
+    key_node = graph.node_sets[adjacency.source_name]
 
     # Decompose W*[query || key] into W_Left * query + W_Right * key,
     # since we'll need W_Left * query later. See GATv2AttentionPool for details.
     # Note that we are performing the transformation before broadcasting.
-    # [num_nodes, opt_extra_dims, per_head_channels * num_heads]
+    # [num_nodes, *extra_dims, per_head_channels * num_heads]
     query = self._w_query(query_node[self._feature_name])
     key = self._w_key(key_node[self._feature_name])
 
     # Broadcast these features to get them ready for the pooling layer.
-    # [n_edges, opt_extra_dims, per_head_channels * num_heads]
+    # [num_edges, *extra_dims, per_head_channels * num_heads]
     query_broadcasted = ops.broadcast_node_to_edges(
-        graph, self._edge_set_name, const.SOURCE, feature_value=query)
+        graph, self._edge_set_name, const.TARGET, feature_value=query)
     key_broadcasted = ops.broadcast_node_to_edges(
-        graph, self._edge_set_name, const.TARGET, feature_value=key)
+        graph, self._edge_set_name, const.SOURCE, feature_value=key)
+    # TODO(b/205960151): Optionally include edge and context features?
 
     # Compute attention pooling to get the output features.
     pooled = self._attention_pool((graph, query_broadcasted, key_broadcasted),
@@ -169,6 +188,8 @@ class GATv2(tf.keras.layers.Layer):
         'output_feature_name': self._output_feature_name,
         'use_bias': self._use_bias,
         'edge_dropout': self._edge_dropout,
+        'attention_activation': tf.keras.activations.serialize(
+            self._attention_activation),
         'query_kernel_initializer': self._query_kernel_initializer,
         'key_kernel_initializer': self._key_kernel_initializer,
         'attention_kernel_initializers': self._attention_kernel_initializers,
@@ -189,6 +210,8 @@ class GATv2AttentionPool(tf.keras.layers.Layer):
                num_heads: int,
                per_head_channels: int,
                edge_dropout: float = 0.,
+               attention_activation: Union[str,
+                                           Callable[..., Any]] = 'leaky_relu',
                attention_kernel_initializers: Optional[
                    tf.keras.initializers.Initializer] = None,
                tag: Optional[const.IncidentNodeTag] = None,
@@ -206,6 +229,12 @@ class GATv2AttentionPool(tf.keras.layers.Layer):
         means that the final output size will be per_head_channels * num_heads.
       edge_dropout: The percentage (between 0 and 1) of edges to randomly drop
         during training.
+      attention_activation: The nonlinearity used on the transformed inputs
+        before multiplying with the trained weights of the attention layer.
+        This can be specified as a Keras layer, a tf.keras.activations.*
+        function, or a string understood by tf.keras.layers.Activation().
+        Defaults to "leaky_relu", which in turn defaults to a negative slope
+        of alpha=0.2.
       attention_kernel_initializers: Initializers for the attention logit
         function weights. Note that this will be equally partitioned into
         separate weights for each head.
@@ -234,6 +263,7 @@ class GATv2AttentionPool(tf.keras.layers.Layer):
     if not 0 <= edge_dropout < 1:
       raise ValueError(f'Edge dropout {edge_dropout} must be in [0, 1).')
     self._edge_dropout = edge_dropout
+    self._attention_activation = tf.keras.activations.get(attention_activation)
 
     # Create attention logits layers, one for each head. Note that we can't
     # use a single Dense layer that outputs `num_heads` units because we need
@@ -241,7 +271,7 @@ class GATv2AttentionPool(tf.keras.layers.Layer):
     # W_k-transformed features.
     self._attention_logits_fn = tf.keras.layers.experimental.EinsumDense(
         '...ik,ki->...i',
-        output_shape=(None, num_heads, 1),
+        output_shape=(None, num_heads, 1),  # TODO(b/205825425): (num_heads,)
         kernel_initializer=attention_kernel_initializers,
         name='attn_logits_fn')
     self._attention_kernel_initializers = attention_kernel_initializers
@@ -265,24 +295,21 @@ class GATv2AttentionPool(tf.keras.layers.Layer):
       A tensor with the pooled feature value.
     """
     graph, query_broadcasted, key_broadcasted = inputs
-    # Extract the broadcasted query and key features.
-    adjacency = graph.edge_sets[self._edge_set_name].adjacency
-    query_node_set = graph.node_sets[adjacency.source_name]
 
     # Per the doc comments, we support features that have extra dimensions. This
     # block determines if those extra dimensions exist, and adds them to the
     # `reshape` shapes if so.
-    features_shape = query_broadcasted.shape.as_list()
-    edges_and_extra_dims = [-1]  # Use -1 as the edges dimension.
-    if len(features_shape) > 2:
-      edges_and_extra_dims.extend(features_shape[1:-1])
-    # [n_edges, opt_extra_dims, num_heads, per_head_channels]
-    query_broadcasted = tf.reshape(
-        query_broadcasted,
-        (*edges_and_extra_dims, self._num_heads, self._per_head_channels))
-    key_broadcasted = tf.reshape(
-        key_broadcasted,
-        (*edges_and_extra_dims, self._num_heads, self._per_head_channels))
+    features_shape = query_broadcasted.shape
+    extra_dims = features_shape[1:-1]  # Possibly empty.
+    if not extra_dims.is_fully_defined():
+      raise ValueError(
+          'GATv2AttentionPool requires its broadcast inputs to have '
+          'statically known dimensions except first and last, but got '
+          f'query_broadcasted.shape = {features_shape}')
+    # [num_edges, *extra_dims, num_heads, per_head_channels]
+    in_reshape = (-1, *extra_dims, self._num_heads, self._per_head_channels)
+    query_broadcasted = tf.reshape(query_broadcasted, in_reshape)
+    key_broadcasted = tf.reshape(key_broadcasted, in_reshape)
 
     # Recall that the algorithm calls for W*[query || key]. However,
     # we actually need just the transformed query in Equation (4) of
@@ -290,11 +317,11 @@ class GATv2AttentionPool(tf.keras.layers.Layer):
     # point). To do this, we previously decomposed:
     # W*[query || key] = W_query * query + W_key * key
     # and now we recompose this to get W*[query || key].
-    # [n_edges, opt_extra_dims, num_heads, per_head_channels]
-    features = query_broadcasted + key_broadcasted
+    # [num_edges, *extra_dims, num_heads, per_head_channels]
+    features = self._attention_activation(query_broadcasted + key_broadcasted)
 
     # Compute the attention logits and softmax to get the coefficients.
-    # [n_edges, opt_extra_dims, num_heads, 1]
+    # [num_edges, *extra_dims, num_heads, 1]
     logits = tf.expand_dims(self._attention_logits_fn(features), -1)
     attention_coefficients = normalization_ops.softmax_edges_per_node(
         graph, self._edge_set_name, self._tag, feature_value=logits)
@@ -308,10 +335,11 @@ class GATv2AttentionPool(tf.keras.layers.Layer):
                                              self._edge_dropout)
 
     # Apply the attention coefficients to the transformed query.
-    # [n_edges, opt_extra_dims, num_heads, per_head_channels]
-    messages = query_broadcasted * attention_coefficients
+    # [num_edges, *extra_dims, num_heads, per_head_channels]
+    messages = key_broadcasted * attention_coefficients
     # Take the sum of the weighted values, which equals the weighted average,
     # and add a nonlinearity.
+    # TODO(b/205960151): Make the nonlinearity configurable, maybe move it out.
     pooled_h = tf.nn.relu(
         ops.pool_edges_to_node(
             graph,
@@ -320,12 +348,11 @@ class GATv2AttentionPool(tf.keras.layers.Layer):
             'sum',
             feature_value=messages))
 
-    # Reshape to get to [nodes, opt_extra_dims, per_head_channels * num_heads]
-    num_nodes = tf.reduce_sum(query_node_set.sizes)
-    out_reshape = [num_nodes]
-    if len(features_shape) > 2:
-      out_reshape.extend(features_shape[1:-1])
-    out_reshape.append(self._per_head_channels * self._num_heads)
+    # Flatten the head and channel dimensions to obtain the output shape
+    # [num_nodes, *extra_dims, num_heads * per_head_channels].
+    # We put -1 for num_nodes for the sake of TPUs, to avoid reshaping with
+    # a data-dependent computed quantity.
+    out_reshape = (-1, *extra_dims, self._num_heads * self._per_head_channels)
     return tf.reshape(pooled_h, out_reshape)
 
   def get_config(self):
@@ -334,6 +361,8 @@ class GATv2AttentionPool(tf.keras.layers.Layer):
         'num_heads': self._num_heads,
         'per_head_channels': self._per_head_channels,
         'edge_dropout': self._edge_dropout,
+        'attention_activation': tf.keras.activations.serialize(
+            self._attention_activation),
         'attention_kernel_initializers': self._attention_kernel_initializers,
         'tag': self._tag,
         'edge_set_name': self._edge_set_name,

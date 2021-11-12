@@ -12,83 +12,133 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
     """Tests that a single-headed GAT is correct given predefined weights."""
     gt_input = tfgnn.GraphTensor.from_pieces(
         node_sets={
-            'signals':
-                tfgnn.NodeSet.from_fields(
-                    features={
-                        tfgnn.DEFAULT_STATE_NAME: ct([[1.], [2.], [3.]]),
-                    },
-                    sizes=[3]),
+            'signals': tfgnn.NodeSet.from_fields(
+                sizes=[3],
+                # Node states have dimension 4.
+                # The first three dimensions one-hot encode the node_id i.
+                # The fourth dimension holds a distinct payload value 2**i.
+                features={tfgnn.DEFAULT_STATE_NAME: ct(
+                    [[1., 0., 0., 1.],
+                     [0., 1., 0., 2.],
+                     [0., 0., 1., 4.]])}),
         },
         edge_sets={
-            'edges':
-                tfgnn.EdgeSet.from_fields(
-                    sizes=[9],
-                    adjacency=tfgnn.Adjacency.from_indices(
-                        ('signals', ct([0, 0, 0, 1, 1, 1, 2, 2, 2])),
-                        ('signals', ct([0, 1, 2, 0, 1, 2, 0, 1, 2])))),
+            'edges': tfgnn.EdgeSet.from_fields(
+                # The edges contain a cycle 0->1->2->0 (let's call it clockwise)
+                # and the reverse cycle 0->2->1->0 (counterclockwise).
+                sizes=[6],
+                adjacency=tfgnn.Adjacency.from_indices(
+                    ('signals', ct([0, 1, 2, 0, 2, 1])),
+                    ('signals', ct([1, 2, 0, 2, 1, 0])))),
         })
 
+    log10 = tf.math.log(10.).numpy()
     got_gt = tfgnn.keras.layers.GATv2(
         num_heads=1,
         per_head_channels=4,
         edge_set_name='edges',
-        query_kernel_initializer=tf.keras.initializers.Constant([[1.], [3.],
-                                                                 [5.], [7.]]),
-        key_kernel_initializer=tf.keras.initializers.Constant([[2.], [4.], [6.],
-                                                               [8.]]),
+        attention_activation='relu',  # Let's keep it simple.
+        # The space of attention computation of the single head has dimension 4.
+        # The last dimension is used only in the key to carry the node's value,
+        # multiplied by 11/10.
+        # The first three dimensions are used to hand-construct attention scores
+        # (see the running example below) that favor the counterclockwise
+        # incoming edge over the other. Recall that weight matrices are
+        # multiplied from the right onto batched inputs (in rows).
+        #
+        # For example, the query vector of node 0 is [0, 1, 0, 0], and ...
+        query_kernel_initializer=tf.keras.initializers.Constant(
+            [[0., 1., 0., 0.],
+             [0., 0., 1., 0.],
+             [1., 0., 0., 0.],
+             [0., 0., 0., 0.]]),
+        # ... the key vectors of node 1 and 2, resp., are [-1, 0, -1, 2.2]
+        # and [-1, -1, 0, 4.4]. Therefore, ...
+        key_kernel_initializer=tf.keras.initializers.Constant(
+            [[0., -1., -1., 0.],
+             [-1., 0., -1., 0.],
+             [-1., -1., 0., 0.],
+             [0., 0., 0., 1.1]]),
+        # ... attention from node 0 to node 1 has a sum of key and query vector
+        # [-1, 1, -1, 2.2], which gets turned by ReLU and the attention weights
+        # below into a pre-softmax score of log(10). Likewise,
+        # attention from node 0 to node 2 has a vector sum [-1, 0, 0, 4.4]
+        # and pre-softmax score of 0. Altogether, this means: ...
         attention_kernel_initializers=tf.keras.initializers.Constant(
-            [[.1], [.2], [.3], [.4]]))(
-                gt_input)
+            [[log10], [log10], [log10], [0.]])
+    )(gt_input)
     got = got_gt.node_sets['signals'][tfgnn.DEFAULT_STATE_NAME]
 
-    # These values were computed by hand.
-    want = ct([[2.9932172, 8.979652, 14.966086, 20.95252],
-               [2.9932172, 8.979652, 14.966086, 20.95252],
-               [2.9932172, 8.979652, 14.966086, 20.95252]])
+    # ... The softmax-weighed key vectors on the incoming edges of node 0
+    # are  10/11 * [-1, 0, -1, 2.2]  +  1/11 * [-1, -1, 0, 4.4].
+    # The final ReLU takes out the non-positive components and leaves 2 + 0.4
+    # in the last component of the first row in the resulting node states.
+    want = ct([[0., 0., 0., 2.4],  # Node 0.
+               [0., 0., 0., 4.1],  # Node 1.
+               [0., 0., 0., 1.2]])  # Node 2.
     self.assertAllEqual(got.shape, (3, 4))
-    self.assertAllClose(got, want, atol=.001)
+    self.assertAllClose(got, want, atol=.0001)
 
   def testGAT_multihead(self):
     """Tests that a multi-headed GAT is correct given predefined weights."""
     gt_input = tfgnn.GraphTensor.from_pieces(
         node_sets={
-            'signals':
-                tfgnn.NodeSet.from_fields(
-                    features={
-                        tfgnn.DEFAULT_STATE_NAME: ct([[1.], [2.], [3.]]),
-                    },
-                    sizes=[3]),
+            'signals': tfgnn.NodeSet.from_fields(
+                sizes=[3],
+                # The same node states as in the single_head test above.
+                features={tfgnn.DEFAULT_STATE_NAME: ct(
+                    [[1., 0., 0., 1.],
+                     [0., 1., 0., 2.],
+                     [0., 0., 1., 4.]])}),
         },
         edge_sets={
-            'edges':
-                tfgnn.EdgeSet.from_fields(
-                    sizes=[9],
-                    adjacency=tfgnn.Adjacency.from_indices(
-                        ('signals', ct([0, 0, 0, 1, 1, 1, 2, 2, 2])),
-                        ('signals', ct([0, 1, 2, 0, 1, 2, 0, 1, 2])))),
+            'edges': tfgnn.EdgeSet.from_fields(
+                # The same edges as in the single_head test above.
+                sizes=[6],
+                adjacency=tfgnn.Adjacency.from_indices(
+                    ('signals', ct([0, 1, 2, 0, 2, 1])),
+                    ('signals', ct([1, 2, 0, 2, 1, 0])))),
         })
 
-    got = tfgnn.keras.layers.GATv2(
+    log10 = tf.math.log(10.).numpy()
+    got_gt = tfgnn.keras.layers.GATv2(
         num_heads=2,
-        per_head_channels=2,
+        per_head_channels=4,
         edge_set_name='edges',
-        query_kernel_initializer=tf.keras.initializers.Constant([[1.], [3.],
-                                                                 [5.], [7.]]),
-        key_kernel_initializer=tf.keras.initializers.Constant([[2.], [4.], [6.],
-                                                               [8.]]),
-        attention_kernel_initializers=tf.keras.initializers.Constant([[.1, .1],
-                                                                      [.2,
-                                                                       .2]]),
-    )(gt_input).node_sets['signals'][tfgnn.DEFAULT_STATE_NAME]
+        attention_activation=tf.keras.layers.LeakyReLU(alpha=0.0),
+        # Attention head 0 uses the first four dimensions, which are used
+        # in the same way as for the single_head test above.
+        # Attention head 1 uses the last four dimensions, in which we
+        # now favor the clockwise incoming edges and omit the scaling by 11/10.
+        query_kernel_initializer=tf.keras.initializers.Constant(
+            [[0., 1., 0., 0., 0., 0., 1., 0,],
+             [0., 0., 1., 0., 1., 0., 0., 0.],
+             [1., 0., 0., 0., 0., 1., 0., 0.],
+             [0., 0., 0., 0., 0., 0., 0., 0.]]),
+        key_kernel_initializer=tf.keras.initializers.Constant(
+            [[0., -1., -1., 0., 0., -1., -1., 0.],
+             [-1., 0., -1., 0., -1., 0., -1., 0.],
+             [-1., -1., 0., 0., -1., -1., 0., 0.],
+             [0., 0., 0., 1.1, 0., 0., 0., 1.]]),
+        # Attention head 0 works out to softmax weights 10/11 and 1/11 as above.
+        # Attention head 1 creates very large pre-softmax scores that
+        # work out to weights 1 and 0 within floating-point precision.
+        attention_kernel_initializers=tf.keras.initializers.Constant(
+            [[log10, 100.],
+             [log10, 100.],
+             [log10, 100.],
+             [0., 0.]])
+    )(gt_input)
+    got = got_gt.node_sets['signals'][tfgnn.DEFAULT_STATE_NAME]
 
-    # These values were computed by hand.
-    want = ct([
-        [2.4322, 7.2966003, 14.17099, 19.839386],
-        [2.4322, 7.2966003, 14.17099, 19.839386],
-        [2.4322, 7.2966003, 14.17099, 19.839386],
-    ])
-    self.assertAllEqual(got.shape, (3, 4))
-    self.assertAllClose(got, want, atol=.001)
+    # Attention head 0 generates the first four outout dimensions as in the
+    # single_head test above, with weights 10/11 and 1/11,
+    # Attention head 1 uses weights 0 and 1 (note the reversed preference).
+    want = ct([[0., 0., 0., 2.4, 0., 0., 0., 4.0],
+               [0., 0., 0., 4.1, 0., 0., 0., 1.0],
+               [0., 0., 0., 1.2, 0., 0., 0., 2.0]])
+    self.assertAllEqual(got.shape, (3, 8))
+    self.assertAllClose(got, want, atol=.0001)
 
   def testGAT_single_head_heterogeneous(self):
     """Tests that a single-headed GAT is correct on a heterogeneous graph."""
@@ -165,8 +215,8 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         num_heads=1,
         per_head_channels=2,
         edge_set_name='edges',
-        query_kernel_initializer=tf.keras.initializers.Constant([[1.], [3.]]),
-        key_kernel_initializer=tf.keras.initializers.Constant([[2.], [4.]]),
+        key_kernel_initializer=tf.keras.initializers.Constant([[1.], [3.]]),
+        query_kernel_initializer=tf.keras.initializers.Constant([[2.], [4.]]),
         attention_kernel_initializers=tf.keras.initializers.Constant([[.1],
                                                                       [.2]]),
     )(gt_input).node_sets['signals'][tfgnn.DEFAULT_STATE_NAME]
@@ -174,8 +224,8 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         num_heads=1,
         per_head_channels=2,
         edge_set_name='edges',
-        query_kernel_initializer=tf.keras.initializers.Constant([[5.], [7.]]),
-        key_kernel_initializer=tf.keras.initializers.Constant([[6.], [8.]]),
+        key_kernel_initializer=tf.keras.initializers.Constant([[5.], [7.]]),
+        query_kernel_initializer=tf.keras.initializers.Constant([[6.], [8.]]),
         attention_kernel_initializers=tf.keras.initializers.Constant([[.3],
                                                                       [.4]]),
     )(gt_input).node_sets['signals'][tfgnn.DEFAULT_STATE_NAME]
@@ -186,14 +236,12 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         num_heads=2,
         per_head_channels=2,
         edge_set_name='edges',
-        query_kernel_initializer=tf.keras.initializers.Constant([[1.], [3.],
-                                                                 [5.], [7.]]),
-        key_kernel_initializer=tf.keras.initializers.Constant([[2.], [4.], [6.],
-                                                               [8.]]),
-        attention_kernel_initializers=tf.keras.initializers.Constant([[.1
-                                                                      ], [.3],
-                                                                      [.2],
-                                                                      [.4]]),
+        key_kernel_initializer=tf.keras.initializers.Constant(
+            [[1.], [3.], [5.], [7.]]),
+        query_kernel_initializer=tf.keras.initializers.Constant(
+            [[2.], [4.], [6.], [8.]]),
+        attention_kernel_initializers=tf.keras.initializers.Constant(
+            [[.1], [.3], [.2], [.4]]),
     )(gt_input).node_sets['signals'][tfgnn.DEFAULT_STATE_NAME]
     self.assertAllEqual(got_double_head.shape, (3, 4))
 
@@ -231,9 +279,10 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         num_heads=1,
         per_head_channels=2,
         edge_set_name='edges',
-        query_kernel_initializer=tf.keras.initializers.Constant(
+        key_kernel_initializer=tf.keras.initializers.Constant(
             w_query_weights_1),
-        key_kernel_initializer=tf.keras.initializers.Constant(w_key_weights_1),
+        query_kernel_initializer=tf.keras.initializers.Constant(
+            w_key_weights_1),
         attention_kernel_initializers=tf.keras.initializers.Constant(
             attention_logits_1),
     )(gt_input).node_sets['signals'][tfgnn.DEFAULT_STATE_NAME]
@@ -241,9 +290,10 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         num_heads=1,
         per_head_channels=2,
         edge_set_name='edges',
-        query_kernel_initializer=tf.keras.initializers.Constant(
+        key_kernel_initializer=tf.keras.initializers.Constant(
             w_query_weights_2),
-        key_kernel_initializer=tf.keras.initializers.Constant(w_key_weights_2),
+        query_kernel_initializer=tf.keras.initializers.Constant(
+            w_key_weights_2),
         attention_kernel_initializers=tf.keras.initializers.Constant(
             attention_logits_2),
     )(gt_input).node_sets['signals'][tfgnn.DEFAULT_STATE_NAME]
@@ -254,9 +304,9 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         num_heads=2,
         per_head_channels=2,
         edge_set_name='edges',
-        query_kernel_initializer=tf.keras.initializers.Constant(
-            tf.concat([w_query_weights_1, w_query_weights_2], axis=-1)),
         key_kernel_initializer=tf.keras.initializers.Constant(
+            tf.concat([w_query_weights_1, w_query_weights_2], axis=-1)),
+        query_kernel_initializer=tf.keras.initializers.Constant(
             tf.concat([w_key_weights_1, w_key_weights_2], axis=-1)),
         attention_kernel_initializers=tf.keras.initializers.Constant(
             tf.concat([attention_logits_1, attention_logits_2], axis=-1)))(
@@ -383,14 +433,12 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         per_head_channels=4,
         edge_set_name='edges',
         edge_dropout=.999999,
-        query_kernel_initializer=tf.keras.initializers.Constant([[1.], [3.],
-                                                                 [5.], [7.]]),
-        key_kernel_initializer=tf.keras.initializers.Constant([[2.], [4.], [6.],
-                                                               [8.]]),
-        attention_kernel_initializers=tf.keras.initializers.Constant([[.1
-                                                                      ], [.2],
-                                                                      [.3],
-                                                                      [.4]]))
+        key_kernel_initializer=tf.keras.initializers.Constant(
+            [[1.], [3.], [5.], [7.]]),
+        query_kernel_initializer=tf.keras.initializers.Constant(
+            [[2.], [4.], [6.], [8.]]),
+        attention_kernel_initializers=tf.keras.initializers.Constant(
+            [[.1], [.2], [.3], [.4]]))
     # Get results for training (dropout enabled) & evaluation (dropout disabled)
     got_with_dropout = full_dropout_gat(
         gt_input, training=True).node_sets['signals'][tfgnn.DEFAULT_STATE_NAME]
@@ -412,14 +460,12 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         per_head_channels=4,
         edge_set_name='edges',
         edge_dropout=.5,
-        query_kernel_initializer=tf.keras.initializers.Constant([[1.], [3.],
-                                                                 [5.], [7.]]),
-        key_kernel_initializer=tf.keras.initializers.Constant([[2.], [4.], [6.],
-                                                               [8.]]),
-        attention_kernel_initializers=tf.keras.initializers.Constant([[.1
-                                                                      ], [.2],
-                                                                      [.3],
-                                                                      [.4]]))
+        key_kernel_initializer=tf.keras.initializers.Constant(
+            [[1.], [3.], [5.], [7.]]),
+        query_kernel_initializer=tf.keras.initializers.Constant(
+            [[2.], [4.], [6.], [8.]]),
+        attention_kernel_initializers=tf.keras.initializers.Constant(
+            [[.1], [.2], [.3], [.4]]))
     # Get results for training (dropout enabled) & evaluation (dropout disabled)
     partial_with_dropout = partial_dropout_gat(
         gt_input, training=True).node_sets['signals'][tfgnn.DEFAULT_STATE_NAME]
@@ -435,31 +481,36 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
 
   def testGAT_get_config(self):
     """Tests that the get_config call returns all expected parameters."""
-    query_kernel_initializer = tf.keras.initializers.Constant([[1.], [3.], [5.],
-                                                               [7.]])
-    key_kernel_initializer = tf.keras.initializers.Constant([[2.], [4.], [6.],
-                                                             [8.]])
+    key_kernel_initializer = tf.keras.initializers.Constant([[1.], [3.], [5.],
+                                                             [7.]])
+    query_kernel_initializer = tf.keras.initializers.Constant([[2.], [4.], [6.],
+                                                               [8.]])
     attention_kernel_initializers = tf.keras.initializers.Constant([[.1], [.2],
                                                                     [.3], [.4]])
     model = tfgnn.keras.layers.GATv2(
         num_heads=1,
         per_head_channels=4,
         edge_set_name='edges',
-        query_kernel_initializer=query_kernel_initializer,
+        attention_activation=tf.keras.layers.LeakyReLU(alpha=0.5, name='sigma'),
         key_kernel_initializer=key_kernel_initializer,
+        query_kernel_initializer=query_kernel_initializer,
         attention_kernel_initializers=attention_kernel_initializers,
         name='foo')
 
     self.assertDictEqual(
         model.get_config(), {
             'edge_dropout': 0.0,
+            'attention_activation': {
+                'class_name': 'LeakyReLU',
+                'config': {'name': 'sigma', 'trainable': True,
+                           'dtype': 'float32', 'alpha': 0.5}},
             'edge_set_name': 'edges',
             'feature_name': 'hidden_state',
-            'key_kernel_initializer': key_kernel_initializer,
+            'query_kernel_initializer': query_kernel_initializer,
             'num_heads': 1,
             'output_feature_name': tfgnn.DEFAULT_STATE_NAME,
             'per_head_channels': 4,
-            'query_kernel_initializer': query_kernel_initializer,
+            'key_kernel_initializer': key_kernel_initializer,
             'attention_kernel_initializers': attention_kernel_initializers,
             'use_bias': True,
             'dtype': 'float32',
