@@ -192,7 +192,7 @@ setup(
         'pygraphviz',
         'scipy',
         'six',
-        'tf-nightly-cpu>=2.7.0.dev20210908',
+        'tensorflow-cpu>=2.7.0',
     ],
     python_requires='>=3.9,<4',
     packages=find_packages(),

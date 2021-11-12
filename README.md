@@ -57,14 +57,15 @@ A virtual environment is highly recommended.
 
     > `$> git clone https://github.com/tensorflow/gnn.git tensorflow_gnn`
 
-2.  **Install Tensorflow Nightly** (`tf-nightly`)
+2.  **Install TensorFlow
 
-    TF-GNN currently uses ExtensionTypes, which will be released as part of
-    TensorFlow 2.7. As such, you will need to install the TensorFlow Nightly
-    build, following the instructions here:
+    TF-GNN currently uses
+    [tf.ExtensionTypes](https://www.tensorflow.org/api_docs/python/tf/experimental/ExtensionType),
+    which is a feature of TensorFlow 2.7. As such, you will need to install
+    TensorFlow build, following the instructions here:
     https://www.tensorflow.org/install/pip.
 
-    > `$> pip install tf-nightly`
+    > `$> pip install tensorflow`
 
 3.  **Install Bazel**
 
