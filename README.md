@@ -57,7 +57,7 @@ A virtual environment is highly recommended.
 
     > `$> git clone https://github.com/tensorflow/gnn.git tensorflow_gnn`
 
-2.  **Install TensorFlow
+2.  **Install TensorFlow**
 
     TF-GNN currently uses
     [tf.ExtensionTypes](https://www.tensorflow.org/api_docs/python/tf/experimental/ExtensionType),
