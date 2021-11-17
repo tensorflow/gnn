@@ -52,7 +52,7 @@ def define_flags():
 
 
 class ReadExamples(beam.PTransform):
-  """Read a streawm of tf.Example, dispatch between formats."""
+  """Read a stream of tf.train.Example, dispatch between formats."""
 
   def __init__(self, input_pattern: str, input_format: str):
     super(ReadExamples, self).__init__()

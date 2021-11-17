@@ -153,9 +153,7 @@ setup(
     name='tensorflow-gnn',
     version=get_version(),
     author='Google LLC',
-    # TODO(blais): Create an appropriately named external group, e.g.,
-    # tensorflow-gnn@
-    author_email='graph-learning-team@googlegroups.com',
+    author_email='tensorflow-gnn@googlegroups.com',
     license='Apache 2.0',
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -204,10 +202,6 @@ setup(
     long_description=_LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
     keywords='tensorflow gnn graph',
-    # TODO(blais): Associate a public URL for the project, e.g.,
-    # url=https://www.tensorflow.org/gnn.
-    # TODO(blais): Associate a public download URL for the project, e.g.,
-    # https://github.com/tensorflow/gnn/tags.
     download_url='https://github.com/tensorflow/gnn.git',
     requires=[],
     cmdclass={

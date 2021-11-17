@@ -1,4 +1,4 @@
-"""Conversion of Subgraph to tf.train.Example graph tensor.
+"""Conversion of a Subgraph to tf.train.Example graph tensor.
 
 This library contains code to convert an instance of a Subgraph proto, which
 contains a sample of a graph, its graph topology, edges, and associated node and
@@ -20,7 +20,7 @@ Feature = tf.train.Feature
 
 def encode_subgraph_to_example(schema: gnn.GraphSchema,
                                subgraph: Subgraph) -> Example:
-  """Convert a subgraph to an encoded graph tensor."""
+  """Convert a Subgraph to an encoded graph tensor."""
 
   # TODO(blais): Factor out the repeated bits from the static schema for reuse.
 
@@ -148,12 +148,12 @@ def _prepare_feature_dict(set_name: str, set_obj: Any, prefix: str,
 
 def _copy_features(sg_features: tf.train.Feature,
                    ex_features_dict: Dict[str, tf.train.Feature]):
-  """Copy features from sg_features to example."""
+  """Copy features from sg_features to tf.train.Example."""
   for feature_name, ex_feature in ex_features_dict.items():
     sg_feature = sg_features.feature.get(feature_name, None)
     if sg_feature is None:
-      # Feature is empty for that node. Fail for now, ragged is not supported
-      # by this conversion routine.
+      # Feature is empty for that node. Fail for now, ragged tensors are not
+      # supported by this conversion routine.
       raise ValueError("Feature '{}' is missing from input: {}".format(
           feature_name, sg_features))
     ex_feature.MergeFrom(sg_feature)
