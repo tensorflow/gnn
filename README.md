@@ -1,4 +1,4 @@
-# TensorFlow GNN (EXPERIMENTAL)
+# TensorFlow GNN
 
 **This is an early (alpha) release to get community feedback.** It's under
 active development and **we may break API compatibility in the future**.
