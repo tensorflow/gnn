@@ -1,0 +1,141 @@
+toc:
+- title: gnn
+  section:
+  - title: Overview
+    path: /gnn/api_docs/python/gnn
+  - title: Adjacency
+    path: /gnn/api_docs/python/gnn/Adjacency
+  - title: AdjacencySpec
+    path: /gnn/api_docs/python/gnn/AdjacencySpec
+  - title: Context
+    path: /gnn/api_docs/python/gnn/Context
+  - title: ContextSpec
+    path: /gnn/api_docs/python/gnn/ContextSpec
+  - title: EdgeSet
+    path: /gnn/api_docs/python/gnn/EdgeSet
+  - title: EdgeSetSpec
+    path: /gnn/api_docs/python/gnn/EdgeSetSpec
+  - title: Feature
+    path: /gnn/api_docs/python/gnn/Feature
+  - title: Field
+    path: /gnn/api_docs/python/gnn/Field
+  - title: FieldSpec
+    path: /gnn/api_docs/python/gnn/FieldSpec
+  - title: Fields
+    path: /gnn/api_docs/python/gnn/Fields
+  - title: FieldsSpec
+    path: /gnn/api_docs/python/gnn/FieldsSpec
+  - title: GraphSchema
+    path: /gnn/api_docs/python/gnn/GraphSchema
+  - title: GraphTensor
+    path: /gnn/api_docs/python/gnn/GraphTensor
+  - title: GraphTensorSpec
+    path: /gnn/api_docs/python/gnn/GraphTensorSpec
+  - title: HyperAdjacency
+    path: /gnn/api_docs/python/gnn/HyperAdjacency
+  - title: HyperAdjacencySpec
+    path: /gnn/api_docs/python/gnn/HyperAdjacencySpec
+  - title: NodeSet
+    path: /gnn/api_docs/python/gnn/NodeSet
+  - title: NodeSetSpec
+    path: /gnn/api_docs/python/gnn/NodeSetSpec
+  - title: ValidationError
+    path: /gnn/api_docs/python/gnn/ValidationError
+  - title: assert_constraints
+    path: /gnn/api_docs/python/gnn/assert_constraints
+  - title: broadcast_context_to_edges
+    path: /gnn/api_docs/python/gnn/broadcast_context_to_edges
+  - title: broadcast_context_to_nodes
+    path: /gnn/api_docs/python/gnn/broadcast_context_to_nodes
+  - title: broadcast_node_to_edges
+    path: /gnn/api_docs/python/gnn/broadcast_node_to_edges
+  - title: check_required_features
+    path: /gnn/api_docs/python/gnn/check_required_features
+  - title: create_graph_spec_from_schema_pb
+    path: /gnn/api_docs/python/gnn/create_graph_spec_from_schema_pb
+  - title: gather_first_node
+    path: /gnn/api_docs/python/gnn/gather_first_node
+  - title: get_io_spec
+    path: /gnn/api_docs/python/gnn/get_io_spec
+  - title: get_registered_reduce_operation_names
+    path: /gnn/api_docs/python/gnn/get_registered_reduce_operation_names
+  - title: graph_tensor_to_values
+    path: /gnn/api_docs/python/gnn/graph_tensor_to_values
+  - title: is_graph_tensor
+    path: /gnn/api_docs/python/gnn/is_graph_tensor
+  - title: iter_features
+    path: /gnn/api_docs/python/gnn/iter_features
+  - title: iter_sets
+    path: /gnn/api_docs/python/gnn/iter_sets
+  - title: parse_example
+    path: /gnn/api_docs/python/gnn/parse_example
+  - title: parse_schema
+    path: /gnn/api_docs/python/gnn/parse_schema
+  - title: parse_single_example
+    path: /gnn/api_docs/python/gnn/parse_single_example
+  - title: pool_edges_to_context
+    path: /gnn/api_docs/python/gnn/pool_edges_to_context
+  - title: pool_edges_to_node
+    path: /gnn/api_docs/python/gnn/pool_edges_to_node
+  - title: pool_nodes_to_context
+    path: /gnn/api_docs/python/gnn/pool_nodes_to_context
+  - title: random_graph_tensor
+    path: /gnn/api_docs/python/gnn/random_graph_tensor
+  - title: read_schema
+    path: /gnn/api_docs/python/gnn/read_schema
+  - title: register_reduce_operation
+    path: /gnn/api_docs/python/gnn/register_reduce_operation
+  - title: softmax_edges_per_node
+    path: /gnn/api_docs/python/gnn/softmax_edges_per_node
+  - title: validate_schema
+    path: /gnn/api_docs/python/gnn/validate_schema
+  - title: write_example
+    path: /gnn/api_docs/python/gnn/write_example
+  - title: write_schema
+    path: /gnn/api_docs/python/gnn/write_schema
+- title: gnn.keras
+  section:
+  - title: Overview
+    path: /gnn/api_docs/python/gnn/keras
+  - title: ConvGNNBuilder
+    path: /gnn/api_docs/python/gnn/keras/ConvGNNBuilder
+  - title: layers
+    section:
+    - title: Overview
+      path: /gnn/api_docs/python/gnn/keras/layers
+    - title: Broadcast
+      path: /gnn/api_docs/python/gnn/keras/layers/Broadcast
+    - title: ContextUpdate
+      path: /gnn/api_docs/python/gnn/keras/layers/ContextUpdate
+    - title: ConvolutionFromEdgeSetUpdate
+      path: /gnn/api_docs/python/gnn/keras/layers/ConvolutionFromEdgeSetUpdate
+    - title: EdgeSetUpdate
+      path: /gnn/api_docs/python/gnn/keras/layers/EdgeSetUpdate
+    - title: GATv2
+      path: /gnn/api_docs/python/gnn/keras/layers/GATv2
+    - title: GraphUpdate
+      path: /gnn/api_docs/python/gnn/keras/layers/GraphUpdate
+    - title: NextStateFromConcat
+      path: /gnn/api_docs/python/gnn/keras/layers/NextStateFromConcat
+    - title: NodeSetUpdate
+      path: /gnn/api_docs/python/gnn/keras/layers/NodeSetUpdate
+    - title: Pool
+      path: /gnn/api_docs/python/gnn/keras/layers/Pool
+    - title: Readout
+      path: /gnn/api_docs/python/gnn/keras/layers/Readout
+    - title: ReadoutFirstNode
+      path: /gnn/api_docs/python/gnn/keras/layers/ReadoutFirstNode
+    - title: ResidualNextState
+      path: /gnn/api_docs/python/gnn/keras/layers/ResidualNextState
+    - title: SimpleConvolution
+      path: /gnn/api_docs/python/gnn/keras/layers/SimpleConvolution
+    - title: gat
+      section:
+      - title: Overview
+        path: /gnn/api_docs/python/gnn/keras/layers/gat
+      - title: gatv2
+        section:
+        - title: Overview
+          path: /gnn/api_docs/python/gnn/keras/layers/gat/gatv2
+        - title: GATv2AttentionPool
+          path: /gnn/api_docs/python/gnn/keras/layers/gat/gatv2/GATv2AttentionPool

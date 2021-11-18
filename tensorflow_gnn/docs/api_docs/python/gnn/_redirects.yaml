@@ -1,0 +1,3 @@
+redirects:
+- from: /gnn/api_docs/python/gnn/keras/layers/gat/gatv2/GATv2
+  to: /gnn/api_docs/python/gnn/keras/layers/GATv2
