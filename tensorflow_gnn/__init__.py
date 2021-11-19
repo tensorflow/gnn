@@ -36,9 +36,9 @@ SOURCE = graph_constants.SOURCE
 TARGET = graph_constants.TARGET
 
 # Encoded names of implicit features.
-SIZE_NAME = '#size'
-SOURCE_NAME = '#source'
-TARGET_NAME = '#target'
+SIZE_NAME = graph_constants.SIZE_NAME
+SOURCE_NAME = graph_constants.SOURCE_NAME
+TARGET_NAME = graph_constants.TARGET_NAME
 
 # Field values, specs, and dictionaries containing them.
 Field = graph_constants.Field
