@@ -767,14 +767,19 @@ class GraphTensor(gp.GraphPieceBase):
 
     Args:
       context: A substitute for the context features, or None (which keeps the
-        prior features).
-      node_sets: A substitute for specified node set features. Node sets which
-        are not included remain unchanged.
-      edge_sets: A substitute for specified edge set features. Edge sets which
-        are not included remain unchanged.
+        prior features). Their tensor shapes must match the number of
+        existing components, which remains unchanged.
+      node_sets: Substitutes for the features of the specified node sets.
+        Their tensor shapes must match the existing number of nodes, which
+        remains unchanged. Features on node sets that are not included remain
+        unchanged.
+      edge_sets: Substitutes for the features of the specified edge sets.
+        Their tensor shapes must match the existing number of edges. The number
+        of edges and their incident nodes are unchanged. Features on edge sets
+        that are not included remain unchanged.
 
     Returns:
-      A `GraphTensor` instance with features overridden according to the
+      A `GraphTensor` instance with feature maps replaced according to the
       arguments.
     """
     if context is None:
