@@ -3,8 +3,12 @@
 from tensorflow_gnn.graph.keras.layers import convolutions
 from tensorflow_gnn.graph.keras.layers import graph_ops
 from tensorflow_gnn.graph.keras.layers import graph_update
+from tensorflow_gnn.graph.keras.layers import map_features
 from tensorflow_gnn.graph.keras.layers import next_state
 from tensorflow_gnn.graph.keras.layers.gat import gatv2
+
+MapFeatures = map_features.MapFeatures
+TotalSize = map_features.TotalSize
 
 Broadcast = graph_ops.Broadcast
 Pool = graph_ops.Pool
@@ -29,5 +33,6 @@ GATv2 = gatv2.GATv2
 del convolutions
 del graph_ops
 del graph_update
+del map_features
 del next_state
 del gatv2

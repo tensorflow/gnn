@@ -25,6 +25,7 @@ class ExportedKerasNamesTest(tf.test.TestCase):
 
   def testLayers(self):
     Layer = tf.keras.layers.Layer  # pylint: disable=invalid-name
+    self.assertIsSubclass(tfgnn.keras.layers.MapFeatures, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.Broadcast, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.Pool, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.Readout, Layer)
