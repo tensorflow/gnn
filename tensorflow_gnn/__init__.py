@@ -101,6 +101,7 @@ gather_first_node = graph_tensor_ops.gather_first_node
 get_registered_reduce_operation_names = (
     graph_tensor_ops.get_registered_reduce_operation_names)
 register_reduce_operation = graph_tensor_ops.register_reduce_operation
+shuffle_scalar_components = graph_tensor_ops.shuffle_scalar_components
 
 # Normalization operations.
 softmax_edges_per_node = normalization_ops.softmax_edges_per_node

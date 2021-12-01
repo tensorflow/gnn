@@ -1,7 +1,7 @@
 """Tests for gt.GraphTensor extension type (go/tf-gnn-api)."""
 
 import functools
-from typing import Mapping
+from typing import Mapping, Union
 
 from absl.testing import parameterized
 import tensorflow as tf
@@ -14,6 +14,8 @@ partial = functools.partial
 
 as_tensor = tf.convert_to_tensor
 as_ragged = tf.ragged.constant
+
+GraphPiece = Union[gt.Context, gt.NodeSet, gt.EdgeSet]
 
 
 class PoolingTest(tf.test.TestCase, parameterized.TestCase):
@@ -449,6 +451,176 @@ class FirstNodeOpsTest(tf.test.TestCase, parameterized.TestCase):
     with self.assertRaisesRegex(tf.errors.InvalidArgumentError,
                                 r'gather_first_node.* no nodes'):
       _ = ops.gather_first_node(graph, 'node', feature_name='scalar')
+
+
+class ShuffleOpsTest(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.parameters([
+      dict(
+          description='scalar',
+          context=gt.Context.from_fields(features={
+              'scalar': as_tensor([1, 2, 3]),
+          }),
+          node_set=gt.NodeSet.from_fields(
+              sizes=as_tensor([2, 1]),
+              features={
+                  'scalar': as_tensor([1., 2., 3]),
+              }),
+          edge_set=gt.EdgeSet.from_fields(
+              sizes=as_tensor([2, 3]),
+              adjacency=adj.HyperAdjacency.from_indices({
+                  const.SOURCE: ('node', as_tensor([0, 0, 0, 2, 2])),
+                  const.TARGET: ('node', as_tensor([2, 1, 0, 0, 0]))
+              }),
+              features={
+                  'scalar': as_tensor([1., 2., 3., 4., 5.]),
+              }),
+          expected_fields={
+              gt.Context: {
+                  'scalar': [2, 1, 3]
+              },
+              gt.NodeSet: {
+                  'scalar': [2., 1., 3.]
+              },
+              gt.EdgeSet: {
+                  'scalar': [5., 2., 3., 1., 4.]
+              },
+          }),
+      dict(
+          description='vector',
+          context=gt.Context.from_fields(features={
+              'vector': as_tensor([[1], [2], [3]]),
+          }),
+          node_set=gt.NodeSet.from_fields(
+              sizes=as_tensor([2, 1]),
+              features={
+                  'vector': as_tensor([[1., 3.], [2., 2.], [3., 1.]]),
+              }),
+          edge_set=gt.EdgeSet.from_fields(
+              sizes=as_tensor([2, 3]),
+              adjacency=adj.HyperAdjacency.from_indices({
+                  const.SOURCE: ('node', as_tensor([0, 0, 0, 2, 2])),
+                  const.TARGET: ('node', as_tensor([2, 1, 0, 0, 0]))
+              }),
+              features={
+                  'vector':
+                      as_tensor([[1., 5.], [2., 4.], [3., 3.], [4., 2.],
+                                 [5., 1.]]),
+              }),
+          expected_fields={
+              gt.Context: {
+                  'vector': [[2], [1], [3]]
+              },
+              gt.NodeSet: {
+                  'vector': [[2., 2.], [1., 3.], [3., 1.]]
+              },
+              gt.EdgeSet: {
+                  'vector': [[5., 1.], [2., 4.], [3., 3.], [1., 5.], [4., 2.]]
+              },
+          }),
+      dict(
+          description='matrix',
+          context=gt.Context.from_fields(),
+          node_set=gt.NodeSet.from_fields(
+              sizes=as_tensor([2, 1]),
+              features={
+                  'matrix': as_tensor([[[1.]], [[2.]], [[3.]]]),
+              }),
+          edge_set=gt.EdgeSet.from_fields(
+              sizes=as_tensor([2, 3]),
+              adjacency=adj.HyperAdjacency.from_indices({
+                  const.SOURCE: ('node', as_tensor([0, 0, 0, 2, 2])),
+                  const.TARGET: ('node', as_tensor([2, 1, 0, 0, 0]))
+              }),
+              features={
+                  'matrix': as_tensor([[[1.]], [[2.]], [[3.]], [[4.]], [[5.]]]),
+              }),
+          expected_fields={
+              gt.NodeSet: {
+                  'matrix': [[[2.]], [[1.]], [[3.]]]
+              },
+              gt.EdgeSet: {
+                  'matrix': [[[5.]], [[2.]], [[3.]], [[1.]], [[4.]]]
+              },
+          }),
+      dict(
+          description='ragged.1',
+          context=gt.Context.from_fields(features={
+              'ragged.1': as_ragged([[[], [1], []], [[1], [3], [4], [2]]]),
+          }),
+          node_set=gt.NodeSet.from_fields(
+              sizes=as_tensor([2, 1]),
+              features={
+                  'ragged.1':
+                      as_ragged([[[1, 2], [4, 4], [5, 5]], [[3, 3]], []]),
+              }),
+          edge_set=gt.EdgeSet.from_fields(
+              sizes=as_tensor([2, 3]),
+              adjacency=adj.HyperAdjacency.from_indices({
+                  const.SOURCE: ('node', as_tensor([0, 0, 0, 2, 2])),
+                  const.TARGET: ('node', as_tensor([2, 1, 0, 0, 0]))
+              }),
+              features={
+                  'ragged.1': as_ragged([[[1, 2]], [], [[3, 4]], [], [[5, 5]]]),
+              }),
+          expected_fields={
+              gt.Context: {
+                  'ragged.1': [[[], [4], [2]], [[1], [], [1], [3]]]
+              },
+              gt.NodeSet: {
+                  'ragged.1': [[[4, 4], [5, 5], [3, 3]], [[1, 2]], []]
+              },
+              gt.EdgeSet: {
+                  'ragged.1': [[[5, 5]], [], [[1, 2]], [], [[3, 4]]]
+              },
+          }),
+      dict(
+          description='ragged.2',
+          context=gt.Context.from_fields(),
+          node_set=gt.NodeSet.from_fields(
+              sizes=as_tensor([2, 1]),
+              features={'ragged.2': as_ragged([[[1, 2, 4], []], [[3]],
+                                               [[5]]])}),
+          edge_set=gt.EdgeSet.from_fields(
+              sizes=as_tensor([2, 3]),
+              adjacency=adj.HyperAdjacency.from_indices({
+                  const.SOURCE: ('node', as_tensor([0, 0, 0, 2, 2])),
+                  const.TARGET: ('node', as_tensor([2, 1, 0, 0, 0]))
+              }),
+              features={
+                  'ragged.2':
+                      as_ragged([[[1], [2], [4]], [], [[3], [5]], [], []])
+              }),
+          expected_fields={
+              gt.NodeSet: {
+                  'ragged.2': [[[1, 2, 4], [5]], [[3]], [[]]]
+              },
+              gt.EdgeSet: {
+                  'ragged.2': [[[2], [4], [3]], [], [[1], [5]], [], []]
+              },
+          }),
+  ])
+  def testShuffleScalarComponents(
+      self,
+      description: str,
+      context: gt.Context,
+      node_set: gt.NodeSet,
+      edge_set: gt.EdgeSet,
+      expected_fields: Mapping[GraphPiece, Mapping[str, const.Field]]):
+    graph = gt.GraphTensor.from_pieces(
+        context,
+        {'node': node_set},
+        {'edge': edge_set})
+    shuffled = ops.shuffle_scalar_components(graph, seed=8191)
+
+    for fname, expected in expected_fields.get(gt.Context, {}).items():
+      self.assertAllEqual(expected, shuffled.context.features[fname])
+
+    for fname, expected in expected_fields.get(gt.NodeSet, {}).items():
+      self.assertAllEqual(expected, shuffled.node_sets['node'].features[fname])
+
+    for fname, expected in expected_fields.get(gt.EdgeSet, {}).items():
+      self.assertAllEqual(expected, shuffled.edge_sets['edge'].features[fname])
 
 
 if __name__ == '__main__':

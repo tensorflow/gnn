@@ -3,7 +3,7 @@
 See the `operations.md` document in the guide for an explanation of how to use
 this.
 """
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, List, Mapping, Optional, Union
 import tensorflow as tf
 
 from tensorflow_gnn.graph import graph_constants as const
@@ -390,6 +390,65 @@ def register_reduce_operation(reduce_type: str,
 def is_graph_tensor(value: Any) -> bool:
   """Returns whether `value` is a GraphTensor (possibly wrapped for Keras)."""
   return isinstance(value, (GraphTensor, GraphKerasTensor))
+
+
+def shuffle_scalar_components(graph_tensor: GraphTensor,
+                              *,
+                              seed: Optional[int] = None) -> GraphTensor:
+  """Shuffles context, node set and edge set features across components.
+
+  Args:
+    graph_tensor: A scalar GraphTensor.
+    seed: A seed for random uniform shuffle.
+
+  Returns:
+    A scalar GraphTensor with its component's features shuffled.
+  """
+  _assert_scalar_graph_tensor(graph_tensor)
+
+  context = _shuffle_features(graph_tensor.context.features, seed=seed)
+  node_sets, edge_sets = {}, {}
+
+  for node_set_name, node_set in graph_tensor.node_sets.items():
+    node_sets[node_set_name] = _shuffle_features(node_set.features, seed=seed)
+
+  for edge_set_name, edge_set in graph_tensor.edge_sets.items():
+    edge_sets[edge_set_name] = _shuffle_features(edge_set.features, seed=seed)
+
+  return graph_tensor.replace_features(context, node_sets, edge_sets)
+
+
+def _shuffle_features(features: Mapping[FieldName, Field],
+                      *,
+                      seed: Optional[int] = None) -> Mapping[FieldName, Field]:
+  """Shuffles dense or ragged features.
+
+  Args:
+    features: A mapping FieldName to Field.
+    seed: A seed for random uniform shuffle.
+
+  Returns:
+    A mapping FieldName to Field with Field shuffled across its outer dimension.
+  """
+
+  def _shuffle(feature_name):
+    feature_value = features[feature_name]
+    if utils.is_dense_tensor(feature_value):
+      return tf.random.shuffle(feature_value, seed=seed)
+    elif utils.is_ragged_tensor(feature_value):
+      value_rowids = feature_value.value_rowids()
+      shuffled_value_rowids = tf.random.shuffle(value_rowids, seed=seed)
+      values = feature_value.values
+      new_values = tf.gather(values, tf.argsort(shuffled_value_rowids))
+      return feature_value.with_values(new_values)
+    else:
+      raise ValueError(
+          'Operation is currently supported only for dense or ragged tensors, '
+          f'got feature_name={feature_name} and feature_value={feature_value}.')
+
+  return {
+      feature_name: _shuffle(feature_name) for feature_name in features.keys()
+  }
 
 
 def _resolve_reduce_op(reduce_type: str) -> UnsortedReduceOp:
