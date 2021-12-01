@@ -313,7 +313,8 @@ class EdgeSetUpdate(tf.keras.layers.Layer):
     next_state_inputs.append(input_from_incident_nodes)
     # Input from context.
     next_state_inputs.append(tf.nest.map_structure(
-        ops.broadcast_context_to_nodes,
+        lambda value: ops.broadcast_context_to_edges(  # pylint: disable=g-long-lambda
+            graph, edge_set_name, feature_value=value),
         _get_feature_or_features(graph.context, self._context_input_feature)))
 
     next_state_inputs = tuple(next_state_inputs)
@@ -396,7 +397,8 @@ class NodeSetUpdate(tf.keras.layers.Layer):
     next_state_inputs.append(input_from_edge_sets)
     # Input from context.
     next_state_inputs.append(tf.nest.map_structure(
-        ops.broadcast_context_to_nodes,
+        lambda value: ops.broadcast_context_to_nodes(  # pylint: disable=g-long-lambda
+            graph, node_set_name, feature_value=value),
         _get_feature_or_features(graph.context, self._context_input_feature)))
 
     next_state_inputs = tuple(next_state_inputs)

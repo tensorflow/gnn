@@ -82,7 +82,8 @@ class GraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
     input_graph = _make_test_graph_with_singleton_node_sets(
         [("a", [1.]), ("b", [2.]), ("c", [4.])],
         [("a", "c", [100.]), ("b", "c", [100.]),
-         ("c", "a", [100.]), ("b", "a", [100.])])
+         ("c", "a", [100.]), ("b", "a", [100.])],
+        context=[8.])
 
     def get_kwargs(graph_tensor_spec):
       self.assertEqual(graph_tensor_spec, input_graph.spec)
@@ -92,6 +93,13 @@ class GraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
                   1, use_bias=False, kernel_initializer="ones")),
           node_input_tags=[const.SOURCE],
           edge_input_feature=())
+      edge_sum_sources_context = graph_update.EdgeSetUpdate(
+          next_state_lib.NextStateFromConcat(
+              tf.keras.layers.Dense(
+                  1, use_bias=False, kernel_initializer="ones")),
+          node_input_tags=[const.SOURCE],
+          edge_input_feature=(),
+          context_input_feature=const.DEFAULT_STATE_NAME)
       edge_sum_endpoints = graph_update.EdgeSetUpdate(
           next_state_lib.NextStateFromConcat(
               tf.keras.layers.Dense(
@@ -112,12 +120,13 @@ class GraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
           "b->c": edge_sum_endpoints,
           "a->c": edge_sum_sources,
           "c->a": edge_sum_sources,
-          "b->a": edge_sum_sources}
+          "b->a": edge_sum_sources_context}
       node_sets = {
           "c": graph_update.NodeSetUpdate(
               {"b->c": graph_ops.Pool(const.TARGET, "sum"),
                "a->c": graph_ops.Pool(const.TARGET, "sum")},
-              state_add_edges),
+              state_add_edges,
+              context_input_feature=const.DEFAULT_STATE_NAME),
           "a": graph_update.NodeSetUpdate(
               {"c->a": graph_ops.Pool(const.TARGET, "sum"),
                "b->a": graph_ops.Pool(const.TARGET, "sum")},
@@ -143,20 +152,26 @@ class GraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual([[1.]], edge_state("a->c"))
     self.assertAllEqual([[6.]], edge_state("b->c"))
     self.assertAllEqual([[4.]], edge_state("c->a"))
-    self.assertAllEqual([[2.]], edge_state("b->a"))
+    self.assertAllEqual([[10.]], edge_state("b->a"))
     # Node sets are updated in parallel after edge sets.
-    # a has 1, gets 1 by skipconn, 2 from b->a and 4 from c->a, totalling 8.
-    self.assertAllEqual([[8.]], node_state("a"))
+    # a has 1, gets 1 by skipconn, 10 from b->a and 4 from c->a, totalling 16.
+    self.assertAllEqual([[16.]], node_state("a"))
     # b has 2 and stays unchanged.
     self.assertAllEqual([[2.]], node_state("b"))
-    # c has 4, gets 2+4 from b->c and 1 from a->c, totalling 11.
-    self.assertAllEqual([[11.]], node_state("c"))
+    # c has 4, gets 2+4 from b->c, 1 from a->c and 8 from context, totalling 19.
+    self.assertAllEqual([[19.]], node_state("c"))
+    # Context is updated last, gets overwritten with sum of nodes.
+    self.assertAllEqual([[16. + 2.+ 19.]],
+                        graph.context[const.DEFAULT_STATE_NAME])
 
 
-def _make_test_graph_with_singleton_node_sets(nodes, edges):
+def _make_test_graph_with_singleton_node_sets(nodes, edges, context=None):
   """Returns graph with singleton node sets and edge sets of given values."""
   # pylint: disable=g-complex-comprehension
   return gt.GraphTensor.from_pieces(
+      context=gt.Context.from_fields(
+          features=None if context is None else {
+              const.DEFAULT_STATE_NAME: tf.constant([context])}),
       node_sets={
           name: gt.NodeSet.from_fields(
               sizes=tf.constant([1]),
