@@ -115,11 +115,19 @@ class PoolingTest(tf.test.TestCase, parameterized.TestCase):
           expected,
           ops.pool_edges_to_node(
               graph, 'edge', const.SOURCE, pooling, feature_name=fname))
+      self.assertAllEqual(
+          expected,
+          ops.pool(graph, const.SOURCE, edge_set_name='edge',
+                   reduce_type=pooling, feature_name=fname))
     for fname, expected in expected_target_fields.items():
       self.assertAllEqual(
           expected,
           ops.pool_edges_to_node(
               graph, 'edge', const.TARGET, pooling, feature_name=fname))
+      self.assertAllEqual(
+          expected,
+          ops.pool(graph, const.TARGET, edge_set_name='edge',
+                   reduce_type=pooling, feature_name=fname))
 
   @parameterized.parameters([
       dict(
@@ -169,6 +177,10 @@ class PoolingTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllEqual(
           expected,
           ops.pool_nodes_to_context(graph, 'node', pooling, feature_name=fname))
+      self.assertAllEqual(
+          expected,
+          ops.pool(graph, const.CONTEXT, node_set_name='node',
+                   reduce_type=pooling, feature_name=fname))
 
   @parameterized.parameters([
       dict(
@@ -224,6 +236,10 @@ class PoolingTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllEqual(
           expected,
           ops.pool_edges_to_context(graph, 'edge', pooling, feature_name=fname))
+      self.assertAllEqual(
+          expected,
+          ops.pool(graph, const.CONTEXT, edge_set_name='edge',
+                   reduce_type=pooling, feature_name=fname))
 
 
 class BroadcastingTest(tf.test.TestCase, parameterized.TestCase):
@@ -280,11 +296,19 @@ class BroadcastingTest(tf.test.TestCase, parameterized.TestCase):
           expected,
           ops.broadcast_node_to_edges(
               graph, 'edge', const.SOURCE, feature_name=fname))
+      self.assertAllEqual(
+          expected,
+          ops.broadcast(
+              graph, const.SOURCE, edge_set_name='edge', feature_name=fname))
     for fname, expected in expected_target_fields.items():
       self.assertAllEqual(
           expected,
           ops.broadcast_node_to_edges(
               graph, 'edge', const.TARGET, feature_name=fname))
+      self.assertAllEqual(
+          expected,
+          ops.broadcast(
+              graph, const.TARGET, edge_set_name='edge', feature_name=fname))
 
   @parameterized.parameters([
       dict(
@@ -335,6 +359,10 @@ class BroadcastingTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllEqual(
           expected,
           ops.broadcast_context_to_nodes(graph, 'node', feature_name=fname))
+      self.assertAllEqual(
+          expected,
+          ops.broadcast(
+              graph, const.CONTEXT, node_set_name='node', feature_name=fname))
 
   @parameterized.parameters([
       dict(
@@ -395,6 +423,10 @@ class BroadcastingTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllEqual(
           expected,
           ops.broadcast_context_to_edges(graph, 'edge', feature_name=fname))
+      self.assertAllEqual(
+          expected,
+          ops.broadcast(
+              graph, const.CONTEXT, edge_set_name='edge', feature_name=fname))
 
 
 class FirstNodeOpsTest(tf.test.TestCase, parameterized.TestCase):

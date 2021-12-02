@@ -1,17 +1,13 @@
 """Keras layer types for fundamental graph ops: Broadcast, Pool and Readout."""
 
 import abc
-from typing import Any, Mapping, Optional, Union
+from typing import Any, Mapping, Optional
 
 import tensorflow as tf
 
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_ops as ops
-
-# Pool and Broadcast allow the special case tfgnn.CONTEXT (a str)
-# in addition to pooling from or broadcasting to tfgnn.SOURCE and tfgnn.TARGET.
-IncidentNodeOrSpecialTag = Optional[Union[const.IncidentNodeTag, str]]
 
 
 # TODO(b/193496101): Split out a pure interface for non-Keras inputs?
@@ -342,7 +338,7 @@ class BroadcastPoolBase(UpdateInputLayerExtended):
 
   def __init__(self,
                *,
-               tag: Optional[IncidentNodeOrSpecialTag] = None,
+               tag: Optional[const.IncidentNodeOrContextTag] = None,
                edge_set_name: Optional[gt.EdgeSetName] = None,
                node_set_name: Optional[gt.NodeSetName] = None,
                feature_name: Optional[gt.FieldName] = None,
@@ -363,7 +359,7 @@ class BroadcastPoolBase(UpdateInputLayerExtended):
     return config
 
   def _fixup_call_args(self,
-                       tag: Optional[IncidentNodeOrSpecialTag] = None,
+                       tag: Optional[const.IncidentNodeOrContextTag] = None,
                        edge_set_name: Optional[gt.EdgeSetName] = None,
                        node_set_name: Optional[gt.NodeSetName] = None,
                        feature_name: Optional[gt.FieldName] = None):
@@ -395,7 +391,7 @@ class BroadcastPoolBase(UpdateInputLayerExtended):
     return tag, edge_set_name, node_set_name, feature_name
 
   @property
-  def tag(self) -> Optional[IncidentNodeOrSpecialTag]:
+  def tag(self) -> Optional[const.IncidentNodeOrContextTag]:
     """Returns the tag argument to init, or None if unset."""
     return self._tag
 
@@ -498,7 +494,7 @@ class Broadcast(BroadcastPoolBase):
   """
 
   def __init__(self,
-               tag: Optional[IncidentNodeOrSpecialTag] = None,
+               tag: Optional[const.IncidentNodeOrContextTag] = None,
                *,
                edge_set_name: Optional[gt.EdgeSetName] = None,
                node_set_name: Optional[gt.NodeSetName] = None,
@@ -511,7 +507,7 @@ class Broadcast(BroadcastPoolBase):
   def call(self,
            graph: gt.GraphTensor,
            *,
-           tag: Optional[IncidentNodeOrSpecialTag] = None,
+           tag: Optional[const.IncidentNodeOrContextTag] = None,
            edge_set_name: Optional[gt.EdgeSetName] = None,
            node_set_name: Optional[gt.NodeSetName] = None,
            feature_name: Optional[gt.FieldName] = None) -> gt.Field:
@@ -610,7 +606,7 @@ class Pool(BroadcastPoolBase):
   """
 
   def __init__(self,
-               tag: Optional[IncidentNodeOrSpecialTag] = None,
+               tag: Optional[const.IncidentNodeOrContextTag] = None,
                reduce_type: Optional[str] = None,
                *,
                edge_set_name: Optional[gt.EdgeSetName] = None,
@@ -630,7 +626,7 @@ class Pool(BroadcastPoolBase):
   def call(self,
            graph: gt.GraphTensor,
            *,
-           tag: Optional[IncidentNodeOrSpecialTag] = None,
+           tag: Optional[const.IncidentNodeOrContextTag] = None,
            reduce_type: Optional[str] = None,
            edge_set_name: Optional[gt.EdgeSetName] = None,
            node_set_name: Optional[gt.NodeSetName] = None,

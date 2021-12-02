@@ -292,6 +292,118 @@ def pool_edges_to_context(graph_tensor: GraphTensor,
       feature_name=feature_name)
 
 
+def broadcast(graph_tensor: GraphTensor,
+              from_tag: const.IncidentNodeOrContextTag,
+              *,
+              edge_set_name: Optional[EdgeSetName] = None,
+              node_set_name: Optional[NodeSetName] = None,
+              feature_value: Optional[Field] = None,
+              feature_name: Optional[FieldName] = None) -> Field:
+  """Broadcasts values from nodes to edges, or from context to nodes or edges.
+
+  This function broadcasts from context if `from_tag=tfgnn.CONTEXT` and
+  broadcasts from incident nodes to edges if `from_tag` is an ordinary node tag
+  like `tfgnn.SOURCE` or `tfgnn.TARGET`. Most user code will not need this
+  flexibility and can directly call one of the underlying functions
+  broadcast_node_to_edges, broadcast_context_to_nodes, or
+  broadcast_context_to_edges.
+
+  Args:
+    graph_tensor: A scalar GraphTensor.
+    from_tag: Values are broadcast from context if this is `tfgnn.CONTEXT` or
+      from the incident node on each edge with this tag.
+    edge_set_name: The name of the edge set to which values are broadcast.
+    node_set_name: The name of the node set to which values are broadcast.
+      Can only be set with `from_tag=tfgnn.CONTEXT`. Either edge_set_name or
+      node_set_name must be set.
+    feature_value: As for the underlying broadcast_*() function.
+    feature_name: As for the underlying broadcast_*() function.
+      Exactly one of feature_name or feature_value must be set.
+
+  Returns:
+    The result of the underlying broadcast_*() function.
+  """
+  _validate_names_and_tag(
+      from_tag, edge_set_name=edge_set_name, node_set_name=node_set_name)
+  if from_tag == const.CONTEXT:
+    if node_set_name is not None:
+      return broadcast_context_to_nodes(
+          graph_tensor, node_set_name=node_set_name,
+          feature_value=feature_value, feature_name=feature_name)
+    else:
+      return broadcast_context_to_edges(
+          graph_tensor, edge_set_name=edge_set_name,
+          feature_value=feature_value, feature_name=feature_name)
+  else:
+    return broadcast_node_to_edges(
+        graph_tensor, edge_set_name=edge_set_name, node_tag=from_tag,
+        feature_value=feature_value, feature_name=feature_name)
+
+
+def pool(graph_tensor: GraphTensor,
+         to_tag: const.IncidentNodeOrContextTag,
+         *,
+         edge_set_name: Optional[EdgeSetName] = None,
+         node_set_name: Optional[NodeSetName] = None,
+         reduce_type: str = 'sum',
+         feature_value: Optional[Field] = None,
+         feature_name: Optional[FieldName] = None) -> Field:
+  """Pools values from edges to nodes, or from nodes or edges to context.
+
+  This function pools to context if `to_tag=tfgnn.CONTEXT` and pools from edges
+  to incident nodes if `to_tag` is an ordinary node tag like `tfgnn.SOURCE` or
+  `tfgnn.TARGET`. Most user code will not need this flexibility and can directly
+  call one of the underlying functions pool_edges_to_node, pool_nodes_to_context
+  or pool_edges_to_context.
+
+  Args:
+    graph_tensor: A scalar GraphTensor.
+    to_tag: Values are pooled to context if this is `tfgnn.CONTEXT` or to the
+      incident node on each edge with this tag.
+    edge_set_name: The name of the edge set from which values are pooled.
+    node_set_name: The name of the node set from which values are pooled.
+      Can only be set with `to_tag=tfgnn.CONTEXT`. Either edge_set_name or
+      node_set_name must be set.
+    reduce_type: As for the underlying pool_*() function: a pooling operation
+      name. Defaults to 'sum'.
+    feature_value: As for the underlying pool_*() function.
+    feature_name: As for the underlying pool_*() function.
+      Exactly one of feature_name or feature_value must be set.
+
+  Returns:
+    The result of the underlying pool_*() function.
+  """
+  _validate_names_and_tag(
+      to_tag, edge_set_name=edge_set_name, node_set_name=node_set_name)
+  if to_tag == const.CONTEXT:
+    if node_set_name is not None:
+      return pool_nodes_to_context(
+          graph_tensor, reduce_type=reduce_type, node_set_name=node_set_name,
+          feature_value=feature_value, feature_name=feature_name)
+    else:
+      return pool_edges_to_context(
+          graph_tensor, reduce_type=reduce_type, edge_set_name=edge_set_name,
+          feature_value=feature_value, feature_name=feature_name)
+  else:
+    return pool_edges_to_node(
+        graph_tensor, reduce_type=reduce_type, edge_set_name=edge_set_name,
+        node_tag=to_tag,
+        feature_value=feature_value, feature_name=feature_name)
+
+
+def _validate_names_and_tag(tag, *, edge_set_name, node_set_name):
+  """Helper for generic broadcast() and pool()."""
+  if tag == const.CONTEXT:
+    num_names = bool(edge_set_name is None) + bool(node_set_name is None)
+    if num_names != 1:
+      raise ValueError('With tag CONTEXT, must pass exactly 1 of '
+                       f'edge_set_name, node_set_name; got {num_names}.')
+  else:
+    if edge_set_name is None or node_set_name is not None:
+      raise ValueError('Must pass edge_set_name but not node_set_name '
+                       'for a tag other than CONTEXT.')
+
+
 def gather_first_node(graph_tensor: GraphTensor,
                       node_set_name: NodeSetName,
                       *,
