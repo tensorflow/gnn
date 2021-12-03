@@ -173,4 +173,12 @@ def is_ragged_tensor(value: Value) -> bool:
 
 
 def is_dense_tensor(value: Value) -> bool:
-  return isinstance(value, (tf.Tensor, kt.KerasTensor))
+  if isinstance(value, tf.Tensor):
+    return True
+
+  if isinstance(value, kt.KerasTensor):
+    # KerasTensor is the base class for all Keras tensors, including the
+    # RaggedKerasTensor. Below we rely on the type spec to resolve actual type.
+    return isinstance(value.type_spec, tf.TensorSpec)
+
+  return False
