@@ -366,7 +366,7 @@ class GraphPieceSpecBase(type_spec.BatchableTypeSpec, metaclass=abc.ABCMeta):
                validate: bool = False):
     """Constructs GraphTensor type spec."""
     super().__init__()
-    assert isinstance(shape, tf.TensorShape)
+    assert isinstance(shape, tf.TensorShape), f'got: {type(shape).__name__}'
     if metadata is not None and const.validate_internal_results:
       assert isinstance(metadata, Mapping)
       for k, v in metadata.items():
@@ -479,6 +479,15 @@ class GraphPieceSpecBase(type_spec.BatchableTypeSpec, metaclass=abc.ABCMeta):
   def _serialize(self) -> Tuple[Any, ...]:
     """Extension Types API: Serialization as a nest of simpler types."""
     return (self._data_spec, self._shape, self._indices_dtype, self._metadata)
+
+  @classmethod
+  def _deserialize(cls, serialization):
+    """Extension Types API: Deserialization from a nest of simpler types."""
+    data_spec, shape, indices_dtype, metadata = serialization
+    # Keras Model serialization lost the type information due to b/209524368.
+    if not isinstance(shape, tf.TensorShape):
+      shape = tf.TensorShape(shape)
+    return cls(data_spec, shape, indices_dtype, metadata)
 
   @property
   def _component_specs(self) -> Any:
