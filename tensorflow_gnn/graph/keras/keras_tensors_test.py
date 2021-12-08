@@ -61,22 +61,54 @@ class FunctionalModelTest(_TestBase):
         })
 
   @parameterized.parameters([
+      gt.Context.from_fields(sizes=as_tensor([1, 1]),),
       gt.NodeSet.from_fields(
           features={},
           sizes=as_tensor([1, 1]),
       ),
-      gt.EdgeSet.from_fields(features={},
-                             sizes=as_tensor([1, 1]),
-                             adjacency=adj.Adjacency.from_indices(
-                                 ('node', as_tensor([0, 1])),
-                                 ('node', as_tensor([0, 0]))))
+      gt.EdgeSet.from_fields(
+          features={},
+          sizes=as_tensor([1, 1]),
+          adjacency=adj.Adjacency.from_indices(('node', as_tensor([0, 1])),
+                                               ('node', as_tensor([0, 0]))))
   ])
-  def testNodeOrEdgeSetSizes(self, example):
+  def testSizes(self, example):
     piece_input = tf.keras.Input(type_spec=example.spec)
     sizes = tf.keras.Model(piece_input, piece_input.sizes)(example)
     self.assertAllEqual(sizes, [1, 1])
+
     total_size = tf.keras.Model(piece_input, piece_input.total_size)(example)
     self.assertAllEqual(total_size, 2)
+
+  @parameterized.parameters([
+      gt.Context.from_fields(sizes=as_tensor([[1], [2]]),),
+      gt.NodeSet.from_fields(
+          features={},
+          sizes=as_tensor([[2], [1]]),
+      ),
+      gt.EdgeSet.from_fields(
+          features={},
+          sizes=as_tensor([[1], [1]]),
+          adjacency=adj.Adjacency.from_indices(
+              ('node', as_tensor([[0], [1]])),
+              ('node', as_tensor([[0], [0]])))),
+      gt.GraphTensor.from_pieces(node_sets={
+          'node':
+              gt.NodeSet.from_fields(
+                  features={},
+                  sizes=as_tensor([[2], [1]]),
+              )
+      }),
+  ])
+  def testNumComponents(self, example):
+    piece_input = tf.keras.Input(type_spec=example.spec)
+    num_components_model = tf.keras.Model(piece_input,
+                                          piece_input.num_components)
+    self.assertAllEqual(num_components_model(example), [1, 1])
+
+    total_num_components_model = tf.keras.Model(
+        piece_input, piece_input.total_num_components)
+    self.assertAllEqual(total_num_components_model(example), 2)
 
   def testAdjacency(self):
     adjacency = adj.Adjacency.from_indices(('node.a', as_tensor([0, 1])),
@@ -113,11 +145,12 @@ class FunctionalModelTest(_TestBase):
         },
         edge_sets={
             'edge':
-                gt.EdgeSet.from_fields(features={'f': as_tensor([1, 2, 3])},
-                                       sizes=as_tensor([3]),
-                                       adjacency=adj.Adjacency.from_indices(
-                                           ('node', as_tensor([0, 1, 1])),
-                                           ('node', as_tensor([0, 0, 1]))))
+                gt.EdgeSet.from_fields(
+                    features={'f': as_tensor([1, 2, 3])},
+                    sizes=as_tensor([3]),
+                    adjacency=adj.Adjacency.from_indices(
+                        ('node', as_tensor([0, 1, 1])),
+                        ('node', as_tensor([0, 0, 1]))))
         })
 
     graph_input = tf.keras.Input(type_spec=example.spec)

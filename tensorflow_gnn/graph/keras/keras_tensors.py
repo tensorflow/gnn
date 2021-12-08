@@ -78,27 +78,40 @@ NodeSetKerasTensor._overload_operator(gt.NodeSet, '__getitem__')
 EdgeSetKerasTensor._overload_operator(gt.EdgeSet, '__getitem__')
 HyperAdjacencyKerasTensor._overload_operator(adj.HyperAdjacency, '__getitem__')
 
+GRAPH_PIECE_PROPERTIES = ('_data',)
+GRAPH_PIECE_WITH_FEATURES_PROPERTIES = GRAPH_PIECE_PROPERTIES + (
+    'features',
+    '_get_features_ref',
+    'sizes',
+    'total_size',
+    'num_components',
+    'total_num_components',
+)
+
 for cls, gt_properties in [
-    (EdgeSetKerasTensor, ('features', 'sizes', 'adjacency', 'total_size',
-                          '_get_features_ref', '_data')),
-    (NodeSetKerasTensor, ('features', 'sizes', 'total_size',
-                          '_get_features_ref', '_data')),
-    (ContextKerasTensor, ('features', '_get_features_ref', '_data')),
-    (GraphKerasTensor, ('node_sets', 'edge_sets', 'context',
-                        'total_num_components', '_data')),
-    (HyperAdjacencyKerasTensor, ('_data',)),
-    (AdjacencyKerasTensor, ('source', 'target'))
+    (EdgeSetKerasTensor, GRAPH_PIECE_WITH_FEATURES_PROPERTIES + ('adjacency',)),
+    (NodeSetKerasTensor, GRAPH_PIECE_WITH_FEATURES_PROPERTIES),
+    (ContextKerasTensor, GRAPH_PIECE_WITH_FEATURES_PROPERTIES),
+    (GraphKerasTensor, (
+        'node_sets',
+        'edge_sets',
+        'context',
+        'num_components',
+        'total_num_components',
+    ) + GRAPH_PIECE_PROPERTIES),
+    (HyperAdjacencyKerasTensor, GRAPH_PIECE_PROPERTIES),
+    (AdjacencyKerasTensor, GRAPH_PIECE_PROPERTIES + ('source', 'target'))
 ]:
   for gt_property in gt_properties:
     core._delegate_property(cls, gt_property)
 
-for cls, gt_methods in [
-    (EdgeSetKerasTensor, ('get_features_dict', 'replace_features')),
-    (NodeSetKerasTensor, ('get_features_dict', 'replace_features')),
-    (ContextKerasTensor, ('get_features_dict', 'replace_features')),
-    (GraphKerasTensor, ('replace_features', 'merge_batch_to_components')),
-    (HyperAdjacencyKerasTensor, ('get_indices_dict',))
-]:
+GRAPH_PIECE_WITH_FEATURES_METHODS = ('get_features_dict', 'replace_features')
+for cls, gt_methods in [(EdgeSetKerasTensor, GRAPH_PIECE_WITH_FEATURES_METHODS),
+                        (NodeSetKerasTensor, GRAPH_PIECE_WITH_FEATURES_METHODS),
+                        (ContextKerasTensor, GRAPH_PIECE_WITH_FEATURES_METHODS),
+                        (GraphKerasTensor, ('replace_features',
+                                            'merge_batch_to_components')),
+                        (HyperAdjacencyKerasTensor, ('get_indices_dict',))]:
   for gt_method in gt_methods:
     core._delegate_method(cls, gt_method)
 
