@@ -183,10 +183,8 @@ class CreationTest(tu.GraphTensorTestBase):
     edge_spec = result.spec.edge_sets_spec['a->b']
     self.assertEqual(edge_spec['weight'],
                      tf.RaggedTensorSpec([2, None], tf.float32, 1, tf.int64))
-    self.assertEqual(
-        edge_spec.adjacency_spec.node_set_name(const.SOURCE), 'a')
-    self.assertEqual(
-        edge_spec.adjacency_spec.node_set_name(const.TARGET), 'b')
+    self.assertEqual(edge_spec.adjacency_spec.node_set_name(const.SOURCE), 'a')
+    self.assertEqual(edge_spec.adjacency_spec.node_set_name(const.TARGET), 'b')
 
 
 class ReplaceFieldsTest(tu.GraphTensorTestBase):
@@ -288,11 +286,12 @@ class ReplaceFieldsTest(tu.GraphTensorTestBase):
     self.assertEmpty(result1.node_sets['b'].features)
 
 
-class ElementsCountsTest(tf.test.TestCase):
+class ElementsCountsTest(tf.test.TestCase, parameterized.TestCase):
 
   def testEmpty(self):
     graph = gt.GraphTensor.from_pieces()
-    self.assertIsNone(graph.spec.total_num_components)
+    self.assertEqual(graph.total_num_components, 0)
+    self.assertEqual(graph.spec.total_num_components, 0)
 
   def testContextOnly(self):
     graph1 = gt.GraphTensor.from_pieces(
@@ -767,6 +766,102 @@ class BatchingUnbatchingMergingTest(tf.test.TestCase, parameterized.TestCase):
                                              ragged_rank=1))
     self.assertAllEqual(edge.adjacency[const.SOURCE],
                         as_ragged([], dtype=tf.int64, ragged_rank=1))
+
+
+class NumComponentsTest(tu.GraphTensorTestBase):
+  """Tests for GraphTensor tranformations."""
+
+  @parameterized.parameters([
+      dict(features={}, shape=[], expected=0),
+      dict(features={'a': as_tensor([2])}, shape=[], expected=1),
+      dict(features={'a': as_tensor([1, 2, 3])}, shape=[], expected=3),
+      dict(
+          features={'a': as_tensor([[1], [2], [3]])},
+          shape=[None],
+          expected=[1, 1, 1]),
+      dict(
+          features={'a': as_tensor([[1, 1], [2, 2]])},
+          shape=[2],
+          expected=[2, 2]),
+      dict(features={'a': as_ragged([[1], [2, 2]])}, shape=[], expected=2),
+      dict(
+          features={'a': as_ragged([[1], [2, 2]])}, shape=[1], expected=[1, 2]),
+      dict(
+          features={'a': as_ragged([[[1], [2]], [[3]], [[]], []])},
+          shape=[1],
+          expected=[2, 1, 1, 0]),
+      dict(
+          features={
+              'a': as_tensor([2]),
+              'b': as_ragged([[1, 2]])
+          },
+          shape=[],
+          expected=1)
+  ])
+  def testContext(self, features, shape, expected):
+    context = gt.Context.from_fields(features=features, shape=shape)
+    expected = as_tensor(expected)
+    self.assertAllEqual(context.num_components, expected)
+    self.assertAllEqual(context.total_num_components, tf.reduce_sum(expected))
+    graph = gt.GraphTensor.from_pieces(context=context)
+    self.assertAllEqual(graph.num_components, expected)
+    self.assertAllEqual(graph.total_num_components, tf.reduce_sum(expected))
+
+  @parameterized.parameters([
+      dict(
+          features={},
+          sizes=as_tensor([2]),
+          adjacency=adj.HyperAdjacency.from_indices({
+              const.SOURCE: ('node', as_tensor([0, 1])),
+              const.TARGET: ('node', as_tensor([1, 2])),
+          }),
+          expected=1),
+      dict(
+          features={'a': as_ragged([[1., 2.], [3.]])},
+          sizes=as_ragged([[1, 1], [1]]),
+          adjacency=adj.HyperAdjacency.from_indices({
+              const.SOURCE: ('node.a', as_ragged([[0, 1], [0]])),
+              const.TARGET: ('node.b', as_ragged([[1, 2], [0]])),
+          }),
+          expected=[2, 1]),
+  ])
+  def testEdgeAndNodeSets(self, features, sizes, adjacency, expected):
+    node_set = gt.NodeSet.from_fields(features=features, sizes=sizes)
+    edge_set = gt.EdgeSet.from_fields(
+        features=features, sizes=sizes, adjacency=adjacency)
+
+    expected = as_tensor(expected)
+    for case_index, piece in enumerate([
+        node_set, edge_set,
+        gt.GraphTensor.from_pieces(edge_sets={'edge': edge_set}),
+        gt.GraphTensor.from_pieces(node_sets={'node': node_set}),
+        gt.GraphTensor.from_pieces(
+            node_sets={'node': node_set}, edge_sets={'edge': edge_set})
+    ]):
+      self.assertAllEqual(
+          piece.num_components, expected, msg=f'case_index={case_index}')
+      self.assertAllEqual(
+          piece.total_num_components,
+          tf.reduce_sum(expected),
+          msg=f'case_index={case_index}')
+
+  @parameterized.parameters([
+      dict(features={}, sizes=as_tensor([]), expected=0),
+      dict(features={}, sizes=as_tensor([2]), expected=1),
+      dict(features={}, sizes=as_tensor([[1], [1]]), expected=[1, 1]),
+      dict(
+          features={'a': as_ragged([[1., 2.], [3.], [4.]])},
+          sizes=as_ragged([[1, 1], [1], [0]]),
+          expected=[2, 1, 1]),
+  ])
+  def testContextUpdate(self, features, sizes, expected):
+    context = gt.Context.from_fields()
+    node_set = gt.NodeSet.from_fields(features=features, sizes=sizes)
+    self.assertAllEqual(context.num_components, 0)
+    graph = gt.GraphTensor.from_pieces(context, node_sets={'node': node_set})
+    self.assertAllEqual(graph.context.num_components, expected)
+    self.assertAllEqual(graph.context.total_num_components,
+                        tf.reduce_sum(expected))
 
 
 if __name__ == '__main__':

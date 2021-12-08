@@ -65,6 +65,47 @@ class TensorUtilsTest(tf.test.TestCase):
             tf.SparseTensor(
                 indices=[[0, 0], [1, 2]], values=[1, 2], dense_shape=[3, 4])))
 
+  def testOnesLikeLeadingDimsDense(self):
+    self.assertAllEqual(
+        utils.ones_like_leading_dims(as_tensor([0]), 1, tf.int32), [1])
+    self.assertAllEqual(
+        utils.ones_like_leading_dims(as_tensor([1, 2]), 1, tf.int32), [1, 1])
+    self.assertAllEqual(
+        utils.ones_like_leading_dims(as_tensor([[0]]), 1, tf.float32), [1])
+    self.assertAllEqual(
+        utils.ones_like_leading_dims(as_tensor([[0]]), 2, tf.bool), [[1]])
+    self.assertAllEqual(
+        utils.ones_like_leading_dims(as_tensor([[0, 1], [2, 3]]), 1, tf.int32),
+        [1, 1])
+    self.assertAllEqual(
+        utils.ones_like_leading_dims(as_tensor([[0, 1], [2, 3]]), 2, tf.int32),
+        [[1, 1], [1, 1]])
+
+  def testOnesLikeLeadingDimsRagged(self):
+    self.assertAllEqual(
+        utils.ones_like_leading_dims(as_ragged([[0], [0]]), 1, tf.int32),
+        as_tensor([1, 1]))
+    self.assertAllEqual(
+        utils.ones_like_leading_dims(as_ragged([[0], [0]]), 2, tf.int32),
+        as_ragged([[1], [1]]))
+    self.assertAllEqual(
+        utils.ones_like_leading_dims(as_ragged([[0, 1], [2]]), 1, tf.float32),
+        as_tensor([1, 1]))
+    self.assertAllEqual(
+        utils.ones_like_leading_dims(as_ragged([[0, 1], [2]]), 2, tf.bool),
+        as_ragged([[1, 1], [1]]))
+    self.assertAllEqual(
+        utils.ones_like_leading_dims(
+            as_ragged([[[0], [1]], [[2]]]), 1, tf.int32), as_tensor([1, 1]))
+    self.assertAllEqual(
+        utils.ones_like_leading_dims(
+            as_ragged([[[0], [1]], [[2]]]), 2, tf.int32),
+        as_ragged([[1, 1], [1]]))
+    self.assertAllEqual(
+        utils.ones_like_leading_dims(
+            as_ragged([[[0], [1]], [[2]]]), 3, tf.int32),
+        as_ragged([[[1], [1]], [[1]]]))
+
 
 if __name__ == '__main__':
   tf.test.main()

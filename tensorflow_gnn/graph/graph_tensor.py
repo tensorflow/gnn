@@ -2,11 +2,12 @@
 """
 
 import abc
-from typing import Any, Dict, Mapping, Optional, Union
+from typing import Any, cast, Dict, Mapping, Optional, Union
 
 import tensorflow as tf
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_piece as gp
+from tensorflow_gnn.graph import tensor_utils as utils
 
 # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.framework import type_spec
@@ -28,6 +29,8 @@ AdjacencySpec = Any
 
 class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
   """Base class for graph pieces that hold user-defined features."""
+  _DATAKEY_FEATURES = 'features'  # A Mapping[FieldName, Field].
+  _DATAKEY_SIZES = 'sizes'  # A Field with `sizes`.
 
   def __getitem__(self, feature_name: FieldName) -> Field:
     """Indexing operator `[]` to access feature values by their name."""
@@ -42,10 +45,71 @@ class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
     """Returns features copy as a dictionary."""
     return dict(self._get_features_ref)
 
-  @abc.abstractproperty
+  @property
+  def sizes(self) -> Field:
+    """Tensor with a number of elements in each graph component."""
+    return self._data[_GraphPieceWithFeatures._DATAKEY_SIZES]  # pylint: disable=protected-access
+
+  @property
+  def total_size(self) -> tf.Tensor:
+    """Returns the total number of elements across dimensions.
+
+    Returns:
+      Scalar integer tensor equal to `tf.math.reduce_sum(sizes)`.
+    """
+    return tf.math.reduce_sum(self.sizes)
+
+  @property
+  def num_components(self) -> tf.Tensor:
+    """The number of graph components for each batch dimension if known."""
+    result = tf.reduce_sum(tf.ones_like(self.sizes), axis=self.rank)
+    if utils.is_ragged_tensor(result):
+      result_dense = result.to_tensor()
+      check_ops = []
+      if const.validate_internal_results:
+        check_ops.append(
+            tf.debugging.assert_equal(
+                tf.size(result),
+                tf.size(result_dense),
+                message='`sizes` shape is not compatible with the piece shape'))
+
+      with tf.control_dependencies(check_ops):
+        result = tf.identity(result_dense)
+    return result
+
+  @property
+  def total_num_components(self) -> tf.Tensor:
+    """The total number of graph components across dimensions if known.
+
+    Returns:
+      Scalar integer tensor equal to `tf.math.reduce_sum(num_components)`.
+    """
+    return tf.size(self.sizes)
+
+  @property
   def _get_features_ref(self) -> Fields:
-    """Returns the mutable features dict. Subclass controls location in data."""
-    raise NotImplementedError
+    return self._data[_GraphPieceWithFeatures._DATAKEY_FEATURES]
+
+  @classmethod
+  def _from_features_and_sizes(cls, features: Fields, sizes: Field,
+                               **extra_data) -> '_GraphPieceWithFeatures':
+    """Constructs GraphPiece from features and component sizes."""
+    assert isinstance(features, Mapping)
+    sizes = gp.convert_to_tensor_or_ragged(sizes)
+    prepared_features = {
+        key: gp.convert_to_tensor_or_ragged(value)
+        for key, value in features.items()
+    }
+    data = {
+        _GraphPieceWithFeatures._DATAKEY_FEATURES: prepared_features,
+        _GraphPieceWithFeatures._DATAKEY_SIZES: sizes
+    }
+    data.update({
+        key: gp.convert_to_tensor_or_ragged(value)
+        for key, value in extra_data.items()
+    })
+    return cls._from_data(
+        data=data, shape=sizes.shape[:-1], indices_dtype=sizes.dtype)
 
 
 class _GraphPieceWithFeaturesSpec(gp.GraphPieceSpecBase):
@@ -59,14 +123,44 @@ class _GraphPieceWithFeaturesSpec(gp.GraphPieceSpecBase):
     """A mapping of feature name to feature specs."""
     return _as_immutable_mapping(self._get_features_spec_ref)
 
-  @abc.abstractproperty
+  @property
+  def sizes_spec(self) -> FieldSpec:
+    """A type spec for the sizes that provides num. elements per component."""
+    return self._data_spec[_GraphPieceWithFeatures._DATAKEY_SIZES]  # pylint: disable=protected-access
+
+  @property
   def total_num_components(self) -> Optional[int]:
     """The total number of graph components across dimensions if known."""
-    raise NotImplementedError
+    return self.sizes_spec.shape.num_elements()
 
-  @abc.abstractproperty
+  @property
+  def total_size(self) -> Optional[int]:
+    """Returns the total number of graph entities across dimensions if known."""
+    indicative_feature_spec = _get_indicative_feature(
+        self._get_features_spec_ref)
+    if indicative_feature_spec is None:
+      return None
+    else:
+      return indicative_feature_spec.shape[:(self.rank + 1)].num_elements()
+
+  @property
   def _get_features_spec_ref(self) -> FieldsSpec:
-    raise NotImplementedError
+    return self._data_spec[_GraphPieceWithFeatures._DATAKEY_FEATURES]  # pylint: disable=protected-access
+
+  @classmethod
+  def _from_feature_and_size_specs(
+      cls, features_spec: FieldsSpec, sizes_spec: FieldSpec,
+      **extra_data) -> '_GraphPieceWithFeaturesSpec':
+    """Constructs GraphPieceSpec from features and component sizes specs."""
+    # pylint: disable=protected-access
+    assert isinstance(features_spec, Mapping)
+    data_spec = {
+        _NodeOrEdgeSet._DATAKEY_FEATURES: features_spec.copy(),
+        _NodeOrEdgeSet._DATAKEY_SIZES: sizes_spec
+    }
+    data_spec.update(extra_data)
+    return cls._from_data_spec(
+        data_spec, shape=sizes_spec.shape[:-1], indices_dtype=sizes_spec.dtype)
 
 
 class Context(_GraphPieceWithFeatures):
@@ -85,53 +179,90 @@ class Context(_GraphPieceWithFeatures):
   def from_fields(
       cls, *,
       features: Optional[Fields] = None,
-      shape: ShapeLike = tf.TensorShape([]),
-      indices_dtype: tf.dtypes.DType = const.default_indices_dtype
+      sizes: Optional[Field] = None,
+      shape: Optional[ShapeLike] = None,
+      indices_dtype: Optional[tf.dtypes.DType] = None
   ) -> 'Context':
     """Constructs a new instance from context fields.
 
     Args:
       features: mapping from feature names to feature Tensors or RaggedTensors.
-        All feature tensors must have shape = graph_shape + [num_components] +
-        feature_shape, where num_components is a number of graph components
+        All feature tensors must have shape = [*graph_shape, num_components,
+        *feature_shape], where num_components is a number of graph components
         (could be ragged); feature_shape are field-specific inner dimensions.
+      sizes: the number of context features in each graph component. All values
+        must equal to 1 (single feature value for each component). Has shape =
+        [*graph_shape, num_components], where num_components is the number of
+        graph components (could be ragged). Should be compatible with `shape`,
+        if it is specified.
       shape: the shape of this tensor and a GraphTensor containing it, also
-        known as the graph_shape.
+        known as the graph_shape. If not specified, the shape is inferred from
+        `sizes` or set to `[]` if the `sizes` is not specified.
       indices_dtype: The `indices_dtype` of a GraphTensor containing this
         object, used as `row_splits_dtype` when batching potentially ragged
-        fields.
+        fields. If `sizes` are specified they are casted to that type.
 
     Returns:
       A `Context` tensor.
 
     """
+    if indices_dtype is not None:
+      if indices_dtype not in (tf.int64, tf.int32):
+        raise ValueError(f'Expected indices_dtype={indices_dtype}'
+                         ' to be tf.int64 or tf.int32')
+    if shape is not None:
+      shape = shape if isinstance(shape,
+                                  tf.TensorShape) else tf.TensorShape(shape)
+
+    if sizes is not None:
+      sizes = gp.convert_to_tensor_or_ragged(sizes)
+      if indices_dtype is not None and indices_dtype != sizes.dtype:
+        sizes = tf.cast(sizes, dtype=indices_dtype)
+
+    if shape is not None and sizes is not None:
+      if sizes.shape.rank != shape.rank + 1:
+        raise ValueError('The `sizes` rank != shape.rank + 1: '
+                         f' shape={shape}'
+                         f' sizes.shape={sizes.shape}')
+
+      if not shape.is_compatible_with(sizes.shape[:shape.rank]):
+        raise ValueError('The `sizes` is not compatible with the `shape`: '
+                         f' shape={shape}'
+                         f' sizes.shape={sizes.shape}')
+
     if features is None:
       features = {}
-    assert isinstance(features, Mapping)
-    prepared_features = {key: gp.convert_to_tensor_or_ragged(value)
-                         for key, value in features.items()}
-    return cls._from_data(
-        prepared_features,
-        shape=shape
-        if isinstance(shape, tf.TensorShape) else tf.TensorShape(shape),
-        indices_dtype=indices_dtype)
+    if sizes is None:
+      shape = _ifnone(shape, tf.TensorShape([]))
+      indices_dtype = _ifnone(indices_dtype, const.default_indices_dtype)
+
+      indicative_feature = _get_indicative_feature(features)
+      if indicative_feature is None:
+        # There are no features to use for sizes inference. Assume that the
+        # Context has no components and set sizes accordingly.
+        size_dims = [_ifnone(dim, 0) for dim in shape.concatenate([0])]
+        sizes = tf.ones(shape=size_dims, dtype=indices_dtype)
+      else:
+        sizes = utils.ones_like_leading_dims(
+            indicative_feature, shape.rank + 1, dtype=indices_dtype)
+
+    return cls._from_features_and_sizes(features=features, sizes=sizes)
 
   def replace_features(self, features: Fields) -> 'Context':
     """Returns a new instance with a new set of features."""
     assert isinstance(features, Mapping)
     return self.__class__.from_fields(
-        features=features, shape=self.shape, indices_dtype=self.indices_dtype)
-
-  @property
-  def _get_features_ref(self) -> Fields:
-    return self._data
+        features=features,
+        sizes=self.sizes,
+        shape=self.shape,
+        indices_dtype=self.indices_dtype)
 
   @staticmethod
   def _type_spec_cls():
     return ContextSpec
 
 
-@type_spec.register('tensorflow_gnn.ContextSpec')
+@type_spec.register('tensorflow_gnn.ContextSpec.v2')
 class ContextSpec(_GraphPieceWithFeaturesSpec):
   """A type spec for global features for a graph component.
 
@@ -147,57 +278,48 @@ class ContextSpec(_GraphPieceWithFeaturesSpec):
   def from_field_specs(
       cls, *,
       features_spec: Optional[FieldsSpec] = None,
+      sizes_spec: Optional[FieldSpec] = None,
       shape: ShapeLike = tf.TensorShape([]),
       indices_dtype: tf.dtypes.DType = const.default_indices_dtype
   ) -> 'ContextSpec':
     """Counterpart of `Context.from_fields()` for values type specs."""
+    shape = shape if isinstance(shape,
+                                tf.TensorShape) else tf.TensorShape(shape)
+
     if features_spec is None:
       features_spec = {}
-    assert isinstance(features_spec, Mapping)
-    return cls._from_data_spec(
-        features_spec,
-        shape=shape
-        if isinstance(shape, tf.TensorShape) else tf.TensorShape(shape),
-        indices_dtype=indices_dtype)
+
+    if sizes_spec is None:
+      indicative_feature_spec = _get_indicative_feature(features_spec)
+      is_ragged = False
+      if indicative_feature_spec is None:
+        sizes_shape = shape.concatenate([0])
+      else:
+        components_dim = indicative_feature_spec.shape[shape.rank]
+        sizes_shape = shape.concatenate(tf.TensorShape([components_dim]))
+        if isinstance(indicative_feature_spec, tf.RaggedTensorSpec):
+          is_ragged = (shape.rank > 0) and (components_dim is None)
+
+      if is_ragged:
+        sizes_spec = tf.RaggedTensorSpec(
+            shape=sizes_shape,
+            ragged_rank=shape.rank + 1,
+            dtype=indices_dtype,
+            row_splits_dtype=indices_dtype)
+      else:
+        sizes_spec = tf.TensorSpec(
+            shape=sizes_shape,
+            dtype=indices_dtype)
+
+    return cls._from_feature_and_size_specs(features_spec, sizes_spec)
 
   @property
   def value_type(self):
     return Context
 
-  @property
-  def total_num_components(self) -> Optional[int]:
-    """The total number of graph components across dimensions if known."""
-    indicative_feature_spec = _get_indicative_feature_spec(self._data_spec)
-    if indicative_feature_spec is None:
-      return None
-    else:
-      return indicative_feature_spec.shape[:(self.rank + 1)].num_elements()
-
-  @property
-  def _get_features_spec_ref(self) -> FieldsSpec:
-    return self._data_spec
-
 
 class _NodeOrEdgeSet(_GraphPieceWithFeatures):
   """Base class for node set or edge set."""
-  _DATAKEY_FEATURES = 'features'  # A Mapping[FieldName, Field].
-  _DATAKEY_SIZES = 'sizes'  # A Field with `sizes`.
-
-  @classmethod
-  def _from_fields(cls, features: Fields, sizes: Field,
-                   **extra_data) -> '_NodeOrEdgeSet':
-    assert isinstance(features, Mapping)
-    sizes = gp.convert_to_tensor_or_ragged(sizes)
-    prepared_features = {key: gp.convert_to_tensor_or_ragged(value)
-                         for key, value in features.items()}
-    data = {
-        _NodeOrEdgeSet._DATAKEY_FEATURES: prepared_features,
-        _NodeOrEdgeSet._DATAKEY_SIZES: sizes
-    }
-    data.update({key: gp.convert_to_tensor_or_ragged(value)
-                 for key, value in extra_data.items()})
-    return cls._from_data(
-        data=data, shape=sizes.shape[:-1], indices_dtype=sizes.dtype)
 
   def replace_features(self, features: Mapping[FieldName,
                                                Field]) -> '_NodeOrEdgeSet':
@@ -207,66 +329,10 @@ class _NodeOrEdgeSet(_GraphPieceWithFeatures):
     new_data.update({_NodeOrEdgeSet._DATAKEY_FEATURES: features})
     return self.__class__.from_fields(**new_data)
 
-  @property
-  def sizes(self) -> Field:
-    """Tensor with a number of elements in each graph component."""
-    return self._data[_NodeOrEdgeSet._DATAKEY_SIZES]
-
-  @property
-  def total_size(self) -> tf.Tensor:
-    """Returns the total number of elements across dimensions.
-
-    Returns:
-      Scalar integer tensor equal to `tf.math.reduce_sum(sizes)`.
-    """
-    result = tf.math.reduce_sum(self.sizes)
-    assert isinstance(result, tf.Tensor) and result.shape.rank == 0
-    return result
-
-  @property
-  def _get_features_ref(self) -> Fields:
-    return self._data[_NodeOrEdgeSet._DATAKEY_FEATURES]
-
 
 class _NodeOrEdgeSetSpec(_GraphPieceWithFeaturesSpec):
   """TypeSpec for _NodeOrEdgeSet."""
-
-  @classmethod
-  def _from_field_specs(cls, features_spec: FieldsSpec, sizes_spec: FieldSpec,
-                        **extra_data) -> '_NodeOrEdgeSetSpec':
-    # pylint: disable=protected-access
-    assert isinstance(features_spec, Mapping)
-    data_spec = {
-        _NodeOrEdgeSet._DATAKEY_FEATURES: features_spec,
-        _NodeOrEdgeSet._DATAKEY_SIZES: sizes_spec
-    }
-    data_spec.update(extra_data)
-    return cls._from_data_spec(
-        data_spec, shape=sizes_spec.shape[:-1], indices_dtype=sizes_spec.dtype)
-
-  @property
-  def sizes_spec(self) -> FieldSpec:
-    """A type spec for the sizes that provides num. elements per component."""
-    return self._data_spec[_NodeOrEdgeSet._DATAKEY_SIZES]  # pylint: disable=protected-access
-
-  @property
-  def total_num_components(self) -> Optional[int]:
-    """The total number of graph components across dimensions if known."""
-    return self.sizes_spec.shape.num_elements()
-
-  @property
-  def total_size(self) -> Optional[int]:
-    """Returns the total number of graph entities across dimensions if known."""
-    indicative_feature_spec = _get_indicative_feature_spec(
-        self._get_features_spec_ref)
-    if indicative_feature_spec is None:
-      return None
-    else:
-      return indicative_feature_spec.shape[:(self.rank + 1)].num_elements()
-
-  @property
-  def _get_features_spec_ref(self) -> FieldsSpec:
-    return self._data_spec[_NodeOrEdgeSet._DATAKEY_FEATURES]  # pylint: disable=protected-access
+  pass
 
 
 class NodeSet(_NodeOrEdgeSet):
@@ -288,12 +354,12 @@ class NodeSet(_NodeOrEdgeSet):
 
     Args:
       features: mapping from feature names to feature Tensors or RaggedTensors.
-        All feature tensors must have shape = graph_shape + [num_nodes] +
-        feature_shape, where num_nodes is the number of graph nodes in this set
+        All feature tensors must have shape = [*graph_shape, num_nodes,
+        *feature_shape], where num_nodes is the number of nodes in the node set
         (could be ragged) and feature_shape are feature-specific inner
         dimensions.
       sizes: the number of nodes in each graph component. Has shape =
-        graph_shape + [num_components], where num_components is the number of
+        [*graph_shape, num_components], where num_components is the number of
         graph components (could be ragged).
 
     Returns:
@@ -301,7 +367,7 @@ class NodeSet(_NodeOrEdgeSet):
     """
     if features is None:
       features = {}
-    return cls._from_fields(features=features, sizes=sizes)
+    return cls._from_features_and_sizes(features=features, sizes=sizes)
 
   @staticmethod
   def _type_spec_cls():
@@ -327,7 +393,8 @@ class NodeSetSpec(_NodeOrEdgeSetSpec):
     """Counterpart of `NodeSet.from_fields()` for values type specs."""
     if features_spec is None:
       features_spec = {}
-    return cls._from_field_specs(
+
+    return cls._from_feature_and_size_specs(
         features_spec=features_spec, sizes_spec=sizes_spec)
 
   @property
@@ -358,8 +425,8 @@ class EdgeSet(_NodeOrEdgeSet):
 
     Args:
       features: mapping from feature names to feature Tensors or RaggedTensors.
-        All feature tensors must have shape = graph_shape + [num_edges] +
-        feature_shape, where num_edges is the number of edges in the edge set
+        All feature tensors must have shape = [graph_shape, num_edges,
+        *feature_shape], where num_edges is the number of edges in the edge set
         (could be ragged) and feature_shape are feature-specific inner
         dimensions.
       sizes: the number of edges in each graph component. Has shape =
@@ -372,7 +439,8 @@ class EdgeSet(_NodeOrEdgeSet):
     """
     if features is None:
       features = {}
-    return cls._from_fields(features=features, sizes=sizes, adjacency=adjacency)
+    return cls._from_features_and_sizes(
+        features=features, sizes=sizes, adjacency=adjacency)
 
   @property
   def adjacency(self) -> Adjacency:
@@ -405,7 +473,8 @@ class EdgeSetSpec(_NodeOrEdgeSetSpec):
     # pylint: disable=protected-access
     if features_spec is None:
       features_spec = {}
-    return cls._from_field_specs(
+
+    return cls._from_feature_and_size_specs(
         features_spec=features_spec,
         sizes_spec=sizes_spec,
         **{EdgeSet._DATAKEY_ADJACENCY: adjacency_spec})
@@ -625,6 +694,17 @@ class GraphTensor(gp.GraphPieceBase):
     edge_sets = _ifnone(edge_sets, dict()).copy()
     indicative_entity = _get_indicative_graph_entity(context, node_sets,
                                                      edge_sets)
+    if isinstance(context.spec, ContextSpec) and isinstance(
+        indicative_entity.spec, _NodeOrEdgeSetSpec):
+      # Reevaluate context sizes from the node or edge set sizes. The latter are
+      # directly set by user, whereas the context sizes are indirectly inferred
+      # from the context feature shapes or set to zero-shaped tensor if the
+      # context has no features.
+      context_sizes = tf.ones_like(indicative_entity.sizes,
+                                   context.indices_dtype)
+      context = context.from_fields(
+          features=context.features, sizes=context_sizes)
+
     assert isinstance(indicative_entity, _GraphPieceWithFeatures)
     return cls._from_data(
         data={
@@ -722,6 +802,23 @@ class GraphTensor(gp.GraphPieceBase):
     """A read-only view for edge sets."""
     return _as_immutable_mapping(self._data[GraphTensor._DATAKEY_EDGE_SETS])
 
+  @property
+  def num_components(self) -> tf.Tensor:
+    """The number of graph components for each batch dimension if known."""
+    indicative_entity = _get_indicative_graph_entity(self.context,
+                                                     self.node_sets,
+                                                     self.edge_sets)
+    return indicative_entity.num_components
+
+  @property
+  def total_num_components(self) -> tf.Tensor:
+    """The total number of graph components across dimensions if known."""
+    indicative_entity = _get_indicative_graph_entity(self.context,
+                                                     self.node_sets,
+                                                     self.edge_sets)
+    return cast(_GraphPieceWithFeatures,
+                indicative_entity).total_num_components
+
   def replace_features(
       self,
       context: Optional[Fields] = None,
@@ -767,16 +864,15 @@ class GraphTensor(gp.GraphPieceBase):
 
     Args:
       context: A substitute for the context features, or None (which keeps the
-        prior features). Their tensor shapes must match the number of
-        existing components, which remains unchanged.
-      node_sets: Substitutes for the features of the specified node sets.
-        Their tensor shapes must match the existing number of nodes, which
-        remains unchanged. Features on node sets that are not included remain
-        unchanged.
-      edge_sets: Substitutes for the features of the specified edge sets.
-        Their tensor shapes must match the existing number of edges. The number
-        of edges and their incident nodes are unchanged. Features on edge sets
-        that are not included remain unchanged.
+        prior features). Their tensor shapes must match the number of existing
+        components, which remains unchanged.
+      node_sets: Substitutes for the features of the specified node sets. Their
+        tensor shapes must match the existing number of nodes, which remains
+        unchanged. Features on node sets that are not included remain unchanged.
+      edge_sets: Substitutes for the features of the specified edge sets. Their
+        tensor shapes must match the existing number of edges. The number of
+        edges and their incident nodes are unchanged. Features on edge sets that
+        are not included remain unchanged.
 
     Returns:
       A `GraphTensor` instance with feature maps replaced according to the
@@ -831,6 +927,14 @@ class GraphTensorSpec(gp.GraphPieceSpecBase):
                                                      node_sets_spec,
                                                      edge_sets_spec)
     assert isinstance(indicative_entity, _GraphPieceWithFeaturesSpec)
+    if isinstance(context_spec,
+                  ContextSpec) and context_spec != indicative_entity:
+      entity_sizes_spec = indicative_entity.sizes_spec
+      if entity_sizes_spec is not None:
+        context_spec = context_spec.from_field_specs(
+            features_spec=context_spec.features_spec,
+            sizes_spec=entity_sizes_spec)
+
     # pylint: disable=protected-access
     return cls._from_data_spec(
         {
@@ -869,21 +973,25 @@ class GraphTensorSpec(gp.GraphPieceSpecBase):
                                                      self.node_sets_spec,
                                                      self.edge_sets_spec)
     assert indicative_entity is not None
-    return indicative_entity.total_num_components
+    return cast(_GraphPieceWithFeaturesSpec,
+                indicative_entity).total_num_components
 
 
 def _ifnone(value, default):
   return value if value is not None else default
 
 
-def _get_indicative_feature_spec(
-    field_specs: FieldsSpec) -> Optional[FieldSpec]:
+def _get_indicative_feature(
+    field_specs: Union[Field, FieldsSpec]) -> Optional[Union[Field, FieldSpec]]:
   """Deterministically selects one of the field specs."""
 
   def key_fn(item):
     """First not ragged by field name."""
-    name, spec = item
-    ragged_rank = spec.ragged_rank if isinstance(spec, tf.RaggedTensor) else 0
+    name, value = item
+    if isinstance(value, tf.RaggedTensorSpec) or utils.is_ragged_tensor(value):
+      ragged_rank = value.ragged_rank
+    else:
+      ragged_rank = 0
     return (ragged_rank, name)
 
   _, result = min(field_specs.items(), key=key_fn, default=('', None))
