@@ -4,6 +4,7 @@ from typing import Mapping
 
 import tensorflow as tf
 
+from tensorflow_gnn.graph import dict_utils as du
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 
@@ -163,19 +164,22 @@ class MapFeatures(tf.keras.layers.Layer):
       self._edge_set_models = edge_set_models
       self._is_initialized = True
 
-  @classmethod
-  def from_config(cls, config):
-    return cls(**config, _from_config=True)
-
   def get_config(self):
     if not self._is_initialized:
       raise ValueError("Cannot get a config for saving a MapFeatures layer "
                        "before it has been built (during the first call).")
     return dict(
         context_model=self._context_model,
-        node_set_models=self._node_set_models,
-        edge_set_models=self._edge_set_models,
+        # Sublayers need to be top-level objects in the config (b/209560043).
+        **du.with_key_prefix(self._node_set_models, "node_set_models/"),
+        **du.with_key_prefix(self._edge_set_models, "edge_set_models/"),
         **super().get_config())
+
+  @classmethod
+  def from_config(cls, config):
+    config["node_set_models"] = du.pop_by_prefix(config, "node_set_models/")
+    config["edge_set_models"] = du.pop_by_prefix(config, "edge_set_models/")
+    return cls(**config, _from_config=True)
 
   def _init_from_spec(self, spec: gt.GraphTensorSpec):
     self._context_model = _make_model_or_none(

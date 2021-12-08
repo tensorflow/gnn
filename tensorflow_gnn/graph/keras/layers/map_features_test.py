@@ -1,5 +1,6 @@
 """Tests for MapFeatures."""
 
+import enum
 import functools
 import os
 
@@ -17,6 +18,13 @@ from tensorflow_gnn.graph.keras.layers import map_features
 def double_fn(inputs, **_):
   """Returns twice the value of each input feature."""
   return {k: tf.add(v, v) for k, v in inputs.features.items()}
+
+
+class ReloadModel(int, enum.Enum):
+  """Controls how to reload a model for further testing after saving."""
+  SKIP = 0
+  SAVED_MODEL = 1
+  KERAS = 2
 
 
 class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
@@ -95,11 +103,13 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEmpty(edges.features)
 
   @parameterized.named_parameters(
-      ("DynamicSize", False, False),
-      ("DynamicSizeRestored", False, True),
-      ("StaticSize", True, False),
-      ("StaticSizeRestored", True, True))
-  def testNewFeature(self, use_static_size, save_and_restore):
+      ("DynamicSize", False, ReloadModel.SKIP),
+      ("DynamicSizeRestored", False, ReloadModel.SAVED_MODEL),
+      ("DynamicSizeRestoredKeras", False, ReloadModel.KERAS),
+      ("StaticSize", True, ReloadModel.SKIP),
+      ("StaticSizeRestored", True, ReloadModel.SAVED_MODEL),
+      ("StaticSizeRestoredKeras", True, ReloadModel.KERAS))
+  def testNewFeature(self, use_static_size, reload_model):
     input_graph = _make_scalar_test_graph()
 
     # Replaces all features by hidden state [1., 1., 1.] for each node/edge.
@@ -128,10 +138,13 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
     # Do an optional round-trip through SavedModel before testing the layer's
     # behavior.
-    if save_and_restore:
+    if reload_model:
       export_dir = os.path.join(self.get_temp_dir(), "new-features-model")
       model.save(export_dir, include_optimizer=False)
-      model = tf.saved_model.load(export_dir)
+      if reload_model == ReloadModel.KERAS:
+        model = tf.keras.models.load_model(export_dir)
+      else:
+        model = tf.saved_model.load(export_dir)
 
     graph = model(input_graph)
     self.assertAllEqual(
@@ -165,9 +178,10 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
       _ = layer(input_graph)  # Trigger building.
 
   @parameterized.named_parameters(
-      ("Basic", False),
-      ("Restored", True))
-  def testEmbeddingTable(self, save_and_restore):
+      ("Basic", ReloadModel.SKIP),
+      ("Restored", ReloadModel.SAVED_MODEL),
+      ("RestoredKeras", ReloadModel.KERAS))
+  def testEmbeddingTable(self, reload_model):
     input_graph = _make_scalar_test_graph()
 
     # Replaces the "[cne]_ragged" feature with embeddings of its values.
@@ -205,10 +219,13 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
     # Do an optional round-trip through SavedModel before testing the layer's
     # behavior. In particular, this restores the checkpointed embedding tables.
-    if save_and_restore:
+    if reload_model:
       export_dir = os.path.join(self.get_temp_dir(), "embedding-model")
       model.save(export_dir, include_optimizer=False)
-      model = tf.saved_model.load(export_dir)
+      if reload_model == ReloadModel.KERAS:
+        model = tf.keras.models.load_model(export_dir)
+      else:
+        model = tf.saved_model.load(export_dir)
 
     graph = model(input_graph)
     context = graph.context
@@ -331,6 +348,7 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
         graph.node_sets["nodes"]["three_ones"])
 
 
+@tf.keras.utils.register_keras_serializable(package="GNNtesting")
 class MyRangeInitializer(tf.keras.initializers.Initializer):
   """Initializes with 2D value [start, start+1, start+2, ...]."""
 

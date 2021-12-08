@@ -5,6 +5,7 @@ from typing import Any, Callable, Mapping, Optional, Sequence
 
 import tensorflow as tf
 
+from tensorflow_gnn.graph import dict_utils as du
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_ops as ops
@@ -195,10 +196,17 @@ class GraphUpdate(tf.keras.layers.Layer):
           "GraphUpdate(deferred_init_callback=...) must be called "
           "to trigger deferred initialization before it can be saved.")
     return dict(
-        edge_sets=self._edge_set_updates,
-        node_sets=self._node_set_updates,
+        # Sublayers need to be top-level objects in the config (b/209560043).
+        **du.with_key_prefix(self._edge_set_updates, "edge_sets/"),
+        **du.with_key_prefix(self._node_set_updates, "node_sets/"),
         context=self._context_update,
         **super().get_config())
+
+  @classmethod
+  def from_config(cls, config):
+    config["edge_sets"] = du.pop_by_prefix(config, "edge_sets/")
+    config["node_sets"] = du.pop_by_prefix(config, "node_sets/")
+    return cls(**config)
 
   def call(self, graph: gt.GraphTensor) -> gt.GraphTensor:
     if not self._is_initialized:
@@ -376,11 +384,17 @@ class NodeSetUpdate(tf.keras.layers.Layer):
 
   def get_config(self):
     return dict(
-        edge_set_inputs=self._edge_set_inputs,
+        # Sublayers need to be top-level objects in the config (b/209560043).
+        **du.with_key_prefix(self._edge_set_inputs, "edge_set_inputs/"),
         next_state=self._next_state,
         node_input_feature=self._node_input_feature,
         context_input_feature=self._context_input_feature,
         **super().get_config())
+
+  @classmethod
+  def from_config(cls, config):
+    config["edge_set_inputs"] = du.pop_by_prefix(config, "edge_set_inputs/")
+    return cls(**config)
 
   def call(self, graph: gt.GraphTensor,
            node_set_name: const.NodeSetName) -> gt.GraphTensor:
@@ -465,11 +479,19 @@ class ContextUpdate(tf.keras.layers.Layer):
 
   def get_config(self):
     return dict(
-        node_set_inputs=self._node_set_inputs,
+        # Sublayers need to be top-level objects in the config (b/209560043).
+        **du.with_key_prefix(self._node_set_inputs, "node_set_inputs/"),
         next_state=self._next_state,
-        edge_set_inputs=self._edge_set_inputs,
+        **du.with_key_prefix(self._edge_set_inputs or {}, "edge_set_inputs/"),
         context_input_feature=self._context_input_feature,
         **super().get_config())
+
+  @classmethod
+  def from_config(cls, config):
+    config["node_set_inputs"] = du.pop_by_prefix(config, "node_set_inputs/")
+    config["edge_set_inputs"] = du.pop_by_prefix(config,
+                                                 "edge_set_inputs/") or None
+    return cls(**config)
 
   def call(self, graph: gt.GraphTensor) -> gt.GraphTensor:
     next_state_inputs = []
