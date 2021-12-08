@@ -280,16 +280,15 @@ def _call_model(model, graph_piece, *, logging_name):
   return model(graph_piece)
 
 
-# TODO(b/207631022): Support inputs of type Context, via .total_num_components
 @tf.keras.utils.register_keras_serializable(package="GNN")
 class TotalSize(tf.keras.layers.Layer):
   """Returns the .total_size of a graph piece.
 
-  This layer returns the total size of an input EdgeSet or NodeSet as a scalar
-  tensor (akin to `input.total_size`), with a dependency on the input tensor as
-  required by the Keras functional API. This layer can be used to generate new
-  feature values for a scalar GraphTensor inside a callback passed to
-  MapFeatures.
+  This layer returns the total size of an input EdgeSet, NodeSet or Context
+  as a scalar tensor (akin to `input.total_size`), with a dependency on the
+  input tensor as required by the Keras functional API. This layer can be used
+  to generate new feature values for a scalar GraphTensor inside a callback
+  passed to MapFeatures.
 
   Init args:
     constant_from_spec: Setting this to true guarantees that the output is a

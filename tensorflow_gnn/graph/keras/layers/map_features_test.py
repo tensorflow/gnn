@@ -124,7 +124,8 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
     # Build a Model around the Layer.
     inputs = tf.keras.layers.Input(type_spec=input_graph.spec)
-    layer = map_features.MapFeatures(node_sets_fn=fn, edge_sets_fn=fn)
+    layer = map_features.MapFeatures(node_sets_fn=fn, edge_sets_fn=fn,
+                                     context_fn=fn)
     outputs = layer(inputs)
     model = tf.keras.Model(inputs, outputs)
     _ = model(input_graph)  # Trigger building.
@@ -147,6 +148,9 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
         model = tf.saved_model.load(export_dir)
 
     graph = model(input_graph)
+    self.assertAllEqual(
+        [[1., 1., 1.]],
+        graph.context[const.DEFAULT_STATE_NAME])
     self.assertAllEqual(
         [[1., 1., 1.],
          [1., 1., 1.]],
