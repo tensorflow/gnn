@@ -120,12 +120,11 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     _ = model(input_graph)  # Trigger building.
 
     # Test that TotalSize(constant_from_spec=True) causes a statically known
-    # shape. Conveniently, the opposite case results in an unknown shape,
-    # so we can pinpoint the difference.
-    symbolic_state = outputs.node_sets["nodes"][const.DEFAULT_STATE_NAME]
-    static_size = 2 if use_static_size else None
-    self.assertAllEqual(symbolic_state.shape.as_list(),
-                        [static_size, state_dim])
+    # shape. (If False, it might or might not be known.)
+    if use_static_size:
+      symbolic_state = outputs.node_sets["nodes"][const.DEFAULT_STATE_NAME]
+      self.assertAllEqual(symbolic_state.shape.as_list(),
+                          [2, state_dim])
 
     # Do an optional round-trip through SavedModel before testing the layer's
     # behavior.

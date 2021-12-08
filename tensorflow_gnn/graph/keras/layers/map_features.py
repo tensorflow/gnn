@@ -281,26 +281,18 @@ def _call_model(model, graph_piece, *, logging_name):
 class TotalSize(tf.keras.layers.Layer):
   """Returns the .total_size of a graph piece.
 
-  This layer returns the total size of an input EdgeSet or NodeSet
-  as a scalar tensor (akin to `input.total_size`), suitable to generate
-  new feature values for a scalar GraphTensor within a callback passed
-  to MapFeatures.
-
-  When initialized with `constant_from_spec=True`, the result is a constant
-  tensor with the value from `input.spec.total_size` (suitable for environments
-  in which constant shapes are required, like models distributed to TPU).
-  This requires that `input.spec.total_size is not None`.
-
-  When used in the Keras functional API, the output of this layer depends on
-  the input of its layer, irrespective of `constant_from_spec`, to satisfy
-  Keras' requirement for an unbroken dependency chain of model outputs on
-  model inputs.
+  This layer returns the total size of an input EdgeSet or NodeSet as a scalar
+  tensor (akin to `input.total_size`), with a dependency on the input tensor as
+  required by the Keras functional API. This layer can be used to generate new
+  feature values for a scalar GraphTensor inside a callback passed to
+  MapFeatures.
 
   Init args:
-    constant_from_spec: Can be set to return constant output tensors
-     initialized from the input's spec, not the input's tensor value.
-     Setting this requires that the input has a spec with a total_size
-     that is not None.
+    constant_from_spec: Setting this to true guarantees that the output is a
+      constant Tensor (suitable for environments in which constant shapes are
+      required, like models distributed to TPU). Setting this requires that
+      `input.spec.total_size is not None`. If unset, the output Tensor may or
+      may not be constant.
   """
 
   def __init__(self, *, constant_from_spec: bool = False, **kwargs):

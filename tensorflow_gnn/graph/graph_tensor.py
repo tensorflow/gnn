@@ -2,7 +2,7 @@
 """
 
 import abc
-from typing import Any, cast, Dict, Mapping, Optional, Union
+from typing import Any, Callable, cast, Dict, Mapping, Optional, Union
 
 import tensorflow as tf
 from tensorflow_gnn.graph import graph_constants as const
@@ -55,9 +55,17 @@ class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
     """Returns the total number of elements across dimensions.
 
     Returns:
-      Scalar integer tensor equal to `tf.math.reduce_sum(sizes)`.
+      Scalar integer tensor equal to `tf.math.reduce_sum(sizes)`. If result
+      is statically known (spec.total_size is not None), the output is a
+      constant Tensor (suitable for environments in which constant shapes are
+      required, like TPU).
     """
-    return tf.math.reduce_sum(self.sizes)
+    dtype = self.spec.sizes_spec.dtype
+    return _fast_alternative(
+        self.spec.total_size is not None,
+        lambda: tf.constant(self.spec.total_size, dtype, shape=[]),
+        lambda: tf.math.reduce_sum(self.sizes),
+        'The `spec.total_size` != tf.math.reduce_sum(sizes)')
 
   @property
   def num_components(self) -> tf.Tensor:
@@ -82,9 +90,17 @@ class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
     """The total number of graph components across dimensions if known.
 
     Returns:
-      Scalar integer tensor equal to `tf.math.reduce_sum(num_components)`.
+      Scalar integer tensor equal to `tf.math.reduce_sum(num_components)`. If
+      result is statically known (spec.total_num_components is not None), the
+      output is a constant Tensor (suitable for environments in which constant
+      shapes are required, like TPU).
     """
-    return tf.size(self.sizes)
+    dtype = self.spec.sizes_spec.dtype
+    return _fast_alternative(
+        self.spec.total_num_components is not None,
+        lambda: tf.constant(self.spec.total_num_components, dtype, []),
+        lambda: tf.size(self.sizes, out_type=dtype),
+        'The `spec.total_num_components` != tf.math.reduce_sum(num_components)')
 
   @property
   def _get_features_ref(self) -> Fields:
@@ -1059,3 +1075,21 @@ class _ImmutableMapping(Mapping):
 
 def _as_immutable_mapping(input_map):
   return _ImmutableMapping(input_map)
+
+
+def _fast_alternative(use_fast_path: bool,
+                      fast_eval_path_fn: Callable[[], tf.Tensor],
+                      default_eval_path_fn: Callable[[], tf.Tensor],
+                      debug_message: str) -> tf.Tensor:
+  """Uses fast alternative computation path if `use_fast_path` is true."""
+  if not use_fast_path:
+    return default_eval_path_fn()
+
+  if not const.validate_internal_results:
+    return fast_eval_path_fn()
+
+  fast_result = fast_eval_path_fn()
+  result = default_eval_path_fn()
+  with tf.control_dependencies(
+      [tf.debugging.assert_equal(fast_result, result, message=debug_message)]):
+    return tf.identity(fast_result)
