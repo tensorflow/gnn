@@ -248,6 +248,9 @@ class Context(_GraphPieceWithFeatures):
 
     if features is None:
       features = {}
+    else:
+      features = {k: gp.convert_to_tensor_or_ragged(v)
+                  for k, v in features.items()}
     if sizes is None:
       shape = _ifnone(shape, tf.TensorShape([]))
       indices_dtype = _ifnone(indices_dtype, const.default_indices_dtype)
