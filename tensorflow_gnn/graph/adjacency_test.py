@@ -84,6 +84,11 @@ class HyperAdjacencyTest(tf.test.TestCase, parameterized.TestCase):
         r'Adjacency indices are not compatible: \(0, a\) and \(1, b\)',
         lambda: adjacency.HyperAdjacency.from_indices(indices))
 
+  def testRaiseOnExtraPositionalArguments(self):
+    self.assertRaisesRegex(
+        TypeError, 'Positional arguments are not supported',
+        lambda: adjacency.HyperAdjacency.from_indices((0, []), False))
+
   def testNodeSetName(self):
     adj = adjacency.HyperAdjacency.from_indices({
         const.SOURCE: ('node.a', tf.ragged.constant([[0, 1], [0]])),
@@ -110,6 +115,17 @@ class HyperAdjacencyTest(tf.test.TestCase, parameterized.TestCase):
         const.SOURCE: ('node.a', as_tensor([0, 1, 2])),
         const.TARGET: ('node.b', as_tensor([2, 1, 0]))
     })
+    self.assertAllEqual(adj[const.SOURCE], [0, 1, 2])
+    self.assertAllEqual(adj[const.TARGET], [2, 1, 0])
+
+  @parameterized.parameters([True, False])
+  def testValidateArgSupport(self, validate):
+    adj = adjacency.HyperAdjacency.from_indices(
+        {
+            const.SOURCE: ('node.a', as_tensor([0, 1, 2])),
+            const.TARGET: ('node.b', as_tensor([2, 1, 0]))
+        },
+        validate=validate)
     self.assertAllEqual(adj[const.SOURCE], [0, 1, 2])
     self.assertAllEqual(adj[const.TARGET], [2, 1, 0])
 
@@ -175,7 +191,7 @@ class AdjacencyTest(tf.test.TestCase, parameterized.TestCase):
   def testShapeResolution(self, description: str, source: adjacency.Index,
                           target: adjacency.Index,
                           expected_shape: tf.TensorShape):
-    result = adjacency.Adjacency.from_indices(source, target)
+    result = adjacency.Adjacency.from_indices(source, target, validate=False)
     self.assertEqual(result.shape.as_list(), expected_shape)
 
   @parameterized.parameters([
@@ -204,6 +220,11 @@ class AdjacencyTest(tf.test.TestCase, parameterized.TestCase):
         r'Adjacency indices are not compatible: \(0, a\) and \(1, b\)',
         lambda: adjacency.Adjacency.from_indices(source, target))
 
+  def testRaiseOnExtraPositionalArguments(self):
+    self.assertRaisesRegex(
+        TypeError, 'Positional arguments are not supported',
+        lambda: adjacency.Adjacency.from_indices(('a', []), ('b', []), True))
+
   def testNodeSetName(self):
     adj = adjacency.Adjacency.from_indices(
         source=('node.a', tf.ragged.constant([[0, 1], [0]])),
@@ -217,6 +238,15 @@ class AdjacencyTest(tf.test.TestCase, parameterized.TestCase):
     adj = adjacency.Adjacency.from_indices(
         source=('node.a', as_tensor([0, 1, 2])),
         target=('node.b', as_tensor([2, 1, 0])))
+    self.assertAllEqual(adj.source, [0, 1, 2])
+    self.assertAllEqual(adj.target, [2, 1, 0])
+
+  @parameterized.parameters([True, False])
+  def testValidateArgSupport(self, validate):
+    adj = adjacency.Adjacency.from_indices(
+        source=('node.a', as_tensor([0, 1, 2])),
+        target=('node.b', as_tensor([2, 1, 0])),
+        validate=validate)
     self.assertAllEqual(adj.source, [0, 1, 2])
     self.assertAllEqual(adj.target, [2, 1, 0])
 

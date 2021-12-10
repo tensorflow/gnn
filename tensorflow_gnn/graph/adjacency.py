@@ -33,11 +33,12 @@ class HyperAdjacency(gp.GraphPieceBase):
   belong to the same hyper-edge.
   """
 
+  # TODO(b/210004712): Replace `*_` by more Pythonic `*`.
   @classmethod
   @tf.__internal__.dispatch.add_dispatch_support
   def from_indices(cls,
                    indices: Indices,
-                   *,
+                   *_,
                    validate: bool = True) -> 'HyperAdjacency':
     """Constructs a new instance from the `indices` tensors.
 
@@ -78,8 +79,13 @@ class HyperAdjacency(gp.GraphPieceBase):
       A `HyperAdjacency` tensor with a shape and an indices_dtype being inferred
       from the `indices` values.
     """
-    indices = {key: (name, gp.convert_to_tensor_or_ragged(index))
-               for key, (name, index) in indices.items()}
+    if _:
+      raise TypeError('Positional arguments are not supported:', _)
+
+    indices = {
+        key: (name, gp.convert_to_tensor_or_ragged(index))
+        for key, (name, index) in indices.items()
+    }
 
     if validate or const.validate_internal_results:
       indices = _validate_indices(indices)
@@ -223,12 +229,13 @@ class Adjacency(HyperAdjacency):
   edge.
   """
 
+  # TODO(b/210004712): Replace `*_` by more Pythonic `*`.
   @classmethod
   @tf.__internal__.dispatch.add_dispatch_support
   def from_indices(cls,
                    source: Index,
                    target: Index,
-                   *,
+                   *_,
                    validate: bool = True) -> 'Adjacency':
     """Constructs a new instance from the `indices` tensors.
 
@@ -245,7 +252,6 @@ class Adjacency(HyperAdjacency):
                                    ('b', tf.ragged.constant([[2, 1], [0]])))
 
     Args:
-
       source: Tuple of (node set name, integer Tensors or RaggedTensors with the
         indices of nodes in the respective node set). Must have shape =
         graph_shape + [num_edges], where num_edges is a number of edges in each
@@ -258,8 +264,9 @@ class Adjacency(HyperAdjacency):
       An `Adjacency` tensor with a shape and an indices_dtype being inferred
       from the `indices` values.
     """
-    return super().from_indices({const.SOURCE: source,
-                                 const.TARGET: target})
+    if _:
+      raise TypeError('Positional arguments are not supported:', _)
+    return super().from_indices({const.SOURCE: source, const.TARGET: target})
 
   @property
   def source(self) -> Field:
