@@ -120,7 +120,7 @@ def pool_edges_to_node(graph_tensor: GraphTensor,
     The edge values pooled to each incident node. The first dimension size
     represents the number of nodes; the further dimensions do not change.
   """
-  gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.pool_edges_to_node')
+  gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.pool_edges_to_node()')
   unsorted_reduce_op = _resolve_reduce_op(reduce_type)
 
   edge_value = resolve_value(
@@ -437,7 +437,7 @@ def gather_first_node(graph_tensor: GraphTensor,
     A tensor of gathered feature values, one for each graph component, like a
     context feature.
   """
-  gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.gather_first_node')
+  gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.gather_first_node()')
   node_set = graph_tensor.node_sets[node_set_name]
   node_value = resolve_value(
       node_set, feature_value=feature_value, feature_name=feature_name)
@@ -516,7 +516,8 @@ def shuffle_scalar_components(graph_tensor: GraphTensor,
   Returns:
     A scalar GraphTensor with its component's features shuffled.
   """
-  gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.shuffle_scalar_components')
+  gt.check_scalar_graph_tensor(graph_tensor,
+                               'tfgnn.shuffle_scalar_components()')
 
   context = _shuffle_features(graph_tensor.context.features, seed=seed)
   node_sets, edge_sets = {}, {}
