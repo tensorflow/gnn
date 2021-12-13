@@ -1,5 +1,8 @@
 """Tests for convolutions."""
 
+import enum
+import os
+
 from absl.testing import parameterized
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
@@ -8,14 +11,21 @@ from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph.keras.layers import convolutions
 
 
+class ReloadModel(int, enum.Enum):
+  """Controls how to reload a model for further testing after saving."""
+  SKIP = 0
+  SAVED_MODEL = 1
+  KERAS = 2
+
+
 class SimpleConvolutionTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
-      ("Forward", False, False),
-      ("ForwardWithEdgeFeatre", True, False),
-      ("Backward", False, True),
-      ("BackwardWithEdgeFeatre", True, True))
-  def test(self, include_edges=True, reverse=True):
+      ("Forward", False, False, ReloadModel.SKIP),
+      ("ForwardWithEdgeFeatureRestoredKeras", True, False, ReloadModel.KERAS),
+      ("BackwardRestoredKeras", False, True, ReloadModel.KERAS),
+      ("BackwardWithEdgeFeatureRestored", True, True, ReloadModel.SAVED_MODEL))
+  def test(self, include_edges, reverse, reload_model):
     values = dict(edges=tf.constant([[1.], [2.]]),
                   nodes=tf.constant([[4.], [8.], [16.]]))
     input_graph = _make_test_graph_01into2(values)
@@ -27,7 +37,20 @@ class SimpleConvolutionTest(tf.test.TestCase, parameterized.TestCase):
         edge_input_feature=const.DEFAULT_STATE_NAME if include_edges else None,
         receiver_tag=const.SOURCE if reverse else const.TARGET)
 
-    actual = conv(input_graph, edge_set_name="edges")
+    # Build a Model around the Layer, possibly saved and restored.
+    inputs = tf.keras.layers.Input(type_spec=input_graph.spec)
+    outputs = conv(inputs, edge_set_name="edges")
+    model = tf.keras.Model(inputs, outputs)
+    _ = model(input_graph)  # Trigger building.
+    if reload_model:
+      export_dir = os.path.join(self.get_temp_dir(), "simple-convolution")
+      model.save(export_dir, include_optimizer=False)
+      if reload_model == ReloadModel.KERAS:
+        model = tf.keras.models.load_model(export_dir)
+      else:
+        model = tf.saved_model.load(export_dir)
+
+    actual = model(input_graph)
     if reverse:
       expected = tf.constant([
           [16. + include_edges*1.],

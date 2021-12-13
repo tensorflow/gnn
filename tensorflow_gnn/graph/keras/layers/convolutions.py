@@ -109,7 +109,8 @@ class SimpleConvolution(ConvolutionFromEdgeSetUpdate):
       node_input_tags: Sequence[const.IncidentNodeTag] = (
           const.SOURCE, const.TARGET),
       edge_input_feature: Optional[const.FieldNameOrNames] = None,
-      receiver_tag: const.IncidentNodeTag = const.TARGET):
+      receiver_tag: const.IncidentNodeTag = const.TARGET,
+      **kwargs):
     next_state = next_state_lib.NextStateFromConcat(transformation=message_fn)
     edge_set_update = graph_update.EdgeSetUpdate(
         next_state,
@@ -118,4 +119,22 @@ class SimpleConvolution(ConvolutionFromEdgeSetUpdate):
         context_input_feature=None)
     super().__init__(
         edge_set_update, receiver_tag=receiver_tag,
-        reduce_type=reduce_type)
+        reduce_type=reduce_type, **kwargs)
+    # Store the dict of init arguments so that get_config() can return them
+    # directly (without deeply inspecting the classes composed above), so that
+    # the default implementation (using the config as kwargs for `__init__`)
+    # just works.
+    # The `message_fn` gets special treatment: it's trackable, so the way we
+    # store it shows up in TF2's object-oriented checkpoints. We give it a
+    # dedicated attribute name to keep it more stable.
+    self._message_fn = message_fn
+    self._rest_of_config = dict(
+        reduce_type=reduce_type,
+        node_input_tags=node_input_tags,
+        edge_input_feature=edge_input_feature,
+        receiver_tag=receiver_tag,
+        **kwargs)
+
+  def get_config(self):
+    return dict(message_fn=self._message_fn,
+                **self._rest_of_config)
