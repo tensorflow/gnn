@@ -232,7 +232,7 @@ class ReadoutFirstNode(UpdateInputLayerExtended):
       tfgnn.DEFAULT_STATE_NAME will be read.
 
   Call args:
-    graph: The GraphTensor to read from.
+    graph: The scalar GraphTensor to read from.
     node_set_name: Same meaning as for init. Must be passed to init, or to call,
       or to both (with the same value).
     feature_name: Same meaning as for init. If passed to both, the value must
@@ -279,6 +279,7 @@ class ReadoutFirstNode(UpdateInputLayerExtended):
     if feature_name is None:
       feature_name = const.DEFAULT_STATE_NAME
 
+    gt.check_scalar_graph_tensor(graph, "ReadoutFirstNode")
     return ops.gather_first_node(
         graph, node_set_name, feature_name=feature_name)
 
@@ -481,7 +482,7 @@ class Broadcast(BroadcastPoolBase):
       the default state feature will be read.
 
   Call args:
-    graph: The GraphTensor to read from.
+    graph: The scalar GraphTensor to read from.
     tag: Same meaning as for init. Must be passed to init, or to call,
       or to both (with the same value).
     edge_set_name, node_set_name: Same meaning as for init. One of them must
@@ -511,6 +512,7 @@ class Broadcast(BroadcastPoolBase):
            edge_set_name: Optional[gt.EdgeSetName] = None,
            node_set_name: Optional[gt.NodeSetName] = None,
            feature_name: Optional[gt.FieldName] = None) -> gt.Field:
+    gt.check_scalar_graph_tensor(graph, "Broadcast")
     tag, edge_set_name, node_set_name, feature_name = self._fixup_call_args(
         tag, edge_set_name, node_set_name, feature_name)
 
@@ -591,7 +593,7 @@ class Pool(BroadcastPoolBase):
       the default state feature will be read.
 
   Call args:
-    graph: The GraphTensor to read from.
+    graph: The scalar GraphTensor to read from.
     reduce_type: Same meaning as for init. Must be passed to init, or to call,
       or to both (with the same value).
     tag: Same meaning as for init. Must be passed to init, or to call,
@@ -631,6 +633,7 @@ class Pool(BroadcastPoolBase):
            edge_set_name: Optional[gt.EdgeSetName] = None,
            node_set_name: Optional[gt.NodeSetName] = None,
            feature_name: Optional[gt.FieldName] = None) -> gt.Field:
+    gt.check_scalar_graph_tensor(graph, "Pool")
     tag, edge_set_name, node_set_name, feature_name = self._fixup_call_args(
         tag, edge_set_name, node_set_name, feature_name)
 

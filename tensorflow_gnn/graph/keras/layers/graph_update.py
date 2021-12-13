@@ -215,6 +215,8 @@ class GraphUpdate(tf.keras.layers.Layer):
         self._deferred_init_callback = None  # Enable garbage collection.
     assert self._is_initialized
 
+    gt.check_scalar_graph_tensor(graph, "GraphUpdate")
+
     if self._edge_set_updates:
       edge_set_features = {}
       for edge_set_name, update_fn in sorted(self._edge_set_updates.items()):
@@ -306,6 +308,8 @@ class EdgeSetUpdate(tf.keras.layers.Layer):
 
   def call(self, graph: gt.GraphTensor,
            edge_set_name: const.EdgeSetName) -> gt.GraphTensor:
+    gt.check_scalar_graph_tensor(graph, "EdgeSetUpdate")
+
     next_state_inputs = []
     # Input from the edges themselves.
     next_state_inputs.append(
@@ -398,6 +402,8 @@ class NodeSetUpdate(tf.keras.layers.Layer):
 
   def call(self, graph: gt.GraphTensor,
            node_set_name: const.NodeSetName) -> gt.GraphTensor:
+    gt.check_scalar_graph_tensor(graph, "NodeSetUpdate")
+
     next_state_inputs = []
     # Input from the nodes themselves.
     next_state_inputs.append(
@@ -494,6 +500,8 @@ class ContextUpdate(tf.keras.layers.Layer):
     return cls(**config)
 
   def call(self, graph: gt.GraphTensor) -> gt.GraphTensor:
+    gt.check_scalar_graph_tensor(graph, "ContextUpdate")
+
     next_state_inputs = []
     # Input from the context itself.
     next_state_inputs.append(_get_feature_or_features(

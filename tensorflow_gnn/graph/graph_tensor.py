@@ -1096,3 +1096,14 @@ def _fast_alternative(use_fast_path: bool,
   with tf.control_dependencies(
       [tf.debugging.assert_equal(fast_result, result, message=debug_message)]):
     return tf.identity(fast_result)
+
+
+def check_scalar_graph_tensor(graph: GraphTensor,
+                              name='This operation') -> None:
+  if graph.rank != 0:
+    raise ValueError((
+        f'{name} requires a scalar GraphTensor, that is, '
+        f'with GraphTensor.rank=0, but got rank={graph.rank}. '
+        'Use GraphTensor.merge_batch_to_components() to merge the elements '
+        'in a non-scalar graph tensor into components of the single element '
+        'in a scalar GraphTensor.'))

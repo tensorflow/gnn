@@ -864,5 +864,24 @@ class NumComponentsTest(tu.GraphTensorTestBase):
                         tf.reduce_sum(expected))
 
 
+class CheckScalarGraphTensorTest(tf.test.TestCase):
+
+  def testSuccess(self):
+    graph_tensor = gt.GraphTensor.from_pieces(
+        node_sets={'nodes': gt.NodeSet.from_fields(
+            sizes=[1],
+            features={'f': [[1.]]})})
+    gt.check_scalar_graph_tensor(graph_tensor)  # Doesn't raise.
+
+  def testFailure(self):
+    graph_tensor = gt.GraphTensor.from_pieces(
+        node_sets={'nodes': gt.NodeSet.from_fields(
+            sizes=[[1]],
+            features={'f': [[[1.]]]})})
+    with self.assertRaisesRegex(ValueError,
+                                r'My test code requires.*got rank=1'):
+      gt.check_scalar_graph_tensor(graph_tensor, 'My test code')
+
+
 if __name__ == '__main__':
   tf.test.main()

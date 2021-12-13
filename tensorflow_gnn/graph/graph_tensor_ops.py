@@ -70,7 +70,7 @@ def broadcast_node_to_edges(graph_tensor: GraphTensor,
     f1..fk]`, where `e` indexes edges; the inner `f1..fk` feature dimensions are
     not affected.
   """
-  _assert_scalar_graph_tensor(graph_tensor)
+  gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.broadcast_node_to_edges()')
   adjacency = graph_tensor.edge_sets[edge_set_name].adjacency
   node_name = adjacency.node_set_name(node_tag)
   node_value = resolve_value(
@@ -120,7 +120,7 @@ def pool_edges_to_node(graph_tensor: GraphTensor,
     The edge values pooled to each incident node. The first dimension size
     represents the number of nodes; the further dimensions do not change.
   """
-  _assert_scalar_graph_tensor(graph_tensor)
+  gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.pool_edges_to_node')
   unsorted_reduce_op = _resolve_reduce_op(reduce_type)
 
   edge_value = resolve_value(
@@ -437,7 +437,7 @@ def gather_first_node(graph_tensor: GraphTensor,
     A tensor of gathered feature values, one for each graph component, like a
     context feature.
   """
-  _assert_scalar_graph_tensor(graph_tensor)
+  gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.gather_first_node')
   node_set = graph_tensor.node_sets[node_set_name]
   node_value = resolve_value(
       node_set, feature_value=feature_value, feature_name=feature_name)
@@ -516,7 +516,7 @@ def shuffle_scalar_components(graph_tensor: GraphTensor,
   Returns:
     A scalar GraphTensor with its component's features shuffled.
   """
-  _assert_scalar_graph_tensor(graph_tensor)
+  gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.shuffle_scalar_components')
 
   context = _shuffle_features(graph_tensor.context.features, seed=seed)
   node_sets, edge_sets = {}, {}
@@ -573,15 +573,6 @@ def _resolve_reduce_op(reduce_type: str) -> UnsortedReduceOp:
         ' list of registered operations.')
 
 
-def _assert_scalar_graph_tensor(graph_tensor: GraphTensor) -> None:
-  if graph_tensor.rank != 0:
-    raise ValueError((
-        'Operation is currently supported only for scalar (rank=0) GraphTensor,'
-        f' got rank={graph_tensor.rank}.'
-        ' Use graph_tensor.merge_batch_to_components() to convert an arbitrary'
-        ' graph tensor to a scalar graph tensor.'))
-
-
 def resolve_value(values_map: Any,
                   *,
                   feature_value: Optional[Field] = None,
@@ -605,7 +596,7 @@ def _broadcast_context(graph_tensor: GraphTensor,
                        feature_name: Optional[FieldName] = None) -> Field:
   """Broadcasts context value to graph node or edge."""
 
-  _assert_scalar_graph_tensor(graph_tensor)
+  gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.broadcast_context_to_*()')
 
   context_value = resolve_value(
       graph_tensor.context,
@@ -626,7 +617,7 @@ def _pool_to_context(graph_tensor: GraphTensor,
                      feature_value: Optional[gt.Field] = None,
                      feature_name: Optional[str] = None) -> gt.Field:
   """Aggregates (pools) node or edge value to graph context."""
-  _assert_scalar_graph_tensor(graph_tensor)
+  gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.pool_*_to_context()')
   assert feature_name is None or isinstance(feature_name, str)
 
   value = resolve_value(

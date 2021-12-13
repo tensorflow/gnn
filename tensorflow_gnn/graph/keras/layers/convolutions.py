@@ -58,6 +58,7 @@ class ConvolutionFromEdgeSetUpdate(tf.keras.layers.Layer):
 
   def call(self, graph: gt.GraphTensor,
            edge_set_name: const.EdgeSetName) -> const.FieldOrFields:
+    gt.check_scalar_graph_tensor(graph, "ConvolutionFromEdgeSetUpdate")
     messages = self._edge_set_update(graph, edge_set_name=edge_set_name)
     def pool(feature_value):
       return ops.pool_edges_to_node(

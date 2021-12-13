@@ -269,10 +269,7 @@ class GATv2Convolution(tf.keras.layers.Layer):
            receiver_tag: Optional[const.IncidentNodeOrContextTag] = None,
            training: bool = None) -> gt.GraphTensor:
     # Normalize inputs.
-    # TODO(b/205960151): make a helper for this and use it more widely.
-    if graph.shape.rank != 0:
-      raise ValueError("Input GraphTensor must be a scalar, "
-                       f"but had rank {graph.shape.rank}")
+    gt.check_scalar_graph_tensor(graph, "GATv2Convolution")
     # TODO(b/205960151): make a helper for this or align with graph_ops.py
     if receiver_tag is None:
       if self._receiver_tag is None:
