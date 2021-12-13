@@ -1,6 +1,7 @@
 from absl.testing import parameterized
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
+from tensorflow_gnn.graph.keras.layers.gat import gatv2
 
 ct = tf.constant
 rt = tf.ragged.constant
@@ -33,7 +34,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         })
 
     log10 = tf.math.log(10.).numpy()
-    got_gt = tfgnn.keras.layers.GATv2(
+    got_gt = gatv2.GATv2(
         num_heads=1,
         per_head_channels=4,
         edge_set_name='edges',
@@ -101,7 +102,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         })
 
     log10 = tf.math.log(10.).numpy()
-    got_gt = tfgnn.keras.layers.GATv2(
+    got_gt = gatv2.GATv2(
         num_heads=2,
         per_head_channels=4,
         edge_set_name='edges',
@@ -172,9 +173,9 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
                         ('signals2', ct([0, 1, 2, 0, 1, 2, 0, 1, 2])))),
         })
 
-    model_homogeneous = tfgnn.keras.layers.GATv2(
+    model_homogeneous = gatv2.GATv2(
         num_heads=1, per_head_channels=4, edge_set_name='edges')
-    model_heterogeneous = tfgnn.keras.layers.GATv2(
+    model_heterogeneous = gatv2.GATv2(
         num_heads=1, per_head_channels=4, edge_set_name='edges2')
     # Initialize model weights.
     model_homogeneous(gt_input)
@@ -211,7 +212,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
                         ('signals', ct([0, 0, 0, 1, 1, 1, 2, 2, 2])),
                         ('signals', ct([0, 1, 2, 0, 1, 2, 0, 1, 2])))),
         })
-    got_single_head_1 = tfgnn.keras.layers.GATv2(
+    got_single_head_1 = gatv2.GATv2(
         num_heads=1,
         per_head_channels=2,
         edge_set_name='edges',
@@ -220,7 +221,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         attention_kernel_initializers=tf.keras.initializers.Constant([[.1],
                                                                       [.2]]),
     )(gt_input).node_sets['signals'][tfgnn.DEFAULT_STATE_NAME]
-    got_single_head_2 = tfgnn.keras.layers.GATv2(
+    got_single_head_2 = gatv2.GATv2(
         num_heads=1,
         per_head_channels=2,
         edge_set_name='edges',
@@ -232,7 +233,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(got_single_head_1.shape, (3, 2))
     self.assertAllEqual(got_single_head_2.shape, (3, 2))
 
-    got_double_head = tfgnn.keras.layers.GATv2(
+    got_double_head = gatv2.GATv2(
         num_heads=2,
         per_head_channels=2,
         edge_set_name='edges',
@@ -275,7 +276,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
     w_key_weights_2 = tf.keras.initializers.GlorotUniform(seed=2)((2,))
     attention_logits_1 = tf.keras.initializers.GlorotUniform(seed=10)((2, 1))
     attention_logits_2 = tf.keras.initializers.GlorotUniform(seed=20)((2, 1))
-    got_single_head_1 = tfgnn.keras.layers.GATv2(
+    got_single_head_1 = gatv2.GATv2(
         num_heads=1,
         per_head_channels=2,
         edge_set_name='edges',
@@ -286,7 +287,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         attention_kernel_initializers=tf.keras.initializers.Constant(
             attention_logits_1),
     )(gt_input).node_sets['signals'][tfgnn.DEFAULT_STATE_NAME]
-    got_single_head_2 = tfgnn.keras.layers.GATv2(
+    got_single_head_2 = gatv2.GATv2(
         num_heads=1,
         per_head_channels=2,
         edge_set_name='edges',
@@ -300,7 +301,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(got_single_head_1.shape, (3, 2))
     self.assertAllEqual(got_single_head_2.shape, (3, 2))
 
-    got_double_head = tfgnn.keras.layers.GATv2(
+    got_double_head = gatv2.GATv2(
         num_heads=2,
         per_head_channels=2,
         edge_set_name='edges',
@@ -396,7 +397,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
            }), 2, (3, 1, 4)))
   def testGAT_shapes(self, gt_input, num_heads, want_shape):
     """Tests that the output shapes are as expected."""
-    got = tfgnn.keras.layers.GATv2(
+    got = gatv2.GATv2(
         num_heads=num_heads,
         per_head_channels=4 // num_heads,
         edge_set_name='edges',
@@ -428,7 +429,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
     tf.random.set_seed(42)
 
     # Run a GAT that is almost guaranteed to drop all edges.
-    full_dropout_gat = tfgnn.keras.layers.GATv2(
+    full_dropout_gat = gatv2.GATv2(
         num_heads=1,
         per_head_channels=4,
         edge_set_name='edges',
@@ -455,7 +456,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(got_with_dropout, tf.zeros((3, 4)))
 
     # Now, create a GAT with 50% edge dropout.
-    partial_dropout_gat = tfgnn.keras.layers.GATv2(
+    partial_dropout_gat = gatv2.GATv2(
         num_heads=1,
         per_head_channels=4,
         edge_set_name='edges',
@@ -487,7 +488,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
                                                                [8.]])
     attention_kernel_initializers = tf.keras.initializers.Constant([[.1], [.2],
                                                                     [.3], [.4]])
-    model = tfgnn.keras.layers.GATv2(
+    model = gatv2.GATv2(
         num_heads=1,
         per_head_channels=4,
         edge_set_name='edges',
@@ -531,7 +532,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
                     sizes=[[5], [3]]),
         })
     with self.assertRaisesRegex(ValueError, 'had rank 1'):
-      tfgnn.keras.layers.GATv2(
+      gatv2.GATv2(
           num_heads=1,
           per_head_channels=4,
           edge_set_name='edges',
@@ -541,13 +542,13 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
   def testGAT_invalid_edge_dropout(self):
     """Tests that an edge dropout of too high or low raises a ValueError."""
     with self.assertRaisesRegex(ValueError, 'Edge dropout -1'):
-      tfgnn.keras.layers.GATv2(
+      gatv2.GATv2(
           num_heads=1,
           per_head_channels=4,
           edge_dropout=-1,
           edge_set_name='edges')
     with self.assertRaisesRegex(ValueError, 'Edge dropout 1'):
-      tfgnn.keras.layers.GATv2(
+      gatv2.GATv2(
           num_heads=1,
           per_head_channels=4,
           edge_dropout=1,
@@ -556,19 +557,19 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
   def testGAT_invalid_num_heads(self):
     """Tests that a non-positive num_heads raises a ValueError."""
     with self.assertRaisesRegex(ValueError, 'Number of heads 0'):
-      tfgnn.keras.layers.GATv2(
+      gatv2.GATv2(
           num_heads=0, per_head_channels=4, edge_set_name='edges')
     with self.assertRaisesRegex(ValueError, 'Number of heads -1'):
-      tfgnn.keras.layers.GATv2(
+      gatv2.GATv2(
           num_heads=-1, per_head_channels=4, edge_set_name='edges')
 
   def testGAT_invalid_num_channels(self):
     """Tests that a non-positive num_channels raises a ValueError."""
     with self.assertRaisesRegex(ValueError, 'Per-head channels 0'):
-      tfgnn.keras.layers.GATv2(
+      gatv2.GATv2(
           num_heads=1, per_head_channels=0, edge_set_name='edges')
     with self.assertRaisesRegex(ValueError, 'Per-head channels -1'):
-      tfgnn.keras.layers.GATv2(
+      gatv2.GATv2(
           num_heads=1, per_head_channels=-1, edge_set_name='edges')
 
 

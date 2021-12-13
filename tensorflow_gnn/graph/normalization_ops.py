@@ -67,6 +67,7 @@ def softmax(
         ops.broadcast, graph_tensor, per_tag, node_set_name=node_set_name)
 
   # Compute softmax. Subtract the maxes for numerical stability.
+  # Some segment_maxes may be -inf, but that's broadcast nowhere.
   segment_maxes = pool(reduce_type="max", feature_value=value)
   maxes = broadcast(feature_value=segment_maxes)
   exp_edge_value = tf.exp(value - maxes)

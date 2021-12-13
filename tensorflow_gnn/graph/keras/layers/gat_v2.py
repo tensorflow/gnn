@@ -50,7 +50,7 @@ from tensorflow_gnn.graph.keras.layers import graph_update as graph_update_lib
 # are distinguised by receiver_tag SOURCE or TARGET for (a) and CONTEXT for (b).
 # The side input from edges can be activated in case (1a) only.
 #
-# For case (2), TF-GNN offers attention throuh EdgePool layers, with the
+# For case (2), TF-GNN offers attention throuh EdgePool wrappers, with the
 # opposite settings for sender inputs: nodes off, edges on. The sub-cases
 # are distinguished in the same way by the receiver_tag.
 #
@@ -103,11 +103,11 @@ class GATv2Convolution(tf.keras.layers.Layer):
       edge set. The example above uses a separate layer to combine the old
       node state with the attention result to form the new node state.
       TODO(b/205960151): Do we have a good example for not storing the loop?
-    * Attention values can be computed from a sender node state broadcast
-      onto the edge (see arg `sender_node_feature`), an edge feature
-      (see arg `sender_edge_feature`), or their concatenation (by setting both
-      arguments). This choice is used in place of the sender node state $h_j$
-      in the defining equations cited above.
+    * Attention values can be computed from a sender node state that gets
+      broadcast onto the edge (see arg `sender_node_feature`), from an edge
+      feature (see arg `sender_edge_feature`), or rom their concatenation
+      (by setting both arguments). This choice is used in place of the sender
+      node state $h_j$ in the defining equations cited above.
     * This layer can be used with `receiver_tag=tfgnn.CONTEXT` to perform a
       convolution to the context, with graph components as receivers and the
       containment in graph components used in lieu of edges.
@@ -134,6 +134,7 @@ class GATv2Convolution(tf.keras.layers.Layer):
       If set to an IncidentNodeTag (e.g., `tfgnn.SOURCE` or `tfgnn.TARGET`),
       the layer can be called for an edge set and will aggregate results at
       the specified endpoint of the edges.
+      If left unset for init, the tag must be passed at call time.
     receiver_feature: Can be set to override `tfgnn.DEFAULT_FEATURE_NAME`
       for use as the receiver's input feature to attention. (The attention key
       is derived from this input.)
@@ -147,9 +148,9 @@ class GATv2Convolution(tf.keras.layers.Layer):
       on an edge set.
     use_bias: If true, a bias term is added to the transformations of query and
       value inputs.
-    edge_dropout: Can be set to a dropout rate for edge dropout (or node
-      dropout, when pooling a node set to context).
-      TODO(b/205960151): Is there a good name for "edge or node dropout"?
+    edge_dropout: Can be set to a dropout rate for edge dropout. (When pooling
+      nodes to context, it's the node's membership in a graph component that
+      is dropped out.)
     attention_activation: The nonlinearity used on the transformed inputs
       before multiplying with the trained weights of the attention layer.
       This can be specified as a Keras layer, a tf.keras.activations.*
@@ -268,8 +269,6 @@ class GATv2Convolution(tf.keras.layers.Layer):
            receiver_tag: Optional[const.IncidentNodeOrContextTag] = None,
            training: bool = None) -> gt.GraphTensor:
     # Normalize inputs.
-    if training is None:
-      training = tf.keras.backend.learning_phase()
     # TODO(b/205960151): make a helper for this and use it more widely.
     if graph.shape.rank != 0:
       raise ValueError("Input GraphTensor must be a scalar, "
@@ -369,12 +368,13 @@ class GATv2Convolution(tf.keras.layers.Layer):
     # Apply the attention coefficients to the transformed query.
     # [num_pooling, *extra_dims, num_heads, per_head_channels]
     messages = value * attention_coefficients
-    # Take the sum of the weighted values, which equals the weighted average,
-    # and add a nonlinearity.
+    # Take the sum of the weighted values, which equals the weighted average.
+    # Receivers without incoming senders get the empty sum 0.
     # [num_receivers, *extra_dims, num_heads, per_head_channels]
     pooled_messages = ops.pool(
         graph, receiver_tag, **name_kwarg, reduce_type="sum",
         feature_value=messages)
+    # Apply the nonlinearity.
     pooled_messages = self._activation(pooled_messages)
     pooled_messages = self._merge_heads(pooled_messages)
 
@@ -405,7 +405,7 @@ class GATv2Convolution(tf.keras.layers.Layer):
     return tf.reshape(tensor, new_shape)
 
 
-def reverse_tag(tag):  # The others set the wrong precedent.  pylint: disable=invalid-name
+def reverse_tag(tag):
   """Flips SOURCE to TARGET and vice versa."""
   if tag == const.TARGET:
     return const.SOURCE
@@ -415,12 +415,10 @@ def reverse_tag(tag):  # The others set the wrong precedent.  pylint: disable=in
     raise ValueError(f"Expected SOURCE or TARGET tag, got: {tag}")
 
 
-# Shown for demonstration. We could remove it until we want to showcase
-# GraphNets support.
 def GATv2EdgePool(*,  # To be called like a class initializer.  pylint: disable=invalid-name
                   num_heads: int,
                   per_head_channels: int,
-                  receiver_tag: const.IncidentNodeOrContextTag,
+                  receiver_tag: Optional[const.IncidentNodeOrContextTag] = None,
                   receiver_feature: const.FieldName = const.DEFAULT_STATE_NAME,
                   sender_feature: const.FieldName = const.DEFAULT_STATE_NAME,
                   **kwargs):
@@ -447,6 +445,7 @@ def GATv2EdgePool(*,  # To be called like a class initializer.  pylint: disable=
       If set to an IncidentNodeTag (e.g., `tfgnn.SOURCE` or `tfgnn.TARGET`),
       the layer can be called for an edge set and will aggregate results at
       the specified endpoint of the edges.
+      If left unset, the tag must be passed when calling the layer.
     receiver_feature: By default, the default state feature of the receiver
       is used to compute the attention query. A different feature name can be
       selected by setting this argument.
@@ -458,6 +457,7 @@ def GATv2EdgePool(*,  # To be called like a class initializer.  pylint: disable=
   if kwargs.pop("sender_node_feature", None) is not None:
     raise TypeError("GATv2EdgePool() got an unexpected keyword argument "
                     "'sender_node_feature'. Did you mean GATv2Convolution()?")
+  kwargs.setdefault("name", "gat_v2_edge_pool")
   return GATv2Convolution(
       num_heads=num_heads,
       per_head_channels=per_head_channels,
@@ -468,15 +468,14 @@ def GATv2EdgePool(*,  # To be called like a class initializer.  pylint: disable=
       **kwargs)
 
 
-# `GATv2` is the pre-existing name. Maybe change to GATv2GraphUpdate.
-def GATv2(*,  # To be called like a class initializer.  pylint: disable=invalid-name
-          num_heads: int,
-          per_head_channels: int,
-          edge_set_name: str,
-          feature_name: str = const.DEFAULT_STATE_NAME,
-          name: str = "gat_v2",
-          **kwargs):
-  """Returns a simple Graph Attention Network V2 (GATv2) layer.
+def GATv2GraphUpdate(*,  # To be called like a class initializer.  pylint: disable=invalid-name
+                     num_heads: int,
+                     per_head_channels: int,
+                     edge_set_name: str,
+                     feature_name: str = const.DEFAULT_STATE_NAME,
+                     name: str = "gat_v2",
+                     **kwargs):
+  """Returns a GraphUpdater layer with a Graph Attention Network V2 (GATv2).
 
   The returned layer performs one update step of a Graph Attention Network v2
   (GATv2) from https://arxiv.org/abs/2105.14491 on an edge set of a GraphTensor.
@@ -524,12 +523,11 @@ def GATv2(*,  # To be called like a class initializer.  pylint: disable=invalid-
       deferred_init_callback=deferred_init_callback, name=name)
 
 
-# For use by GATv2().
+# For use by GATv2GraphUpdate().
 @tf.keras.utils.register_keras_serializable(package="GNN")
 class NextStateForNodeSetFromSingleEdgeSetInput(tf.keras.layers.Layer):
 
   def call(self, inputs):
-    node_input, edge_inputs, context_input = inputs
-    del node_input, context_input  # Unused.
+    unused_node_input, edge_inputs, unused_context_input = inputs
     single_edge_set_input, = edge_inputs.values()  # Unpack.
     return single_edge_set_input

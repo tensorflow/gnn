@@ -1,12 +1,12 @@
 """The tfgnn.keras.layers package."""
 
 from tensorflow_gnn.graph.keras.layers import convolutions
+from tensorflow_gnn.graph.keras.layers import gat_v2
 from tensorflow_gnn.graph.keras.layers import graph_ops
 from tensorflow_gnn.graph.keras.layers import graph_update
 from tensorflow_gnn.graph.keras.layers import map_features
 from tensorflow_gnn.graph.keras.layers import next_state
 from tensorflow_gnn.graph.keras.layers import parse_example
-from tensorflow_gnn.graph.keras.layers.gat import gatv2
 
 ParseExample = parse_example.ParseExample
 ParseSingleExample = parse_example.ParseSingleExample
@@ -30,8 +30,9 @@ NodeSetUpdate = graph_update.NodeSetUpdate
 ContextUpdate = graph_update.ContextUpdate
 GraphUpdate = graph_update.GraphUpdate
 
-# GATv2 model.
-GATv2 = gatv2.GATv2
+GATv2Convolution = gat_v2.GATv2Convolution
+GATv2EdgePool = gat_v2.GATv2EdgePool
+GATv2GraphUpdate = gat_v2.GATv2GraphUpdate
 
 # Prune imported module symbols so they're not accessible implicitly.
 del convolutions
@@ -40,4 +41,4 @@ del graph_update
 del map_features
 del next_state
 del parse_example
-del gatv2
+del gat_v2
