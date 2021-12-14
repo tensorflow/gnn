@@ -203,7 +203,7 @@ class GATv2Convolution(tf.keras.layers.Layer):
     self._edge_dropout = edge_dropout
 
     self._attention_activation = tf.keras.activations.get(attention_activation)
-    self._activation = tf.keras.activations.get(attention_activation)
+    self._activation = tf.keras.activations.get(activation)
     self._kernel_initializer = kernel_initializer
 
     # Create the transformations for the query input in all heads.
