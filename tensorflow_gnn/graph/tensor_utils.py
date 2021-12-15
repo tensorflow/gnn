@@ -5,6 +5,7 @@ from keras.engine import keras_tensor as kt
 import tensorflow as tf
 
 Value = Union[tf.Tensor, tf.RaggedTensor]
+ValueSpec = Union[tf.TensorSpec, tf.RaggedTensorSpec]
 
 
 def dims_list(tensor: tf.Tensor) -> List[Union[int, tf.Tensor]]:
@@ -193,6 +194,173 @@ def ones_like_leading_dims(value: Value, rank: int,
         iterate(value.values, rank - 1), value.row_splits)
 
   return iterate(value, rank - 1)
+
+
+def ensure_static_nrows(value: Value, nrows: int) -> Value:
+  """Updates value type spec to have static number of rows (see below).
+
+  This function allows to restore static dimension sizes without relying on the
+  tensorflow shape inference. If `value` is a dense tensor, the result tensor
+  has `result.shape[0] == nrows`. If `value` is a ragged tensor, the
+  `result.nrows() == nrows`. Function checks at runtime that `value` allows
+  that update.
+
+  Args:
+    value: dense tensor (rank > 0) or ragged tensor that allows static `nrows`.
+    nrows: static number of rows.
+
+  Returns:
+    Tensor that is equal to the input tensor but with static number of rows.
+  """
+  if value.shape.rank == 0:
+    raise ValueError(f'Expected rank > 0 tensor, got {value.shape.rank}')
+
+  if is_dense_tensor(value):
+    return tf.ensure_shape(value, tf.TensorShape([nrows, *value.shape[1:]]))
+
+  if is_ragged_tensor(value):
+    return tf.RaggedTensor.from_row_splits(
+        value.values,
+        tf.ensure_shape(value.row_splits, tf.TensorShape([nrows + 1])),
+        validate=False)
+
+  raise ValueError(f'Unsupported type {type(value).__name__}')
+
+
+def fill(spec: ValueSpec, nrows: tf.Tensor, value: tf.Tensor) -> Value:
+  """Creates tensor filled with a scalar `value` according to the constraints.
+
+  This function returns a Tensor or RaggedTensor compatible with `spec`.
+  Its outermost dimension is `nrows`. Its further dimensions must be dense
+  dimensions of a size defined in `spec`, or ragged dimensions for which
+  the value contains 0 items. The elements of the tensor (if any) are set to
+  `value`.
+
+  Args:
+    spec: type spec the result should be compatible with.
+    nrows: number of rows in the result tensor. For a dense tensor, this is the
+      outermost dimension size. For a ragged tensor, this is the number of rows
+      in the outermost split (`tf.RaggedTensor.nrows`).
+    value: scalar value to use for filling.
+
+  Returns:
+    Tensor filled with `value` that is compatible with `spec` and has `nrows`
+    number of rows.
+  """
+  value = tf.convert_to_tensor(value, dtype=spec.dtype)
+  if value.shape.rank != 0:
+    raise ValueError('The `value` must be scalar tensor,'
+                     f' got rank={value.shape.rank}')
+
+  nrows = tf.convert_to_tensor(nrows)
+  if nrows.shape.rank != 0:
+    raise ValueError('The `nrows` must be scalar tensor,'
+                     f' got rank={nrows.shape.rank}')
+
+  if isinstance(spec, tf.TensorSpec) or spec.ragged_rank == 0:
+    inner_dims = spec.shape[1:]
+    outer_dim = spec.shape[0]
+    if outer_dim is not None and outer_dim != nrows:
+      raise ValueError(f'The leading dimension in `spec` is {outer_dim} and'
+                       f' it is not compatible with nrows={nrows}.')
+    if not inner_dims.is_fully_defined():
+      raise ValueError('All except the leading shape dimensions in `spec`'
+                       ' must be fully defined,'
+                       f' got shape={spec.shape}')
+    result_dims = [nrows, *inner_dims.as_list()]
+    result = tf.fill(result_dims, value)
+    assert result.shape[1:].as_list() == inner_dims.as_list()
+
+  elif isinstance(spec, tf.RaggedTensorSpec):
+
+    # By convension: scalar entries represent uniform row length, vector entries
+    # represent ragged row lenghts.
+    row_partitions = []
+    # The `cum_dim` tracks the minimum positive number of entities that could be
+    # partitioned by the continuous sequence of higher-up uniform dimensions.
+    cum_dim = nrows
+    for dim in spec.shape[1:(spec.ragged_rank + 1)]:
+      if dim is None:
+        # Ragged dimension: add row lengths ([0, 0.., 0]) for empty values that
+        # are compatible with outer dimensions.
+        row_partitions.append(
+            tf.fill([cum_dim], tf.constant(0, dtype=spec.row_splits_dtype)))
+        cum_dim = 0
+      else:
+        row_partitions.append(tf.constant(dim, dtype=spec.row_splits_dtype))
+        cum_dim = cum_dim * dim
+
+    assert spec.shape[spec.ragged_rank] is None, spec
+    features_shape = spec.shape[(spec.ragged_rank + 1):]
+    flat_values_shape = tf.TensorShape([0]).concatenate(features_shape)
+    flat_values = tf.fill(flat_values_shape, value)
+    result = flat_values
+    for row_partition in reversed(row_partitions):
+      if row_partition.shape.rank == 0:
+        result = tf.RaggedTensor.from_uniform_row_length(result, row_partition)
+      else:
+        assert row_partition.shape.rank == 1, row_partition.rank
+        result = tf.RaggedTensor.from_row_lengths(result, row_partition)
+  else:
+    raise ValueError(f'Unsupported type spec {type(spec).__name__}')
+
+  assert spec.is_compatible_with(
+      result), f'{spec}, {tf.type_spec_from_value(result)}'
+  return result
+
+
+def pad_to_nrows(value: Value,
+                 target_nrows: tf.Tensor,
+                 padding_value: tf.Tensor,
+                 validate: bool = True) -> Value:
+  """Pads `value` to the target number of rows with scalar `padding_value`.
+
+  Args:
+    value: tensor of rank > 0 or ragged tensor to pad.
+    target_nrows: number of rows in the result tensor. For a dense tensor, this
+      is the outermost dimension size. For a ragged tensor, this is the number
+      of rows in the outermost split (`tf.RaggedTensor.nrows`).
+    padding_value: scalar value to use for padding.
+    validate: if true, adds runtime checks that value could be padded.
+
+  Returns:
+    Input `value` padded to the target number of rows.
+  """
+  if value.shape.rank == 0:
+    raise ValueError('The `value` must have rank>0, got scalar (rank=0)')
+
+  if is_dense_tensor(value):
+    diff_size = tf.cast(target_nrows, tf.int64) - tf.shape(value, tf.int64)[0]
+  elif is_ragged_tensor(value):
+    diff_size = tf.cast(target_nrows, tf.int64) - tf.cast(
+        value.nrows(), tf.int64)
+  else:
+    raise ValueError(f'Unsupported type {type(value).__name__}')
+
+  spec = tf.type_spec_from_value(value)
+  relaxed_shape = tf.TensorShape([None, *spec.shape[1:]])
+  if isinstance(spec, tf.RaggedTensorSpec):
+    spec = tf.RaggedTensorSpec(
+        shape=relaxed_shape,
+        dtype=spec.dtype,
+        ragged_rank=spec.ragged_rank,
+        row_splits_dtype=spec.row_splits_dtype)
+  else:
+    assert isinstance(spec, tf.TensorSpec)
+    spec = tf.TensorSpec(shape=relaxed_shape, dtype=spec.dtype)
+
+  if validate:
+    validation_ops = [
+        tf.debugging.assert_non_negative(
+            diff_size,
+            f'The `value` has more rows then the target_nrows={target_nrows}.')
+    ]
+  else:
+    validation_ops = []
+
+  with tf.control_dependencies(validation_ops):
+    diff = fill(spec, nrows=diff_size, value=padding_value)
+    return tf.concat([value, diff], axis=0)
 
 
 def _assert_rank1_int(t: tf.Tensor, tensor_name: Text) -> None:

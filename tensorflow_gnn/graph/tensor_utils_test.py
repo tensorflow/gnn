@@ -106,6 +106,150 @@ class TensorUtilsTest(tf.test.TestCase):
             as_ragged([[[0], [1]], [[2]]]), 3, tf.int32),
         as_ragged([[[1], [1]], [[1]]]))
 
+  def testEnsureStaticNRowsForDense(self):
+
+    @tf.function
+    def transform(value):
+      return tf.concat([value, value], 0)
+
+    @tf.function(input_signature=[tf.TensorSpec([None, None], tf.float32)])
+    def dense_case(value):
+      self.assertIsNone(value.shape[0])
+      value = utils.ensure_static_nrows(value, 2)
+      value = transform(value)
+      # Note: returning value prevents TF from stipping graph operations.
+      return dict(dim=value.shape[0], value=value)
+
+    self.assertDictEqual(
+        dense_case(as_tensor([[], []], tf.float32)),
+        dict(dim=4, value=as_tensor([[], [], [], []], tf.float32)))
+    self.assertDictEqual(
+        dense_case(as_tensor([[1.], [3.]], tf.float32)),
+        dict(dim=4, value=as_tensor([[1.], [3.], [1.], [3.]])))
+    self.assertDictEqual(
+        dense_case(as_tensor([[1., 2.], [3., 4.]], tf.float32)),
+        dict(dim=4, value=as_tensor([[1., 2.], [3., 4.], [1., 2.], [3., 4.]])))
+
+    self.assertEqual(dense_case.experimental_get_tracing_count(), 1)
+
+    self.assertRaisesRegex(tf.errors.InvalidArgumentError,
+                           'is not compatible with expected shape',
+                           lambda: dense_case(as_tensor([[1.]], tf.float32)))
+
+  def testEnsureStaticNRowsForRagged(self):
+
+    @tf.function
+    def transform(value):
+      return tf.reduce_sum(value, axis=-1)
+
+    @tf.function(input_signature=[
+        tf.RaggedTensorSpec([None, None], dtype=tf.int32, ragged_rank=1)
+    ])
+    def ragged_case(value):
+      self.assertIsNone(value.shape[0])
+      self.assertIsNone(value.row_splits.shape[0])
+      value = utils.ensure_static_nrows(value, 2)
+      value = transform(value)
+      # Note: returning value prevents TF from stipping graph operations.
+      return dict(dim=value.shape[0], value=value)
+
+    self.assertDictEqual(
+        ragged_case(as_ragged([[1, 2], [3]], tf.int32)),
+        dict(dim=2, value=as_tensor([3, 3], tf.int32)))
+    self.assertDictEqual(
+        ragged_case(as_ragged([[], []], tf.int32)),
+        dict(dim=2, value=as_tensor([0, 0], tf.int32)))
+
+    self.assertEqual(ragged_case.experimental_get_tracing_count(), 1)
+
+    self.assertRaisesRegex(tf.errors.InvalidArgumentError,
+                           'is not compatible with expected shape',
+                           lambda: ragged_case(as_ragged([[]], tf.int32)))
+
+  def testFill(self):
+    self.assertAllEqual(
+        utils.fill(tf.TensorSpec([None], tf.float32), 0, 1.),
+        as_tensor([], tf.float32))
+    self.assertAllEqual(
+        utils.fill(tf.TensorSpec([None], tf.string), 3, b'?'),
+        as_tensor([b'?', b'?', b'?']))
+    self.assertAllEqual(
+        utils.fill(tf.TensorSpec([None, 1, 2], tf.int32), 1, 2),
+        as_tensor([[[2, 2]]]))
+
+    self.assertAllEqual(
+        utils.fill(tf.RaggedTensorSpec([None, None], tf.string), 0, b'?'),
+        as_ragged([], tf.string, ragged_rank=1))
+    self.assertAllEqual(
+        utils.fill(tf.RaggedTensorSpec([None, None], tf.float32), 4, 1.),
+        as_ragged([[], [], [], []], tf.float32))
+    self.assertAllEqual(
+        utils.fill(
+            tf.RaggedTensorSpec([None, 3, None], tf.float32, ragged_rank=2), 2,
+            1.), as_ragged([[[], [], []], [[], [], []]], tf.float32))
+    self.assertAllEqual(
+        utils.fill(
+            tf.RaggedTensorSpec([None, 3, 2, 1, None],
+                                tf.float32,
+                                ragged_rank=4), 1, 1.),
+        as_ragged([[[[[]], [[]]], [[[]], [[]]], [[[]], [[]]]]], tf.float32))
+
+  def testPadToNRows(self):
+    self.assertAllEqual(
+        utils.pad_to_nrows(as_tensor([1, 2], tf.int32), 2, 0),
+        as_tensor([1, 2], tf.int32))
+    self.assertAllEqual(
+        utils.pad_to_nrows(as_tensor([b'a', b'b']), 3, '?'),
+        as_tensor([b'a', b'b', b'?']))
+    self.assertAllEqual(
+        utils.pad_to_nrows(as_tensor([[1, 2], [2, 3]], tf.int32), 2, 8),
+        as_tensor([[1, 2], [2, 3]], tf.int32))
+    self.assertAllEqual(
+        utils.pad_to_nrows(as_tensor([[1, 2]], tf.int32), 3, 8),
+        as_tensor([[1, 2], [8, 8], [8, 8]], tf.int32))
+
+    self.assertAllEqual(
+        utils.pad_to_nrows(as_ragged([[1.]], ragged_rank=1), 3, 0.),
+        as_ragged([[1.], [], []], ragged_rank=1))
+    self.assertAllEqual(
+        utils.pad_to_nrows(
+            as_ragged([[[], ['b', 'c']], [], [['d']]], ragged_rank=2), 5, ''),
+        as_ragged([[[], ['b', 'c']], [], [['d']], [], []], ragged_rank=2))
+    value = tf.RaggedTensor.from_row_lengths(['a', 'b', 'c'],
+                                             [0, 0, 1, 0, 2, 0])
+    value = tf.RaggedTensor.from_uniform_row_length(value, 3)
+    self.assertAllEqual(utils.pad_to_nrows(value, 2, ''), value)
+    self.assertAllEqual(
+        utils.pad_to_nrows(value, 3, ''),
+        tf.RaggedTensor.from_uniform_row_length(
+            as_ragged([[], [], ['a'], [], ['b', 'c'], [], [], [], []]), 3))
+
+  def testPadToNRowsEmptyTensors(self):
+    self.assertAllEqual(utils.pad_to_nrows(as_tensor([]), 0, 0), as_tensor([]))
+    self.assertAllEqual(
+        utils.pad_to_nrows(tf.constant([], shape=[0, 2]), 0, 0),
+        tf.constant([], shape=[0, 2]))
+
+    for ragged_rank in range(1, 5):
+      self.assertAllEqual(
+          utils.pad_to_nrows(as_ragged([], ragged_rank=ragged_rank), 0, 0),
+          as_ragged([], ragged_rank=ragged_rank),
+          msg=str(ragged_rank))
+
+  def testPadToNRowsInvarianceToMultipleCalls(self):
+    value = utils.pad_to_nrows(as_tensor([[1, 2]], tf.int32), 5, 8)
+    self.assertAllEqual(utils.pad_to_nrows(value, 5, 8), value)
+
+    value = tf.RaggedTensor.from_row_lengths(['a', 'b', 'c'],
+                                             [0, 0, 1, 0, 2, 0])
+    value = tf.RaggedTensor.from_uniform_row_length(value, 3)
+    self.assertAllEqual(utils.pad_to_nrows(value, 2, ''), value)
+    value = tf.RaggedTensor.from_uniform_row_length(value, 1)
+    self.assertAllEqual(utils.pad_to_nrows(value, 2, ''), value)
+    value = tf.RaggedTensor.from_row_lengths(
+        value, tf.ones([value.nrows()], value.row_splits.dtype))
+    self.assertAllEqual(utils.pad_to_nrows(value, 2, ''), value)
+
 
 if __name__ == '__main__':
   tf.test.main()
