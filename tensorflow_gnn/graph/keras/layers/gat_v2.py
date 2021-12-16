@@ -268,6 +268,8 @@ class GATv2Convolution(tf.keras.layers.Layer):
            node_set_name: Optional[gt.NodeSetName] = None,
            receiver_tag: Optional[const.IncidentNodeOrContextTag] = None,
            training: bool = None) -> gt.GraphTensor:
+    # pylint: disable=g-long-lambda
+
     # Normalize inputs.
     gt.check_scalar_graph_tensor(graph, "GATv2Convolution")
     # TODO(b/205960151): make a helper for this or align with graph_ops.py
@@ -282,77 +284,147 @@ class GATv2Convolution(tf.keras.layers.Layer):
             f"GATv2Convolution(..., receiver_tag={self._receiver_tag})"
             f"was called with contradictory value receiver_tag={receiver_tag}")
 
-    # Select the graph piece from which the pooling is done.
-    # Shape comments below refer to its total_size as `num_pooling`.
-    if (edge_set_name is None) + (node_set_name is None) != 1:
-      raise ValueError("Must pass exactly one of edge_set_name, node_set_name")
-    elif edge_set_name is not None:
-      name_kwarg = dict(edge_set_name=edge_set_name)
-      edge_set = graph.edge_sets[edge_set_name]
-      sender_node_set = None
-    else:
-      name_kwarg = dict(node_set_name=node_set_name)
-      edge_set = None
-      sender_node_set = graph.node_sets[node_set_name]
-
-    # Select the graph piece into which pooling is done (the node set in
-    # original GATv2). It supplies the attention query and will receive the
-    # attention output.
-    # Shape comments below refer to num_receivers = receiver_piece.total_size.
+    # Find the receiver graph piece (NodeSet or Context), the EdgeSet (if any)
+    # and the sender NodeSet (if any) with its broadcasting function.
     if receiver_tag == const.CONTEXT:
+      if (edge_set_name is None) + (node_set_name is None) != 1:
+        raise ValueError(
+            "Must pass exactly one of edge_set_name, node_set_name "
+            "for receiver_tag CONTEXT.")
+      if edge_set_name is not None:
+        # Pooling from EdgeSet to Context; no node set involved.
+        name_kwarg = dict(edge_set_name=edge_set_name)
+        edge_set = graph.edge_sets[edge_set_name]
+        sender_node_set = None
+        broadcast_from_sender_node = None
+      else:
+        # Pooling from NodeSet to Context, no EdgeSet involved.
+        name_kwarg = dict(node_set_name=node_set_name)
+        edge_set = None
+        sender_node_set = graph.node_sets[node_set_name]
+        # Values are computed per sender node, no need to broadcast
+        broadcast_from_sender_node = lambda x: x
       receiver_piece = graph.context
     else:
-      if edge_set is None:
-        raise ValueError("Pooling edges to nodes requires setting "
-                         "edge_set_name but not node_set_name")
+      # Convolving from nodes to nodes.
+      if edge_set_name is None or node_set_name is not None:
+        raise ValueError("Must pass edge_set_name, not node_set_name")
+      name_kwarg = dict(edge_set_name=edge_set_name)
+      edge_set = graph.edge_sets[edge_set_name]
+      sender_node_tag = reverse_tag(receiver_tag)
+      sender_node_set = graph.node_sets[
+          edge_set.adjacency.node_set_name(sender_node_tag)]
+      broadcast_from_sender_node = lambda x: ops.broadcast_node_to_edges(
+          graph, edge_set_name, sender_node_tag, feature_value=x)
       receiver_piece = graph.node_sets[
           edge_set.adjacency.node_set_name(receiver_tag)]
 
+    # Set up the broadcast/pool ops for the receiver. The tag and name arguments
+    # conveniently encode the distinction between operating over edge/node,
+    # node/context or edge/context.
+    broadcast_from_receiver = lambda x: ops.broadcast(
+        graph, receiver_tag, **name_kwarg, feature_value=x)
+    # If the call/convolve split gets reused beyond this class, this shouldn't
+    # be hardwired to softmax but support binding args for a custom (set of)
+    # functions with this interface.
+    softmax_per_receiver = lambda x: normalization_ops.softmax(
+        graph, receiver_tag, **name_kwarg, feature_value=x)
+    pool_to_receiver = lambda reduce_type, x: ops.pool(
+        graph, receiver_tag, **name_kwarg, reduce_type=reduce_type,
+        feature_value=x)
+
+    # Set up the inputs.
+    receiver_input = receiver_piece[self._receiver_feature]
+    if None not in [sender_node_set, self._sender_node_feature]:
+      sender_node_input = sender_node_set[self._sender_node_feature]
+    else:
+      sender_node_input = None
+    if None not in [edge_set, self._sender_edge_feature]:
+      sender_edge_input = edge_set[self._sender_edge_feature]
+    else:
+      sender_edge_input = None
+
+    return self._convolve(
+        sender_node_input=sender_node_input,
+        sender_edge_input=sender_edge_input,
+        receiver_input=receiver_input,
+        broadcast_from_sender_node=broadcast_from_sender_node,
+        broadcast_from_receiver=broadcast_from_receiver,
+        softmax_per_receiver=softmax_per_receiver,
+        pool_to_receiver=pool_to_receiver,
+        training=training)
+
+  def _convolve(self, *,
+                sender_node_input: Optional[tf.Tensor],
+                sender_edge_input: Optional[tf.Tensor],
+                receiver_input: tf.Tensor,
+                broadcast_from_sender_node: Callable[[tf.Tensor], tf.Tensor],
+                broadcast_from_receiver: Callable[[tf.Tensor], tf.Tensor],
+                softmax_per_receiver: Callable[[tf.Tensor], tf.Tensor],
+                pool_to_receiver: Callable[[str, tf.Tensor], tf.Tensor],
+                training: bool) -> tf.Tensor:
+    """Returns the convolution result.
+
+    The Tensor inputs to this function still have their original shapes
+    and need to be broadcast such that the leading dimension is indexed
+    by the items in the graph that are attended to (usually edges; except
+    when convolving from nodes to context). In the end, values have to be
+    pooled from items into a Tensor with a leading dimension indexed by
+    receivers, see `pool_to_receiver`.
+
+    Args:
+      sender_node_input: The input Tensor from the sender NodeSet, or None.
+        See broadcast_from_sender_node.
+      sender_edge_input: The input Tensor from the sender EdgeSet, or None.
+        If present, this Tensor is already indexed by the items to attend to.
+      receiver_input: The input Tensor from the receiver NodeSet or Context.
+        See broadcast_from_receiver.
+      broadcast_from_sender_node: A function that broadcasts a Tensor
+        indexed like sender_node_input to a Tensor indexed by the items
+        that are attended to.
+      broadcast_from_receiver: A function that broadcasts a Tensor
+        indexed like receiver_input to a Tensor indexed by the items
+        that are attended to.
+      softmax_per_receiver: A function accepts an item-indexed tensor,
+        applies softmax normalization to values with a common receiver and
+        same trailing indices, and returns the result with unchanged shape.
+      pool_to_receiver: A function that pools an item-indexed Tensor to a
+        receiver-indexed tensor by summation across items with the same
+        receiver.
+      training: A boolean. If true, compute the result of training rather
+        than inference.
+
+    Returns:
+      A Tensor whose leading dimension is indexed by receivers, with the
+      result of the convolution.
+    """
     # Form the attention query for each head.
-    # [num_receivers, *extra_dims, num_heads, channels_per_head]
-    query_before_broadcast = self._split_heads(self._w_query(
-        receiver_piece[self._receiver_feature]))
-    # [num_pooling, *extra_dims, num_heads, channels_per_head]
-    query = ops.broadcast(graph, receiver_tag, **name_kwarg,
-                          feature_value=query_before_broadcast)
+    # [num_items, *extra_dims, num_heads, channels_per_head]
+    query = broadcast_from_receiver(self._split_heads(self._w_query(
+        receiver_input)))
     # TODO(b/205960151): Optionally include a context feature.
 
     # Form the attention value by transforming the configured inputs
     # and adding up the transformed values.
-    # [num_pooling, *extra_dims, num_heads, channels_per_head]
+    # [num_items, *extra_dims, num_heads, channels_per_head]
     value_terms = []
-    if self._w_sender_node is not None:
-      if receiver_tag == const.CONTEXT:
-        # value_terms are node-indexed and will be pooled to context.
-        value_terms.append(self._split_heads(self._w_sender_node(
-            sender_node_set[self._sender_node_feature])))
-      else:
-        # value_terms are edge-indexed.
-        sender_node_tag = reverse_tag(receiver_tag)
-        assert edge_set is not None, "Internal error: args were checked above"
-        sender_node_set = graph.node_sets[
-            edge_set.adjacency.node_set_name(sender_node_tag)]
-        sender_node_value = self._split_heads(self._w_sender_node(
-            sender_node_set[self._sender_node_feature]))
-        value_terms.append(ops.broadcast_node_to_edges(
-            graph, edge_set_name, sender_node_tag,
-            feature_value=sender_node_value))
-    if self._w_sender_edge is not None:
-      # value_terms are edge-indexed.
-      value_terms.append(self._split_heads(self._w_sender_edge(
-          edge_set[self._sender_edge_feature])))
+    if sender_node_input is not None:
+      value_terms.append(broadcast_from_sender_node(
+          self._split_heads(self._w_sender_node(sender_node_input))))
+    if sender_edge_input is not None:
+      value_terms.append(
+          self._split_heads(self._w_sender_edge(sender_edge_input)))
     assert value_terms, "Internal error: no values, __init__ should catch this."
     value = tf.add_n(value_terms)
 
     # Compute the features from which attention logits are computed.
-    # [num_pooling, *extra_dims, num_heads, channels_per_head]
+    # [num_items, *extra_dims, num_heads, channels_per_head]
     attention_features = self._attention_activation(query + value)
 
     # Compute the attention logits and softmax to get the coefficients.
-    # [num_pooling, *extra_dims, num_heads, 1]
+    # [num_items, *extra_dims, num_heads, 1]
     logits = tf.expand_dims(self._attention_logits_fn(attention_features), -1)
-    attention_coefficients = normalization_ops.softmax(
-        graph, receiver_tag, **name_kwarg, feature_value=logits)
+    attention_coefficients = softmax_per_receiver(logits)
 
     if training:
       # Apply dropout to the normalized attention coefficients, as is done in
@@ -363,14 +435,12 @@ class GATv2Convolution(tf.keras.layers.Layer):
                                              self._edge_dropout)
 
     # Apply the attention coefficients to the transformed query.
-    # [num_pooling, *extra_dims, num_heads, per_head_channels]
+    # [num_items, *extra_dims, num_heads, per_head_channels]
     messages = value * attention_coefficients
     # Take the sum of the weighted values, which equals the weighted average.
     # Receivers without incoming senders get the empty sum 0.
     # [num_receivers, *extra_dims, num_heads, per_head_channels]
-    pooled_messages = ops.pool(
-        graph, receiver_tag, **name_kwarg, reduce_type="sum",
-        feature_value=messages)
+    pooled_messages = pool_to_receiver("sum", messages)
     # Apply the nonlinearity.
     pooled_messages = self._activation(pooled_messages)
     pooled_messages = self._merge_heads(pooled_messages)
