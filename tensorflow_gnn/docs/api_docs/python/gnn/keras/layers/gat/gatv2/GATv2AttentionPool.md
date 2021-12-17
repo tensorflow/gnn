@@ -52,7 +52,7 @@ GATv2 multi-head attention pooling.
 
 <!-- Placeholder for "Used in" -->
 
-Implements the pooling layer describe in https://arxiv.org/abs/2105.14491
+Implements the pooling layer described in https://arxiv.org/abs/2105.14491
 Equations (3) and (4). That is, given the edge values, this layer computes the
 attention coefficients and multiplies them by the edges, and aggregates these
 by summing them on a per-node basis.
