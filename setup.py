@@ -104,14 +104,14 @@ class _InstallPlatlibCommand(install):
     self.install_lib = self.install_platlib
 
 
-class _BinaryDistribution(Distribution):
-  """This class is needed in order to create OS specific wheels."""
+class _SourceDistributionWithProtos(Distribution):
+  """Proto-only deps don't require OS specific wheels."""
 
   def is_pure(self):
-    return False
+    return True
 
   def has_ext_modules(self):
-    return True
+    return False
 
 
 def select_constraint(default, nightly=None, git_master=None):
@@ -197,7 +197,7 @@ setup(
     include_package_data=True,
     package_data={'': ['*.proto']},
     zip_safe=False,
-    distclass=_BinaryDistribution,
+    distclass=_SourceDistributionWithProtos,
     description='A library for building scalable graph neural networks in TensorFlow.',
     long_description=_LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
