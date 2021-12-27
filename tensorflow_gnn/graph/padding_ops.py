@@ -1,10 +1,10 @@
 """Defines padding operations over a GraphTensor."""
 
 import functools
-from typing import cast, Callable, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple, Union, cast
 
+import numpy as np
 import tensorflow as tf
-
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_piece as gp
@@ -17,8 +17,8 @@ def pad_to_total_sizes(
     graph_tensor: gt.GraphTensor,
     target_total_sizes: preprocessing.SizesConstraints,
     *,
-    padding_values: Optional[preprocessing.DefaultValues] = None
-) -> Tuple[gt.GraphTensor, tf.Tensor]:
+    padding_values: Optional[preprocessing.DefaultValues] = None,
+    validate: bool = True) -> Tuple[gt.GraphTensor, tf.Tensor]:
   """Pads graph tensor to the total sizes by inserting fake graph components.
 
   Padding is done by inserting "fake" graph components at the end of the input
@@ -39,6 +39,10 @@ def pad_to_total_sizes(
     padding_values: optional mapping from a context, node set or edge set
       feature name to a scalar tensor to use for padding. If no value is
       specified for some feature, its type 'zero' is used (as in tf.zeros(...)).
+    validate: If true, then use assertions to check that the input graph tensor
+      could be padded. NOTE: while these assertions provide more readable error
+      messages, they incur a runtime cost, since assertions must be checked for
+      each input value.
 
   Returns:
     Tuple of padded graph tensor and padding mask. The mask is a rank-1 dense
@@ -47,7 +51,7 @@ def pad_to_total_sizes(
     padding.
 
   Raises:
-    ValueError: if input paramters are invalid.
+    ValueError: if input parameters are invalid.
     tf.errors.InvalidArgumentError: if input graph tensor could not be padded to
       the `target_total_sizes`.
   """
@@ -86,8 +90,13 @@ def pad_to_total_sizes(
   # Note: we check that graph tensor could potentially fit into the target sizes
   # before running padding. This simplifies padding implementation and removes
   # duplicative validations.
-  with tf.control_dependencies(
-      _check_that_could_fit(graph_tensor, target_total_sizes)):
+  if validate:
+    validation_ops = assert_satisfies_total_sizes(graph_tensor,
+                                                  target_total_sizes)
+  else:
+    validation_ops = []
+
+  with tf.control_dependencies(validation_ops):
     total_num_components = graph_tensor.total_num_components
     target_total_num_components = target_total_sizes.total_num_components
 
@@ -140,6 +149,75 @@ def pad_to_total_sizes(
           ],
           axis=0), target_total_num_components)
   return padded_graph_tensor, cast(tf.Tensor, padding_mask)
+
+
+def satisfies_total_sizes(
+    graph_tensor: gt.GraphTensor,
+    total_sizes: preprocessing.SizesConstraints) -> tf.Tensor:
+  """Returns whether the input `graph_tensor` satisfies `total_sizes`.
+
+  Args:
+    graph_tensor: a graph tensor to check against target total sizes.
+    total_sizes: target total sizes for each graph piece.
+
+  Returns:
+    A scalar boolean tensor equal to True if the `graph_tensor` statisifies
+    `total_sizes`, and False if not.
+  """
+
+  def check_fn(cond: tf.Tensor, message: str):
+    del message
+    return cond
+
+  conditions = _satisfies_total_sizes_internal(graph_tensor, total_sizes,
+                                               check_fn)
+  if not tf.executing_eagerly():
+    static_conditions = [tf.get_static_value(cond) for cond in conditions]
+    if None not in static_conditions:
+      return tf.constant(all(static_conditions))
+  return tf.math.reduce_all(tf.stack(conditions, axis=0))
+
+
+def assert_satisfies_total_sizes(
+    graph_tensor: gt.GraphTensor,
+    target_total_sizes: preprocessing.SizesConstraints):
+  """Raises InvalidArgumentError if graph_tensor exceeds target_total_sizes.
+
+  This function can be used as follows:
+
+  ```
+    with tf.control_dependencies([
+      assert_satisfies_total_sizes(graph_tensor, target_total_sizes)]):
+      # Use graph_tensor after sizes have been checked.
+  ```
+
+  Conceptually, that means this function is like standart tensorflow assertions,
+  like tf.debugging.Assert(satisfies_total_sizes(...)), but with the following
+  important advantages:
+  - This functions logs a detailed message which size constraint is violated.
+  - This function works around a TensorFlow issue to make sure the assertion is
+    executed before the ops it guards, even in the presence of conflicting
+    attempts to eliminate constant subexpressions.
+
+  Args:
+    graph_tensor: a graph tensor to check against target total sizes.
+    target_total_sizes: target total sizes for each graph piece.
+
+  Returns:
+    Validation operations to execute within a tf.control_dependencies.
+
+  Raises:
+    tf.errors.InvalidArgumentError: if input graph tensor could not be padded to
+     the `target_total_sizes`.
+  """
+
+  def check_fn(cond: tf.Tensor, message: str):
+    # NOTE: this code assumes that `tf.debugging.assert_equal()` raises
+    # immediately if `cond` has static False value.
+    return tf.debugging.assert_equal(cond, True, message=message)
+
+  return _satisfies_total_sizes_internal(graph_tensor, target_total_sizes,
+                                         check_fn)
 
 
 @functools.singledispatch
@@ -220,11 +298,11 @@ def _(adjacency: adj.Adjacency, *,
   return adjacency.from_indices(
       source=(adjacency.source_name,
               _pad_adjacency_index_with_linspace(
-                  adjacency.source_name, adjacency.source, target_total_size,
+                  adjacency.source, target_total_size,
                   *min_max_node_index_fn(adjacency.source_name))),
       target=(adjacency.target_name,
               _pad_adjacency_index_with_linspace(
-                  adjacency.target_name, adjacency.target, target_total_size,
+                  adjacency.target, target_total_size,
                   *min_max_node_index_fn(adjacency.target_name))),
       validate=False)
 
@@ -240,7 +318,7 @@ def _(adjacency: adj.HyperAdjacency, *,
   for tag, (name, index) in adjacency.get_indices_dict().items():
     padded_indices[tag] = (name,
                            _pad_adjacency_index_with_linspace(
-                               name, index, target_total_size,
+                               index, target_total_size,
                                *min_max_node_index_fn(name)))
 
   return adjacency.from_indices(padded_indices, validate=False)
@@ -268,9 +346,9 @@ def _pad_feature(feature: gt.Field, *, padding_value: gt.Field,
   return tensor_utils.ensure_static_nrows(result, nrows=target_size)
 
 
-def _pad_adjacency_index_with_linspace(
-    incident_node_set_name: const.NodeSetName, index: const.Field,
-    target_size: int, min_index: tf.Tensor, max_index: tf.Tensor) -> gt.Field:
+def _pad_adjacency_index_with_linspace(index: const.Field, target_size: int,
+                                       min_index: tf.Tensor,
+                                       max_index: tf.Tensor) -> gt.Field:
   """Pads adjacency `index` with linearly increasing indices.
 
   The function pads `index` tensor to the target size by appending linearly
@@ -280,7 +358,6 @@ def _pad_adjacency_index_with_linspace(
   locality as fake edges with the same incident node are consecutive.
 
   Args:
-    incident_node_set_name: incident node set name.
     index: rank-1 integer tensor with (real) node indices.
     target_size: size of the result index tensor.
     min_index: smallest allowed index for padding.
@@ -295,28 +372,14 @@ def _pad_adjacency_index_with_linspace(
   assert max_index.shape.rank == 0
   diff_size = tf.constant(
       target_size, dtype=index.dtype) - tf.size(index, index.dtype)
-  with tf.control_dependencies([
-      tf.debugging.assert_equal(
-          tf.logical_or(
-              tf.equal(diff_size, tf.constant(0, diff_size.dtype)),
-              tf.math.less_equal(min_index, max_index)),
-          True,
-          message=(
-              'Could not create fake incident edges for the node set'
-              f' \'{incident_node_set_name}\'. This could happen when the total'
-              ' number of real nodes is equal to the target total number of'
-              ' nodes, so there are no fake nodes that could be connected by'
-              ' inserted fake edges.'))
-  ]):
-
-    diff = tf.linspace(
-        start=tf.cast(min_index, tf.float32),
-        stop=tf.cast(max_index + 1, tf.float32),
-        num=diff_size)
-    diff = tf.cast(diff, index.dtype)
-    diff = tf.clip_by_value(diff, min_index, max_index)
-    result = tf.concat([index, diff], axis=0)
-    return tensor_utils.ensure_static_nrows(result, nrows=target_size)
+  diff = tf.linspace(
+      start=tf.cast(min_index, tf.float32),
+      stop=tf.cast(max_index + 1, tf.float32),
+      num=diff_size)
+  diff = tf.cast(diff, index.dtype)
+  diff = tf.clip_by_value(diff, min_index, max_index)
+  result = tf.concat([index, diff], axis=0)
+  return tensor_utils.ensure_static_nrows(result, nrows=target_size)
 
 
 def _pad_sizes(sizes: gt.Field, *, target_num_components: int,
@@ -338,75 +401,150 @@ def _pad_sizes(sizes: gt.Field, *, target_num_components: int,
       ],
       axis=0)
   result = result[:target_num_components]
+  result = tensor_utils.ensure_static_nrows(result, target_num_components)
   assert result.shape == tf.TensorShape([target_num_components])
-  return result
+  return cast(tf.Tensor, result)
 
 
-def _check_that_could_fit(graph_tensor: gt.GraphTensor,
-                          target_total_sizes: preprocessing.SizesConstraints):
-  """Checks at runtime that the graph tensor could fit in the target sizes.
+_BinaryOp = Callable[
+    [Union[tf.Tensor, np.ndarray], Union[tf.Tensor, np.ndarray]], tf.Tensor]
+
+
+def _fold_constants(binary_op: _BinaryOp, x: tf.Tensor,
+                    y: tf.Tensor) -> tf.Tensor:
+  """Attempts to call binary_op with static values of `x` and `y`.
+
+  Implementes constant folding for TF binary operations (see b/210985575).
+
+  TODO(b/212250026): remove as soon as the root issue is fixed.
 
   Args:
-    graph_tensor: a graph tensor to check against target total sizes.
-    target_total_sizes: target total sizes for each graph piece.
+    binary_op: function of two arguments that could be called with tf.Tensor
+      arguments (must return tf.Tensor) and np.ndarray arguments (must return
+      np.ndarray).
+    x: the first argument.
+    y: the second argument.
 
   Returns:
-    Validation operations to execute within a tf.control_dependencies.
+    tf.constant if both `x` and `y` have static values and tf.Tensor otherwise.
   """
+  if not tf.executing_eagerly():
+    xs = tf.get_static_value(x)
+    ys = tf.get_static_value(y)
+    if xs is not None and ys is not None:
+      return tf.constant(binary_op(xs, ys))
+  return binary_op(x, y)
 
+
+def _satisfies_total_sizes_internal(
+    graph_tensor: gt.GraphTensor, total_sizes: preprocessing.SizesConstraints,
+    check_fn: Callable[[tf.Tensor, str], Any]) -> List[Any]:
+  """Checks that the graph tensor could fit in the target sizes.
+
+  This operation tests multiple conditions that all must be True for the input
+  `graph_tensor` to satisfy the `total_sizes`. The evaluated conditions along
+  with a description string are passed to the caller using `check_fn` callbacks.
+
+  The function tries to statically evaluate each condition and pass its result
+  as tf.constant so that it could be extracted (see `tf.get_static_value()`).
+  See `assert_satisfies_total_sizes()` for more information on how this might be
+  useful.
+
+  Args:
+    graph_tensor: a graph tensor to check against total sizes.
+    total_sizes: total sizes constraints for each graph piece.
+    check_fn: callable with two arguments. The first argument is an evaluation
+      result for one of required conditions. It is a boolean scalar tensor where
+      `True` means condition is satisfied. If all conditions result int True,
+      the `graph_tensor` satisfies `total_sizes`. The second argument is a
+      string description of the condition. All values returned by the `check_fn`
+      are accumulated and returned.
+
+  Returns:
+    List of all results returned by the `check_fn`.
+  """
+  # NOTE: TF implements for some operations s.c. contant folding when those
+  # operations are evaluated statically if all their inputs have static values.
+  # Those operations could also raise an exception staticaly if their arguments
+  # are invalid. The constant folding is only supported by some operations (e.g.
+  # tf.fill) and is not supported by others (e.g. tf.debug.Assert). This could
+  # break control flow rules (https://www.tensorflow.org/guide/intro_to_graphs).
+  # See b/205974487 for more examples. This function always attempts to evaluate
+  # assertions statically by using python logical operators to test conditions
+  # in the _fold_constants. Because those operators are overriden both by
+  # np.ndarray and tf.Tensor they could be evaluated statically on in the
+  # runtime depending on its arguments.
   total_num_components = graph_tensor.total_num_components
-  could_add_new_component = tf.math.less(
-      total_num_components, target_total_sizes.total_num_components)
+  could_add_new_component = _fold_constants(lambda x, y: x < y,
+                                            total_num_components,
+                                            total_sizes.total_num_components)
+
   assert_ops = [
-      tf.debugging.assert_less_equal(
-          total_num_components,
-          tf.constant(
-              target_total_sizes.total_num_components,
-              dtype=total_num_components.dtype),
-          message=(
-              'Could not pad graph as it already has more graph components'
-              ' then it is allowed by `target_total_sizes.total_num_components`'
-          ))
+      check_fn(
+          _fold_constants(
+              lambda x, y: x <= y, total_num_components,
+              tf.convert_to_tensor(
+                  total_sizes.total_num_components,
+                  dtype=total_num_components.dtype)),
+          ('Could not pad graph as it already has more graph components'
+           ' then it is allowed by `total_sizes.total_num_components`'))
   ]
 
-  def _check(entity_type: str, entity_name: str, total_size: tf.Tensor,
-             target_total_size: Optional[int]):
+  def _check_sizes(entity_type: str, entity_name: str, total_size: tf.Tensor,
+                   target_total_size: Optional[int]):
     if target_total_size is None:
       raise ValueError(
-          f'The target total number of \'{entity_name}\' {entity_type} must be'
+          f'The target total number of <{entity_name}> {entity_type} must be'
           ' specified as'
-          f' `target_total_sizes.total_num_{entity_type}[\'{entity_name}\']`.')
-    target_total_size = tf.constant(target_total_size, dtype=total_size.dtype)
+          f' `total_sizes.total_num_{entity_type}[<{entity_name}>]`.')
+    target_total_size = tf.convert_to_tensor(
+        target_total_size, dtype=total_size.dtype)
     assert_ops.append(
-        tf.debugging.assert_less_equal(
-            total_size,
-            target_total_size,
-            message=(
-                f'Could not pad \'{entity_name}\' as it already has more'
-                f' {entity_type} then it is allowed by the'
-                f' `target_total_sizes.total_num_{entity_type}[\'{entity_name}\']`.'
-            )))
+        check_fn(
+            _fold_constants(lambda x, y: x <= y, total_size, target_total_size),
+            (f'Could not pad <{entity_name}> as it already has more'
+             f' {entity_type} then it is allowed by the'
+             f' `total_sizes.total_num_{entity_type}[<{entity_name}>]`.')))
 
     assert_ops.append(
-        tf.debugging.Assert(
-            tf.math.logical_or(could_add_new_component,
-                               tf.math.equal(total_size, target_total_size)),
-            data=[
-                f'Could not pad \'{entity_name}\' {entity_type}. To do this, at'
-                ' least one graph component must be added to the input graph.'
-                ' The latter is not possible as the input graph has already'
-                ' `target_total_sizes.total_num_components` graph components.',
-                f' The total number of \'{entity_name}\' {entity_type} is ',
-                total_size, ' The total number of graph components is ',
-                total_num_components
-            ]))
+        check_fn(
+            _fold_constants(
+                lambda x, y: x | y, could_add_new_component,
+                _fold_constants(lambda x, y: x == y, total_size,
+                                target_total_size)),
+            (f'Could not pad <{entity_name}> {entity_type}. To do this, at'
+             ' least one graph component must be added to the input graph.'
+             ' The latter is not possible as the input graph has already'
+             ' `total_sizes.total_num_components` graph components.')))
 
+  total_num_nodes = {}
   for name, item in graph_tensor.node_sets.items():
-    _check('nodes', name, item.total_size,
-           target_total_sizes.total_num_nodes.get(name, None))
+    total_size = item.total_size
+    target_total_size = total_sizes.total_num_nodes.get(name, None)
+    total_num_nodes[name] = total_size
+    _check_sizes('nodes', name, total_size, target_total_size)
 
   for name, item in graph_tensor.edge_sets.items():
-    _check('edges', name, item.total_size,
-           target_total_sizes.total_num_edges.get(name, None))
+    total_size = item.total_size
+    target_total_size = total_sizes.total_num_edges.get(name, None)
+    _check_sizes('edges', name, total_size, target_total_size)
+
+    assert target_total_size is not None
+    has_all_edges = _fold_constants(lambda x, y: x == y, total_size,
+                                    target_total_size)
+    indices = item.adjacency.get_indices_dict()
+    for _, (incident_node_set_name, _) in indices.items():
+      permits_new_incident_nodes = _fold_constants(
+          lambda x, y: x < y, total_num_nodes[incident_node_set_name],
+          total_sizes.total_num_nodes[incident_node_set_name])
+      assert_ops.append(
+          check_fn(
+              _fold_constants(lambda x, y: x | y, has_all_edges,
+                              permits_new_incident_nodes),
+              ('Could not create fake incident edges for the node set'
+               f' {incident_node_set_name}. This could happen when the'
+               ' total number of real nodes is equal to the target total'
+               ' number of nodes, so there are no fake nodes that could be'
+               ' connected by inserted fake edges.')))
 
   return assert_ops

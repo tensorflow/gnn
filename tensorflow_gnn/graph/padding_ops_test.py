@@ -1,4 +1,4 @@
-"""Tests for GraphTensor  (go/tf-gnn-api)."""
+"""Tests for padding_ops.py."""
 from absl.testing import parameterized
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
@@ -416,7 +416,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
         total_num_edges={'a->b': 6},
     )
     self.assertRaisesRegex(
-        ValueError, 'number of \'b\' nodes must be specified',
+        ValueError, 'number of <b> nodes must be specified',
         lambda: ops.pad_to_total_sizes(self.test_2_a2b4_ab3_graph, no_node))
 
     no_edge = preprocessing.SizesConstraints(
@@ -428,23 +428,51 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
         total_num_edges={},
     )
     self.assertRaisesRegex(
-        ValueError, 'number of \'a->b\' edges must be specified',
+        ValueError, 'number of <a->b> edges must be specified',
         lambda: ops.pad_to_total_sizes(self.test_2_a2b4_ab3_graph, no_edge))
 
-  @parameterized.parameters([True, False])
-  def testRaisesOnImpossiblePadding(self, eager_mode):
+  @parameterized.parameters(['eager', 'tf.function', 'dataset1', 'dataset2'])
+  def testRaisesOnImpossiblePadding(self, mode):
 
     def create_for_spec(target_total_sizes):
+      graph = self.test_2_a2b4_ab3_graph
+      self.assertFalse(ops.satisfies_total_sizes(graph, target_total_sizes))
 
-      def pad_in_eager(graph, target_total_sizes):
+      def pad(graph):
+        tf.debugging.assert_equal(
+            ops.satisfies_total_sizes(graph, target_total_sizes), False)
         return ops.pad_to_total_sizes(graph, target_total_sizes)
 
-      @tf.function
-      def pad_in_graph(graph, target_total_sizes):
-        return ops.pad_to_total_sizes(graph, target_total_sizes)
+      if mode == 'eager':
+        return lambda: pad(graph)
 
-      pad_fn = pad_in_eager if eager_mode else pad_in_graph
-      return lambda: pad_fn(self.test_2_a2b4_ab3_graph, target_total_sizes)
+      if mode == 'tf.function':
+
+        @tf.function
+        def fn(graph):
+          return pad(graph)
+
+        return lambda: fn(graph)
+
+      if mode == 'dataset1':
+
+        def dataset1_case():
+          ds = tf.data.Dataset.from_tensors(graph).map(pad)
+          return ds.get_single_element()
+
+        return dataset1_case
+
+      if mode == 'dataset2':
+
+        def dataset2_case():
+          ds = tf.data.Dataset.from_tensors(graph)
+          # sets the components dimension to None in spec.
+          ds = ds.batch(1).map(lambda g: g.merge_batch_to_components())
+          ds = ds.map(pad)
+          return ds.get_single_element()
+
+        return dataset2_case
+      raise ValueError(mode)
 
     components_overflow = preprocessing.SizesConstraints(
         total_num_components=1,
@@ -468,9 +496,9 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
         total_num_edges={'a->b': 6},
     )
     self.assertRaisesRegex(tf.errors.InvalidArgumentError,
-                           ('Could not pad \'a\' as it already has more nodes'
+                           ('Could not pad <a> as it already has more nodes'
                             ' then it is allowed by the'
-                            r' `target_total_sizes\.total_num_nodes\[\'a\'\]`'),
+                            r' `total_sizes\.total_num_nodes\[<a>\]`'),
                            create_for_spec(nodes_overflow))
 
     edges_overflow = preprocessing.SizesConstraints(
@@ -481,12 +509,11 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
         },
         total_num_edges={'a->b': 1},
     )
-    self.assertRaisesRegex(
-        tf.errors.InvalidArgumentError,
-        ('Could not pad \'a->b\' as it already has more'
-         ' edges then it is allowed by the'
-         r' `target_total_sizes\.total_num_edges\[\'a->b\'\]`'),
-        create_for_spec(edges_overflow))
+    self.assertRaisesRegex(tf.errors.InvalidArgumentError,
+                           ('Could not pad <a->b> as it already has more'
+                            ' edges then it is allowed by the'
+                            r' `total_sizes\.total_num_edges\[<a->b>\]`'),
+                           create_for_spec(edges_overflow))
 
     no_b_node_to_use_for_fake_edge = preprocessing.SizesConstraints(
         total_num_components=4,
@@ -500,6 +527,64 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
         tf.errors.InvalidArgumentError,
         'Could not create fake incident edges for the node set',
         create_for_spec(no_b_node_to_use_for_fake_edge))
+
+  @parameterized.parameters([
+      dict(
+          total_sizes=preprocessing.SizesConstraints(
+              total_num_components=2,
+              total_num_nodes={
+                  'a': 2,
+                  'b': 4
+              },
+              total_num_edges={'a->b': 3},
+          ),
+          expected_result=True),
+      dict(
+          total_sizes=preprocessing.SizesConstraints(
+              total_num_components=4,
+              total_num_nodes={
+                  'a': 3,
+                  'b': 6
+              },
+              total_num_edges={'a->b': 4},
+          ),
+          expected_result=True),
+      dict(
+          total_sizes=preprocessing.SizesConstraints(
+              total_num_components=1,
+              total_num_nodes={
+                  'a': 3,
+                  'b': 6
+              },
+              total_num_edges={'a->b': 4},
+          ),
+          expected_result=False),
+      dict(
+          total_sizes=preprocessing.SizesConstraints(
+              total_num_components=1,
+              total_num_nodes={
+                  'a': 2,
+                  'b': 6
+              },
+              total_num_edges={'a->b': 4},
+          ),
+          expected_result=False),
+      dict(
+          total_sizes=preprocessing.SizesConstraints(
+              total_num_components=4,
+              total_num_nodes={
+                  'a': 3,
+                  'b': 6
+              },
+              total_num_edges={'a->b': 1},
+          ),
+          expected_result=False)
+  ])
+  def testSatifiesTotalSizes(self, total_sizes, expected_result):
+    self.assertAllEqual(
+        ops.satisfies_total_sizes(
+            self.test_2_a2b4_ab3_graph, total_sizes=total_sizes),
+        expected_result)
 
 
 if __name__ == '__main__':

@@ -1,15 +1,15 @@
 """Common data classes and functions for all preprocessing operations."""
 
-from typing import Optional, Mapping, NamedTuple
-
+from typing import Optional, Mapping, NamedTuple, Union
+import tensorflow as tf
 from tensorflow_gnn.graph import graph_constants as const
 
 
 class SizesConstraints(NamedTuple):
   """Constraints on the number of entities in the graph."""
-  total_num_components: int
-  total_num_nodes: Mapping[const.NodeSetName, int]
-  total_num_edges: Mapping[const.EdgeSetName, int]
+  total_num_components: Union[int, tf.Tensor]
+  total_num_nodes: Mapping[const.NodeSetName, Union[int, tf.Tensor]]
+  total_num_edges: Mapping[const.EdgeSetName, Union[int, tf.Tensor]]
 
 
 class DefaultValues(NamedTuple):
