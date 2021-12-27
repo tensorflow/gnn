@@ -1098,12 +1098,12 @@ def _fast_alternative(use_fast_path: bool,
     return tf.identity(fast_result)
 
 
-def check_scalar_graph_tensor(graph: GraphTensor,
+def check_scalar_graph_tensor(graph: Union[GraphTensor, GraphTensorSpec],
                               name='This operation') -> None:
   if graph.rank != 0:
-    raise ValueError((
-        f'{name} requires a scalar GraphTensor, that is, '
-        f'with GraphTensor.rank=0, but got rank={graph.rank}. '
-        'Use GraphTensor.merge_batch_to_components() to merge the elements '
-        'in a non-scalar graph tensor into components of the single element '
-        'in a scalar GraphTensor.'))
+    raise ValueError(
+        (f'{name} requires a scalar GraphTensor, that is, '
+         f'with GraphTensor.rank=0, but got rank={graph.rank}. '
+         'Use GraphTensor.merge_batch_to_components() to merge the elements '
+         'in a non-scalar graph tensor into components of the single element '
+         'in a scalar GraphTensor.'))
