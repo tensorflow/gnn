@@ -87,7 +87,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
   @parameterized.parameters([
       dict(
           padding_size=3,
-          padding_values=preprocessing.DefaultValues(context={
+          padding_values=preprocessing.FeatureDefaultValues(context={
               'id': -1,
               'f2': .5,
           }),
@@ -105,7 +105,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
           }),
       dict(
           padding_size=3,
-          padding_values=preprocessing.DefaultValues(context={
+          padding_values=preprocessing.FeatureDefaultValues(context={
               'label': '?',
           }),
           features={
@@ -119,7 +119,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
   ])
   def testContextPadding(self, padding_size: int, features: gt.Fields,
                          expected_features: gt.Fields,
-                         padding_values: preprocessing.DefaultValues):
+                         padding_values: preprocessing.FeatureDefaultValues):
     source = gt.GraphTensor.from_pieces(
         gt.Context.from_fields(shape=[], features=features))
     padded, mask = ops.pad_to_total_sizes(
@@ -345,7 +345,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
             },
             total_num_edges={'a->b': 6},
         ),
-        padding_values=preprocessing.DefaultValues(
+        padding_values=preprocessing.FeatureDefaultValues(
             context={'f': '?'},
             node_sets={'a': {
                 'f': -1.

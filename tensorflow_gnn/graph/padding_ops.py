@@ -17,7 +17,7 @@ def pad_to_total_sizes(
     graph_tensor: gt.GraphTensor,
     target_total_sizes: preprocessing.SizesConstraints,
     *,
-    padding_values: Optional[preprocessing.DefaultValues] = None,
+    padding_values: Optional[preprocessing.FeatureDefaultValues] = None,
     validate: bool = True) -> Tuple[gt.GraphTensor, tf.Tensor]:
   """Pads graph tensor to the total sizes by inserting fake graph components.
 
@@ -61,7 +61,7 @@ def pad_to_total_sizes(
     return value if value is not None else default
 
   if padding_values is None:
-    padding_values = preprocessing.DefaultValues()
+    padding_values = preprocessing.FeatureDefaultValues()
 
   def get_default_value(
       graph_piece_spec: gt._GraphPieceWithFeaturesSpec,  # pylint: disable=protected-access

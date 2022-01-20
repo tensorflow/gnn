@@ -21,6 +21,8 @@ from tensorflow_gnn.graph import graph_tensor_pprint
 from tensorflow_gnn.graph import graph_tensor_random
 from tensorflow_gnn.graph import keras  # For use as a subpackage.
 from tensorflow_gnn.graph import normalization_ops
+from tensorflow_gnn.graph import padding_ops
+from tensorflow_gnn.graph import preprocessing_common
 from tensorflow_gnn.graph import schema_utils
 from tensorflow_gnn.graph import schema_validation
 from tensorflow_gnn.proto import graph_schema
@@ -75,10 +77,19 @@ GraphTensorSpec = graph_tensor.GraphTensorSpec
 GraphSchema = graph_schema.GraphSchema
 Feature = graph_schema.Feature
 
+# Preprocessing (batching and padding) types.
+FeatureDefaultValues = preprocessing_common.FeatureDefaultValues
+SizesConstraints = preprocessing_common.SizesConstraints
+
 # I/O functions (input parsing).
 parse_example = graph_tensor_io.parse_example
 parse_single_example = graph_tensor_io.parse_single_example
 get_io_spec = graph_tensor_io.get_io_spec
+
+# GraphTensor batching and padding.
+pad_to_total_sizes = padding_ops.pad_to_total_sizes
+assert_satisfies_total_sizes = padding_ops.assert_satisfies_total_sizes
+satisfies_total_sizes = padding_ops.satisfies_total_sizes
 
 # I/O functions (output encoding).
 write_example = graph_tensor_encode.write_example
@@ -132,5 +143,7 @@ del graph_tensor_pprint
 del graph_tensor_random
 del normalization_ops
 del graph_schema
+del padding_ops
+del preprocessing_common
 del schema_utils
 del schema_validation

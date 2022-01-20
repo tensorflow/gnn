@@ -12,7 +12,7 @@ class SizesConstraints(NamedTuple):
   total_num_edges: Mapping[const.EdgeSetName, Union[int, tf.Tensor]]
 
 
-class DefaultValues(NamedTuple):
+class FeatureDefaultValues(NamedTuple):
   """Default values for graph context, node sets and edge sets features."""
   context: Optional[const.Fields] = None
   node_sets: Optional[Mapping[const.NodeSetName, const.Fields]] = None

@@ -1,0 +1,66 @@
+# An example graph schema with some latent nodes.
+# This defines three node sets and three edge sets:
+#    dish -> restaurant -> user
+#    dish ---------------> user
+# with only the 'dish' node type having features.
+
+node_sets {
+  key: "dish"
+  value {
+    description: "A canonical dish"
+    features {
+      key: "embedding"
+      value: {
+        description: "Some dish embedding feature"
+        dtype: DT_FLOAT
+        shape: {
+          dim {
+            size: 32
+          }
+        }
+      }
+    }
+  }
+}
+
+# This is how you define a latent set of nodes.
+node_sets {
+  key: "restaurant"
+  value {
+    description: "A restaurant that offers dishes"
+  }
+}
+
+node_sets {
+  key: "user"
+  value {
+    description: "A person who visits restaurants and orders dishes"
+  }
+}
+
+edge_sets {
+  key: "dish->restaurant"
+  value {
+    description: "Dishes available at restaurants"
+    source: "dish"
+    target: "restaurant"
+  }
+}
+
+edge_sets {
+  key: "restaurant->user"
+  value {
+    description: "Restaurant visits by users"
+    source: "restaurant"
+    target: "user"
+  }
+}
+
+edge_sets {
+  key: "dish->restaurant"
+  value {
+    description: "Dishes the users has ordered in the past"
+    source: "dish"
+    target: "restaurant"
+  }
+}
