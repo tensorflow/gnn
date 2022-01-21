@@ -1,5 +1,6 @@
 """The tfgnn.keras.layers package."""
 
+from tensorflow_gnn.graph.keras.layers import convolution_base
 from tensorflow_gnn.graph.keras.layers import convolutions
 from tensorflow_gnn.graph.keras.layers import gat_v2
 from tensorflow_gnn.graph.keras.layers import graph_ops
@@ -19,6 +20,7 @@ Pool = graph_ops.Pool
 Readout = graph_ops.Readout
 ReadoutFirstNode = graph_ops.ReadoutFirstNode
 
+AnyToAnyConvolutionBase = convolution_base.AnyToAnyConvolutionBase
 ConvolutionFromEdgeSetUpdate = convolutions.ConvolutionFromEdgeSetUpdate
 SimpleConvolution = convolutions.SimpleConvolution
 
@@ -42,3 +44,4 @@ del map_features
 del next_state
 del parse_example
 del gat_v2
+del convolution_base

@@ -1,79 +1,16 @@
 """Contains a Graph Attention Network v2 and associated layers."""
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Mapping, Optional, Union
 
 import tensorflow as tf
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
-from tensorflow_gnn.graph import graph_tensor_ops as ops
 from tensorflow_gnn.graph import normalization_ops
+from tensorflow_gnn.graph.keras.layers import convolution_base
 from tensorflow_gnn.graph.keras.layers import graph_update as graph_update_lib
 
 
-# DEVELOPER NOTES ABOUT ATTENTION
-#
-# Recall that attention is a deep learning technique to aggregate input data
-# from multiple senders to one or more receivers, with emphasis on the inputs
-# deemed most relevant for each receiver. Mathematically, the aggregation is a
-# weighted average of values derived from the input data. The weights are
-# computed by a dedicated feed-forwad network that is conditioned on both the
-# values and the query, which is derived from the state of the receiver.
-#
-# TF-GNN can apply attention across all of the many-to-one relationships
-# in a GraphTensor. TF-GNN breaks down the various cases as follows.
-#
-#  1. Convolutions from nodes.
-#
-#     a) The classic case: convolutions over an edge set. The receiver node
-#        (whose node state stands to be updated from the result) poses a query.
-#        Values are aggregated from its incident edges, after being computed
-#        on each edge involving a feature of the sender node at the other end
-#        of the edge, and optionally also involving a feature of the edge
-#        itself.
-#     b) Convolutions from a node set to context: Sender nodes are as in
-#        case (1a). Instead of an EdgeSet, there is the containment of nodes
-#        in graph components, which is tracked by the NodeSet itself without
-#        storing edges explicitly. Instead of receiver nodes, there is the
-#        per-component context, which poses a query and receives the result.
-#
-#  2. Pooling from edges.
-#
-#     a) Pooling edge states to an incident node: This works like a convolution
-#        in case (1a) with the side input for the edge feature switched on and
-#        the main input from the sender node switched off.
-#     b) Pooling edge states to context: Like in case (1b), the receiver is
-#        the context, and senders are connected to it by containment in a graph
-#        component. Unlike case (1b), but similar to case (2a), input from nodes
-#        is switched off and input from edges is switched on.
-#
-# For case (1), TF-GNN offer attention through Convolution layers, with sender
-# node inputs on by default and sender edge inputs off by default. The sub-cases
-# are distinguised by receiver_tag SOURCE or TARGET for (a) and CONTEXT for (b).
-# The side input from edges can be activated in case (1a) only.
-#
-# For case (2), TF-GNN offers attention throuh EdgePool wrappers, with the
-# opposite settings for sender inputs: nodes off, edges on. The sub-cases
-# are distinguished in the same way by the receiver_tag.
-#
-# KEY POINT 1: This lets library contributors implement a wide variety of
-# attention algorithms just once, in the familiar shape of a convolution
-# (generalized to support context as target and to take a side input from
-# edges). From that, edge pooling can be derived with a simple wrapper
-# (maybe later, if the original contributor does not care about edge states).
-#
-# KEY POINT 2: Library users whose models do not have edge states just need
-# to understand the notion of a Convolution layer. Library users whose models
-# also have edge states need to understand the notion of an EdgePool layer
-# as well, but the dividing line between the two is crystal-clear:
-# Does it read node features or not?
-#
-# Side remark: These two advantages prompted the design choice to regard
-# case (1b) as a convolution analogous to case (1a) and not a pooling operation
-# analogous to case (2b), although the latter is more similar in terms of the
-# operations it does (pooling with attention but no initial broadcast).
-
-
 @tf.keras.utils.register_keras_serializable(package="GNN")
-class GATv2Convolution(tf.keras.layers.Layer):
+class GATv2Convolution(convolution_base.AnyToAnyConvolutionBase):
   """The multi-head attention from Graph Attention Networks v2 (GATv2).
 
   GATv2 (https://arxiv.org/abs/2105.14491) improves upon the popular
@@ -105,7 +42,7 @@ class GATv2Convolution(tf.keras.layers.Layer):
       TODO(b/205960151): Do we have a good example for not storing the loop?
     * Attention values can be computed from a sender node state that gets
       broadcast onto the edge (see arg `sender_node_feature`), from an edge
-      feature (see arg `sender_edge_feature`), or rom their concatenation
+      feature (see arg `sender_edge_feature`), or from their concatenation
       (by setting both arguments). This choice is used in place of the sender
       node state $h_j$ in the defining equations cited above.
     * This layer can be used with `receiver_tag=tfgnn.CONTEXT` to perform a
@@ -128,12 +65,13 @@ class GATv2Convolution(tf.keras.layers.Layer):
     num_heads: The number of attention heads.
     per_head_channels: The number of channels for each attention head. This
       means that the final output size will be per_head_channels * num_heads.
-    receiver_tag: The results of attention are aggregated for this graph piece.
+    receiver_tag: one of `tfgnn.SOURCE`, `tfgnn.TARGET` or `tfgnn.CONTEXT`.
+      The results of attention are aggregated for this graph piece.
+      If set to `tfgnn.SOURCE` or `tfgnn.TARGET`, the layer can be called for
+      an edge set and will aggregate results at the specified endpoint of the
+      edges.
       If set to `tfgnn.CONTEXT`, the layer can be called for an edge set or
       node set.
-      If set to an IncidentNodeTag (e.g., `tfgnn.SOURCE` or `tfgnn.TARGET`),
-      the layer can be called for an edge set and will aggregate results at
-      the specified endpoint of the edges.
       If left unset for init, the tag must be passed at call time.
     receiver_feature: Can be set to override `tfgnn.DEFAULT_FEATURE_NAME`
       for use as the receiver's input feature to attention. (The attention key
@@ -143,7 +81,8 @@ class GATv2Convolution(tf.keras.layers.Layer):
       IMPORANT: Must be set to `None` for use with `receiver_tag=tfgnn.CONTEXT`
       on an edge set, or for pooling from edges without sender node states.
     sender_edge_feature: Can be set to a feature name of the edge set to select
-      it as an input feature. By default, this input is switched off.
+      it as an input feature. By default, this set to `None`, which disables
+      this input.
       IMPORTANT: Must be set for use with `receiver_tag=tfgnn.CONTEXT`
       on an edge set.
     use_bias: If true, a bias term is added to the transformations of query and
@@ -181,7 +120,15 @@ class GATv2Convolution(tf.keras.layers.Layer):
                    None, str, tf.keras.initializers.Initializer] = None,
                **kwargs):
     kwargs.setdefault("name", "gat_v2_convolution")
-    super().__init__(**kwargs)
+    super().__init__(
+        receiver_tag=receiver_tag,
+        receiver_feature=receiver_feature,
+        sender_node_feature=sender_node_feature,
+        sender_edge_feature=sender_edge_feature,
+        extra_receiver_ops={"softmax": normalization_ops.softmax},
+        **kwargs)
+    if not self.takes_receiver_input:
+      raise ValueError("Receiver feature cannot be None")
 
     if num_heads <= 0:
       raise ValueError(f"Number of heads {num_heads} must be greater than 0.")
@@ -192,10 +139,6 @@ class GATv2Convolution(tf.keras.layers.Layer):
           f"Per-head channels {per_head_channels} must be greater than 0.")
     self._per_head_channels = per_head_channels
 
-    self._receiver_tag = receiver_tag
-    self._receiver_feature = receiver_feature
-    self._sender_node_feature = sender_node_feature
-    self._sender_edge_feature = sender_edge_feature
     self._use_bias = use_bias
 
     if not 0 <= edge_dropout < 1:
@@ -215,7 +158,7 @@ class GATv2Convolution(tf.keras.layers.Layer):
         name="query")
 
     # Create the transformations for value input from sender nodes and edges.
-    if sender_node_feature is not None:
+    if self.takes_sender_node_input:
       self._w_sender_node = tf.keras.layers.Dense(
           per_head_channels * num_heads,
           kernel_initializer=kernel_initializer,
@@ -224,7 +167,8 @@ class GATv2Convolution(tf.keras.layers.Layer):
           name="value_node")
     else:
       self._w_sender_node = None
-    if sender_edge_feature is not None:
+
+    if self.takes_sender_edge_input:
       self._w_sender_edge = tf.keras.layers.Dense(
           per_head_channels * num_heads,
           kernel_initializer=kernel_initializer,
@@ -233,6 +177,7 @@ class GATv2Convolution(tf.keras.layers.Layer):
           name="value_edge")
     else:
       self._w_sender_edge = None
+
     if self._w_sender_node is None and self._w_sender_edge is None:
       raise ValueError("GATv2Attention initialized with no inputs.")
 
@@ -250,10 +195,6 @@ class GATv2Convolution(tf.keras.layers.Layer):
     return dict(
         num_heads=self._num_heads,
         per_head_channels=self._per_head_channels,
-        receiver_tag=self._receiver_tag,
-        receiver_feature=self._receiver_feature,
-        sender_node_feature=self._sender_node_feature,
-        sender_edge_feature=self._sender_edge_feature,
         use_bias=self._use_bias,
         edge_dropout=self._edge_dropout,
         attention_activation=self._attention_activation,
@@ -261,148 +202,22 @@ class GATv2Convolution(tf.keras.layers.Layer):
         kernel_initializer=self._kernel_initializer,
         **super().get_config())
 
-  # TODO(b/205960151): Make ContextUpdate() pass receiver_tag=CONTEXT here,
-  # so that the user can omit it at init time.
-  def call(self, graph: gt.GraphTensor, *,
-           edge_set_name: Optional[gt.EdgeSetName] = None,
-           node_set_name: Optional[gt.NodeSetName] = None,
-           receiver_tag: Optional[const.IncidentNodeOrContextTag] = None,
-           training: bool = None) -> gt.GraphTensor:
-    # pylint: disable=g-long-lambda
+  def convolve(self, *,
+               sender_node_input: Optional[tf.Tensor],
+               sender_edge_input: Optional[tf.Tensor],
+               receiver_input: Optional[tf.Tensor],
+               broadcast_from_sender_node: Callable[[tf.Tensor], tf.Tensor],
+               broadcast_from_receiver: Callable[[tf.Tensor], tf.Tensor],
+               pool_to_receiver: Callable[..., tf.Tensor],
+               extra_receiver_ops: Optional[
+                   Mapping[str, Callable[..., Any]]] = None,
+               training: bool) -> tf.Tensor:
 
-    # Normalize inputs.
-    gt.check_scalar_graph_tensor(graph, "GATv2Convolution")
-    # TODO(b/205960151): make a helper for this or align with graph_ops.py
-    if receiver_tag is None:
-      if self._receiver_tag is None:
-        raise ValueError("GATv2Convolution requires receiver_tag to be set "
-                         "at init or call time")
-      receiver_tag = self._receiver_tag
-    else:
-      if self._receiver_tag not in [None, receiver_tag]:
-        raise ValueError(
-            f"GATv2Convolution(..., receiver_tag={self._receiver_tag})"
-            f"was called with contradictory value receiver_tag={receiver_tag}")
-
-    # Find the receiver graph piece (NodeSet or Context), the EdgeSet (if any)
-    # and the sender NodeSet (if any) with its broadcasting function.
-    if receiver_tag == const.CONTEXT:
-      if (edge_set_name is None) + (node_set_name is None) != 1:
-        raise ValueError(
-            "Must pass exactly one of edge_set_name, node_set_name "
-            "for receiver_tag CONTEXT.")
-      if edge_set_name is not None:
-        # Pooling from EdgeSet to Context; no node set involved.
-        name_kwarg = dict(edge_set_name=edge_set_name)
-        edge_set = graph.edge_sets[edge_set_name]
-        sender_node_set = None
-        broadcast_from_sender_node = None
-      else:
-        # Pooling from NodeSet to Context, no EdgeSet involved.
-        name_kwarg = dict(node_set_name=node_set_name)
-        edge_set = None
-        sender_node_set = graph.node_sets[node_set_name]
-        # Values are computed per sender node, no need to broadcast
-        broadcast_from_sender_node = lambda x: x
-      receiver_piece = graph.context
-    else:
-      # Convolving from nodes to nodes.
-      if edge_set_name is None or node_set_name is not None:
-        raise ValueError("Must pass edge_set_name, not node_set_name")
-      name_kwarg = dict(edge_set_name=edge_set_name)
-      edge_set = graph.edge_sets[edge_set_name]
-      sender_node_tag = reverse_tag(receiver_tag)
-      sender_node_set = graph.node_sets[
-          edge_set.adjacency.node_set_name(sender_node_tag)]
-      broadcast_from_sender_node = lambda x: ops.broadcast_node_to_edges(
-          graph, edge_set_name, sender_node_tag, feature_value=x)
-      receiver_piece = graph.node_sets[
-          edge_set.adjacency.node_set_name(receiver_tag)]
-
-    # Set up the broadcast/pool ops for the receiver. The tag and name arguments
-    # conveniently encode the distinction between operating over edge/node,
-    # node/context or edge/context.
-    broadcast_from_receiver = lambda x: ops.broadcast(
-        graph, receiver_tag, **name_kwarg, feature_value=x)
-    # If the call/convolve split gets reused beyond this class, this shouldn't
-    # be hardwired to softmax but support binding args for a custom (set of)
-    # functions with this interface.
-    softmax_per_receiver = lambda x: normalization_ops.softmax(
-        graph, receiver_tag, **name_kwarg, feature_value=x)
-    pool_to_receiver = lambda reduce_type, x: ops.pool(
-        graph, receiver_tag, **name_kwarg, reduce_type=reduce_type,
-        feature_value=x)
-
-    # Set up the inputs.
-    receiver_input = receiver_piece[self._receiver_feature]
-    if None not in [sender_node_set, self._sender_node_feature]:
-      sender_node_input = sender_node_set[self._sender_node_feature]
-    else:
-      sender_node_input = None
-    if None not in [edge_set, self._sender_edge_feature]:
-      sender_edge_input = edge_set[self._sender_edge_feature]
-    else:
-      sender_edge_input = None
-
-    return self._convolve(
-        sender_node_input=sender_node_input,
-        sender_edge_input=sender_edge_input,
-        receiver_input=receiver_input,
-        broadcast_from_sender_node=broadcast_from_sender_node,
-        broadcast_from_receiver=broadcast_from_receiver,
-        softmax_per_receiver=softmax_per_receiver,
-        pool_to_receiver=pool_to_receiver,
-        training=training)
-
-  def _convolve(self, *,
-                sender_node_input: Optional[tf.Tensor],
-                sender_edge_input: Optional[tf.Tensor],
-                receiver_input: tf.Tensor,
-                broadcast_from_sender_node: Callable[[tf.Tensor], tf.Tensor],
-                broadcast_from_receiver: Callable[[tf.Tensor], tf.Tensor],
-                softmax_per_receiver: Callable[[tf.Tensor], tf.Tensor],
-                pool_to_receiver: Callable[[str, tf.Tensor], tf.Tensor],
-                training: bool) -> tf.Tensor:
-    """Returns the convolution result.
-
-    The Tensor inputs to this function still have their original shapes
-    and need to be broadcast such that the leading dimension is indexed
-    by the items in the graph that are attended to (usually edges; except
-    when convolving from nodes to context). In the end, values have to be
-    pooled from items into a Tensor with a leading dimension indexed by
-    receivers, see `pool_to_receiver`.
-
-    Args:
-      sender_node_input: The input Tensor from the sender NodeSet, or None.
-        See broadcast_from_sender_node.
-      sender_edge_input: The input Tensor from the sender EdgeSet, or None.
-        If present, this Tensor is already indexed by the items to attend to.
-      receiver_input: The input Tensor from the receiver NodeSet or Context.
-        See broadcast_from_receiver.
-      broadcast_from_sender_node: A function that broadcasts a Tensor
-        indexed like sender_node_input to a Tensor indexed by the items
-        that are attended to.
-      broadcast_from_receiver: A function that broadcasts a Tensor
-        indexed like receiver_input to a Tensor indexed by the items
-        that are attended to.
-      softmax_per_receiver: A function accepts an item-indexed tensor,
-        applies softmax normalization to values with a common receiver and
-        same trailing indices, and returns the result with unchanged shape.
-      pool_to_receiver: A function that pools an item-indexed Tensor to a
-        receiver-indexed tensor by summation across items with the same
-        receiver.
-      training: A boolean. If true, compute the result of training rather
-        than inference.
-
-    Returns:
-      A Tensor whose leading dimension is indexed by receivers, with the
-      result of the convolution.
-    """
     # Form the attention query for each head.
     # [num_items, *extra_dims, num_heads, channels_per_head]
+    assert receiver_input is not None, "__init__() should have checked this."
     query = broadcast_from_receiver(self._split_heads(self._w_query(
         receiver_input)))
-    # TODO(b/205960151): Optionally include a context feature.
 
     # Form the attention value by transforming the configured inputs
     # and adding up the transformed values.
@@ -424,7 +239,7 @@ class GATv2Convolution(tf.keras.layers.Layer):
     # Compute the attention logits and softmax to get the coefficients.
     # [num_items, *extra_dims, num_heads, 1]
     logits = tf.expand_dims(self._attention_logits_fn(attention_features), -1)
-    attention_coefficients = softmax_per_receiver(logits)
+    attention_coefficients = extra_receiver_ops["softmax"](logits)
 
     if training:
       # Apply dropout to the normalized attention coefficients, as is done in
@@ -440,7 +255,7 @@ class GATv2Convolution(tf.keras.layers.Layer):
     # Take the sum of the weighted values, which equals the weighted average.
     # Receivers without incoming senders get the empty sum 0.
     # [num_receivers, *extra_dims, num_heads, per_head_channels]
-    pooled_messages = pool_to_receiver("sum", messages)
+    pooled_messages = pool_to_receiver(messages, reduce_type="sum")
     # Apply the nonlinearity.
     pooled_messages = self._activation(pooled_messages)
     pooled_messages = self._merge_heads(pooled_messages)
@@ -472,16 +287,6 @@ class GATv2Convolution(tf.keras.layers.Layer):
     return tf.reshape(tensor, new_shape)
 
 
-def reverse_tag(tag):
-  """Flips SOURCE to TARGET and vice versa."""
-  if tag == const.TARGET:
-    return const.SOURCE
-  elif tag == const.SOURCE:
-    return const.TARGET
-  else:
-    raise ValueError(f"Expected SOURCE or TARGET tag, got: {tag}")
-
-
 def GATv2EdgePool(*,  # To be called like a class initializer.  pylint: disable=invalid-name
                   num_heads: int,
                   per_head_channels: int,
@@ -489,7 +294,7 @@ def GATv2EdgePool(*,  # To be called like a class initializer.  pylint: disable=
                   receiver_feature: const.FieldName = const.DEFAULT_STATE_NAME,
                   sender_feature: const.FieldName = const.DEFAULT_STATE_NAME,
                   **kwargs):
-  """Returns a layer for pooling with GATv2-style attention.
+  """Returns a layer for pooling edges with GATv2-style attention.
 
   When initialized with receiver_tag SOURCE or TARGET, the returned layer can
   be called on an edge set to compute the weighted sum of edge states at the
@@ -516,10 +321,11 @@ def GATv2EdgePool(*,  # To be called like a class initializer.  pylint: disable=
     receiver_feature: By default, the default state feature of the receiver
       is used to compute the attention query. A different feature name can be
       selected by setting this argument.
-    sender_feature: By default, the default state feature of the node set
-      or edge set passed to call() is used to compute the attention values.
-    **kwargs: Any other option for GATv2Convolution,
-       conv_sender_node_feature, which is set to None.
+    sender_feature: By default, the default state feature of the edge set is
+      used to compute the attention values. A different feature name can be
+      selected by setting this argument.
+    **kwargs: Any other option for GATv2Convolution, except sender_node_feature,
+      which is set to None.
   """
   if kwargs.pop("sender_node_feature", None) is not None:
     raise TypeError("GATv2EdgePool() got an unexpected keyword argument "
