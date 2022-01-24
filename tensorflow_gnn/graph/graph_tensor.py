@@ -691,8 +691,8 @@ class GraphTensor(gp.GraphPieceBase):
                           sizes=[2, 3, 1],
                           features={'weight': [.5, .6, .3, .4, .5, .9]},
                           adjacency=gnn.Adjacency.from_indices(
-                            source=('leaf', [0, 1, 0, 1, 2, 0]),
-                            target=('root', [0, 0, 0, 0, 0, 0]),
+                            source=('leaf', [0, 1, 2, 3, 4, 5]),
+                            target=('root', [0, 0, 1, 1, 1, 2]),
                           ))})
 
   """
