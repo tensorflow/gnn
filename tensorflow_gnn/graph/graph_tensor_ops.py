@@ -452,14 +452,128 @@ def gather_first_node(graph_tensor: GraphTensor,
     return tf.gather(node_value, components_starts)
 
 
-# TODO(b/184021014): provide min/max pooling with NN friendly default values
-# (currently this is inf and -inf).
-# See https://www.tensorflow.org/api_docs/python/tf/math/unsorted_segment_min
+def with_empty_set_value(reduce_op: UnsortedReduceOp,
+                         empty_set_value) -> UnsortedReduceOp:
+  """Wraps `reduce_op` so that `empty_set_value` is used to fill empty segments.
+
+  This helper function allows to customize the value that will be used to fill
+  empty segments in the result of `reduce_op`. Some standard unsorted segment
+  operations may result in -infinity or infinity values for empty segments (e.g.
+  -infinity for `tf.math.unsorted_segment_max`). Although the use of these
+  extreme values is mathematically grounded, they are not neural nets friendly
+  and could lead to numerical overflow. So in practice it is better to use some
+  safer default for empty segments and let a NN learn how to condition on that.
+
+  Args:
+    reduce_op: unsorted reduce operation to wrap (e.g.
+      tf.math.unsorted_segment_{min|max|mean|sum|..}).
+    empty_set_value: scalar value to fill empty segments in `reduce_op` result.
+
+  Returns:
+    Wrapped `reduce_op`.
+  """
+
+  def wrapped_reduce_op(data, segment_ids, num_segments):
+    result = reduce_op(data, segment_ids, num_segments)
+    mask_dims = [utils.outer_dimension_size(data)] + [1] * (
+        result.shape.rank - 1)
+    mask = tf.math.unsorted_segment_sum(
+        tf.ones(mask_dims, segment_ids.dtype), segment_ids, num_segments)
+    mask = tf.logical_not(tf.cast(mask, tf.bool))
+
+    empty_set_overwrite = tf.convert_to_tensor(
+        empty_set_value, dtype=result.dtype)
+    if empty_set_overwrite.shape.rank != 0:
+      raise ValueError('Expected scalar `empty_set_value`,'
+                       f' got shape={empty_set_overwrite.shape}.')
+    return _where_scalar_or_field(mask, empty_set_overwrite, result)
+
+  return wrapped_reduce_op
+
+
+def with_minus_inf_replaced(reduce_op: UnsortedReduceOp,
+                            replacement_value) -> UnsortedReduceOp:
+  """Wraps `reduce_op` so that `replacement_value` replaces '-inf', `dtype.min`.
+
+  This helper function replaces all '-inf' and `dtype.min` from the `reduce_op`
+  output with the `replacement_value`.  The standard reduce max operations may
+  result in minimum possible values if used for empty sets (e.g. `dtype.min` is
+  used by `tf.math.unsorted_segment_max` and '-inf' - by `tf.math.reduce_max`).
+  Those values are not NN friendly and could lead to numerical overflow. In
+  practice it is better to use some safer default to mark empty sets and let a
+  NN learn how to condition on that.
+
+
+  NOTE: If you need to differentiate infinities coming from the pooled data and
+  those created by the empty sets, consider using `with_empty_set_value()`.
+
+  Args:
+    reduce_op: unsorted reduce operation to wrap (e.g.
+      tf.math.unsorted_segment_max).
+    replacement_value: scalar value to replace '-inf' and `dtype.min` in the
+      `reduce_op` output.
+
+  Returns:
+    Wrapped `reduce_op`.
+  """
+
+  def wrapped_reduce_op(data, segment_ids, num_segments):
+    result = reduce_op(data, segment_ids, num_segments)
+    inf_overwrite = tf.convert_to_tensor(replacement_value, dtype=result.dtype)
+    if inf_overwrite.shape.rank != 0:
+      raise ValueError('Expected scalar `replacement_value`,'
+                       f' got shape={inf_overwrite.shape}.')
+    return _where_scalar_or_field(
+        tf.less_equal(result, result.dtype.min), inf_overwrite, result)
+
+  return wrapped_reduce_op
+
+
+def with_plus_inf_replaced(reduce_op: UnsortedReduceOp,
+                           replacement_value) -> UnsortedReduceOp:
+  """Wraps `reduce_op` so that `replacement_value` replaces '+inf', `dtype.max`.
+
+  This helper function replaces all '+inf' and `dtype.max` from the `reduce_op`
+  output with the `replacement_value`.  The standard reduce min operations may
+  result in maximum possible values if used for empty sets (e.g. `dtype.max` is
+  used by `tf.math.unsorted_segment_min` and '+inf' - by `tf.math.reduce_min`).
+  Those values are not NN friendly and could lead to numerical overflow. In
+  practice it is better to use some safer default to mark empty sets and let a
+  NN learn how to condition on that.
+
+  NOTE: If you need to differentiate infinities coming from the pooled data and
+  those created by the empty sets, consider using `with_empty_set_value()`.
+
+  Args:
+    reduce_op: unsorted reduce operation to wrap (e.g.
+      tf.math.unsorted_segment_min).
+    replacement_value: scalar value to replace '+inf' and `dtype.max` in the
+      `reduce_op` output.
+
+  Returns:
+    Wrapped `reduce_op`.
+  """
+
+  def wrapped_reduce_op(data, segment_ids, num_segments):
+    result = reduce_op(data, segment_ids, num_segments)
+    inf_overwrite = tf.convert_to_tensor(replacement_value, dtype=result.dtype)
+    if inf_overwrite.shape.rank != 0:
+      raise ValueError('Expected scalar `replacement_value`,'
+                       f' got shape={inf_overwrite.shape}.')
+
+    return _where_scalar_or_field(
+        tf.greater_equal(result, result.dtype.max), inf_overwrite, result)
+
+  return wrapped_reduce_op
+
+
 _REGISTERED_REDUCE_OPS = {
     'sum': tf.math.unsorted_segment_sum,
     'mean': tf.math.unsorted_segment_mean,
     'max': tf.math.unsorted_segment_max,
+    'max_no_inf': with_minus_inf_replaced(tf.math.unsorted_segment_max, 0),
     'min': tf.math.unsorted_segment_min,
+    'min_no_inf': with_plus_inf_replaced(tf.math.unsorted_segment_min, 0),
     'prod': tf.math.unsorted_segment_prod,
 }
 
@@ -632,3 +746,21 @@ def _pool_to_context(graph_tensor: GraphTensor,
       utils.row_lengths_to_row_ids(
           sizes, sum_row_lengths_hint=node_or_edge_set.spec.total_size),
       utils.outer_dimension_size(sizes))
+
+
+def _where_scalar_or_field(condition: const.Field, true_scalar_value: tf.Tensor,
+                           false_value: const.Field) -> const.Field:
+  """Optimized tf.where for the scalar false side."""
+  assert true_scalar_value.shape.rank == 0
+  if utils.is_ragged_tensor(false_value):
+    # tf.where specialization for the ragged tensors does not support scalar
+    # inputs broadcasting in generic cases. As a workaround, we create the
+    # ragged tensor with the same type spec as the false side but filled with
+    # `true_scalar_value` values.
+    # TODO(b/216278499): remove this workaround after fixing.
+    true_flat_values = tf.fill(
+        utils.dims_list(false_value.flat_values), true_scalar_value)
+    true_value = false_value.with_flat_values(true_flat_values)
+  else:
+    true_value = true_scalar_value
+  return tf.where(condition, true_value, false_value)

@@ -55,6 +55,36 @@ class PoolingTest(tf.test.TestCase, parameterized.TestCase):
                             ragged_rank=1),
           }),
       dict(
+          description='max_no_inf pooling of edge features to connected nodes',
+          pooling='max_no_inf',
+          node_set=gt.NodeSet.from_fields(sizes=as_tensor([3]), features={}),
+          edge_set=gt.EdgeSet.from_fields(
+              sizes=as_tensor([4]),
+              adjacency=adj.HyperAdjacency.from_indices({
+                  const.SOURCE: ('node', as_tensor([1, 1, 2, 2])),
+                  const.TARGET: ('node', as_tensor([0, 0, 1, 1]))
+              }),
+              features={
+                  'scalar':
+                      as_tensor([1., 2., 3., 4.]),
+                  'ragged':
+                      as_ragged(
+                          [[[1, 8], [2, 7]], [[3, 6]], [[4, 5]], [[5, 4]]],
+                          ragged_rank=1)
+              }),
+          expected_source_fields={
+              'scalar':
+                  as_tensor([0., 2., 4.]),
+              'ragged':
+                  as_ragged([[], [[3, 8], [2, 7]], [[5, 5]]], ragged_rank=1),
+          },
+          expected_target_fields={
+              'scalar':
+                  as_tensor([2., 4., 0.]),
+              'ragged':
+                  as_ragged([[[3, 8], [2, 7]], [[5, 5]], []], ragged_rank=1),
+          }),
+      dict(
           description='sum pooling of edge features to source and targed nodes',
           pooling='sum',
           node_set=gt.NodeSet.from_fields(sizes=as_tensor([1, 2]), features={}),
@@ -107,6 +137,7 @@ class PoolingTest(tf.test.TestCase, parameterized.TestCase):
                           node_set: gt.NodeSet, edge_set: gt.EdgeSet,
                           expected_source_fields: Mapping[str, const.Field],
                           expected_target_fields: Mapping[str, const.Field]):
+    del description
     graph = gt.GraphTensor.from_pieces(
         node_sets={'node': node_set}, edge_sets={'edge': edge_set})
 
@@ -171,6 +202,7 @@ class PoolingTest(tf.test.TestCase, parameterized.TestCase):
                              node_set: gt.NodeSet,
                              expected_context_fields: Mapping[str,
                                                               const.Field]):
+    del description
     graph = gt.GraphTensor.from_pieces(node_sets={'node': node_set})
 
     for fname, expected in expected_context_fields.items():
@@ -230,6 +262,7 @@ class PoolingTest(tf.test.TestCase, parameterized.TestCase):
                              edge_set: gt.EdgeSet,
                              expected_context_fields: Mapping[str,
                                                               const.Field]):
+    del description
     graph = gt.GraphTensor.from_pieces(edge_sets={'edge': edge_set})
 
     for fname, expected in expected_context_fields.items():
@@ -288,6 +321,7 @@ class BroadcastingTest(tf.test.TestCase, parameterized.TestCase):
                             edge_set: gt.EdgeSet,
                             expected_source_fields: Mapping[str, const.Field],
                             expected_target_fields: Mapping[str, const.Field]):
+    del description
     graph = gt.GraphTensor.from_pieces(
         node_sets={'node': node_set}, edge_sets={'edge': edge_set})
 
@@ -352,6 +386,7 @@ class BroadcastingTest(tf.test.TestCase, parameterized.TestCase):
   def testNodeFieldFromContext(self, description: str, context: gt.Context,
                                node_set: gt.NodeSet,
                                expected_node_fields: Mapping[str, const.Field]):
+    del description
     graph = gt.GraphTensor.from_pieces(
         context=context, node_sets={'node': node_set})
 
@@ -416,6 +451,7 @@ class BroadcastingTest(tf.test.TestCase, parameterized.TestCase):
   def testEdgeFieldFromContext(self, description: str, context: gt.Context,
                                edge_set: gt.EdgeSet,
                                expected_edge_fields: Mapping[str, const.Field]):
+    del description
     graph = gt.GraphTensor.from_pieces(
         context=context, edge_sets={'edge': edge_set})
 
@@ -468,6 +504,7 @@ class FirstNodeOpsTest(tf.test.TestCase, parameterized.TestCase):
   ])
   def testGatherFirstNode(self, description: str, node_set: gt.NodeSet,
                           expected_fields: Mapping[str, const.Field]):
+    del description
     graph = gt.GraphTensor.from_pieces(node_sets={'node': node_set})
 
     for fname, expected in expected_fields.items():
@@ -639,6 +676,7 @@ class ShuffleOpsTest(tf.test.TestCase, parameterized.TestCase):
       node_set: gt.NodeSet,
       edge_set: gt.EdgeSet,
       expected_fields: Mapping[GraphPiece, Mapping[str, const.Field]]):
+    del description
     graph = gt.GraphTensor.from_pieces(
         context,
         {'node': node_set},
@@ -654,6 +692,173 @@ class ShuffleOpsTest(tf.test.TestCase, parameterized.TestCase):
     for fname, expected in expected_fields.get(gt.EdgeSet, {}).items():
       self.assertAllEqual(expected, shuffled.edge_sets['edge'].features[fname])
 
+
+class ReduceOpsTest(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.parameters([
+      dict(
+          reduce_op=tf.math.unsorted_segment_max,
+          values=as_tensor([tf.float32.min, tf.float32.max,
+                            float('nan')]),
+          segment_ids=as_tensor([0, 1, 2]),
+          num_segments=3,
+          empty_set_value=-1,
+          expected_result=as_tensor(
+              [tf.float32.min, tf.float32.max,
+               float('nan')])),
+      dict(
+          reduce_op=tf.math.unsorted_segment_min,
+          values=as_tensor([tf.float32.min, tf.float32.max]),
+          segment_ids=as_tensor([0, 1]),
+          num_segments=3,
+          empty_set_value=-1,
+          expected_result=as_tensor([tf.float32.min, tf.float32.max, -1.])),
+      dict(
+          reduce_op=tf.math.unsorted_segment_max,
+          values=as_tensor([1., 2.]),
+          segment_ids=as_tensor([1, 1]),
+          num_segments=3,
+          empty_set_value=-1,
+          expected_result=as_tensor([-1., 2., -1.])),
+      dict(
+          reduce_op=tf.math.unsorted_segment_min,
+          values=as_tensor([[1., 2.], [3., 4.]]),
+          segment_ids=as_tensor([0, 2]),
+          num_segments=3,
+          empty_set_value=0,
+          expected_result=as_tensor([[1., 2.], [0., 0.], [3., 4.]])),
+      dict(
+          reduce_op=tf.math.unsorted_segment_max,
+          values=as_ragged([[1., 2., 3.], [2., 1.], [1.]]),
+          segment_ids=as_tensor([0, 0, 2]),
+          num_segments=3,
+          empty_set_value=0,
+          expected_result=as_ragged([[2., 2., 3.], [], [1.]])),
+      dict(
+          reduce_op=tf.math.unsorted_segment_min,
+          values=as_ragged([[[1., 2.], [3., 4.]], [], [[5., 6.]]],
+                           ragged_rank=1),
+          segment_ids=as_tensor([1, 2, 1]),
+          num_segments=3,
+          empty_set_value=0,
+          expected_result=as_ragged([[], [[1., 2.], [3., 4.]], []],
+                                    ragged_rank=1)),
+      dict(
+          reduce_op=tf.math.unsorted_segment_min,
+          values=tf.constant([], tf.int32, shape=[0, 2]),
+          segment_ids=tf.constant([], tf.int32),
+          num_segments=3,
+          empty_set_value=0,
+          expected_result=as_tensor([[0, 0], [0, 0], [0, 0]])),
+  ])
+  def testWithEmptySetValue(self, reduce_op: ops.UnsortedReduceOp,
+                            values: const.Field, segment_ids: tf.Tensor,
+                            num_segments: tf.Tensor, empty_set_value,
+                            expected_result):
+
+    reduce_op = ops.with_empty_set_value(reduce_op, empty_set_value)
+    self.assertAllEqual(
+        reduce_op(values, segment_ids, num_segments), expected_result)
+
+  @parameterized.parameters([
+      dict(
+          values=as_tensor([tf.float32.min, tf.float32.max, float('nan')]),
+          segment_ids=as_tensor([0, 1, 2]),
+          num_segments=3,
+          replacement_value=-1,
+          expected_result=as_tensor([-1., tf.float32.max, float('nan')])),
+      dict(
+          values=as_tensor([1., 2.]),
+          segment_ids=as_tensor([1, 1]),
+          num_segments=3,
+          replacement_value=-1,
+          expected_result=as_tensor([-1., 2., -1.])),
+      dict(
+          values=as_tensor([[1., 2.], [3., 4.]]),
+          segment_ids=as_tensor([0, 2]),
+          num_segments=3,
+          replacement_value=0,
+          expected_result=as_tensor([[1., 2.], [0., 0.], [3., 4.]])),
+      dict(
+          values=as_ragged([[1., 2., 3.], [2., 1.], [tf.float32.min]]),
+          segment_ids=as_tensor([0, 0, 2]),
+          num_segments=3,
+          replacement_value=1,
+          expected_result=as_ragged([[2., 2., 3.], [], [1.]])),
+      dict(
+          values=as_ragged([[[1., 2.], [3., 4.]], [], [[5., 6.]]],
+                           ragged_rank=1),
+          segment_ids=as_tensor([1, 2, 1]),
+          num_segments=3,
+          replacement_value=0,
+          expected_result=as_ragged([[], [[5., 6.], [3., 4.]], []],
+                                    ragged_rank=1)),
+      dict(
+          values=tf.constant([], tf.int32, shape=[0, 2]),
+          segment_ids=tf.constant([], tf.int32),
+          num_segments=3,
+          replacement_value=0,
+          expected_result=as_tensor([[0, 0], [0, 0], [0, 0]])),
+  ])
+  def testWithMinusInfReplaced(self,
+                               values: const.Field, segment_ids: tf.Tensor,
+                               num_segments: tf.Tensor, replacement_value,
+                               expected_result):
+
+    reduce_op = ops.with_minus_inf_replaced(tf.math.unsorted_segment_max,
+                                            replacement_value)
+    self.assertAllEqual(
+        reduce_op(values, segment_ids, num_segments), expected_result)
+
+  @parameterized.parameters([
+      dict(
+          values=as_tensor([tf.float32.min, tf.float32.max, float('nan')]),
+          segment_ids=as_tensor([0, 1, 2]),
+          num_segments=3,
+          replacement_value=0,
+          expected_result=as_tensor([tf.float32.min, 0., float('nan')])),
+      dict(
+          values=as_tensor([1., 2.]),
+          segment_ids=as_tensor([1, 1]),
+          num_segments=3,
+          replacement_value=-1,
+          expected_result=as_tensor([-1., 1., -1.])),
+      dict(
+          values=as_tensor([[1., 2.], [3., 4.]]),
+          segment_ids=as_tensor([0, 2]),
+          num_segments=3,
+          replacement_value=0,
+          expected_result=as_tensor([[1., 2.], [0., 0.], [3., 4.]])),
+      dict(
+          values=as_ragged([[1., 2., 3.], [2., 1.], [tf.float32.max]]),
+          segment_ids=as_tensor([0, 0, 2]),
+          num_segments=3,
+          replacement_value=1,
+          expected_result=as_ragged([[1., 1., 3.], [], [1.]])),
+      dict(
+          values=as_ragged([[[1., 2.], [3., 4.]], [], [[5., 6.]]],
+                           ragged_rank=1),
+          segment_ids=as_tensor([1, 2, 1]),
+          num_segments=3,
+          replacement_value=0,
+          expected_result=as_ragged([[], [[1., 2.], [3., 4.]], []],
+                                    ragged_rank=1)),
+      dict(
+          values=tf.constant([], tf.int32, shape=[0, 2]),
+          segment_ids=tf.constant([], tf.int32),
+          num_segments=3,
+          replacement_value=0,
+          expected_result=as_tensor([[0, 0], [0, 0], [0, 0]])),
+  ])
+  def testWithPlusInfReplaced(self,
+                              values: const.Field, segment_ids: tf.Tensor,
+                              num_segments: tf.Tensor, replacement_value,
+                              expected_result):
+
+    reduce_op = ops.with_plus_inf_replaced(tf.math.unsorted_segment_min,
+                                           replacement_value)
+    self.assertAllEqual(
+        reduce_op(values, segment_ids, num_segments), expected_result)
 
 if __name__ == '__main__':
   tf.test.main()
