@@ -47,7 +47,7 @@ IncidentNodeTag = int
 
 # Generic pool and broadcast ops allow the special case tfgnn.CONTEXT (a str)
 # in addition to pooling from or broadcasting to tfgnn.SOURCE and tfgnn.TARGET.
-IncidentNodeOrContextTag = Optional[Union[IncidentNodeTag, str]]
+IncidentNodeOrContextTag = Union[IncidentNodeTag, str]
 
 FieldName = str  # Name of a context, node set or edge set field
 NodeSetName = str  # Name of a NodeSet within a GraphTensor

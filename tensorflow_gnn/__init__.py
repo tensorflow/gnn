@@ -37,6 +37,10 @@ DEFAULT_STATE_NAME = graph_constants.DEFAULT_STATE_NAME
 SOURCE = graph_constants.SOURCE
 TARGET = graph_constants.TARGET
 
+# Type annotations for tags
+IncidentNodeTag = graph_constants.IncidentNodeTag
+IncidentNodeOrContextTag = graph_constants.IncidentNodeOrContextTag
+
 # Encoded names of implicit features.
 SIZE_NAME = graph_constants.SIZE_NAME
 SOURCE_NAME = graph_constants.SOURCE_NAME
