@@ -31,8 +31,6 @@ class ExportedKerasNamesTest(tf.test.TestCase):
     self.assertIsSubclass(tfgnn.keras.layers.Readout, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.ReadoutFirstNode, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.AnyToAnyConvolutionBase, Layer)
-    self.assertIsSubclass(tfgnn.keras.layers.ConvolutionFromEdgeSetUpdate,
-                          Layer)
     self.assertIsSubclass(tfgnn.keras.layers.SimpleConvolution, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.NextStateFromConcat, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.ResidualNextState, Layer)

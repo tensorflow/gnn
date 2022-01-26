@@ -31,6 +31,58 @@ class SimpleConvolutionTest(tf.test.TestCase, parameterized.TestCase):
     input_graph = _make_test_graph_01into2(values)
     message_fn = tf.keras.layers.Dense(1, use_bias=False,
                                        kernel_initializer="ones")
+    input_kwargs = {}
+    if include_edges:
+      input_kwargs["sender_edge_feature"] = const.DEFAULT_STATE_NAME
+    # Use the SOURCE node feature, irrespective of direction
+    # (just to test kwargs and their defaults, not for any modeling reason).
+    if reverse:
+      input_kwargs["sender_node_feature"] = None
+    else:
+      input_kwargs["receiver_feature"] = None
+
+    conv = convolutions.SimpleConvolution(
+        message_fn, **input_kwargs,
+        receiver_tag=const.SOURCE if reverse else const.TARGET)
+
+    # Build a Model around the Layer, possibly saved and restored.
+    inputs = tf.keras.layers.Input(type_spec=input_graph.spec)
+    outputs = conv(inputs, edge_set_name="edges")
+    model = tf.keras.Model(inputs, outputs)
+    _ = model(input_graph)  # Trigger building.
+    if reload_model:
+      export_dir = os.path.join(self.get_temp_dir(), "simple-convolution")
+      model.save(export_dir, include_optimizer=False)
+      if reload_model == ReloadModel.KERAS:
+        model = tf.keras.models.load_model(export_dir)
+      else:
+        model = tf.saved_model.load(export_dir)
+
+    actual = model(input_graph)
+    if reverse:
+      expected = tf.constant([
+          [4. + include_edges*1.],
+          [8. + include_edges*2.],
+          [0.]])  # No outgoing edge.
+    else:
+      expected = tf.constant([
+          [0.], [0.],  # No incoming edges,
+          [(4. + 8.) + include_edges*(1. + 2.)]])
+    self.assertAllEqual(expected, actual)
+
+  # TODO(b/215486977): Remove this, along with the compat logic that it tests.
+  @parameterized.named_parameters(
+      ("Forward", False, False, ReloadModel.SKIP),
+      ("ForwardWithEdgeFeatureRestoredKeras", True, False, ReloadModel.KERAS),
+      ("BackwardRestoredKeras", False, True, ReloadModel.KERAS),
+      ("BackwardWithEdgeFeatureRestored", True, True, ReloadModel.SAVED_MODEL))
+  def testOldInitArgs(self, include_edges, reverse, reload_model):
+    """Tests init arg names from before AnyToAnyConvolutionBase."""
+    values = dict(edges=tf.constant([[1.], [2.]]),
+                  nodes=tf.constant([[4.], [8.], [16.]]))
+    input_graph = _make_test_graph_01into2(values)
+    message_fn = tf.keras.layers.Dense(1, use_bias=False,
+                                       kernel_initializer="ones")
     conv = convolutions.SimpleConvolution(
         message_fn,
         node_input_tags=[const.TARGET] if reverse else [const.SOURCE],
@@ -43,7 +95,7 @@ class SimpleConvolutionTest(tf.test.TestCase, parameterized.TestCase):
     model = tf.keras.Model(inputs, outputs)
     _ = model(input_graph)  # Trigger building.
     if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(), "simple-convolution")
+      export_dir = os.path.join(self.get_temp_dir(), "simple-convolution-old")
       model.save(export_dir, include_optimizer=False)
       if reload_model == ReloadModel.KERAS:
         model = tf.keras.models.load_model(export_dir)

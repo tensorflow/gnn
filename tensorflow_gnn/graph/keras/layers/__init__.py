@@ -21,7 +21,6 @@ Readout = graph_ops.Readout
 ReadoutFirstNode = graph_ops.ReadoutFirstNode
 
 AnyToAnyConvolutionBase = convolution_base.AnyToAnyConvolutionBase
-ConvolutionFromEdgeSetUpdate = convolutions.ConvolutionFromEdgeSetUpdate
 SimpleConvolution = convolutions.SimpleConvolution
 
 NextStateFromConcat = next_state.NextStateFromConcat
