@@ -137,6 +137,7 @@ assert_constraints = schema_validation.assert_constraints
 
 # Prune imported module symbols so they're not accessible implicitly,
 # except those meant to be used as subpackages, like tfgnn.keras.*.
+# Please use the same order as for the import statements at the top.
 del adjacency
 del graph_constants
 del graph_tensor
@@ -146,8 +147,8 @@ del graph_tensor_ops
 del graph_tensor_pprint
 del graph_tensor_random
 del normalization_ops
-del graph_schema
 del padding_ops
 del preprocessing_common
 del schema_utils
 del schema_validation
+del graph_schema

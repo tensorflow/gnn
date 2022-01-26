@@ -8,5 +8,6 @@ ConvGNNBuilder = builders.ConvGNNBuilder
 
 # Prune imported module symbols so they're not accessible implicitly,
 # except those meant to be used as subpackages, like tfgnn.keras.layers.
-del keras_tensors
+# Please use the same order as for the import statements at the top.
 del builders
+del keras_tensors

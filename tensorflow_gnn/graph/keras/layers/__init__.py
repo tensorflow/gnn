@@ -36,11 +36,12 @@ GATv2EdgePool = gat_v2.GATv2EdgePool
 GATv2GraphUpdate = gat_v2.GATv2GraphUpdate
 
 # Prune imported module symbols so they're not accessible implicitly.
+# Please use the same order as for the import statements at the top.
+del convolution_base
 del convolutions
+del gat_v2
 del graph_ops
 del graph_update
 del map_features
 del next_state
 del parse_example
-del gat_v2
-del convolution_base
