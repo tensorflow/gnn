@@ -39,10 +39,14 @@ class SimpleConvolution(convolution_base.AnyToAnyConvolutionBase):
   ```
 
   Init args:
-    message_fn: A Keras layer that takes input features concatenated into a
-      single tensor and computes the individual messages.
+    message_fn: A Keras layer that computes the individual messages from the
+      combined input features (see combine_type).
     reduce_type: Specifies how to pool the messages to receivers. Defaults to
       "sum", can be any name from tfgnn.get_registered_reduce_operation_names().
+    combine_type: Specifies how to combine the list of inputs before passing
+      them to the message_fn. Supported values are:
+      "concat" (default): concatenates inputs along the last axis;
+      "sum": adds inputs, requires them to have the same shape.
     receiver_tag:  one of `tfgnn.SOURCE`, `tfgnn.TARGET` or `tfgnn.CONTEXT`.
       Selects the receiver of the pooled messages.
       If set to `tfgnn.SOURCE` or `tfgnn.TARGET`, the layer can be called for
@@ -74,6 +78,7 @@ class SimpleConvolution(convolution_base.AnyToAnyConvolutionBase):
       message_fn: tf.keras.layers.Layer,
       reduce_type: str = "sum",
       *,
+      combine_type: str = "concat",
       receiver_tag: const.IncidentNodeTag = const.TARGET,
       receiver_feature: const.FieldName = const.DEFAULT_STATE_NAME,
       sender_node_feature: Optional[
@@ -96,11 +101,17 @@ class SimpleConvolution(convolution_base.AnyToAnyConvolutionBase):
 
     self._message_fn = message_fn
     self._reduce_type = reduce_type
+    if combine_type not in const.COMBINE_OPS:
+      raise ValueError(
+          f"Unknown combine_type=`{combine_type}`, "
+          f"supported values are: {list(const.COMBINE_OPS.keys())}")
+    self._combine_type = combine_type
 
   def get_config(self):
     return dict(
         message_fn=self._message_fn,
         reduce_type=self._reduce_type,
+        combine_type=self._combine_type,
         **super().get_config())
 
   def convolve(self, *,
@@ -119,8 +130,8 @@ class SimpleConvolution(convolution_base.AnyToAnyConvolutionBase):
       inputs.append(broadcast_from_sender_node(sender_node_input))
     if receiver_input is not None:
       inputs.append(broadcast_from_receiver(receiver_input))
-    # Combine inputs by "concat". We can support other combiners in the future.
-    combined_input = tf.concat(inputs, axis=-1)
+    # Combine inputs.
+    combined_input = const.COMBINE_OPS[self._combine_type](inputs)
 
     # Compute the result.
     messages = self._message_fn(combined_input)

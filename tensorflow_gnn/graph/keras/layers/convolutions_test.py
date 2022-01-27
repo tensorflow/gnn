@@ -4,6 +4,7 @@ import enum
 import os
 
 from absl.testing import parameterized
+import numpy as np
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
@@ -25,7 +26,7 @@ class SimpleConvolutionTest(tf.test.TestCase, parameterized.TestCase):
       ("ForwardWithEdgeFeatureRestoredKeras", True, False, ReloadModel.KERAS),
       ("BackwardRestoredKeras", False, True, ReloadModel.KERAS),
       ("BackwardWithEdgeFeatureRestored", True, True, ReloadModel.SAVED_MODEL))
-  def test(self, include_edges, reverse, reload_model):
+  def testSourcesAndReceiver(self, include_edges, reverse, reload_model):
     values = dict(edges=tf.constant([[1.], [2.]]),
                   nodes=tf.constant([[4.], [8.], [16.]]))
     input_graph = _make_test_graph_01into2(values)
@@ -42,7 +43,7 @@ class SimpleConvolutionTest(tf.test.TestCase, parameterized.TestCase):
       input_kwargs["receiver_feature"] = None
 
     conv = convolutions.SimpleConvolution(
-        message_fn, **input_kwargs,
+        message_fn, combine_type="sum", **input_kwargs,
         receiver_tag=const.SOURCE if reverse else const.TARGET)
 
     # Build a Model around the Layer, possibly saved and restored.
@@ -58,6 +59,10 @@ class SimpleConvolutionTest(tf.test.TestCase, parameterized.TestCase):
       else:
         model = tf.saved_model.load(export_dir)
 
+    # combine_type="sum" uses the same kernel size for any number of inputs.
+    self.assertEqual(tf.TensorShape([1, 1]),
+                     conv._message_fn.kernel.shape)
+
     actual = model(input_graph)
     if reverse:
       expected = tf.constant([
@@ -68,6 +73,37 @@ class SimpleConvolutionTest(tf.test.TestCase, parameterized.TestCase):
       expected = tf.constant([
           [0.], [0.],  # No incoming edges,
           [(4. + 8.) + include_edges*(1. + 2.)]])
+    self.assertAllEqual(expected, actual)
+
+  @parameterized.named_parameters(("Concat", "concat"), ("Sum", "sum"))
+  def testCombineType(self, combine_type):
+    values = dict(nodes=tf.constant([[1.], [2.], [4.]]))
+    input_graph = _make_test_graph_01into2(values)
+
+    if combine_type == "sum":
+      kernel = np.array([[1.]])
+      sender_scale = 1.
+    elif combine_type == "concat":
+      kernel = np.array([[2.], [1.]])
+      sender_scale = 2.
+    else:
+      self.fail(f"missing a case for combine_type='{combine_type}'")
+    message_fn = tf.keras.layers.Dense(
+        1, use_bias=False,
+        kernel_initializer=tf.keras.initializers.Constant(kernel))
+
+    if combine_type == "concat":
+      combine_type_kwarg = dict()  # Expected as the default.
+    else:
+      combine_type_kwarg = dict(combine_type=combine_type)
+    conv = convolutions.SimpleConvolution(
+        message_fn, receiver_tag=const.SOURCE, **combine_type_kwarg)
+
+    actual = conv(input_graph, edge_set_name="edges")
+    expected = tf.constant([
+        [1. + sender_scale*4.],
+        [2. + sender_scale*4.],
+        [0.]])  # No edges.
     self.assertAllEqual(expected, actual)
 
   # TODO(b/215486977): Remove this, along with the compat logic that it tests.

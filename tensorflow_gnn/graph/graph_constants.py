@@ -1,5 +1,6 @@
 """Constant strings used throughout the package."""
 
+import functools
 import re
 from typing import Any, List, Mapping, Optional, Sequence, Tuple, Union
 
@@ -80,3 +81,11 @@ validate_internal_results = True
 #
 # IMPORTANT: On TPUs tf.int64 is not implemented.
 default_indices_dtype = tf.int32
+
+# Combiner operations for *fixed* lists of inputs.
+# (This is different from reduce ops over variable-size tensors.)
+# Move to a separate file if they become more than simple name-binding.
+COMBINE_OPS = {
+    'concat': functools.partial(tf.concat, axis=-1),
+    'sum': tf.math.add_n,
+}
