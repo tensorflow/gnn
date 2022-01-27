@@ -31,12 +31,12 @@ class ConvGNNBuilderTest(tf.test.TestCase):  # , parameterized.TestCase):
 
     def sum_sources_conv(_):
       return convolutions.SimpleConvolution(
-          node_input_tags=[const.SOURCE],
-          edge_input_feature=const.DEFAULT_STATE_NAME,
           message_fn=tf.keras.layers.Dense(
               1,
               use_bias=False,
               kernel_initializer=tf.keras.initializers.Ones()),
+          sender_edge_feature=const.DEFAULT_STATE_NAME,
+          receiver_feature=None,
           reduce_type="sum")
 
     def add_edges_state(_):
@@ -78,14 +78,14 @@ class ConvGNNBuilderTest(tf.test.TestCase):  # , parameterized.TestCase):
                                                   ("c", "a", [100.]),
                                                   ("b", "a", [100.])])
     conv_sum_sources = convolutions.SimpleConvolution(
-        node_input_tags=[const.SOURCE],
         message_fn=tf.keras.layers.Dense(
             1, use_bias=False, kernel_initializer=tf.keras.initializers.Ones()),
+        receiver_feature=None,
         reduce_type="sum")
     conv_sum_endpoints = convolutions.SimpleConvolution(
-        # node_input_tags=[const.SOURCE, const.TARGET],  # The default.
         message_fn=tf.keras.layers.Dense(
             1, use_bias=False, kernel_initializer=tf.keras.initializers.Ones()),
+        # receiver_feature=const.DEFAULT_STATE_NAME,  # The default.
         reduce_type="sum")
     state_add_edges = next_state_lib.NextStateFromConcat(
         tf.keras.layers.Dense(

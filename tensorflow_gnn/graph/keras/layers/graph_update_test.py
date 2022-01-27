@@ -35,14 +35,14 @@ class GraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
     def get_kwargs(graph_tensor_spec):
       self.assertEqual(graph_tensor_spec, input_graph.spec)
       conv_sum_sources = convolutions.SimpleConvolution(
-          node_input_tags=[const.SOURCE],
           message_fn=tf.keras.layers.Dense(
               1, use_bias=False, kernel_initializer="ones"),
+          receiver_feature=None,
           reduce_type="sum")
       conv_sum_endpoints = convolutions.SimpleConvolution(
-          # node_input_tags=[const.SOURCE, const.TARGET],  # The default.
           message_fn=tf.keras.layers.Dense(
               1, use_bias=False, kernel_initializer="ones"),
+          # receiver_feature=const.DEFAULT_FEATURE_NAME,  # The default.
           reduce_type="sum")
       state_add_edges = next_state_lib.NextStateFromConcat(
           tf.keras.layers.Dense(
