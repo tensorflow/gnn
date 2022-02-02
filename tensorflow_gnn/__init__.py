@@ -119,6 +119,7 @@ register_reduce_operation = graph_tensor_ops.register_reduce_operation
 shuffle_scalar_components = graph_tensor_ops.shuffle_scalar_components
 
 # Normalization operations.
+softmax = normalization_ops.softmax
 softmax_edges_per_node = normalization_ops.softmax_edges_per_node
 
 # Schema conversion and I/O functions.
