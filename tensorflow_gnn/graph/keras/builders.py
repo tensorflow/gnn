@@ -30,12 +30,13 @@ class ConvGNNBuilder:
     m_dims = {'a->b': 64, 'b->c': 32, 'c->a': 32}
 
     # ConvGNNBuilder initialization:
-    gnn = tfgnn.ConvGNNBuilder(
-      lambda edge_set_name: tfgnn.SimpleConvolution(
-         tf.keras.layers.Dense(m_dims[edge_set_name])),
-      lambda node_set_name: tfgnn.NextStateFromConcat(
-         tf.keras.layers.Dense(h_dims[node_set_name]))
-    )
+    gnn = tfgnn.keras.ConvGNNBuilder(
+      lambda edge_set_name, receiver_tag: tfgnn.keras.layers.SimpleConvolution(
+          tf.keras.layers.Dense(m_dims[edge_set_name]),
+          receiver_tag=receiver_tag),
+      lambda node_set_name: tfgnn.keras.layers.NextStateFromConcat(
+          tf.keras.layers.Dense(h_dims[node_set_name])),
+      receiver_tag=tfgnn.TARGET)
 
     # Two rounds of message passing to target node sets:
     model = tf.keras.models.Sequential([
@@ -44,29 +45,41 @@ class ConvGNNBuilder:
     ])
 
   Init args:
-    convolutions_factory: callable that takes as an input edge set name and
-      returns graph convolution as EdgesToNodePooling layer.
-    nodes_next_state_factory: callable that takes as an input node set name and
-      returns node set next state as NextStateForNodeSet layer.
+    convolutions_factory: called as
+      `convolutions_factory(edge_set_name, receiver_tag=receiver_tag)`
+      to return the convolution layer for the edge set towards the specified
+      receiver. The `receiver_tag` kwarg is omitted from the call if it is
+      omitted from the init args (but that usage is deprecated).
+    nodes_next_state_factory: called as
+      `nodes_next_state_factory(node_set_name)` to return the next-state layer
+      for the respectve NodeSetUpdate.
+    receiver_tag: Set this to `tfgnn.TARGET` or `tfgnn.SOURCE` to choose which
+      incident node of each edge receives the convolution result.
+      DEPRECATED: This used to be optional and effectivcely default to TARGET.
+      New code is expected to set it in any case.
   """
 
   def __init__(
-      self, convolutions_factory: Callable[
-          [const.EdgeSetName], graph_update_lib.EdgesToNodePoolingLayer],
+      self,
+      convolutions_factory: Callable[
+          ..., graph_update_lib.EdgesToNodePoolingLayer],
       nodes_next_state_factory: Callable[[const.NodeSetName],
-                                         next_state_lib.NextStateForNodeSet]):
+                                         next_state_lib.NextStateForNodeSet],
+      *,
+      receiver_tag: Optional[const.IncidentNodeOrContextTag] = None):
     self._convolutions_factory = convolutions_factory
     self._nodes_next_state_factory = nodes_next_state_factory
+    self._receiver_tag = receiver_tag
 
   def Convolve(
       self,
       node_sets: Optional[Set[const.NodeSetName]] = None
   ) -> tf.keras.layers.Layer:
-    """Constructs GraphUpdate layer for the set of target nodes.
+    """Constructs GraphUpdate layer for the set of receiver node sets.
 
     This method contructs NodeSetUpdate layers from convolutions and next state
-    factories (specified during the class construction) for the target node
-    sets. The resulting node set update layers are combined and returned as a
+    factories (specified during the class construction) for the given node
+    sets. The resulting node set update layers are combined and returned as one
     GraphUpdate layer.
 
     Args:
@@ -74,27 +87,35 @@ class ConvGNNBuilder:
         parameter is equivalent to updating all node sets.
 
     Returns:
-      GraphUpdate layer wrapped with OncallBuilder for delayed building.
+      A GraphUpdate layer, with building deferred to the first call.
     """
 
     def _Init(graph_spec: gt.GraphTensorSpec) -> Mapping[str, Any]:
-      target_to_inputs = collections.defaultdict(dict)
-      target_node_sets = set(
+      if self._receiver_tag is None:
+        receiver_tag = const.TARGET
+        receiver_tag_kwarg = dict()
+      else:
+        receiver_tag = self._receiver_tag
+        receiver_tag_kwarg = dict(receiver_tag=receiver_tag)
+      receiver_to_inputs = collections.defaultdict(dict)
+      receiver_node_sets = set(
           graph_spec.node_sets_spec if node_sets is None else node_sets)
       for edge_set_name, edge_set_spec in graph_spec.edge_sets_spec.items():
-        if not isinstance(edge_set_spec.adjacency_spec, adj.AdjacencySpec):
+        if not isinstance(edge_set_spec.adjacency_spec, adj.HyperAdjacencySpec):
           raise ValueError('Unsupported adjacency type {}'.format(
               type(edge_set_spec.adjacency_spec).__name__))
-        target_node_set = edge_set_spec.adjacency_spec.target_name
-        if target_node_set in target_node_sets:
-          target_to_inputs[target_node_set][
-              edge_set_name] = self._convolutions_factory(edge_set_name)
+        receiver_node_set = edge_set_spec.adjacency_spec.node_set_name(
+            receiver_tag)
+        if receiver_node_set in receiver_node_sets:
+          receiver_to_inputs[receiver_node_set][
+              edge_set_name] = self._convolutions_factory(edge_set_name,
+                                                          **receiver_tag_kwarg)
 
       node_set_updates = dict()
-      for node_set in target_node_sets:
+      for node_set in receiver_node_sets:
         next_state = self._nodes_next_state_factory(node_set)
         node_set_updates[node_set] = graph_update_lib.NodeSetUpdate(
-            edge_set_inputs=target_to_inputs[node_set], next_state=next_state)
+            edge_set_inputs=receiver_to_inputs[node_set], next_state=next_state)
       return dict(node_sets=node_set_updates)
 
     return graph_update_lib.GraphUpdate(deferred_init_callback=_Init)

@@ -1,6 +1,8 @@
 """Tests for graph_update Keras layers."""
 
 import os
+
+from absl.testing import parameterized
 import tensorflow as tf
 
 from tensorflow_gnn.graph import adjacency as adj
@@ -13,7 +15,7 @@ from tensorflow_gnn.graph.keras.layers import next_state as next_state_lib
 IdentityLayer = tf.keras.layers.Layer
 
 
-class ConvGNNBuilderTest(tf.test.TestCase):  # , parameterized.TestCase):
+class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
 
   def testHomogeneousCase(self):
     input_graph = _make_test_graph_with_singleton_node_sets(
@@ -26,6 +28,32 @@ class ConvGNNBuilderTest(tf.test.TestCase):  # , parameterized.TestCase):
                         graph.node_sets["node"][const.DEFAULT_STATE_NAME])
     self.assertAllEqual([[100.]],
                         graph.edge_sets["node->node"][const.DEFAULT_STATE_NAME])
+
+  @parameterized.named_parameters(
+      ("Default", dict(), [1.], [1., 1., 1.]),  # Behaves like Target.
+      ("Target", dict(receiver_tag=const.TARGET), [1.], [1., 1., 1.]),
+      ("Source", dict(receiver_tag=const.SOURCE), [1., 1., 1.], [1.]))
+  def testReceiverTag(self, receiver_tag_kwarg, expected_a, expected_b):
+    input_graph = _make_test_graph_with_singleton_node_sets(
+        [("a", [1.]), ("b", [1.])], [("a", "b", [100.])])
+    if receiver_tag_kwarg:
+      # pylint: disable=g-long-lambda
+      gnn_builder = builders.ConvGNNBuilder(
+          lambda _, *, receiver_tag: convolutions.SimpleConvolution(
+              IdentityLayer(), receiver_tag=receiver_tag),
+          lambda _: next_state_lib.NextStateFromConcat(IdentityLayer()),
+          **receiver_tag_kwarg)
+    else:
+      gnn_builder = builders.ConvGNNBuilder(
+          lambda _: convolutions.SimpleConvolution(IdentityLayer()),
+          lambda _: next_state_lib.NextStateFromConcat(IdentityLayer()))
+    graph = gnn_builder.Convolve()(input_graph)
+    self.assertAllEqual([expected_a],
+                        graph.node_sets["a"][const.DEFAULT_STATE_NAME])
+    self.assertAllEqual([expected_b],
+                        graph.node_sets["b"][const.DEFAULT_STATE_NAME])
+    self.assertAllEqual([[100.]],  # Unchanged.
+                        graph.edge_sets["a->b"][const.DEFAULT_STATE_NAME])
 
   def testModelSaving(self):
 
