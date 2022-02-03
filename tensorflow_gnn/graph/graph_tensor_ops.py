@@ -3,6 +3,7 @@
 See the `operations.md` document in the guide for an explanation of how to use
 this.
 """
+import functools
 from typing import Any, Callable, List, Mapping, Optional, Union
 import tensorflow as tf
 
@@ -19,7 +20,7 @@ IncidentNodeTag = const.IncidentNodeTag
 GraphTensor = gt.GraphTensor
 GraphKerasTensor = kt.GraphKerasTensor
 
-# Unsorted reduce operation.
+# Unsorted reduce operation (for a variable number of graph items).
 #
 # Could be any of tf.math.unsorted_segment_{sum|min|max|mean|...}.
 #
@@ -33,6 +34,18 @@ GraphKerasTensor = kt.GraphKerasTensor
 # Returns:
 #   Field values aggregated over segments_ids.
 UnsortedReduceOp = Callable[[Field, tf.Tensor, Union[tf.Tensor, int]], Field]
+
+
+# Combine operation (for a fixed list of tensors).
+#
+# Could be tf.math.add_n(....) or tf.concat(..., axis=-1)
+#
+# Args:
+#  inputs: a list of Tensors or RaggedTensors.
+#
+# Returns:
+#   A Tensor or RaggedTensor.
+CombineOp = Callable[[List[Field]], Field]
 
 
 def broadcast_node_to_edges(graph_tensor: GraphTensor,
@@ -578,6 +591,15 @@ _REGISTERED_REDUCE_OPS = {
 }
 
 
+def _resolve_reduce_op(reduce_type: str) -> UnsortedReduceOp:
+  try:
+    return _REGISTERED_REDUCE_OPS[reduce_type]
+  except KeyError:
+    raise ValueError(  # pylint: disable=raise-missing-from
+        f'Unknown reduce type {reduce_type}. '
+        f'Known reduce types are: {get_registered_reduce_operation_names()}')
+
+
 def get_registered_reduce_operation_names() -> List[str]:
   """Returns the registered list of supported reduce operation names."""
   return list(_REGISTERED_REDUCE_OPS.keys())
@@ -611,6 +633,56 @@ def register_reduce_operation(reduce_type: str,
         ' to allow to redefine existing operations.')
   assert callable(unsorted_reduce_op)
   _REGISTERED_REDUCE_OPS[reduce_type] = unsorted_reduce_op
+
+
+def combine_values(inputs: List[Field], combine_type: str) -> Field:
+  """Combines a list of tensors into one (by concatenation or otherwise).
+
+  This is a convenience wrapper around standard TensorFlow operations, to
+  provide standard names for common types of combining.
+
+  Args:
+    inputs: a list of Tensors or RaggedTensors, with shapes and types that are
+      compatible for the selected combine_type.
+    combine_type: one of the following string values, to select the method for
+      combining the inputs:
+        * "sum": The input tensors are added. Their dtypes and shapes must
+          match.
+        * "concat": The input tensors are concatenated along the last axis.
+          Their dtypes and shapes must match, except for the number of elements
+          along the last axis.
+
+  Returns:
+    A tensor with the combined value of the inputs.
+  """
+  combine_op = _resolve_combine_op(combine_type)
+  try:
+    result = combine_op(inputs)
+  except tf.errors.InvalidArgumentError as e:
+    raise tf.errors.InvalidArgumentError(
+        e.node_def, e.op,
+        f'tfgnn.combine_values() failed for combine_type="{combine_type}". '
+        'Please check that all inputs have matching structures, except '
+        'as allowed by the combine_type. (The last dimension may differ for '
+        '"concat" but not for "sum").\n'
+        f'Inputs were: {inputs}'
+    ) from e
+  return result
+
+
+_COMBINE_OPS = {
+    'sum': tf.math.add_n,
+    'concat': functools.partial(tf.concat, axis=-1),
+}
+
+
+def _resolve_combine_op(combine_type: str) -> CombineOp:
+  try:
+    return _COMBINE_OPS[combine_type]
+  except KeyError:
+    raise ValueError(  # pylint: disable=raise-missing-from
+        f'Unknown combine type {combine_type}. '
+        f'Known combine types are: {list(_COMBINE_OPS.keys())}')
 
 
 def is_graph_tensor(value: Any) -> bool:
@@ -676,16 +748,6 @@ def _shuffle_features(features: Mapping[FieldName, Field],
   return {
       feature_name: _shuffle(feature_name) for feature_name in features.keys()
   }
-
-
-def _resolve_reduce_op(reduce_type: str) -> UnsortedReduceOp:
-  try:
-    return _REGISTERED_REDUCE_OPS[reduce_type]
-  except KeyError:
-    raise ValueError(
-        f'Unknown reduce type {reduce_type}.'
-        ' Call `get_registered_reduce_operation_names()` for the full'
-        ' list of registered operations.')
 
 
 def resolve_value(values_map: Any,

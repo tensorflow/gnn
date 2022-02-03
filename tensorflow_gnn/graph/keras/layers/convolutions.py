@@ -5,6 +5,7 @@ from typing import Callable, Optional
 import tensorflow as tf
 
 from tensorflow_gnn.graph import graph_constants as const
+from tensorflow_gnn.graph import graph_tensor_ops as ops
 from tensorflow_gnn.graph.keras.layers import convolution_base
 
 
@@ -43,10 +44,9 @@ class SimpleConvolution(convolution_base.AnyToAnyConvolutionBase):
       combined input features (see combine_type).
     reduce_type: Specifies how to pool the messages to receivers. Defaults to
       "sum", can be any name from tfgnn.get_registered_reduce_operation_names().
-    combine_type: Specifies how to combine the list of inputs before passing
-      them to the message_fn. Supported values are:
-      "concat" (default): concatenates inputs along the last axis;
-      "sum": adds inputs, requires them to have the same shape.
+    combine_type: a string understood by tfgnn.combine_values(), to specify how
+      the inputs are combined before passing them to the message_fn. Defaults
+      to "concat", which concatenates inputs along the last axis.
     receiver_tag:  one of `tfgnn.SOURCE`, `tfgnn.TARGET` or `tfgnn.CONTEXT`.
       Selects the receiver of the pooled messages.
       If set to `tfgnn.SOURCE` or `tfgnn.TARGET`, the layer can be called for
@@ -101,10 +101,6 @@ class SimpleConvolution(convolution_base.AnyToAnyConvolutionBase):
 
     self._message_fn = message_fn
     self._reduce_type = reduce_type
-    if combine_type not in const.COMBINE_OPS:
-      raise ValueError(
-          f"Unknown combine_type=`{combine_type}`, "
-          f"supported values are: {list(const.COMBINE_OPS.keys())}")
     self._combine_type = combine_type
 
   def get_config(self):
@@ -131,7 +127,7 @@ class SimpleConvolution(convolution_base.AnyToAnyConvolutionBase):
     if receiver_input is not None:
       inputs.append(broadcast_from_receiver(receiver_input))
     # Combine inputs.
-    combined_input = const.COMBINE_OPS[self._combine_type](inputs)
+    combined_input = ops.combine_values(inputs, self._combine_type)
 
     # Compute the result.
     messages = self._message_fn(combined_input)

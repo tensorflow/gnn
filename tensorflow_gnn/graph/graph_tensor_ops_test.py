@@ -860,5 +860,52 @@ class ReduceOpsTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(
         reduce_op(values, segment_ids, num_segments), expected_result)
 
+
+def as_tensor_list(l):
+  return [tf.convert_to_tensor(x) for x in l]
+
+
+def as_ragged_list(l):
+  return [tf.ragged.constant(x) for x in l]
+
+
+class CombineFeaturesTest(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      ('Concat', as_tensor_list([[[1.]], [[2.]], [[3.]]]), 'concat',
+       [[1., 2., 3.]]),
+      ('ConcatRaggedLast',
+       as_ragged_list([[[11., 12.], [21.]],
+                       [[13.], [22., 23.]],
+                       [[14., 15.], [24.]]]), 'concat',
+       as_ragged([[11., 12., 13., 14., 15.],
+                  [21., 22., 23., 24.]])),
+      ('ConcatRaggedMiddle',
+       as_ragged_list([
+           [[[x+111., x+112.]],
+            [[x+211., x+212.], [x+221., x+222.]]]
+           for x in [1000., 2000.]]), 'concat',
+       as_ragged(
+           [[[1111., 1112., 2111., 2112.]],
+            [[1211., 1212., 2211., 2212.], [1221., 1222., 2221., 2222.]]])),
+      ('Sum', as_tensor_list([[[1.]], [[2.]], [[3.]]]), 'sum', [[6.]]),
+      ('SumRaggedMiddle',
+       as_ragged_list([[[[x+111., x+112.]],
+                        [[x+211., x+212.], [x+221., x+222.]]]
+                       for x in [1000., 2000.]]), 'sum',
+       as_ragged([[[3222., 3224.]],
+                  [[3422., 3424.], [3442., 3444.]]])))
+  def test(self, inputs, combine_type, expected):
+    actual = ops.combine_values(inputs, combine_type=combine_type)
+    self.assertAllEqual(expected, actual)
+
+  def testError(self):
+    bad_inputs = [tf.ones((2, 2)), tf.ones((2, 3))]
+    with self.assertRaisesRegex(
+        tf.errors.InvalidArgumentError,
+        r'combine_type="sum".*Please check'):
+      ops.combine_values(bad_inputs, combine_type='sum')
+
+
 if __name__ == '__main__':
   tf.test.main()
