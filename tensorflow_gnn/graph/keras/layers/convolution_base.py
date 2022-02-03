@@ -8,6 +8,7 @@ import tensorflow as tf
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_ops as ops
+from tensorflow_gnn.graph import tag_utils
 
 
 class AnyToAnyConvolutionBase(tf.keras.layers.Layer, abc.ABC):
@@ -279,7 +280,7 @@ class AnyToAnyConvolutionBase(tf.keras.layers.Layer, abc.ABC):
         raise ValueError("Must pass edge_set_name, not node_set_name")
       name_kwarg = dict(edge_set_name=edge_set_name)
       edge_set = graph.edge_sets[edge_set_name]
-      sender_node_tag = reverse_tag(receiver_tag)
+      sender_node_tag = tag_utils.reverse_tag(receiver_tag)
       sender_node_set = graph.node_sets[
           edge_set.adjacency.node_set_name(sender_node_tag)]
       broadcast_from_sender_node = (
@@ -383,13 +384,3 @@ class AnyToAnyConvolutionBase(tf.keras.layers.Layer, abc.ABC):
       result of the convolution for each receiver.
     """
     raise NotImplementedError("To be implemented by the concrete subclass.")
-
-
-def reverse_tag(tag):
-  """Flips SOURCE to TARGET and vice versa."""
-  if tag == const.TARGET:
-    return const.SOURCE
-  elif tag == const.SOURCE:
-    return const.TARGET
-  else:
-    raise ValueError(f"Expected SOURCE or TARGET tag, got: {tag}")

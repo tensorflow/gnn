@@ -25,6 +25,7 @@ from tensorflow_gnn.graph import padding_ops
 from tensorflow_gnn.graph import preprocessing_common
 from tensorflow_gnn.graph import schema_utils
 from tensorflow_gnn.graph import schema_validation
+from tensorflow_gnn.graph import tag_utils
 from tensorflow_gnn.proto import graph_schema
 
 # String constants for feature name components, and special feature names.
@@ -37,9 +38,12 @@ DEFAULT_STATE_NAME = graph_constants.DEFAULT_STATE_NAME
 SOURCE = graph_constants.SOURCE
 TARGET = graph_constants.TARGET
 
-# Type annotations for tags
+# Type annotations for tags.
 IncidentNodeTag = graph_constants.IncidentNodeTag
 IncidentNodeOrContextTag = graph_constants.IncidentNodeOrContextTag
+
+# Utils for tags.
+reverse_tag = tag_utils.reverse_tag
 
 # Encoded names of implicit features.
 SIZE_NAME = graph_constants.SIZE_NAME
@@ -153,4 +157,5 @@ del padding_ops
 del preprocessing_common
 del schema_utils
 del schema_validation
+del tag_utils
 del graph_schema
