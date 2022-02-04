@@ -285,6 +285,24 @@ class ReplaceFieldsTest(tu.GraphTensorTestBase):
                            {'f': as_ragged([[0.], [0.]])})
     self.assertEmpty(result1.node_sets['b'].features)
 
+    with self.assertRaisesWithLiteralMatch(
+        ValueError, ('Some node sets in the `node_sets` are not present'
+                     ' in the graph tensor: [\'x\']')):
+      features = {'f': as_ragged([[0.], [0.]])}
+      source.replace_features(node_sets={
+          'a': features,
+          'x': features,
+      })
+
+    with self.assertRaisesWithLiteralMatch(
+        ValueError, ('Some edge sets in the `edge_sets` are not present'
+                     ' in the graph tensor: [\'a->x\', \'a->y\']')):
+      features = {'f': as_ragged([[1., 1.], [1.]])}
+      source.replace_features(edge_sets={
+          'a->x': features,
+          'a->y': features,
+      })
+
 
 class ElementsCountsTest(tf.test.TestCase, parameterized.TestCase):
 

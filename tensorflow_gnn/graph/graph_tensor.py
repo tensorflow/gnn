@@ -896,6 +896,9 @@ class GraphTensor(gp.GraphPieceBase):
     Returns:
       A `GraphTensor` instance with feature maps replaced according to the
       arguments.
+    Raises:
+      ValueError: if some node sets or edge sets are not present in the graph
+        tensor.
     """
     if context is None:
       new_context = self.context
@@ -905,6 +908,10 @@ class GraphTensor(gp.GraphPieceBase):
     if node_sets is None:
       new_node_sets = self.node_sets.copy()
     else:
+      not_present = set(node_sets.keys()) - set(self.node_sets.keys())
+      if not_present:
+        raise ValueError(('Some node sets in the `node_sets` are not present'
+                          f' in the graph tensor: {sorted(not_present)}'))
       new_node_sets = {
           set_name: (node_set.replace_features(node_sets[set_name])
                      if set_name in node_sets else node_set)
@@ -914,6 +921,10 @@ class GraphTensor(gp.GraphPieceBase):
     if edge_sets is None:
       new_edge_sets = self.edge_sets.copy()
     else:
+      not_present = set(edge_sets.keys()) - set(self.edge_sets.keys())
+      if not_present:
+        raise ValueError(('Some edge sets in the `edge_sets` are not present'
+                          f' in the graph tensor: {sorted(not_present)}'))
       new_edge_sets = {
           set_name: (edge_set.replace_features(edge_sets[set_name])
                      if set_name in edge_sets else edge_set)
