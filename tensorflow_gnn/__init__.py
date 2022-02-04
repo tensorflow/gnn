@@ -141,6 +141,9 @@ validate_schema = schema_validation.validate_schema
 check_required_features = schema_validation.check_required_features
 assert_constraints = schema_validation.assert_constraints
 
+# Graph Tensor Validation Utils
+check_scalar_graph_tensor = graph_tensor.check_scalar_graph_tensor
+
 # Prune imported module symbols so they're not accessible implicitly,
 # except those meant to be used as subpackages, like tfgnn.keras.*.
 # Please use the same order as for the import statements at the top.
