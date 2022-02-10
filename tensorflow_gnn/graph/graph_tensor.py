@@ -399,8 +399,8 @@ class NodeSetSpec(_NodeOrEdgeSetSpec):
 
   This class is a type descriptor for the shapes of the features associated with
   a graph's node set from a `GraphTensor` instance. This graph piece stores
-  features that belong to an edge set, and a `sizes` tensor with the number of
-  edges in each graph component.
+  features that belong to a node set, and a `sizes` tensor with the number of
+  nodes in each graph component.
 
   (This graph piece does not use any metadata fields.)
   """
