@@ -1,9 +1,8 @@
 """Defines advanced batching operations for GraphTensor."""
+from typing import Any, cast, Iterable, List, NamedTuple, Tuple, Union
 
-from typing import cast, NamedTuple, Tuple
-
+import numpy as np
 import tensorflow as tf
-
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import padding_ops
 from tensorflow_gnn.graph import preprocessing_common
@@ -165,6 +164,422 @@ def dynamic_batch(dataset: tf.data.Dataset,
     dataset = dataset.repeat()
 
   return dataset
+
+
+def learn_fit_or_skip_size_constraints(
+    dataset: tf.data.Dataset,
+    batch_size: Union[int, Iterable[int]],
+    *,
+    success_ratio: Union[float, Iterable[float]] = 1.0,
+    sample_size: int = 100_000,
+    num_thresholds: int = 1_000) -> Union[SizesConstraints, List[Any]]:
+  """Learns the optimal size constraints for the fixed size batching with retry.
+
+  The function estimates the smallest possible size constraints so that a random
+  sample of `batch_size` graph tensors meets those constraints with probability
+  no less than `success_ratio`. The success ratio is treated as a hard
+  constraint, up to sampling error. The constraints can be used for graph tensor
+  padding to the fully defined shapes required by XLA.
+
+  Example:
+
+    # Learn size constraints for a given dataset of graph tensors and the target
+    # batch size(s). The constraints could be learned once and then reused.
+    constraints = tfgnn.learn_fit_or_skip_size_constraints(dataset, batch_size)
+
+    # Batch merge contained graphs into scalar graph tensors.
+    if training:
+      # Randomize and repeat dataset for training. Note that the fit-or-skip
+      # technique is only applicable for randomizer infinite datasets. It is
+      # incorrect to apply it during models evaluation because some input
+      # examples may be filtered out.
+      dataset = dataset.shuffle(shuffle_size).repeat()
+    dataset = dataset.batch(batch_size)
+    dataset = dataset.map(lambda graph: graph.merge_batch_to_components())
+
+    if training:
+      # Remove all batches that do not satisfy the learned constraints.
+      dataset = dataset.filter(
+          functools.partial(
+              tfgnn.satisfies_total_sizes,
+              total_sizes=constraints))
+
+      # Pad graph to the learned size constraints.
+      dataset = dataset.map(
+          functools.partial(
+              tfgnn.pad_to_total_sizes,
+              target_total_sizes=constraints,
+              validate=False))
+
+
+  The learned constraints are intend to be used only with randomized repeated
+  dataset. This dataset are first batched using `tf.data.Dataset.batch()`, the
+  batches that are too large to fit the learned contraints are filtered using
+  `tfgnn.satisfies_total_sizes()` and then padded `tfgnn.pad_to_total_sizes()`.
+
+  This approach, if applicable, is more efficient compared to padding to the
+  maximum possible sizes. It is also simpler and faster compared to the dynamic
+  batching, especially for the large batch sizes (>10).  To illustrate the main
+  point, consider graphs containing only 0 or 1 nodes. A random batch of 1000 of
+  those graphs could contain 1000 nodes in the worst case. If this maximum limit
+  is used to reseve space for random 1000 graphs, the space of 425 nodes is used
+  only in 1:1000_000 cases. It is >40% more efficient to reserve space only for
+  575 nodes and resample batches in the rare cases when they do not fit.
+
+
+  Args:
+    dataset: dataset of graph tensors that is intended to be batched.
+    batch_size: the target batch size(s). Could be a single positive integer
+      value or any iterable. For the latter case the result is reported for each
+      requested value.
+    success_ratio: the target probability(s) that a random batch of graph tensor
+      satisfies the learned constraints. Could be a single float value between 0
+      and 1 or any iterable. For the latter case the result is reported for
+      each requested value. NOTE: setting success_ratio to 1 only guarantees
+      that all sampled graphs are satisfy the learned constraints. This does
+      not in general apply to an arbitrary sample. When `sample_size` tends to
+      infinity, the 1 ratio corresponds to the "almost surely satisfies" event.
+    sample_size: the number of the first dataset examples to use for inference.
+    num_thresholds: the number of quantiles to use to approximate probability
+      distributions.
+
+  Returns:
+    Learned size constraints. If both `batch_size` and `success_ratio` are
+    iterables, the result is returned as a nested lists, were `result[b][r]`
+    is a size constraints for `batch_size[b]` and `success_ratio[r]`. If any of
+    `batch_size` or/and `success_ratio` are scalars the corresponding dimension
+    is squeezed in the output.
+  """
+
+  # Convert `batch_size` and `success_ratio` to lists:
+  batch_sizes = _convert_to_list(batch_size, int, 'batch_size')
+  success_ratios = _convert_to_list(success_ratio, float, 'success_ratio')
+
+  # Validate parameters:
+  if not all(b > 0 for b in batch_sizes):
+    raise ValueError(f'The `batch_size` must be positive, got {batch_size}')
+
+  if not all((0. <= r <= 1.) for r in success_ratios):
+    raise ValueError(
+        f'The `success_ratio` must be between 0 and 1, got {success_ratio}')
+
+  if not sample_size > 0:
+    raise ValueError(f'The `sample_size` must be positive, got {sample_size}')
+
+  if not num_thresholds > 0:
+    raise ValueError(
+        f'The `num_thresholds` must be positive, got {num_thresholds}')
+
+  if not isinstance(dataset.element_spec, gt.GraphTensorSpec):
+    raise ValueError('Expected dataset with GraphTensor elements,'
+                     f' got dataset.element_spec={dataset.element_spec}.')
+
+  # Extract graph piece sizes and flatten them as a rank=1 int64 tensor.
+  def get_total_sizes(graph: gt.GraphTensor) -> SizesConstraints:
+    result = _get_total_sizes(graph)
+    return tf.nest.map_structure(lambda s: tf.cast(s, tf.int64), result)
+
+  graph_tensor_spec = dataset.element_spec
+  dataset = dataset.map(get_total_sizes)
+  result_type_spec = dataset.element_spec
+  dataset = dataset.map(lambda t: tf.stack(tf.nest.flatten(t)))
+
+  # Cache `sample_size` samples into memory for better perfromance.
+  dataset = dataset.take(sample_size)
+  dataset = dataset.cache()
+
+  # It’s easy enough to sample the distribution of sizes for each graph piece,
+  # but the key question is how to distribute the available “error budget”, that
+  # is `1 - success_ratio`, between them. The following algorithm uses a scoring
+  # approach for graph pieces to turn that multivariate optimization problem
+  # into a data fitting problem in a single parameter.
+  #
+  # Notation:
+  # The algorithm accepts scalar hyperparameters
+  #   N = sample_size (the number of sampled batches) and
+  #   T = num_thresholds (the number of sampled size thresholds)
+  # and a graph with
+  #   graph pieces g, for 0 <= g < G = #node sets + # edge sets + 1 (context)
+  # and then executes the following in parallel for all combinations of
+  #   batch_size[b] for 0 <= b < B and
+  #   success_ratio[r] for 0 <= r < R.
+  #
+  # 1) Take a random sample of N_0 input examples. For simplicity, we choose
+  #    N_0 = N.
+  # 2) From these examples, create a random sample of N possible batches for
+  #    each batch size.
+  # 3) For each graph piece g in each sample batch, compute the actual size
+  #    (total number of elements).
+  # 4) For each graph piece and each batch size b from step 3,
+  #    compute the standard deviation and quantiles 0 <= t < T of actual sizes.
+  # 5) Compute an importance score in range [0,1] for each graph piece g and
+  #    batch size b based on the statistics computed in step 4.
+  # 6) The candidate constraint for graph piece g, batch size b and threshold
+  #    value t is generated as ⌈t * importance_score⌉-th largest quantile.
+  #    So graph pieces with 0 importance have maximum possible constraint value,
+  #    graph pieces with the largest importance 1 have the tightest possible
+  #    constraints for the given threshold t.
+  # 7) Select the largest index t such that the fraction of sample batches from
+  #    step 2 that satisfy the t-th size threshold for every graph piece g is at
+  #    least the requested success ratio r. Output this selection of constraints
+  #    for the graph pieces as the result for the requested batch size b and
+  #    success ratio r.
+  #
+  # By construction, the result has the required success probability on the
+  # sample of batches. It depends on the scoring function for graph pieces in
+  # step 5 and its use in step 6 how tight the size constraints are.
+  #
+  # The scoring function for a graph piece used in the implementation below is
+  # the ratio of standard deviations between this graph piece and the maximal
+  # one. Intuitively, the effect is to err on the size of over-budgeting for
+  # low-variance graph pieces (because they are unlikely to under-utilize it a
+  # lot) and focus the parameter fitting on high-variance graph pieces (because
+  # they are likely to dominate the tradeoff between under-utilization and
+  # failure rate).
+  #
+  # Summay of notations used for tensor indices:
+  #   g in range(G): graph pieces.
+  #   b in range(B): requested batch sizes, B = len(batch_sizes).
+  #   t in range(T): sampled thresholds, T = num_thresholds.
+  #   r in range(R): requesxted success ratios, R = len(success_ratios).
+  @tf.function
+  def sample_sizes_for_each_batch_size(ds: tf.data.Dataset) -> tf.data.Dataset:
+    """Creates ramdomized dataset with actual sizes of graph pieces in batches.
+
+    The result dataset has exactly `sample_size` sampled at random elements with
+    sizes for each batch size and graph piece. Note that result has the same
+    number of elements as the original dataset. In principle we could sample
+    less having the same statistical power, but in order to keep things simple
+    we use the same sample size parameter. Generally we do not have a exact
+    formula to estimate  `sample_size` and we simply rely that it is big enough.
+
+    Args:
+      ds: dataset containing flattened graph piece sizes as rank=1 tf.Tensor.
+
+    Returns:
+      dataset containing exactly `sample_size` elements. Each element is rank-2
+      integer tensor with shape [G, B].
+    """
+
+    def extract_sizes_fn(sizes_ig: tf.Tensor):
+      """Exracts sizes of graph pieces for each `batch_sizes` value.
+
+      Args:
+        sizes_ig: rank=2 integer tensor cotaining graph piece sizes. The first
+          `i` dimension has size max(batch_sizes). It index sizes that belong to
+          the same graphs. The second `g` dimension index graph entities
+          (context, node sets, edge sets).
+
+      Returns:
+        Rank=2 integer tensor with shape [G, B].
+      """
+      # Notation: i index all possible batch sizes from [1, max(batch_sizes)].
+      sizes_ig.shape.assert_is_fully_defined()
+      sizes_gi = tf.transpose(sizes_ig)
+      sizes_gi = tf.cumsum(sizes_gi, axis=-1, exclusive=False)
+      # Compute indices in sizes_gi for batch sizes of interest.
+      indices_1b = tf.reshape(batch_sizes, [1, -1]) - 1
+      indices_gb = tf.tile(indices_1b, [sizes_gi.shape[0], 1])
+      # Gather sizes for each requested batch size.
+      sizes_gb = tf.gather(sizes_gi, indices_gb, batch_dims=1)
+      return sizes_gb
+
+    assert isinstance(ds.element_spec, tf.TensorSpec)
+    assert ds.element_spec.shape.rank == 1
+    ds = ds.repeat()
+    ds = ds.shuffle(sample_size)
+    ds = ds.batch(max(batch_sizes), drop_remainder=True)
+    ds = ds.map(extract_sizes_fn)
+    ds = ds.take(sample_size)
+    return ds
+
+  dataset = sample_sizes_for_each_batch_size(dataset)
+
+  @tf.function
+  def get_constraints_for_thresholds(ds: tf.data.Dataset) -> tf.Tensor:
+    """Estimates size constraints for each quantiles' threshold value.
+
+    NOTE: this algorithm consumes O(B * G * sample_size) memory. For simplicity,
+    the implementation computes exact quantiles by sorting values. We can
+    significantly reduce memory usage by using approximate quantiles algorithms,
+    e.g. https://arxiv.org/abs/1603.05346.
+
+    Args:
+      ds: dataset containing flattened graph entities sizes for each
+        `batch_sizes` value. Has a shape [G, B].
+
+    Returns:
+      Estimated size constraints for each `batch_sizes` and thresholds values.
+      Has a shape [B, G, T].
+    """
+    # Notation: `i` index samples in the range [0, sample_size).
+    #
+    # Extract `sample_size` to compute quantiles:
+    sizes_igb = ds.batch(
+        sample_size, drop_remainder=True).take(1).get_single_element()
+    sizes_igb.shape.assert_is_fully_defined()
+    sizes_bgi = tf.transpose(sizes_igb)
+    # Compute standard deviation for each batch size and graph piece:
+    std_bg = tf.math.reduce_std(tf.cast(sizes_bgi, tf.float32), axis=-1)
+    # Compute the largest graph piece standard deviation for each batch size:
+    max_std_b1 = tf.reduce_max(std_bg, axis=-1, keepdims=True)
+
+    # Compute importance coefficients as sizes std to the maximum std ratio. We
+    # are considering only size constraints with probabilities of violation that
+    # is proportional to the importance coefficients (see theory above).
+    importance_bg = tf.math.divide_no_nan(std_bg, max_std_b1)
+    importance_bg1 = tf.expand_dims(importance_bg, axis=-1)
+
+    sorted_sizes_bgi = tf.sort(sizes_bgi, axis=-1, direction='DESCENDING')
+    indices_t = tf.convert_to_tensor(
+        np.linspace(
+            start=0, stop=sample_size, endpoint=False, num=num_thresholds),
+        tf.float32)
+    indices_bgt = tf.cast(indices_t * importance_bg1, tf.int32)
+    tf.debugging.assert_less(indices_bgt, sample_size)
+    constraints_bgt = tf.gather(sorted_sizes_bgi, indices_bgt, batch_dims=2)
+    return constraints_bgt
+
+  constraints_bgt = get_constraints_for_thresholds(dataset)
+
+  @tf.function
+  def eval_success_ratios(ds: tf.data.Dataset,
+                          constraints_bgt: tf.Tensor) -> tf.Tensor:
+    """Computes fraction of examples that satisfy size constraints.
+
+    Args:
+      ds: dataset containing graph entities sizes for different batch sizes.
+        integer tensors with a shape [G, B].
+      constraints_bgt: size constraint value for each batch size, graph entity
+        and thresholds value. Has a shape [B, G, T].
+
+    Returns:
+      Fraction of graphs from the `ds` that sattisfy `constraints_bgt` for
+      each batch size and threshold as a float tensor with [B, T] shape.
+    """
+
+    def map_fn(sizes_gb: tf.Tensor):
+      sizes_bg1 = tf.expand_dims(tf.transpose(sizes_gb), axis=-1)
+      satisfied_bgt = sizes_bg1 <= constraints_bgt
+      satisfied_bt = tf.math.reduce_all(satisfied_bgt, axis=1)
+      satisfied_bt = tf.cast(satisfied_bt, tf.int32)
+      return satisfied_bt
+
+    ds = ds.map(map_fn)
+    return preprocessing_common.compute_basic_stats(ds).mean
+
+  success_ratios_bt = eval_success_ratios(dataset, constraints_bgt)
+
+  @tf.function
+  def get_constraints_matching_input_succes_ratios(
+      constraints_bgt: tf.Tensor, success_ratios_bt: tf.Tensor) -> tf.Tensor:
+    """Matches constraint values to the `batch_sizes` and `success_ratios`.
+
+    Args:
+      constraints_bgt: size constraint for each `batch_sizes` value, graph
+        entity and threshold value. Has a shape [B, G, T].
+      success_ratios_bt: the estimated probabilities that graph satisfies
+        matching `constraints_bgt` value. Has a shape [B, T].
+
+    Returns:
+       Size constraints for each `batch_sizes`, `success_ratios` values and
+       graph piece. Has a shape [B, R, G].
+    """
+    b_size, t_size = success_ratios_bt.shape.as_list()
+    g_size = constraints_bgt.shape[1]
+    reversed_indices_br = tf.searchsorted(
+        tf.reverse(success_ratios_bt, axis=[-1]),
+        values=tf.tile(tf.expand_dims(success_ratios, axis=0), [b_size, 1]))
+    indices_br = tf.maximum((t_size - 1) - reversed_indices_br, 0)
+
+    indices_bgr = tf.tile(tf.expand_dims(indices_br, axis=1), [1, g_size, 1])
+    constraints_bgr = tf.gather(constraints_bgt, indices_bgr, batch_dims=2)
+    constraints_brg = tf.transpose(constraints_bgr, [0, 2, 1])
+    return constraints_brg
+
+  constraints_brg = get_constraints_matching_input_succes_ratios(
+      constraints_bgt, success_ratios_bt)
+
+  def squeeze(value: List[Any]) -> Any:
+    """Extracts value from the single element list."""
+    assert len(value) == 1, value
+    return value[0]
+
+  result = constraints_brg
+
+  # Unstack batch sizes (b) and success ratios (r) dimensions to nested lists:
+  result = tf.unstack(result, axis=0)
+  result = tf.nest.map_structure(lambda t: tf.unstack(t, axis=0), result)
+
+  # Unflatten size constraints to SizeConstraints.
+
+  def get_size_constraints(
+      flattened_constraints: tf.Tensor) -> SizesConstraints:
+    size_constraints = tf.nest.pack_sequence_as(
+        result_type_spec, tf.unstack(flattened_constraints))
+    return _make_room_for_padding(
+        size_constraints, graph_tensor_spec=graph_tensor_spec)
+
+  result = tf.nest.map_structure(get_size_constraints, result)
+
+  if tf.executing_eagerly():
+    # If executed eagerly, convert integer scalar tensors to the python int.
+    result = tf.nest.map_structure(lambda t: int(t.numpy()), result)
+
+  # Reshape result depending on the passed arguments:
+  if not isinstance(success_ratio, Iterable):
+    result = [squeeze(s) for s in result]
+  if not isinstance(batch_size, Iterable):
+    result = squeeze(result)
+
+  return result
+
+
+def _make_room_for_padding(size_constraints: SizesConstraints,
+                           graph_tensor_spec: gt.GraphTensorSpec):
+  """Reserves space in `size_constraints` for by padding."""
+  total_num_components = graph_tensor_spec.total_num_components is None
+
+  total_num_nodes = {}
+  for node_set_name, node_set_spec in graph_tensor_spec.node_sets_spec.items():
+    total_num_nodes[node_set_name] = False
+    # NOTE: there is currently no way to identify latent (w.o. features) node
+    # sets with a static total number of nodes (`node_set_spec.total_size` is
+    # always False). A side effect of this is that this function always reserves
+    # space for a fake graph component (`total_num_components` increased by 1).
+    # TODO(b/217538005): remove this comment after fixing.
+    total_num_components |= node_set_spec.total_size is None
+
+  total_num_edges = {}
+  for edge_set_name, edge_set_spec in graph_tensor_spec.edge_sets_spec.items():
+    total_num_edges[edge_set_name] = False
+    if edge_set_spec.total_size is None:
+      total_num_components = True
+      adj = graph_tensor_spec.edge_sets_spec[edge_set_name].adjacency_spec
+      for _, (incident_node_set_name, _) in adj.get_index_specs_dict().items():
+        total_num_nodes[incident_node_set_name] = True
+
+  return tf.nest.map_structure(
+      lambda size, needs_room: (size + (1 if needs_room else 0)),
+      size_constraints,
+      SizesConstraints(
+          total_num_components=total_num_components,
+          total_num_nodes=total_num_nodes,
+          total_num_edges=total_num_edges))
+
+
+def _convert_to_list(value: Union[Any, Iterable[Any]], value_dtype,
+                     value_debug_name: str) -> List[Any]:
+  """Converts single value or iterable to the python list."""
+  if isinstance(value, value_dtype):
+    return [value]
+  if isinstance(value, Iterable):
+    as_list = list(value)
+    if not as_list or isinstance(as_list[0], value_dtype):
+      return as_list
+  dtype_debug_name = value_dtype.__name__
+  raise ValueError((f'Expected `{value_debug_name}` of '
+                    f'type {dtype_debug_name} or List[{dtype_debug_name}]'))
 
 
 def _get_total_sizes(graph_tensor: gt.GraphTensor) -> SizesConstraints:
