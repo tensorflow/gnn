@@ -12,6 +12,7 @@ similar to `tf.TensorSpec`. For example, a `FieldSpec` describes an instance of
 """
 
 from tensorflow_gnn.graph import adjacency
+from tensorflow_gnn.graph import batching_utils
 from tensorflow_gnn.graph import graph_constants
 from tensorflow_gnn.graph import graph_tensor
 from tensorflow_gnn.graph import graph_tensor_encode
@@ -99,6 +100,9 @@ pad_to_total_sizes = padding_ops.pad_to_total_sizes
 assert_satisfies_total_sizes = padding_ops.assert_satisfies_total_sizes
 satisfies_total_sizes = padding_ops.satisfies_total_sizes
 
+# Learned batching and padding.
+learn_fit_or_skip_size_constraints = batching_utils.learn_fit_or_skip_size_constraints
+
 # I/O functions (output encoding).
 write_example = graph_tensor_encode.write_example
 
@@ -148,6 +152,7 @@ check_scalar_graph_tensor = graph_tensor.check_scalar_graph_tensor
 # except those meant to be used as subpackages, like tfgnn.keras.*.
 # Please use the same order as for the import statements at the top.
 del adjacency
+del batching_utils
 del graph_constants
 del graph_tensor
 del graph_tensor_encode
