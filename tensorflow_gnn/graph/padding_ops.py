@@ -191,7 +191,7 @@ def assert_satisfies_total_sizes(
       # Use graph_tensor after sizes have been checked.
   ```
 
-  Conceptually, that means this function is like standart tensorflow assertions,
+  Conceptually, that means this function is like standard tensorflow assertions,
   like tf.debugging.Assert(satisfies_total_sizes(...)), but with the following
   important advantages:
   - This functions logs a detailed message which size constraint is violated.
