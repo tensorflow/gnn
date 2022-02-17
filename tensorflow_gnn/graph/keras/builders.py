@@ -78,13 +78,14 @@ class ConvGNNBuilder:
     """Constructs GraphUpdate layer for the set of receiver node sets.
 
     This method contructs NodeSetUpdate layers from convolutions and next state
-    factories (specified during the class construction) for the given node
-    sets. The resulting node set update layers are combined and returned as one
-    GraphUpdate layer.
+    factories (specified during the class construction) for the given receiver
+    node sets. The resulting node set update layers are combined and returned
+    as one GraphUpdate layer.
 
     Args:
-      node_sets: optional set of node set names to be updated. Not setting this
-        parameter is equivalent to updating all node sets.
+      node_sets: By default, the result updates all node sets that receive from
+        at least one edge set. Passing a set of node set names here overrides
+        this (possibly including node sets that receive from zero edge sets).
 
     Returns:
       A GraphUpdate layer, with building deferred to the first call.
@@ -98,19 +99,19 @@ class ConvGNNBuilder:
         receiver_tag = self._receiver_tag
         receiver_tag_kwarg = dict(receiver_tag=receiver_tag)
       receiver_to_inputs = collections.defaultdict(dict)
-      receiver_node_sets = set(
-          graph_spec.node_sets_spec if node_sets is None else node_sets)
       for edge_set_name, edge_set_spec in graph_spec.edge_sets_spec.items():
         if not isinstance(edge_set_spec.adjacency_spec, adj.HyperAdjacencySpec):
           raise ValueError('Unsupported adjacency type {}'.format(
               type(edge_set_spec.adjacency_spec).__name__))
         receiver_node_set = edge_set_spec.adjacency_spec.node_set_name(
             receiver_tag)
-        if receiver_node_set in receiver_node_sets:
+        if node_sets is None or receiver_node_set in node_sets:
           receiver_to_inputs[receiver_node_set][
               edge_set_name] = self._convolutions_factory(edge_set_name,
                                                           **receiver_tag_kwarg)
 
+      receiver_node_sets = (node_sets if node_sets is not None
+                            else receiver_to_inputs.keys())
       node_set_updates = dict()
       for node_set in receiver_node_sets:
         next_state = self._nodes_next_state_factory(node_set)

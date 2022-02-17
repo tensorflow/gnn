@@ -30,10 +30,14 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
                         graph.edge_sets["node->node"][const.DEFAULT_STATE_NAME])
 
   @parameterized.named_parameters(
-      ("Default", dict(), [1.], [1., 1., 1.]),  # Behaves like Target.
-      ("Target", dict(receiver_tag=const.TARGET), [1.], [1., 1., 1.]),
-      ("Source", dict(receiver_tag=const.SOURCE), [1., 1., 1.], [1.]))
+      ("Default", dict(), [1.], [2., 2., 2.]),  # Behaves like Target.
+      ("Target", dict(receiver_tag=const.TARGET), [1.], [2., 2., 2.]),
+      ("Source", dict(receiver_tag=const.SOURCE), [2., 2., 2.], [1.]))
   def testReceiverTag(self, receiver_tag_kwarg, expected_a, expected_b):
+    def make_doubling_layer():
+      return tf.keras.layers.Dense(
+          3, use_bias=False,
+          kernel_initializer=tf.keras.initializers.Identity(gain=2.0))
     input_graph = _make_test_graph_with_singleton_node_sets(
         [("a", [1.]), ("b", [1.])], [("a", "b", [100.])])
     if receiver_tag_kwarg:
@@ -41,12 +45,12 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
       gnn_builder = builders.ConvGNNBuilder(
           lambda _, *, receiver_tag: convolutions.SimpleConvolution(
               IdentityLayer(), receiver_tag=receiver_tag),
-          lambda _: next_state_lib.NextStateFromConcat(IdentityLayer()),
+          lambda _: next_state_lib.NextStateFromConcat(make_doubling_layer()),
           **receiver_tag_kwarg)
     else:
       gnn_builder = builders.ConvGNNBuilder(
           lambda _: convolutions.SimpleConvolution(IdentityLayer()),
-          lambda _: next_state_lib.NextStateFromConcat(IdentityLayer()))
+          lambda _: next_state_lib.NextStateFromConcat(make_doubling_layer()))
     graph = gnn_builder.Convolve()(input_graph)
     self.assertAllEqual([expected_a],
                         graph.node_sets["a"][const.DEFAULT_STATE_NAME])
