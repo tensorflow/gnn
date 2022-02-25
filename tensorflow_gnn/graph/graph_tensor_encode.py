@@ -124,10 +124,9 @@ def _copy_feature_values(values: gc.Field, fname: str,
   # If the tensor has ragged dimensions, serialize those into features to be
   # parsed as partitions.
   if isinstance(values, tf.RaggedTensor):
-    iter_row_lengths = iter(values.nested_row_lengths())
-    for i, dim in enumerate(values.shape.as_list()[1:], start=1):
+    for i, (dim, row_lengths) in enumerate(
+        zip(values.shape[1:], values.nested_row_lengths()), start=1):
       if dim is not None:
         continue
-      row_lengths = next(iter_row_lengths)
       feature = result.features.feature[f'{fname}.d{i}']
       feature.int64_list.value.extend(row_lengths.numpy())
