@@ -2,6 +2,7 @@
 
 from tensorflow_gnn.models.graph_sage import layers
 
+GCNGraphSAGENodeSetUpdate = layers.GCNGraphSAGENodeSetUpdate
 GraphSAGEPoolingConv = layers.GraphSAGEPoolingConv
 GraphSAGENextState = layers.GraphSAGENextState
 GraphSAGEGraphUpdate = layers.GraphSAGEGraphUpdate

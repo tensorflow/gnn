@@ -54,6 +54,7 @@ TARGET_NAME = graph_constants.TARGET_NAME
 # Field values, specs, and dictionaries containing them.
 Field = graph_constants.Field
 FieldName = graph_constants.FieldName
+FieldOrFields = graph_constants.FieldOrFields
 FieldSpec = graph_constants.FieldSpec
 Fields = graph_constants.Fields
 FieldsSpec = graph_constants.FieldsSpec

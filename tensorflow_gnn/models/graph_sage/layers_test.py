@@ -34,6 +34,13 @@ def _get_test_graph():
                       _FEATURE_NAME: tf.constant([[1., 0.], [0., 2.]] * 2)
                   },
                   sizes=tf.constant([2, 2])),
+          "institution":
+              tfgnn.NodeSet.from_fields(
+                  features={
+                      _FEATURE_NAME:
+                          tf.constant([[1., 2., 3., 0.], [2., 1., 3., 0.]])
+                  },
+                  sizes=tf.constant([1, 1])),
       },
       edge_sets={
           "written":
@@ -51,6 +58,14 @@ def _get_test_graph():
                   adjacency=tfgnn.Adjacency.from_indices(
                       ("topic", tf.constant([0])),
                       ("topic", tf.constant([1])),
+                  )),
+          "affiliated_with":
+              tfgnn.EdgeSet.from_fields(
+                  features={},
+                  sizes=tf.constant([2, 2]),
+                  adjacency=tfgnn.Adjacency.from_indices(
+                      ("institution", tf.constant([0, 0, 1, 1])),
+                      ("author", tf.constant([0, 1, 2, 3])),
                   )),
       },
   )
@@ -226,15 +241,16 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
     _ = layer(graph)
     weights = {v.name: v for v in layer.trainable_weights}
     if use_pooling:
-      self.assertLen(weights, 5)
+      self.assertLen(weights, 8)
     else:
-      self.assertLen(weights, 3)
-    source_node_dims = 3
+      self.assertLen(weights, 4)
+    paper_node_dims = 3
+    institution_node_dims = 4
     target_node_dims = 2
     if use_pooling:
       weights[
           "graph_sage/node_set_update/graph_sage_pooling_conv/dense/kernel:0"].assign(
-              [[1.]] * source_node_dims)
+              [[1.]] * paper_node_dims)
       weights[
           "graph_sage/node_set_update/graph_sage_pooling_conv/dense/bias:0"].assign(
               [0.])
@@ -242,16 +258,28 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
           "graph_sage/node_set_update/graph_sage_pooling_conv/dense_1/kernel:0"].assign(
               [[1.]] * out_units)
       weights[
-          "graph_sage/node_set_update/graph_sage_next_state/dense_2/kernel:0"].assign(
+          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_2/kernel:0"].assign(
+              [[1.]] * institution_node_dims)
+      weights[
+          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_2/bias:0"].assign(
+              [0.])
+      weights[
+          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_3/kernel:0"].assign(
+              [[1.]] * out_units)
+      weights[
+          "graph_sage/node_set_update/graph_sage_next_state/dense_4/kernel:0"].assign(
               [[1.]] * target_node_dims)
     else:
       weights[
           "graph_sage/node_set_update/graph_sage_aggregator_conv/dense/kernel:0"].assign(
-              [[1.]] * source_node_dims)
+              [[1.]] * paper_node_dims)
       weights[
-          "graph_sage/node_set_update/graph_sage_next_state/dense_1/kernel:0"].assign(
+          "graph_sage/node_set_update/graph_sage_aggregator_conv/dense_1/kernel:0"].assign(
+              [[1.]] * institution_node_dims)
+      weights[
+          "graph_sage/node_set_update/graph_sage_next_state/dense_2/kernel:0"].assign(
               [[1.]] * target_node_dims)
-    num_edge_type = 1
+    num_edge_type = 2
     bias_shape = out_units if combine_type == "sum" else out_units * (
         num_edge_type + 1)
     weights["graph_sage/node_set_update/graph_sage_next_state/bias:0"].assign(
@@ -273,18 +301,35 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
     expected_outputs = {
         True: {
             "concat":
-                tf.constant(
-                    [[1. / math.sqrt(1**2 + 6**2), 6. / math.sqrt(1**2 + 6**2)],
-                     [2. / math.sqrt(2**2 + 6**2), 6. / math.sqrt(2**2 + 6**2)],
-                     [1., 0.],
-                     [2. / math.sqrt(2**2 + 6**2),
-                      6. / math.sqrt(2**2 + 6**2)]]),
+                tf.constant([[
+                    1. / math.sqrt(1**2 + 6**2 * 2),
+                    6. / math.sqrt(1**2 + 6**2 * 2),
+                    6. / math.sqrt(1**2 + 6**2 * 2)
+                ],
+                             [
+                                 2. / math.sqrt(2**2 + 6**2 * 2),
+                                 6. / math.sqrt(2**2 + 6**2 * 2),
+                                 6. / math.sqrt(2**2 + 6**2 * 2)
+                             ],
+                             [
+                                 1. / math.sqrt(1**2 + 0**2 + 6**2),
+                                 6. / math.sqrt(1**2 + 0**2 + 6**2),
+                                 0. / math.sqrt(1**2 + 0**2 + 6**2)
+                             ],
+                             [
+                                 2. / math.sqrt(2**2 + 6**2 * 2),
+                                 6. / math.sqrt(2**2 + 6**2 * 2),
+                                 6. / math.sqrt(2**2 + 6**2 * 2)
+                             ]]),
             "sum":
                 tf.constant([[1.], [1.], [1.], [1.]])
         },
         False: {
-            "concat": tf.constant([[1., 6.], [2., 6.], [1., 0.], [2., 6.]]),
-            "sum": tf.constant([[7.], [8.], [1.], [8.]])
+            "concat":
+                tf.constant([[1., 6., 6.], [2., 6., 6.], [1., 6., 0.],
+                             [2., 6., 6.]]),
+            "sum":
+                tf.constant([[13.], [14.], [7.], [14.]])
         }
     }
     self.assertAllClose(actual, expected_outputs[normalize][combine_type])
@@ -318,15 +363,16 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
     _ = layer(graph)
     weights = {v.name: v for v in layer.trainable_weights}
     if use_pooling:
-      self.assertLen(weights, 5)
+      self.assertLen(weights, 8)
     else:
-      self.assertLen(weights, 3)
-    source_node_dims = 3
+      self.assertLen(weights, 4)
+    paper_node_dims = 3
+    institution_node_dims = 4
     target_node_dims = 2
     if use_pooling:
       weights[
           "graph_sage/node_set_update/graph_sage_pooling_conv/dense/kernel:0"].assign(
-              [[1.]] * source_node_dims)
+              [[1.]] * paper_node_dims)
       weights[
           "graph_sage/node_set_update/graph_sage_pooling_conv/dense/bias:0"].assign(
               [0.])
@@ -334,16 +380,28 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
           "graph_sage/node_set_update/graph_sage_pooling_conv/dense_1/kernel:0"].assign(
               [[1.]] * out_units)
       weights[
-          "graph_sage/node_set_update/graph_sage_next_state/dense_2/kernel:0"].assign(
+          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_2/kernel:0"].assign(
+              [[1.]] * institution_node_dims)
+      weights[
+          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_2/bias:0"].assign(
+              [0.])
+      weights[
+          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_3/kernel:0"].assign(
+              [[1.]] * out_units)
+      weights[
+          "graph_sage/node_set_update/graph_sage_next_state/dense_4/kernel:0"].assign(
               [[1.]] * target_node_dims)
     else:
       weights[
           "graph_sage/node_set_update/graph_sage_aggregator_conv/dense/kernel:0"].assign(
-              [[1.]] * source_node_dims)
+              [[1.]] * paper_node_dims)
       weights[
-          "graph_sage/node_set_update/graph_sage_next_state/dense_1/kernel:0"].assign(
+          "graph_sage/node_set_update/graph_sage_aggregator_conv/dense_1/kernel:0"].assign(
+              [[1.]] * institution_node_dims)
+      weights[
+          "graph_sage/node_set_update/graph_sage_next_state/dense_2/kernel:0"].assign(
               [[1.]] * target_node_dims)
-    num_edge_type = 1
+    num_edge_type = 2
     bias_shape = out_units * (num_edge_type + 1)
     weights["graph_sage/node_set_update/graph_sage_next_state/bias:0"].assign(
         [0.] * bias_shape)
@@ -360,9 +418,122 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
 
     actual_graph = model(graph)
     actual = actual_graph.node_sets["author"][_FEATURE_NAME]
-    expected = tf.constant([[0.16439898, 0.9863939], [0.31622776, 0.94868326],
-                            [0.99999994, 0.], [0.31622776, 0.94868326]])
+    expected = tf.constant([[
+        1. / math.sqrt(1**2 + 6**2 * 2), 6. / math.sqrt(1**2 + 6**2 * 2),
+        6. / math.sqrt(1**2 + 6**2 * 2)
+    ],
+                            [
+                                2. / math.sqrt(2**2 + 6**2 * 2),
+                                6. / math.sqrt(2**2 + 6**2 * 2),
+                                6. / math.sqrt(2**2 + 6**2 * 2)
+                            ],
+                            [
+                                1. / math.sqrt(1**2 + 0**2 + 6**2),
+                                6. / math.sqrt(1**2 + 0**2 + 6**2),
+                                0. / math.sqrt(1**2 + 0**2 + 6**2)
+                            ],
+                            [
+                                2. / math.sqrt(2**2 + 6**2 * 2),
+                                6. / math.sqrt(2**2 + 6**2 * 2),
+                                6. / math.sqrt(2**2 + 6**2 * 2)
+                            ]])
     self.assertAllClose(actual, expected)
+
+  @parameterized.named_parameters(
+      ("E2ELoadKerasGCNConv", ReloadModel.KERAS),
+      ("E2ELoadSavedModelGCNConv", ReloadModel.SAVED_MODEL))
+  def testGCNConvolutionModelLoad(self, reload_model):
+    graph = _get_test_graph()
+    message_units = 1
+    conv = graph_sage.GCNGraphSAGENodeSetUpdate(
+        edge_set_names=["written", "affiliated_with"],
+        receiver_tag=tfgnn.TARGET,
+        self_node_feature=_FEATURE_NAME,
+        sender_node_feature=_FEATURE_NAME,
+        units=message_units,
+        use_bias=True)
+    layer = tfgnn.keras.layers.GraphUpdate(node_sets={"author": conv})
+    _ = layer(graph)  # Build weights.
+    weights = {v.name: v for v in layer.trainable_weights}
+    self.assertLen(weights, 4)
+    paper_feature_dim = 3
+    institution_feature_dim = 4
+    author_feature_dim = 2
+    weights["graph_update/graph_sage_gcn_update/dense/kernel:0"].assign(
+        [[1.0]] * paper_feature_dim)
+    weights["graph_update/graph_sage_gcn_update/dense_1/kernel:0"].assign(
+        [[1.0]] * institution_feature_dim)
+    weights["graph_update/graph_sage_gcn_update/dense_2/kernel:0"].assign(
+        [[1.0]] * author_feature_dim)
+    weights["bias:0"].assign([0.] * message_units)
+    inputs = tf.keras.layers.Input(type_spec=graph.spec)
+    outputs = layer(inputs)
+    model = tf.keras.Model(inputs, outputs)
+    if reload_model:
+      export_dir = os.path.join(self.get_temp_dir(), "gsage-model")
+      model.save(export_dir, include_optimizer=False)
+      if reload_model == ReloadModel.KERAS:
+        model = tf.keras.models.load_model(export_dir)
+      else:
+        model = tf.saved_model.load(export_dir)
+    actual_graph = model(graph)
+    actual = actual_graph.node_sets["author"]
+    expected_output = tf.constant([[4.3333335], [4.6666665], [3.5],
+                                   [4.6666665]])
+    self.assertAllEqual(expected_output, actual[_FEATURE_NAME])
+
+  @parameterized.named_parameters(("WithSelfLoop", True), ("NoSelfLoop", False))
+  def testGCNConvolutionSharedWeights(self, add_self_loop):
+    graph = _get_test_graph()
+    message_units = 1
+    conv = graph_sage.GCNGraphSAGENodeSetUpdate(
+        edge_set_names=["correlates"],
+        receiver_tag=tfgnn.TARGET,
+        self_node_feature=_FEATURE_NAME,
+        sender_node_feature=_FEATURE_NAME,
+        units=message_units,
+        use_bias=True,
+        share_weights=True,
+        add_self_loop=add_self_loop)
+    _ = conv(graph, node_set_name="topic")  # Build weights.
+    weights = {v.name: v for v in conv.trainable_weights}
+    self.assertLen(weights, 2)
+    topic_feature_dim = 30
+    weights["graph_sage_gcn_update/dense/kernel:0"].assign([[1.0]] *
+                                                           topic_feature_dim)
+    weights["bias:0"].assign([0.] * message_units)
+    actual = conv(graph, node_set_name="topic")
+    expected_output = {
+        True: tf.constant([[30.], [15.]]),
+        False: tf.constant([[0.], [30.]])
+    }
+    self.assertAllEqual(expected_output[add_self_loop], actual[_FEATURE_NAME])
+
+  def testGCNConvolutionFail(self):
+    graph = _get_test_graph()
+    message_units = 1
+    conv = graph_sage.GCNGraphSAGENodeSetUpdate(
+        edge_set_names=["correlates", "affiliated_with"],
+        receiver_tag=tfgnn.TARGET,
+        self_node_feature=_FEATURE_NAME,
+        sender_node_feature=_FEATURE_NAME,
+        units=message_units,
+        use_bias=True)
+    self.assertRaisesRegex(
+        ValueError,
+        r"Incorrect .* that has a different node at receiver_tag:.* other than .*.",
+        lambda: conv(graph, node_set_name="author"))
+    conv = graph_sage.GCNGraphSAGENodeSetUpdate(
+        edge_set_names=["correlates", "affiliated_with"],
+        receiver_tag=tfgnn.TARGET,
+        self_node_feature=_FEATURE_NAME,
+        sender_node_feature=_FEATURE_NAME,
+        units=message_units,
+        use_bias=True,
+        reduce_type="max_no_inf")
+    self.assertRaisesRegex(ValueError,
+                           r".* isn't supported, please instead use any of .*",
+                           lambda: conv(graph, node_set_name="author"))
 
 
 if __name__ == "__main__":

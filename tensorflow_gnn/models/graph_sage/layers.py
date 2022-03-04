@@ -1,6 +1,7 @@
 """Contains GraphSAGE convolution layer implementations."""
 
 import collections
+import copy
 from typing import Any, Callable, Optional, Set, Union
 
 import tensorflow as tf
@@ -81,12 +82,10 @@ class GraphSAGEAggregatorConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
   def get_config(self):
     """Returns the config for Aggregator Convolution."""
     config = super().get_config()
-    assert config.pop(
-        "receiver_feature",
-        None) is None, ("init should guarantee receiver_feature=None")
-    assert config.pop(
-        "sender_edge_feature",
-        None) is None, ("init should guarantee sender_edge_feature=None")
+    assert config.pop("receiver_feature", None) is None, (
+        "init should guarantee receiver_feature=None")
+    assert config.pop("sender_edge_feature", None) is None, (
+        "init should guarantee sender_edge_feature=None")
     return dict(
         **config,
         units=self._units,
@@ -206,9 +205,8 @@ class GraphSAGEPoolingConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
   def get_config(self):
     """Returns the config for Pooling Convolution."""
     config = super().get_config()
-    assert config.pop(
-        "receiver_feature",
-        None) is None, ("init should guarantee receiver_feature=None")
+    assert config.pop("receiver_feature", None) is None, (
+        "init should guarantee receiver_feature=None")
     if config.pop("sender_edge_feature", None) is not None:
       raise ValueError("init should guarantee sender_edge_feature=None")
     return dict(
@@ -236,6 +234,225 @@ class GraphSAGEPoolingConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     result = pool_to_receiver(result, reduce_type=self._reduce_type)
     result = self._transform_neighbor_fn(result)
     return result
+
+
+@tf.keras.utils.register_keras_serializable(package="GraphSAGE")
+class GCNGraphSAGENodeSetUpdate(tf.keras.layers.Layer):
+  """GCNGraphSAGENodeSetUpdate is an extension of the mean aggregator operator (Eqn-2) from the GraphSAGE paper.
+
+  For a complete GraphSAGE update on a node set, use this layer in a
+  `GraphUpdate` call as a `NodeSetUpdate` layer. An example update would look
+  as below:
+
+  ```
+  import tensorflow_gnn as tfgnn
+  graph = tfgnn.keras.layers.GraphUpdate(
+      node_sets={
+          "paper":
+              tfgnn.GCNGraphSAGENodeSetUpdate(
+                  edge_set_names=["cites", "writes"],
+                  receiver_tag=tfgnn.TARGET,
+                  units=32)
+      })(graph)
+  ```
+
+  `GCNGraphSAGENodeSetUpdate` node set update method extends the Eqn (2) from
+  the 'Inductive Representation Learning on Graphs' paper
+  [Hamilton&Ying&Leskovec, 2017] (https://arxiv.org/abs/1706.02216) to apply for
+  heterogeneous edges. For each node state pooled from the configured edge list
+  and the self node states there's a separate weight vector learned which is
+  mapping each to the same output dimensions. Also if specified a random dropout
+  operation with given probability will be applied to all the node states. If
+  share_weights is enabled, then it'll learn the same weights for self and
+  sender node states, this is the implementation for homogeneous graphs from the
+  paper. Note that enabling this requires both sender and receiver node states
+  to have the same dimension. Below is the simplified summary of the applied
+  transformations to generate new node states:
+
+  h_v = activation(reduce_type(
+                               {W_E * D_p[h_{N(v)}] for all edge-sets E}
+                               U {W_self * D_p[h_v]}
+                              ) + b) for all nodes v
+
+
+  N(v) denotes the neighbors of node v, D_p denotes dropout with probability p
+  which is applied independenly to self and sender node states, W_E and W_self
+  denote the edge and self node transformation weight vectors and b is the bias.
+  If add_self_loop is disabled then self node states won't be used during the
+  reduce operation, instead only the sender node states will be accumulated
+  based on the reduce_type specified. If share_weights is set to True, then
+  single weight matrix will be used in place of W_E and W_self.
+  """
+
+  def __init__(self,
+               *,
+               edge_set_names: Set[str],
+               receiver_tag: tfgnn.IncidentNodeTag,
+               reduce_type: str = "mean",
+               self_node_feature: str = tfgnn.DEFAULT_STATE_NAME,
+               sender_node_feature: str = tfgnn.DEFAULT_STATE_NAME,
+               units: int,
+               dropout_rate: float = 0.0,
+               activation: Union[str, Callable[..., Any]] = "relu",
+               use_bias: bool = False,
+               share_weights: bool = False,
+               add_self_loop: bool = True,
+               **kwargs):
+    """Initializes GCNGraphSAGENodeSetUpdate node set update layer.
+
+    Args:
+      edge_set_names: A list of edge set names to broadcast sender node states.
+      receiver_tag: Either one of `tfgnn.SOURCE` or `tfgnn.TARGET`. The results
+        of GraphSAGE convolution are aggregated for this graph piece. If set to
+        `tfgnn.SOURCE` or `tfgnn.TARGET`, the layer will be called for each edge
+        set and will aggregate results at the specified endpoint of the edges.
+        This should point at the node_set_name for each of the specified edge
+        set name in the edge_set_name_dict.
+      reduce_type: An aggregation operation name. Supported list of aggregation
+        operators are sum or mean.
+      self_node_feature: Feature name for the self node sets to be aggregated
+        with the broadcasted sender node states. Default is
+        `tfgnn.DEFAULT_STATE_NAME`.
+      sender_node_feature: Feature name for the sender node sets. Default is
+        `tfgnn.DEFAULT_STATE_NAME`.
+      units: Number of output units for the linear transformation applied to
+        sender node and self node features.
+      dropout_rate: Can be set to a dropout rate that will be applied to both
+        self node and the sender node states.
+      activation: The nonlinearity applied to the update node states. This can
+        be specified as a Keras layer, a tf.keras.activations.* function, or a
+        string understood by tf.keras.layers.Activation(). Defaults to relu.
+      use_bias: If true a bias term will be added to mean aggregated feature
+        vectors before applying non-linear activation.
+      share_weights: If left unset, separate weights are used to transform the
+        inputs along each edge set and the input of previous node states (unless
+        disabled by add_self_loop=False). If enabled, a single weight matrix is
+        applied to all inputs.
+      add_self_loop: If left at True (the default), each node state update takes
+        the node's old state as an explicit input next to all the inputs along
+        edge sets. Typically, this is done when the graph does not have loops.
+        If set to False, each node state update uses only the inputs along the
+        requested edge sets. Typically, this is done when loops are already
+        contained among the edges.
+      **kwargs:
+    """
+    kwargs.setdefault("name", "graph_sage_gcn_update")
+    super().__init__(**kwargs)
+    self._self_node_feature = self_node_feature
+    self._edge_set_names = copy.deepcopy(edge_set_names)
+    self._units = units
+    self._activation = tf.keras.activations.get(activation)
+    self._receiver_tag = receiver_tag
+    self._reduce_type = reduce_type
+    self._dropout_rate = dropout_rate
+    self._dropout = tf.keras.layers.Dropout(dropout_rate)
+    self._share_weights = share_weights
+    self._add_self_loop = add_self_loop
+    self._sender_node_feature = sender_node_feature
+    if not self._share_weights:
+      self._transform_edge_fn_dict = dict()
+      for edge_set_name in edge_set_names:
+        self._transform_edge_fn_dict[edge_set_name] = tf.keras.layers.Dense(
+            self._units, use_bias=False)
+    if self._add_self_loop or self._share_weights:
+      self._node_transform_fn = tf.keras.layers.Dense(
+          self._units, use_bias=False)
+    self._use_bias = use_bias
+    if self._use_bias:
+      self._bias_term = self.add_weight(
+          name="bias",
+          shape=[self._units],
+          trainable=True,
+          initializer=tf.keras.initializers.Zeros())
+
+  def get_config(self):
+    """Returns the config for the convolution."""
+    config = super().get_config()
+    return dict(
+        **config,
+        edge_set_names=self._edge_set_names,
+        receiver_tag=self._receiver_tag,
+        reduce_type=self._reduce_type,
+        self_node_feature=self._self_node_feature,
+        sender_node_feature=self._sender_node_feature,
+        units=self._units,
+        dropout_rate=self._dropout_rate,
+        activation=self._activation,
+        use_bias=self._use_bias,
+        share_weights=self._share_weights,
+        add_self_loop=self._add_self_loop)
+
+  def call(self,
+           graph: tfgnn.GraphTensor,
+           *,
+           node_set_name: str,
+           training: Optional[bool] = False) -> tfgnn.FieldOrFields:
+    """Calls the layer on `node_set_name` and returns node feature tensors."""
+    tfgnn.check_scalar_graph_tensor(graph, name="GCNGraphSAGENodeSetUpdate")
+    if self._reduce_type not in ["sum", "mean"]:
+      raise ValueError(
+          f"{self._reduce_type} isn't supported, please instead use any of "
+          "['sum', 'mean']")
+    edge_set_in_degrees_list = []
+    pooled_node_states_list = []
+    for edge_set_name in self._edge_set_names:
+      edge_set = graph.edge_sets[edge_set_name]
+      if node_set_name != edge_set.adjacency.node_set_name(self._receiver_tag):
+        raise ValueError(
+            f"Incorrect {edge_set_name} that has a different node at "
+            f"receiver_tag:{self._receiver_tag} other than {node_set_name}.")
+      sender_node_set_name = edge_set.adjacency.node_set_name(
+          tfgnn.reverse_tag(self._receiver_tag))
+      sender_node_values = graph.node_sets[sender_node_set_name][
+          self._sender_node_feature]
+      sender_node_values = self._dropout(sender_node_values)
+      if not self._share_weights:
+        sender_node_values = self._transform_edge_fn_dict[edge_set_name](
+            sender_node_values)
+      else:
+        sender_node_values = self._node_transform_fn(sender_node_values)
+      broadcasted_sender_values = tfgnn.broadcast_node_to_edges(
+          graph,
+          edge_set_name,
+          tfgnn.reverse_tag(self._receiver_tag),
+          feature_value=sender_node_values)
+      pooled_sender_values = tfgnn.pool_edges_to_node(
+          graph,
+          edge_set_name,
+          self._receiver_tag,
+          "sum",
+          feature_value=broadcasted_sender_values)
+      pooled_node_states_list.append(pooled_sender_values)
+      if self._reduce_type == "mean":
+        edge_set_ones = tf.ones([edge_set.total_size, 1])
+        edge_set_in_degrees = tf.squeeze(
+            tfgnn.pool_edges_to_node(
+                graph,
+                edge_set_name,
+                self._receiver_tag,
+                "sum",
+                feature_value=edge_set_ones))
+        edge_set_in_degrees_list.append(edge_set_in_degrees)
+    total_size = graph.node_sets[node_set_name].total_size
+    # aggregate with self node states only if add_self_loop is enabled.
+    if self._add_self_loop:
+      self_node_values = graph.node_sets[node_set_name][self._self_node_feature]
+      self_node_values = self._dropout(self_node_values)
+      self_node_values = self._node_transform_fn(self_node_values)
+      pooled_node_states_list.append(self_node_values)
+      if self._reduce_type == "mean":
+        edge_set_in_degrees_list.append(tf.ones(total_size))
+    summed_node_values = tf.math.add_n(pooled_node_states_list)
+    if self._reduce_type == "mean":
+      total_in_degrees = tf.math.add_n(edge_set_in_degrees_list)
+      result = tf.math.divide_no_nan(summed_node_values,
+                                     total_in_degrees[:, tf.newaxis])
+    else:
+      result = summed_node_values
+    if self._use_bias:
+      result += self._bias_term
+    result = self._activation(result)
+    return {self._self_node_feature: result}
 
 
 @tf.keras.utils.register_keras_serializable(package="GraphSAGE")
@@ -502,13 +719,13 @@ class GraphSAGENextState(tf.keras.layers.Layer):
     if unused_context_state:
       raise ValueError(
           "Input from context is not supported by GraphSAGENextState")
-    x = self._dropout(old_node_state, training=training)
-    x = self._self_transform(x)
-    x = [x, *[v for _, v in sorted(edge_inputs_dict.items())]]
-    x = tfgnn.combine_values(x, self._combine_type)
+    result = self._dropout(old_node_state, training=training)
+    result = self._self_transform(result)
+    result = [result, *[v for _, v in sorted(edge_inputs_dict.items())]]
+    result = tfgnn.combine_values(result, self._combine_type)
     if self._use_bias:
-      x += self._bias_term
-    x = self._activation(x)
+      result += self._bias_term
+    result = self._activation(result)
     if self._l2_normalize:
-      x = tf.math.l2_normalize(x, axis=1)
-    return {self._feature_name: x}
+      result = tf.math.l2_normalize(result, axis=1)
+    return {self._feature_name: result}
