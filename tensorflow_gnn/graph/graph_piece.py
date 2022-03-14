@@ -110,12 +110,13 @@ class GraphPieceBase(composite_tensor.CompositeTensor, metaclass=abc.ABCMeta):
                data: Data,
                spec: 'GraphPieceSpecBase',
                validate: bool = False):
-    """Creates object from `data` and matching data `spec`.
+    """Internal constructor, use `from_*` class factory methods instead.
+
+    Creates object from `data` and matching data `spec`.
 
     NOTE: Any subclass `GraphPiece` is expected to support initialization
     as `GraphPiece(data, spec)` from data (suitably nested) and a spec with
     the matching subclass of GraphPieceSpecBase. Avoid redefining `__init__`.
-    Prefer using factory class methods for object creation.
 
     Args:
       data: Nest of Field or subclasses of GraphPieceBase.
