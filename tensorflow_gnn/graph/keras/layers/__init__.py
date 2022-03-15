@@ -2,7 +2,6 @@
 
 from tensorflow_gnn.graph.keras.layers import convolution_base
 from tensorflow_gnn.graph.keras.layers import convolutions
-from tensorflow_gnn.graph.keras.layers import gat_v2
 from tensorflow_gnn.graph.keras.layers import graph_ops
 from tensorflow_gnn.graph.keras.layers import graph_update
 from tensorflow_gnn.graph.keras.layers import map_features
@@ -31,15 +30,10 @@ NodeSetUpdate = graph_update.NodeSetUpdate
 ContextUpdate = graph_update.ContextUpdate
 GraphUpdate = graph_update.GraphUpdate
 
-GATv2Convolution = gat_v2.GATv2Convolution
-GATv2EdgePool = gat_v2.GATv2EdgePool
-GATv2GraphUpdate = gat_v2.GATv2GraphUpdate
-
 # Prune imported module symbols so they're not accessible implicitly.
 # Please use the same order as for the import statements at the top.
 del convolution_base
 del convolutions
-del gat_v2
 del graph_ops
 del graph_update
 del map_features

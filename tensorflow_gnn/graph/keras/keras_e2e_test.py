@@ -38,9 +38,6 @@ class ExportedKerasNamesTest(tf.test.TestCase):
     self.assertIsSubclass(tfgnn.keras.layers.NodeSetUpdate, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.ContextUpdate, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.GraphUpdate, Layer)
-    self.assertIsSubclass(tfgnn.keras.layers.GATv2Convolution, Layer)
-    self.assertCallable(tfgnn.keras.layers.GATv2EdgePool)
-    self.assertCallable(tfgnn.keras.layers.GATv2GraphUpdate)
 
   def testBuilders(self):
     self.assertIsSubclass(tfgnn.keras.ConvGNNBuilder, object)
