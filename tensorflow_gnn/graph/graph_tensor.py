@@ -633,7 +633,7 @@ class GraphTensor(gp.GraphPieceBase):
   indexing.
 
   Example 1: A homogeneous scalar graph with one component having 10 nodes and
-  20 edges and no values.
+  3 edges and no values.
 
       gnn.GraphTensor.from_pieces(
         node_sets = {
@@ -641,11 +641,11 @@ class GraphTensor(gp.GraphPieceBase):
         },
         edge_sets = {
           'edge': gnn.EdgeSet.from_fields(
-             sizes=[10],
+             sizes=[3],
              features={},
              adjacency=gnn.Adjacency.from_indices(
                source=('node', [0, 5, 9]),
-               target=('node', [19, 10, 0])))})
+               target=('node', [3, 7, 1])))})
 
   Example 2: A rank-1 graph tensor with three graphs. Each graph is a tree with
   a single scalar label.
