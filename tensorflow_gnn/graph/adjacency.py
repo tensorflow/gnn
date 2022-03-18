@@ -290,6 +290,12 @@ class Adjacency(HyperAdjacency):
   def _type_spec_cls():
     return AdjacencySpec
 
+  def __repr__(self):
+    return (f'Adjacency(source=(\'{self.source_name}\', '
+            f'{utils.short_repr(self.source)}), '
+            f'target=(\'{self.target_name}\', '
+            f'{utils.short_repr(self.target)}))')
+
 
 @type_spec.register('tensorflow_gnn.AdjacencySpec')
 class AdjacencySpec(HyperAdjacencySpec):

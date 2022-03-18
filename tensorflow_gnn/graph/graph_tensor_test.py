@@ -134,13 +134,20 @@ class CreationTest(tu.GraphTensorTestBase):
     self.assertAllEqual(edge_set.adjacency[const.SOURCE],
                         adjacency[const.SOURCE])
 
-  def testEmpyGraphTensor(self):
+  def testEmptyGraphTensor(self):
     result = gt.GraphTensor.from_pieces()
     self.assertEqual(result.shape, [])
     self.assertEqual(result.context.shape, [])
     self.assertEmpty(result.context.features)
     self.assertEmpty(result.node_sets)
     self.assertEmpty(result.edge_sets)
+    self.assertEqual(
+        ('GraphTensor(\n'
+         '  context=Context('
+         'features={}, sizes=[], shape=(), indices_dtype=tf.int32),\n'
+         '  node_set_names=[],\n'
+         '  edge_set_names=[])'),
+        repr(result))
 
   def testGraphTensor(self):
     result = gt.GraphTensor.from_pieces(
@@ -157,10 +164,10 @@ class CreationTest(tu.GraphTensorTestBase):
                 gt.EdgeSet.from_fields(
                     features={'weight': as_ragged([[1., 2.], [3.]])},
                     sizes=as_tensor([[2], [1]]),
-                    adjacency=adj.HyperAdjacency.from_indices({
-                        const.SOURCE: ('a', as_ragged([[0, 1], [0]])),
-                        const.TARGET: ('b', as_ragged([[1, 2], [0]])),
-                    })),
+                    adjacency=adj.Adjacency.from_indices(
+                        source=('a', as_ragged([[0, 1], [0]])),
+                        target=('b', as_ragged([[1, 2], [0]])),
+                    )),
         },
     )
     self.assertEqual(result.shape, [2])
@@ -185,6 +192,18 @@ class CreationTest(tu.GraphTensorTestBase):
                      tf.RaggedTensorSpec([2, None], tf.float32, 1, tf.int64))
     self.assertEqual(edge_spec.adjacency_spec.node_set_name(const.SOURCE), 'a')
     self.assertEqual(edge_spec.adjacency_spec.node_set_name(const.TARGET), 'b')
+    self.assertEqual(
+        ''.join(('GraphTensor('
+                 'context=Context('
+                 'features={\'label\':<tf.Tensor:shape=(2,1),'
+                 'dtype=tf.string>},'
+                 'sizes=[[1][1]],'
+                 'shape=(2,),'
+                 "indices_dtype=tf.int32),"
+                 "node_set_names=['a', 'b'],"
+                 "edge_set_names=['a->b'])").split()),
+        # Easy way to get rid of whitespace
+        ''.join(repr(result).split()))
 
 
 class ReplaceFieldsTest(tu.GraphTensorTestBase):

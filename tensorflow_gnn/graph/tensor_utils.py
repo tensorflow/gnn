@@ -1,5 +1,5 @@
 """Utils for tensors and ragged tensors."""
-from typing import List, Optional, Text, Union
+from typing import List, Optional, Text, Union, Mapping
 
 from keras.engine import keras_tensor as kt
 import tensorflow as tf
@@ -383,3 +383,29 @@ def is_dense_tensor(value: Value) -> bool:
     return isinstance(value.type_spec, tf.TensorSpec)
 
   return False
+
+
+def short_repr(value: Value) -> str:
+  """A string for a dense or ragged tensor without the contained values.
+
+  This is a helper function to print metadata (dtype and shape) of a feature
+  tensor without all the values, to make GraphTensor and GraphPiece reprs
+  more readable.
+
+  Args:
+    value: tensor or ragged tensor.
+
+  Returns:
+    Shortened string representation of the input.
+  """
+  if is_dense_tensor(value):
+    return f'<tf.Tensor: shape={value.shape}, dtype={value.dtype!r}>'
+  elif is_ragged_tensor(value):
+    return f'<tf.RaggedTensor: dtype={value.dtype!r}>'
+  else:
+    return repr(value)
+
+
+def short_features_repr(features: Mapping[str, Value]) -> str:
+  return ('{' + ', '.join(f"'{key}': {short_repr(value)}"
+                          for key, value in features.items()) + '}')

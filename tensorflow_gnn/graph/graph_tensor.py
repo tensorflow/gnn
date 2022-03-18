@@ -280,6 +280,13 @@ class Context(_GraphPieceWithFeatures):
   def _type_spec_cls():
     return ContextSpec
 
+  def __repr__(self):
+    return (f'Context('
+            f'features={utils.short_features_repr(self.features)}, '
+            f'sizes={self.sizes}, '
+            f'shape={self.shape}, '
+            f'indices_dtype={self.indices_dtype!r})')
+
 
 @type_spec.register('tensorflow_gnn.ContextSpec.v2')
 class ContextSpec(_GraphPieceWithFeaturesSpec):
@@ -392,6 +399,11 @@ class NodeSet(_NodeOrEdgeSet):
   def _type_spec_cls():
     return NodeSetSpec
 
+  def __repr__(self):
+    return (f'NodeSet('
+            f'features={utils.short_features_repr(self.features)}, '
+            f'sizes={self.sizes})')
+
 
 @type_spec.register('tensorflow_gnn.NodeSetSpec')
 class NodeSetSpec(_NodeOrEdgeSetSpec):
@@ -468,6 +480,12 @@ class EdgeSet(_NodeOrEdgeSet):
   @staticmethod
   def _type_spec_cls():
     return EdgeSetSpec
+
+  def __repr__(self):
+    return (f'EdgeSet('
+            f'features={utils.short_features_repr(self.features)}, '
+            f'sizes={self.sizes}, '
+            f'adjacency={self.adjacency})')
 
 
 @type_spec.register('tensorflow_gnn.EdgeSetSpec')
@@ -937,6 +955,16 @@ class GraphTensor(gp.GraphPieceBase):
   def _type_spec_cls():
     return GraphTensorSpec
 
+  def __repr__(self):
+    # We define __repr__ instead of __str__ here because it's the default
+    # for jupyter notebooks and interactive analysis. Keeping the full
+    # tensor representations makes the __repr__ unreadably long very quickly
+    # so we truncate it but still keep it unique.
+    return (f'GraphTensor(\n'
+            f'  context={self.context},\n'
+            f'  node_set_names={list(self.node_sets.keys())},\n'
+            f'  edge_set_names={list(self.edge_sets.keys())})')
+
 
 @type_spec.register('tensorflow_gnn.GraphTensorSpec')
 class GraphTensorSpec(gp.GraphPieceSpecBase):
@@ -1081,6 +1109,9 @@ class _ImmutableMapping(Mapping):
 
   def __len__(self):
     return len(self._data)
+
+  def __repr__(self):
+    return repr(self._data)
 
   def copy(self):
     """Returns copy as a dictionary object."""

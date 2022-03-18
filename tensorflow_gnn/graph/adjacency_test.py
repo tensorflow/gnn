@@ -275,6 +275,15 @@ class AdjacencyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(result.source, [0, 1, 1 + 3, 0 + 3 + 2])
     self.assertAllEqual(result.target, [1, 2, 1 + 4, 1 + 4 + 3])
 
+  def testAdjacencyRepr(self):
+    adj = adjacency.Adjacency.from_indices(
+        source=('node.a', as_tensor([0, 1, 2])),
+        target=('node.b', as_tensor([2, 1, 0])))
+    self.assertEqual(
+        "Adjacency("
+        "source=('node.a', <tf.Tensor: shape=(3,), dtype=tf.int32>), "
+        "target=('node.b', <tf.Tensor: shape=(3,), dtype=tf.int32>))",
+        repr(adj))
 
 if __name__ == '__main__':
   tf.test.main()
