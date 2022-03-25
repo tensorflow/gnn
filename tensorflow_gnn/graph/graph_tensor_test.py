@@ -1,5 +1,6 @@
 """Tests for GraphTensor  (go/tf-gnn-api)."""
 
+import collections
 from typing import Mapping
 
 from absl.testing import parameterized
@@ -206,8 +207,8 @@ class CreationTest(tu.GraphTensorTestBase):
         ''.join(repr(result).split()))
 
 
-class ReplaceFieldsTest(tu.GraphTensorTestBase):
-  """Tests for GraphTensor tranformations."""
+class ReplaceFeaturesTest(tu.GraphTensorTestBase):
+  """Tests for replace_features()."""
 
   @parameterized.parameters([
       dict(features={'a': as_tensor([2])}),
@@ -321,6 +322,96 @@ class ReplaceFieldsTest(tu.GraphTensorTestBase):
           'a->x': features,
           'a->y': features,
       })
+
+
+class RemoveFeaturesTest(tu.GraphTensorTestBase):
+  """Tests for remove_features()."""
+
+  def _make_test_graph(self):
+    return gt.GraphTensor.from_pieces(
+        context=gt.Context.from_fields(
+            features={'fc': as_tensor([10]), 'f2': as_tensor([20])}),
+        node_sets={
+            'a': gt.NodeSet.from_fields(
+                features={'fa': as_tensor([10]), 'f2': as_tensor([20])},
+                sizes=as_tensor([1])),
+            'b': gt.NodeSet.from_fields(
+                features={'fb': as_tensor([10]), 'f2': as_tensor([20])},
+                sizes=as_tensor([1]))},
+        edge_sets={
+            'ab': gt.EdgeSet.from_fields(
+                features={'fab': as_tensor([10]), 'f2': as_tensor([20])},
+                sizes=as_tensor([1]),
+                adjacency=adj.HyperAdjacency.from_indices({
+                    const.SOURCE: ('a', as_tensor([0])),
+                    const.TARGET: ('b', as_tensor([0]))})),
+            'ba': gt.EdgeSet.from_fields(
+                features={'fba': as_tensor([10]), 'f2': as_tensor([20])},
+                sizes=as_tensor([1]),
+                adjacency=adj.HyperAdjacency.from_indices({
+                    const.SOURCE: ('b', as_tensor([0])),
+                    const.TARGET: ('a', as_tensor([0]))}))})
+
+  @parameterized.named_parameters(
+      ('None', [], [], [], [], []),
+      ('OneFromContext', ['f2'], [], [], [], []),
+      ('OneFromNode', [], [], ['f2'], [], []),
+      ('OneFromEdge', [], [], [], [], ['f2']),
+      ('OneFromAll', ['fc'], ['fa'], ['fb'], ['fab'], ['fba']),
+      ('RepeatedFromAll', ['fc']*2, ['fa']*2, ['fb']*2, ['fab']*2, ['fba']*2),
+      ('TwoFromEachType', ['fc', 'f2'], ['fa', 'f2'], [], [], ['fba', 'f2']),
+      ('All', ['fc', 'f2'], ['fa', 'f2'], ['fb', 'f2'], ['fab', 'f2'],
+       ['fba', 'f2']),
+  )
+  def testRemove(self, rm_context, rm_a, rm_b, rm_ab, rm_ba):
+    graph = self._make_test_graph()
+
+    kwargs = collections.defaultdict(dict)
+    if rm_context:
+      kwargs['context'] = rm_context
+    if rm_a:
+      kwargs['node_sets']['a'] = rm_a
+    if rm_b:
+      kwargs['node_sets']['b'] = rm_b
+    if rm_ab:
+      kwargs['edge_sets']['ab'] = rm_ab
+    if rm_ba:
+      kwargs['edge_sets']['ba'] = rm_ba
+
+    result = graph.remove_features(**kwargs)
+    self.assertCountEqual(result.context.features,
+                          {'fc', 'f2'} - set(rm_context))
+    self.assertCountEqual(result.node_sets['a'].features,
+                          {'fa', 'f2'} - set(rm_a))
+    self.assertCountEqual(result.node_sets['b'].features,
+                          {'fb', 'f2'} - set(rm_b))
+    self.assertCountEqual(result.edge_sets['ab'].features,
+                          {'fab', 'f2'} - set(rm_ab))
+    self.assertCountEqual(result.edge_sets['ba'].features,
+                          {'fba', 'f2'} - set(rm_ba))
+
+  def testRemoveNonexistantFromContext(self):
+    graph = self._make_test_graph()
+    with self.assertRaisesRegex(
+        ValueError,
+        'GraphTensor has no feature context\\[\'xyz\'\\]'):
+      _ = graph.remove_features(context=['fc', 'xyz', 'f2'])
+
+  def testRemoveNonexistantFromNodeSet(self):
+    graph = self._make_test_graph()
+    with self.assertRaisesRegex(
+        ValueError,
+        'GraphTensor has no feature node_sets\\[\'b\'\\]\\[\'xyz\'\\]'):
+      _ = graph.remove_features(node_sets={'a': ['fa', 'f2'],
+                                           'b': ['fb', 'xyz', 'f2']})
+
+  def testRemoveNonexistantFromEdgeSet(self):
+    graph = self._make_test_graph()
+    with self.assertRaisesRegex(
+        ValueError,
+        'GraphTensor has no feature edge_sets\\[\'ba\'\\]\\[\'xyz\'\\]'):
+      _ = graph.remove_features(edge_sets={'ab': ['fab', 'f2'],
+                                           'ba': ['fba', 'xyz', 'f2']})
 
 
 class ElementsCountsTest(tf.test.TestCase, parameterized.TestCase):

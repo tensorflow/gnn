@@ -2,7 +2,7 @@
 """
 
 import abc
-from typing import Any, Callable, cast, Dict, Mapping, Optional, Union
+from typing import Any, Callable, cast, Dict, Mapping, Optional, Sequence, Union
 
 import tensorflow as tf
 from tensorflow_gnn.graph import graph_constants as const
@@ -950,6 +950,90 @@ class GraphTensor(gp.GraphPieceBase):
       }
 
     return self.__class__.from_pieces(new_context, new_node_sets, new_edge_sets)
+
+  def remove_features(
+      self,
+      context: Optional[Sequence[NodeSetName]] = None,
+      node_sets: Optional[Mapping[NodeSetName, Sequence[NodeSetName]]] = None,
+      edge_sets: Optional[Mapping[NodeSetName, Sequence[EdgeSetName]]] = None,
+  ) -> 'GraphTensor':
+    """Returns a new GraphTensor with some features removed.
+
+    The graph topology and the other features remain unchanged.
+
+    Example 1. Removes the id feature from node set 'node.a'.
+
+        graph = tfgnn.GraphTensor.from_pieces(
+            node_sets={
+                'node.a': tfgnn.NodeSet.from_fields(
+                    features={'id': ['a1', 'a3']}, sizes=[2]),
+                'node.b': tfgnn.NodeSet.from_fields(
+                    features={'id': ['b4', 'b1']}, sizes=[2])})
+        result = graph.remove_features(node_sets={'node.a': ['id']})
+
+    Result:
+
+        tfgnn.GraphTensor.from_pieces(
+            node_sets={
+                'node.a': tfgnn.NodeSet.from_fields(
+                    features={}, sizes=[2]),
+                'node.b': tfgnn.NodeSet.from_fields(
+                    features={'id': ['b4', 'b1']}, sizes=[2])})
+
+    Args:
+      context: a list of feature names to remove from the context, or None.
+      node_sets: a mapping from node set names to lists of feature names to be
+        removed from the respective node sets.
+      edge_sets: a mapping from edge set names to lists of feature names to be
+        removed from the respective edge sets.
+
+    Returns:
+      A `GraphTensor` with the same graph topology as the input and a subset
+      of its features. Each feature of the input either was named as a feature
+      to be removed or is still present in the output.
+
+    Raises:
+      ValueError: if some feature names in the arguments were not present in the
+        input graph tensor.
+    """
+    context_features = None
+    if context:
+      context_features = self.context.get_features_dict()
+      for feature_name in set(context):
+        try:
+          context_features.pop(feature_name)
+        except KeyError as e:
+          raise ValueError(  # TODO(b/226560215): ...or KeyError?
+              f'GraphTensor has no feature context[\'{feature_name}\']') from e
+    node_sets_features = {}
+    if node_sets:
+      for node_set_name, feature_names in node_sets.items():
+        node_sets_features[node_set_name] = self.node_sets[
+            node_set_name].get_features_dict()
+        for feature_name in set(feature_names):
+          try:
+            node_sets_features[node_set_name].pop(feature_name)
+          except KeyError as e:
+            raise ValueError(
+                'GraphTensor has no feature '
+                f'node_sets[\'{node_set_name}\'][\'{feature_name}\']') from e
+
+    edge_sets_features = {}
+    if edge_sets:
+      for edge_set_name, feature_names in edge_sets.items():
+        edge_sets_features[edge_set_name] = self.edge_sets[
+            edge_set_name].get_features_dict()
+        for feature_name in set(feature_names):
+          try:
+            edge_sets_features[edge_set_name].pop(feature_name)
+          except KeyError as e:
+            raise ValueError(
+                'GraphTensor has no feature '
+                f'edge_sets[\'{edge_set_name}\'][\'{feature_name}\']') from e
+
+    return self.replace_features(context=context_features,
+                                 node_sets=node_sets_features,
+                                 edge_sets=edge_sets_features)
 
   @staticmethod
   def _type_spec_cls():
