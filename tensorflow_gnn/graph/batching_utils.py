@@ -166,6 +166,40 @@ def dynamic_batch(dataset: tf.data.Dataset,
   return dataset
 
 
+def find_tight_size_constraints(dataset: tf.data.Dataset) -> SizesConstraints:
+  """Returns smallest possible size constraints that allow dataset padding.
+
+  Evaluated constraints are intended to be used when it is required that all
+  elements of the `dataset` can be padded, e.g. when evaluating models.
+
+  Note that this function iterates over all elements of the input dataset, so
+  its execution time is proportional to its cardinality.
+
+  Args:
+    dataset: finite dataset of graph tensors of any rank.
+
+  Returns:
+    Smalles possible size constraints that allows padding of all graph tensors
+    in the input dataset.
+
+  Raises:
+    ValueError: if dataset elements are not GraphTensors or its cardinality
+      is `tf.data.INFINITE_CARDINALITY`.
+  """
+  graph_tensor_spec = dataset.element_spec
+  if not isinstance(dataset.element_spec, gt.GraphTensorSpec):
+    raise ValueError('The element of dataset must be GraphTensor.')
+  if dataset.cardinality() == tf.data.INFINITE_CARDINALITY:
+    raise ValueError('The dataset must be finite.')
+
+  ds = dataset.map(_get_total_sizes_int64)
+  size_contraints = preprocessing_common.compute_basic_stats(ds).maximum
+  assert isinstance(size_contraints, SizesConstraints)
+
+  return _fine_tune_learned_constraints(
+      size_contraints, graph_tensor_spec=graph_tensor_spec)
+
+
 def learn_fit_or_skip_size_constraints(
     dataset: tf.data.Dataset,
     batch_size: Union[int, Iterable[int]],
@@ -236,8 +270,8 @@ def learn_fit_or_skip_size_constraints(
       satisfies the learned constraints. Could be a single float value between 0
       and 1 or any iterable. For the latter case the result is reported for
       each requested value. NOTE: setting success_ratio to 1 only guarantees
-      that all sampled graphs are satisfy the learned constraints. This does
-      not in general apply to an arbitrary sample. When `sample_size` tends to
+      that all sampled graphs are satisfy the learned constraints. This does not
+      in general apply to an arbitrary sample. When `sample_size` tends to
       infinity, the 1 ratio corresponds to the "almost surely satisfies" event.
     sample_size: the number of the first dataset examples to use for inference.
     num_thresholds: the number of quantiles to use to approximate probability
@@ -275,12 +309,8 @@ def learn_fit_or_skip_size_constraints(
                      f' got dataset.element_spec={dataset.element_spec}.')
 
   # Extract graph piece sizes and flatten them as a rank=1 int64 tensor.
-  def get_total_sizes(graph: gt.GraphTensor) -> SizesConstraints:
-    result = _get_total_sizes(graph)
-    return tf.nest.map_structure(lambda s: tf.cast(s, tf.int64), result)
-
   graph_tensor_spec = dataset.element_spec
-  dataset = dataset.map(get_total_sizes)
+  dataset = dataset.map(_get_total_sizes_int64)
   result_type_spec = dataset.element_spec
   dataset = dataset.map(lambda t: tf.stack(tf.nest.flatten(t)))
 
@@ -517,14 +547,10 @@ def learn_fit_or_skip_size_constraints(
       flattened_constraints: tf.Tensor) -> SizesConstraints:
     size_constraints = tf.nest.pack_sequence_as(
         result_type_spec, tf.unstack(flattened_constraints))
-    return _make_room_for_padding(
+    return _fine_tune_learned_constraints(
         size_constraints, graph_tensor_spec=graph_tensor_spec)
 
   result = tf.nest.map_structure(get_size_constraints, result)
-
-  if tf.executing_eagerly():
-    # If executed eagerly, convert integer scalar tensors to the python int.
-    result = tf.nest.map_structure(lambda t: int(t.numpy()), result)
 
   # Reshape result depending on the passed arguments:
   if not isinstance(success_ratio, Iterable):
@@ -537,7 +563,7 @@ def learn_fit_or_skip_size_constraints(
 
 def _make_room_for_padding(size_constraints: SizesConstraints,
                            graph_tensor_spec: gt.GraphTensorSpec):
-  """Reserves space in `size_constraints` for by padding."""
+  """Reserves space in `size_constraints` for padding."""
   total_num_components = graph_tensor_spec.total_num_components is None
 
   total_num_nodes = {}
@@ -568,6 +594,17 @@ def _make_room_for_padding(size_constraints: SizesConstraints,
           total_num_edges=total_num_edges))
 
 
+def _fine_tune_learned_constraints(
+    size_constraints: SizesConstraints,
+    graph_tensor_spec: gt.GraphTensorSpec) -> SizesConstraints:
+  """Reserves space for padding and converts eager tensors to Python ints."""
+  result = _make_room_for_padding(size_constraints, graph_tensor_spec)
+  if tf.executing_eagerly():
+    # If executed eagerly, convert integer scalar tensors to the python int.
+    result = tf.nest.map_structure(lambda t: int(t.numpy()), result)
+  return result
+
+
 def _convert_to_list(value: Union[Any, Iterable[Any]], value_dtype,
                      value_debug_name: str) -> List[Any]:
   """Converts single value or iterable to the python list."""
@@ -594,6 +631,12 @@ def _get_total_sizes(graph_tensor: gt.GraphTensor) -> SizesConstraints:
           name: edge_set.total_size
           for name, edge_set in graph_tensor.edge_sets.items()
       })
+
+
+def _get_total_sizes_int64(graph: gt.GraphTensor) -> SizesConstraints:
+  """Same as `_get_total_sizes()` but with all sizes casted to tf.int64."""
+  result = _get_total_sizes(graph)
+  return tf.nest.map_structure(lambda s: tf.cast(s, tf.int64), result)
 
 
 def _validate_and_prepare_constraints(

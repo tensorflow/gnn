@@ -102,6 +102,7 @@ assert_satisfies_total_sizes = padding_ops.assert_satisfies_total_sizes
 satisfies_total_sizes = padding_ops.satisfies_total_sizes
 
 # Learned batching and padding.
+find_tight_size_constraints = batching_utils.find_tight_size_constraints
 learn_fit_or_skip_size_constraints = batching_utils.learn_fit_or_skip_size_constraints
 
 # I/O functions (output encoding).

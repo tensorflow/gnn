@@ -236,8 +236,8 @@ class DynamicBatchTest(tu.GraphTensorTestBase):
 
     dataset = tf.data.Dataset.from_tensors(self.test_a1b1_ab1_graph)
 
-    def batch(dataset, constrains):
-      return batching_utils.dynamic_batch(dataset, constrains)
+    def batch(dataset, constraints):
+      return batching_utils.dynamic_batch(dataset, constraints)
 
     no_a_node = SizesConstraints(
         total_num_components=1,
@@ -277,8 +277,8 @@ class DynamicBatchTest(tu.GraphTensorTestBase):
     if repeat:
       dataset = dataset.repeat()
 
-    def batch(dataset, constrains):
-      dataset = batching_utils.dynamic_batch(dataset, constrains)
+    def batch(dataset, constraints):
+      dataset = batching_utils.dynamic_batch(dataset, constraints)
       dataset = dataset.take(5)
       return list(dataset)
 
@@ -328,16 +328,18 @@ def _gt_from_sizes(sizes: SizesConstraints) -> gt.GraphTensor:
 
   node_sets = {}
   for name, total_size in sizes.total_num_nodes.items():
+    zeros = tf.zeros([sizes.total_num_components - 1], dtype=tf.int32)
     node_sets[name] = gt.NodeSet.from_fields(
-        sizes=[total_size],
+        sizes=tf.concat([[total_size], zeros], axis=0),
         features={'_dummy_': tf.zeros([total_size, 0], tf.float32)})
 
   edge_sets = {}
   for name, total_size in sizes.total_num_edges.items():
     source, target = name.split('->')
     indices = tf.zeros(total_size, dtype=tf.int32)
+    zeros = tf.zeros([sizes.total_num_components - 1], dtype=tf.int32)
     edge_sets[name] = gt.EdgeSet.from_fields(
-        sizes=[total_size],
+        sizes=tf.concat([[total_size], zeros], axis=0),
         adjacency=adj.Adjacency.from_indices((source, indices),
                                              (target, indices)))
 
@@ -345,7 +347,75 @@ def _gt_from_sizes(sizes: SizesConstraints) -> gt.GraphTensor:
       context=context, node_sets=node_sets, edge_sets=edge_sets)
 
 
-class ConstrainsForStaticBatchTest(tu.GraphTensorTestBase):
+class ConstraintsTestBase(tu.GraphTensorTestBase):
+
+  def assertContraintsEqual(self, actual, expected):
+    tf.nest.map_structure(
+        functools.partial(
+            self.assertAllEqual, msg=f'actual={actual}, expected={expected}'),
+        actual, expected)
+
+
+class MinimumSizeConstraintsTest(ConstraintsTestBase):
+
+  def testEmptyDataset(self):
+    ds = tf.data.Dataset.from_tensors(
+        _gt_from_sizes(SizesConstraints(5, {'n': 3}, {'n->n': 6})))
+    ds = ds.take(0)
+    result = batching_utils.find_tight_size_constraints(ds)
+    self.assertContraintsEqual(
+        result,
+        SizesConstraints(tf.int64.min, {'n': tf.int64.min},
+                         {'n->n': tf.int64.min}))
+
+  @parameterized.parameters([(SizesConstraints(1, {}, {}),),
+                             (SizesConstraints(32, {}, {}),),
+                             (SizesConstraints(5, {'n': 3}, {}),),
+                             (SizesConstraints(5, {'n': 3}, {'n->n': 6}),),
+                             (SizesConstraints(1, {
+                                 'a': 2,
+                                 'b': 3
+                             }, {'a->b': 4}),)])
+  def testSingleExample(self, value: SizesConstraints):
+    ds = tf.data.Dataset.from_tensors(_gt_from_sizes(value))
+    result = batching_utils.find_tight_size_constraints(ds)
+    self.assertContraintsEqual(result, value)
+
+  def testMultipleExamples(self):
+
+    def generator(size):
+      return _gt_from_sizes(
+          SizesConstraints(size, {
+              'a': size + 1,
+              'b': size + 2
+          }, {'a->b': size + 3}))
+
+    ds = tf.data.Dataset.range(1, 101).map(generator)
+    ds = ds.shuffle(100, seed=42)
+    result = batching_utils.find_tight_size_constraints(ds)
+    self.assertContraintsEqual(
+        result,
+        SizesConstraints(100 + 1, {
+            'a': 101 + 1,
+            'b': 102 + 1
+        }, {'a->b': 103}))
+
+  def testRaisesOnInfiniteInput(self):
+    ds = tf.data.Dataset.from_tensors(
+        _gt_from_sizes(SizesConstraints(5, {'n': 3}, {'n->n': 6})))
+    ds = ds.repeat()
+    self.assertRaisesRegex(
+        ValueError, 'The dataset must be finite',
+        lambda: batching_utils.find_tight_size_constraints(ds))
+
+  def testRaisesOnNotGraphTensorElements(self):
+    ds = tf.data.Dataset.range(0, 10)
+    self.assertRaisesRegex(
+        ValueError, 'The element of dataset must be GraphTensor',
+        lambda: batching_utils.find_tight_size_constraints(ds))
+
+
+class ConstraintsForStaticBatchTest(ConstraintsTestBase):
 
   def assertContraintsEqual(self, actual, expected):
     tf.nest.map_structure(
