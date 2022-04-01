@@ -7,17 +7,17 @@ from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import padding_ops
 from tensorflow_gnn.graph import preprocessing_common
 
-SizesConstraints = preprocessing_common.SizesConstraints
+SizeConstraints = preprocessing_common.SizeConstraints
 
 
 class _ScanState(NamedTuple):
   """The state used by `dynamic_batch` in `tf.data.Dataset.scan()`."""
-  budget_left: SizesConstraints
+  budget_left: SizeConstraints
   accumulator: Tuple[tf.TensorArray]
 
 
 def dynamic_batch(dataset: tf.data.Dataset,
-                  constraints: SizesConstraints) -> tf.data.Dataset:
+                  constraints: SizeConstraints) -> tf.data.Dataset:
   """Batches as many consecutive graphs as allowed by the `constraints`.
 
   Each result batch can have variable number of graphs. Batches are returned as
@@ -166,7 +166,7 @@ def dynamic_batch(dataset: tf.data.Dataset,
   return dataset
 
 
-def find_tight_size_constraints(dataset: tf.data.Dataset) -> SizesConstraints:
+def find_tight_size_constraints(dataset: tf.data.Dataset) -> SizeConstraints:
   """Returns smallest possible size constraints that allow dataset padding.
 
   Evaluated constraints are intended to be used when it is required that all
@@ -194,7 +194,7 @@ def find_tight_size_constraints(dataset: tf.data.Dataset) -> SizesConstraints:
 
   ds = dataset.map(_get_total_sizes_int64)
   size_contraints = preprocessing_common.compute_basic_stats(ds).maximum
-  assert isinstance(size_contraints, SizesConstraints)
+  assert isinstance(size_contraints, SizeConstraints)
 
   return _fine_tune_learned_constraints(
       size_contraints, graph_tensor_spec=graph_tensor_spec)
@@ -206,7 +206,7 @@ def learn_fit_or_skip_size_constraints(
     *,
     success_ratio: Union[float, Iterable[float]] = 1.0,
     sample_size: int = 100_000,
-    num_thresholds: int = 1_000) -> Union[SizesConstraints, List[Any]]:
+    num_thresholds: int = 1_000) -> Union[SizeConstraints, List[Any]]:
   """Learns the optimal size constraints for the fixed size batching with retry.
 
   The function estimates the smallest possible size constraints so that a random
@@ -544,7 +544,7 @@ def learn_fit_or_skip_size_constraints(
   # Unflatten size constraints to SizeConstraints.
 
   def get_size_constraints(
-      flattened_constraints: tf.Tensor) -> SizesConstraints:
+      flattened_constraints: tf.Tensor) -> SizeConstraints:
     size_constraints = tf.nest.pack_sequence_as(
         result_type_spec, tf.unstack(flattened_constraints))
     return _fine_tune_learned_constraints(
@@ -561,7 +561,7 @@ def learn_fit_or_skip_size_constraints(
   return result
 
 
-def _make_room_for_padding(size_constraints: SizesConstraints,
+def _make_room_for_padding(size_constraints: SizeConstraints,
                            graph_tensor_spec: gt.GraphTensorSpec):
   """Reserves space in `size_constraints` for padding."""
   total_num_components = graph_tensor_spec.total_num_components is None
@@ -588,15 +588,15 @@ def _make_room_for_padding(size_constraints: SizesConstraints,
   return tf.nest.map_structure(
       lambda size, needs_room: (size + (1 if needs_room else 0)),
       size_constraints,
-      SizesConstraints(
+      SizeConstraints(
           total_num_components=total_num_components,
           total_num_nodes=total_num_nodes,
           total_num_edges=total_num_edges))
 
 
 def _fine_tune_learned_constraints(
-    size_constraints: SizesConstraints,
-    graph_tensor_spec: gt.GraphTensorSpec) -> SizesConstraints:
+    size_constraints: SizeConstraints,
+    graph_tensor_spec: gt.GraphTensorSpec) -> SizeConstraints:
   """Reserves space for padding and converts eager tensors to Python ints."""
   result = _make_room_for_padding(size_constraints, graph_tensor_spec)
   if tf.executing_eagerly():
@@ -619,9 +619,9 @@ def _convert_to_list(value: Union[Any, Iterable[Any]], value_dtype,
                     f'type {dtype_debug_name} or List[{dtype_debug_name}]'))
 
 
-def _get_total_sizes(graph_tensor: gt.GraphTensor) -> SizesConstraints:
+def _get_total_sizes(graph_tensor: gt.GraphTensor) -> SizeConstraints:
   """Returns the total number of items in the `graph_tensor`."""
-  return SizesConstraints(
+  return SizeConstraints(
       total_num_components=graph_tensor.total_num_components,
       total_num_nodes={
           name: node_set.total_size
@@ -633,15 +633,15 @@ def _get_total_sizes(graph_tensor: gt.GraphTensor) -> SizesConstraints:
       })
 
 
-def _get_total_sizes_int64(graph: gt.GraphTensor) -> SizesConstraints:
+def _get_total_sizes_int64(graph: gt.GraphTensor) -> SizeConstraints:
   """Same as `_get_total_sizes()` but with all sizes casted to tf.int64."""
   result = _get_total_sizes(graph)
   return tf.nest.map_structure(lambda s: tf.cast(s, tf.int64), result)
 
 
 def _validate_and_prepare_constraints(
-    constraints: SizesConstraints,
-    graph_tensor_spec: gt.GraphTensorSpec) -> SizesConstraints:
+    constraints: SizeConstraints,
+    graph_tensor_spec: gt.GraphTensorSpec) -> SizeConstraints:
   """Checks constraints and matches value types to the `graph_tensor_spec`."""
   total_num_nodes = {}
   for node_set_name, node_set_spec in graph_tensor_spec.node_sets_spec.items():
@@ -663,7 +663,7 @@ def _validate_and_prepare_constraints(
         constraints.total_num_edges[edge_set_name],
         edge_set_spec.sizes_spec.dtype)
 
-  return SizesConstraints(
+  return SizeConstraints(
       total_num_components=tf.cast(
           constraints.total_num_components,
           graph_tensor_spec.context_spec.sizes_spec.dtype),

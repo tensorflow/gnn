@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow_gnn.graph import graph_constants as const
 
 
-class SizesConstraints(NamedTuple):
+class SizeConstraints(NamedTuple):
   """Constraints on the number of entities in the graph."""
   total_num_components: Union[int, tf.Tensor]
   total_num_nodes: Mapping[const.NodeSetName, Union[int, tf.Tensor]]

@@ -20,7 +20,7 @@ class PadToTotalSizes(tf.keras.layers.Layer):
   """
 
   def __init__(self,
-               sizes_constraints: preprocessing_common.SizesConstraints,
+               sizes_constraints: preprocessing_common.SizeConstraints,
                *,
                validate: bool = True,
                **kwargs):
@@ -41,7 +41,7 @@ class PadToTotalSizes(tf.keras.layers.Layer):
 
   @classmethod
   def from_config(cls, config):
-    sizes_constraints = preprocessing_common.SizesConstraints(
+    sizes_constraints = preprocessing_common.SizeConstraints(
         **config.pop("sizes_constraints"))
     return cls(sizes_constraints=sizes_constraints, **config)
 

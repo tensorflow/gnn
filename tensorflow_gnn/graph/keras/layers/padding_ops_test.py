@@ -40,7 +40,7 @@ class PadToTotalSizesTest(tf.test.TestCase, parameterized.TestCase):
       ("RestoredKeras", ReloadModel.KERAS))
   def test(self, reload_model):
     input_graph = self._make_test_graph()
-    sc = preprocessing_common.SizesConstraints(
+    sc = preprocessing_common.SizeConstraints(
         total_num_components=2,
         total_num_nodes={"nodes": 3},
         total_num_edges={"edges": tf.constant(4)})  # Test conversion to int.

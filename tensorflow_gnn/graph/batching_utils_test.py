@@ -12,7 +12,7 @@ from tensorflow_gnn.graph import preprocessing_common as preprocessing
 
 as_tensor = tf.convert_to_tensor
 as_ragged = tf.ragged.constant
-SizesConstraints = preprocessing.SizesConstraints
+SizeConstraints = preprocessing.SizeConstraints
 
 
 class DynamicBatchTest(tu.GraphTensorTestBase):
@@ -39,7 +39,7 @@ class DynamicBatchTest(tu.GraphTensorTestBase):
     dataset = dataset.repeat(target_num_components)
     dataset = batching_utils.dynamic_batch(
         dataset,
-        SizesConstraints(
+        SizeConstraints(
             total_num_components=target_num_components,
             total_num_nodes={},
             total_num_edges={}))
@@ -71,7 +71,7 @@ class DynamicBatchTest(tu.GraphTensorTestBase):
 
     dataset = batching_utils.dynamic_batch(
         dataset,
-        SizesConstraints(
+        SizeConstraints(
             total_num_components=4, total_num_nodes={}, total_num_edges={}))
     self.assertEqual(dataset.cardinality(), tf.data.UNKNOWN_CARDINALITY)
     result = list(dataset)
@@ -105,7 +105,7 @@ class DynamicBatchTest(tu.GraphTensorTestBase):
 
     dataset = batching_utils.dynamic_batch(
         dataset,
-        SizesConstraints(
+        SizeConstraints(
             total_num_components=4, total_num_nodes={}, total_num_edges={}))
     self.assertEqual(dataset.cardinality(), tf.data.UNKNOWN_CARDINALITY)
     result = list(dataset)
@@ -140,7 +140,7 @@ class DynamicBatchTest(tu.GraphTensorTestBase):
 
     dataset = batching_utils.dynamic_batch(
         dataset,
-        SizesConstraints(
+        SizeConstraints(
             total_num_components=3, total_num_nodes={}, total_num_edges={}))
 
     self.assertEqual(dataset.cardinality(), cardinality)
@@ -195,7 +195,7 @@ class DynamicBatchTest(tu.GraphTensorTestBase):
     dataset = dataset.map(generate)
     dataset = batching_utils.dynamic_batch(
         dataset,
-        SizesConstraints(
+        SizeConstraints(
             total_num_components=4,
             total_num_nodes={
                 'a': 5,
@@ -239,7 +239,7 @@ class DynamicBatchTest(tu.GraphTensorTestBase):
     def batch(dataset, constraints):
       return batching_utils.dynamic_batch(dataset, constraints)
 
-    no_a_node = SizesConstraints(
+    no_a_node = SizeConstraints(
         total_num_components=1,
         total_num_nodes={'b': 100},
         total_num_edges={'a->b': 100})
@@ -249,7 +249,7 @@ class DynamicBatchTest(tu.GraphTensorTestBase):
          r' `constraints.total_num_nodes\[<a>\]`'),
         lambda: batch(dataset, no_a_node))
 
-    no_edge = SizesConstraints(
+    no_edge = SizeConstraints(
         total_num_components=1,
         total_num_nodes={
             'a': 100,
@@ -282,7 +282,7 @@ class DynamicBatchTest(tu.GraphTensorTestBase):
       dataset = dataset.take(5)
       return list(dataset)
 
-    components_overflow = SizesConstraints(
+    components_overflow = SizeConstraints(
         total_num_components=0,
         total_num_nodes={
             'a': 100,
@@ -295,7 +295,7 @@ class DynamicBatchTest(tu.GraphTensorTestBase):
          ' then it is allowed by `total_sizes.total_num_components`'),
         lambda: batch(dataset, components_overflow))
 
-    nodes_overflow = preprocessing.SizesConstraints(
+    nodes_overflow = preprocessing.SizeConstraints(
         total_num_components=2,
         total_num_nodes={
             'a': 100,
@@ -308,7 +308,7 @@ class DynamicBatchTest(tu.GraphTensorTestBase):
                             r' `total_sizes.total_num_nodes\[<b>\]`'),
                            lambda: batch(dataset, nodes_overflow))
 
-    edges_overflow = SizesConstraints(
+    edges_overflow = SizeConstraints(
         total_num_components=2,
         total_num_nodes={
             'a': 100,
@@ -322,7 +322,7 @@ class DynamicBatchTest(tu.GraphTensorTestBase):
                            lambda: batch(dataset, edges_overflow))
 
 
-def _gt_from_sizes(sizes: SizesConstraints) -> gt.GraphTensor:
+def _gt_from_sizes(sizes: SizeConstraints) -> gt.GraphTensor:
   context = gt.Context.from_fields(
       sizes=tf.ones([sizes.total_num_components], dtype=tf.int32))
 
@@ -360,23 +360,23 @@ class MinimumSizeConstraintsTest(ConstraintsTestBase):
 
   def testEmptyDataset(self):
     ds = tf.data.Dataset.from_tensors(
-        _gt_from_sizes(SizesConstraints(5, {'n': 3}, {'n->n': 6})))
+        _gt_from_sizes(SizeConstraints(5, {'n': 3}, {'n->n': 6})))
     ds = ds.take(0)
     result = batching_utils.find_tight_size_constraints(ds)
     self.assertContraintsEqual(
         result,
-        SizesConstraints(tf.int64.min, {'n': tf.int64.min},
-                         {'n->n': tf.int64.min}))
+        SizeConstraints(tf.int64.min, {'n': tf.int64.min},
+                        {'n->n': tf.int64.min}))
 
-  @parameterized.parameters([(SizesConstraints(1, {}, {}),),
-                             (SizesConstraints(32, {}, {}),),
-                             (SizesConstraints(5, {'n': 3}, {}),),
-                             (SizesConstraints(5, {'n': 3}, {'n->n': 6}),),
-                             (SizesConstraints(1, {
+  @parameterized.parameters([(SizeConstraints(1, {}, {}),),
+                             (SizeConstraints(32, {}, {}),),
+                             (SizeConstraints(5, {'n': 3}, {}),),
+                             (SizeConstraints(5, {'n': 3}, {'n->n': 6}),),
+                             (SizeConstraints(1, {
                                  'a': 2,
                                  'b': 3
                              }, {'a->b': 4}),)])
-  def testSingleExample(self, value: SizesConstraints):
+  def testSingleExample(self, value: SizeConstraints):
     ds = tf.data.Dataset.from_tensors(_gt_from_sizes(value))
     result = batching_utils.find_tight_size_constraints(ds)
     self.assertContraintsEqual(result, value)
@@ -385,7 +385,7 @@ class MinimumSizeConstraintsTest(ConstraintsTestBase):
 
     def generator(size):
       return _gt_from_sizes(
-          SizesConstraints(size, {
+          SizeConstraints(size, {
               'a': size + 1,
               'b': size + 2
           }, {'a->b': size + 3}))
@@ -395,14 +395,14 @@ class MinimumSizeConstraintsTest(ConstraintsTestBase):
     result = batching_utils.find_tight_size_constraints(ds)
     self.assertContraintsEqual(
         result,
-        SizesConstraints(100 + 1, {
+        SizeConstraints(100 + 1, {
             'a': 101 + 1,
             'b': 102 + 1
         }, {'a->b': 103}))
 
   def testRaisesOnInfiniteInput(self):
     ds = tf.data.Dataset.from_tensors(
-        _gt_from_sizes(SizesConstraints(5, {'n': 3}, {'n->n': 6})))
+        _gt_from_sizes(SizeConstraints(5, {'n': 3}, {'n->n': 6})))
     ds = ds.repeat()
     self.assertRaisesRegex(
         ValueError, 'The dataset must be finite',
@@ -426,20 +426,20 @@ class ConstraintsForStaticBatchTest(ConstraintsTestBase):
   @parameterized.product(batch_size=[1, 2, 3, 5, 10], num_components=[1, 5])
   def testStaticShapeContext(self, batch_size: int, num_components: int):
     ds = tf.data.Dataset.from_tensors(
-        _gt_from_sizes(SizesConstraints(num_components, {}, {})))
+        _gt_from_sizes(SizeConstraints(num_components, {}, {})))
     actual = batching_utils.learn_fit_or_skip_size_constraints(
         ds, batch_size=batch_size, sample_size=100)
 
     self.assertContraintsEqual(
         actual,
-        SizesConstraints(
+        SizeConstraints(
             total_num_components=batch_size * num_components,
             total_num_nodes={},
             total_num_edges={}))
 
   def testBulkParameters(self):
     ds = tf.data.Dataset.from_tensors(
-        _gt_from_sizes(SizesConstraints(1, {}, {})))
+        _gt_from_sizes(SizeConstraints(1, {}, {})))
     batch_sampled_sizes = [1, 2]
     actual = batching_utils.learn_fit_or_skip_size_constraints(
         ds,
@@ -455,7 +455,7 @@ class ConstraintsForStaticBatchTest(ConstraintsTestBase):
   @parameterized.product(batch_size=[1, 2, 10], success_ratio=[.5, .9, 1.])
   def testStaticShapeGraph(self, batch_size: int, success_ratio: float):
     ds = tf.data.Dataset.from_tensors(
-        _gt_from_sizes(SizesConstraints(1, {
+        _gt_from_sizes(SizeConstraints(1, {
             'a': 2,
             'b': 3
         }, {'a->b': 4})))
@@ -465,7 +465,7 @@ class ConstraintsForStaticBatchTest(ConstraintsTestBase):
 
     self.assertContraintsEqual(
         actual,
-        SizesConstraints(
+        SizeConstraints(
             total_num_components=1 * batch_size,
             total_num_nodes={
                 'a': 2 * batch_size,
@@ -486,7 +486,7 @@ class ConstraintsForStaticBatchTest(ConstraintsTestBase):
     def generator(index) -> gt.GraphTensor:
       num_edges = index % (1 + max_ab_edges) if var_num_edges else max_ab_edges
       return _gt_from_sizes(
-          SizesConstraints(
+          SizeConstraints(
               1, {
                   'a': (1 + (index * 17 + 53) % max_a_nodes),
                   'b': (1 + (index * 53 + 19) % max_b_nodes),
@@ -500,7 +500,7 @@ class ConstraintsForStaticBatchTest(ConstraintsTestBase):
 
     self.assertContraintsEqual(
         actual,
-        SizesConstraints(
+        SizeConstraints(
             total_num_components=1 * batch_size + 1,
             total_num_nodes={
                 'a': max_a_nodes * batch_size + (1 if var_num_edges else 0),
@@ -514,7 +514,7 @@ class ConstraintsForStaticBatchTest(ConstraintsTestBase):
 
     def generator(index) -> gt.GraphTensor:
       return _gt_from_sizes(
-          SizesConstraints(1, {
+          SizeConstraints(1, {
               'node': 2,
           }, {'node->node': index % 2}))
 
@@ -531,7 +531,7 @@ class ConstraintsForStaticBatchTest(ConstraintsTestBase):
 
     self.assertLen(actual, 5)
     for constraints, n_std in zip(actual, [0.0, 0.5, 1.0, 1.5, 2.0]):
-      self.assertIsInstance(constraints, SizesConstraints)
+      self.assertIsInstance(constraints, SizeConstraints)
       self.assertEqual(constraints.total_num_components, batch_size * 1 + 1)
       self.assertEqual(constraints.total_num_nodes['node'], 2 * batch_size + 1)
       num_edges = avg * batch_size + n_std * std * math.sqrt(batch_size)
@@ -554,7 +554,7 @@ class ConstraintsForStaticBatchTest(ConstraintsTestBase):
 
     def generator(num_nodes, num_edges) -> gt.GraphTensor:
       return _gt_from_sizes(
-          SizesConstraints(1, {
+          SizeConstraints(1, {
               'node': num_nodes,
           }, {'node->node': num_edges}))
 

@@ -89,7 +89,7 @@ Feature = graph_schema.Feature
 
 # Preprocessing (batching and padding) types.
 FeatureDefaultValues = preprocessing_common.FeatureDefaultValues
-SizesConstraints = preprocessing_common.SizesConstraints
+SizeConstraints = preprocessing_common.SizeConstraints
 
 # I/O functions (input parsing).
 parse_example = graph_tensor_io.parse_example

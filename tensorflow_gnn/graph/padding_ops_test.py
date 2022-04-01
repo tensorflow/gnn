@@ -58,7 +58,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
     source = gt.GraphTensor.from_pieces()
     padded0, mask0 = ops.pad_to_total_sizes(
         source,
-        preprocessing.SizesConstraints(
+        preprocessing.SizeConstraints(
             total_num_components=0, total_num_nodes={}, total_num_edges={}))
     self.assertAllEqual(mask0, as_tensor([], tf.bool))
     self.asserHasStaticNRows(padded0)
@@ -68,7 +68,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
 
     padded1, mask1 = ops.pad_to_total_sizes(
         source,
-        preprocessing.SizesConstraints(
+        preprocessing.SizeConstraints(
             total_num_components=1, total_num_nodes={}, total_num_edges={}))
     self.assertAllEqual(mask1, as_tensor([False], tf.bool))
     self.asserHasStaticNRows(padded1)
@@ -77,7 +77,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
 
     padded2, mask2 = ops.pad_to_total_sizes(
         source,
-        preprocessing.SizesConstraints(
+        preprocessing.SizeConstraints(
             total_num_components=2, total_num_nodes={}, total_num_edges={}))
     self.assertAllEqual(mask2, as_tensor([False, False], tf.bool))
     self.asserHasStaticNRows(padded2)
@@ -124,7 +124,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
         gt.Context.from_fields(shape=[], features=features))
     padded, mask = ops.pad_to_total_sizes(
         source,
-        preprocessing.SizesConstraints(
+        preprocessing.SizeConstraints(
             total_num_components=padding_size,
             total_num_nodes={},
             total_num_edges={}),
@@ -146,7 +146,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
         node_sets={'a': gt.NodeSet.from_fields(features={}, sizes=sizes)})
     padded, mask = ops.pad_to_total_sizes(
         source,
-        preprocessing.SizesConstraints(
+        preprocessing.SizeConstraints(
             total_num_components=num_components,
             total_num_nodes={'a': num_nodes},
             total_num_edges={}))
@@ -201,7 +201,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
         })
     padded, _ = ops.pad_to_total_sizes(
         source,
-        preprocessing.SizesConstraints(
+        preprocessing.SizeConstraints(
             total_num_components=num_components,
             total_num_nodes={'a': num_nodes},
             total_num_edges={'a->a': num_edges},
@@ -231,7 +231,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
   def testAdjacencyPaddingWithLinspace(self):
     padded, _ = ops.pad_to_total_sizes(
         self.test_2_a2b4_ab3_graph,
-        preprocessing.SizesConstraints(
+        preprocessing.SizeConstraints(
             total_num_components=4,
             total_num_nodes={
                 'a': 100,
@@ -267,7 +267,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
     )
     padded, _ = ops.pad_to_total_sizes(
         source,
-        preprocessing.SizesConstraints(
+        preprocessing.SizeConstraints(
             total_num_components=4,
             total_num_nodes={
                 'a': 100,
@@ -297,7 +297,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
     def pad_to_3(graph):
       return ops.pad_to_total_sizes(
           graph,
-          preprocessing.SizesConstraints(
+          preprocessing.SizeConstraints(
               total_num_components=3, total_num_nodes={}, total_num_edges={}))
 
     source = gt.GraphTensor.from_pieces(
@@ -318,7 +318,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
 
     padded, mask = ops.pad_to_total_sizes(
         self.test_2_a2b4_ab3_graph,
-        preprocessing.SizesConstraints(
+        preprocessing.SizeConstraints(
             total_num_components=16,
             total_num_nodes={
                 'a': 2,
@@ -337,7 +337,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
 
     padded, mask = ops.pad_to_total_sizes(
         self.test_2_a2b4_ab3_graph,
-        preprocessing.SizesConstraints(
+        preprocessing.SizeConstraints(
             total_num_components=4,
             total_num_nodes={
                 'a': 5,
@@ -389,7 +389,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
 
   @parameterized.parameters([1, 2, 3, 10])
   def testGraphDoublePaddingHasNoEffect(self, scale):
-    target_total_sizes = preprocessing.SizesConstraints(
+    target_total_sizes = preprocessing.SizeConstraints(
         total_num_components=4 * scale,
         total_num_nodes={
             'a': 5 * scale,
@@ -410,7 +410,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
 
   def testRaisesOnIncompleteTotalSizes(self):
 
-    no_node = preprocessing.SizesConstraints(
+    no_node = preprocessing.SizeConstraints(
         total_num_components=4,
         total_num_nodes={'a': 5},
         total_num_edges={'a->b': 6},
@@ -419,7 +419,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
         ValueError, 'number of <b> nodes must be specified',
         lambda: ops.pad_to_total_sizes(self.test_2_a2b4_ab3_graph, no_node))
 
-    no_edge = preprocessing.SizesConstraints(
+    no_edge = preprocessing.SizeConstraints(
         total_num_components=4,
         total_num_nodes={
             'a': 5,
@@ -474,7 +474,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
         return dataset2_case
       raise ValueError(mode)
 
-    components_overflow = preprocessing.SizesConstraints(
+    components_overflow = preprocessing.SizeConstraints(
         total_num_components=1,
         total_num_nodes={
             'a': 5,
@@ -487,7 +487,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
                             ' components then it is allowed'),
                            create_for_spec(components_overflow))
 
-    nodes_overflow = preprocessing.SizesConstraints(
+    nodes_overflow = preprocessing.SizeConstraints(
         total_num_components=4,
         total_num_nodes={
             'a': 1,
@@ -501,7 +501,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
                             r' `total_sizes\.total_num_nodes\[<a>\]`'),
                            create_for_spec(nodes_overflow))
 
-    edges_overflow = preprocessing.SizesConstraints(
+    edges_overflow = preprocessing.SizeConstraints(
         total_num_components=4,
         total_num_nodes={
             'a': 3,
@@ -515,7 +515,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
                             r' `total_sizes\.total_num_edges\[<a->b>\]`'),
                            create_for_spec(edges_overflow))
 
-    no_b_node_to_use_for_fake_edge = preprocessing.SizesConstraints(
+    no_b_node_to_use_for_fake_edge = preprocessing.SizeConstraints(
         total_num_components=4,
         total_num_nodes={
             'a': 2,
@@ -530,7 +530,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
 
   @parameterized.parameters([
       dict(
-          total_sizes=preprocessing.SizesConstraints(
+          total_sizes=preprocessing.SizeConstraints(
               total_num_components=2,
               total_num_nodes={
                   'a': 2,
@@ -540,7 +540,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
           ),
           expected_result=True),
       dict(
-          total_sizes=preprocessing.SizesConstraints(
+          total_sizes=preprocessing.SizeConstraints(
               total_num_components=4,
               total_num_nodes={
                   'a': 3,
@@ -550,7 +550,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
           ),
           expected_result=True),
       dict(
-          total_sizes=preprocessing.SizesConstraints(
+          total_sizes=preprocessing.SizeConstraints(
               total_num_components=1,
               total_num_nodes={
                   'a': 3,
@@ -560,7 +560,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
           ),
           expected_result=False),
       dict(
-          total_sizes=preprocessing.SizesConstraints(
+          total_sizes=preprocessing.SizeConstraints(
               total_num_components=1,
               total_num_nodes={
                   'a': 2,
@@ -570,7 +570,7 @@ class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
           ),
           expected_result=False),
       dict(
-          total_sizes=preprocessing.SizesConstraints(
+          total_sizes=preprocessing.SizeConstraints(
               total_num_components=4,
               total_num_nodes={
                   'a': 3,

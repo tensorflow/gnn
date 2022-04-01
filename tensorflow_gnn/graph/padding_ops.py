@@ -15,7 +15,7 @@ from tensorflow_gnn.graph import tensor_utils
 
 def pad_to_total_sizes(
     graph_tensor: gt.GraphTensor,
-    target_total_sizes: preprocessing.SizesConstraints,
+    target_total_sizes: preprocessing.SizeConstraints,
     *,
     padding_values: Optional[preprocessing.FeatureDefaultValues] = None,
     validate: bool = True) -> Tuple[gt.GraphTensor, tf.Tensor]:
@@ -153,7 +153,7 @@ def pad_to_total_sizes(
 
 def satisfies_total_sizes(
     graph_tensor: gt.GraphTensor,
-    total_sizes: preprocessing.SizesConstraints) -> tf.Tensor:
+    total_sizes: preprocessing.SizeConstraints) -> tf.Tensor:
   """Returns whether the input `graph_tensor` satisfies `total_sizes`.
 
   Args:
@@ -180,7 +180,7 @@ def satisfies_total_sizes(
 
 def assert_satisfies_total_sizes(
     graph_tensor: gt.GraphTensor,
-    target_total_sizes: preprocessing.SizesConstraints):
+    target_total_sizes: preprocessing.SizeConstraints):
   """Raises InvalidArgumentError if graph_tensor exceeds target_total_sizes.
 
   This function can be used as follows:
@@ -437,7 +437,7 @@ def _fold_constants(binary_op: _BinaryOp, x: tf.Tensor,
 
 
 def _satisfies_total_sizes_internal(
-    graph_tensor: gt.GraphTensor, total_sizes: preprocessing.SizesConstraints,
+    graph_tensor: gt.GraphTensor, total_sizes: preprocessing.SizeConstraints,
     check_fn: Callable[[tf.Tensor, str], Any]) -> List[Any]:
   """Checks that the graph tensor could fit in the target sizes.
 
