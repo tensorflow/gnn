@@ -197,6 +197,35 @@ class FunctionalModelTest(_TestBase):
             'edge.f': [1 + 1, 1 + 2, 1 + 2]
         })
 
+  def testRemoveFeatures(self):
+    example = gt.GraphTensor.from_pieces(
+        gt.Context.from_fields(
+            features={'f': as_tensor([1]), 'c': as_tensor([10])}),
+        node_sets={
+            'node': gt.NodeSet.from_fields(
+                features={'f': as_tensor([2, 3]), 'n': as_tensor([11, 12])},
+                sizes=as_tensor([2]))},
+        edge_sets={
+            'edge': gt.EdgeSet.from_fields(
+                features={'f': as_tensor([4]), 'e': as_tensor([13])},
+                sizes=as_tensor([1]),
+                adjacency=adj.Adjacency.from_indices(
+                    ('node', as_tensor([0])),
+                    ('node', as_tensor([1]))))})
+
+    graph_input = tf.keras.Input(type_spec=example.spec)
+    self.assertIsInstance(graph_input, kt.GraphKerasTensor)
+    graph_output = graph_input.remove_features(
+        context=['c'],
+        node_sets={'node': ['n']},
+        edge_sets={'edge': ['e']})
+    self.assertIsInstance(graph_output, kt.GraphKerasTensor)
+    result = tf.keras.Model(graph_input, graph_output)(example)
+
+    self.assertFieldsEqual(result.context.features, {'f': [1]})
+    self.assertFieldsEqual(result.node_sets['node'].features, {'f': [2, 3]})
+    self.assertFieldsEqual(result.edge_sets['edge'].features, {'f': [4]})
+
   @parameterized.parameters([True, False])
   def testModelSaving(self, static_shapes):
     # A GraphTensorSpec for a homogeneous graph with an indeterminate number

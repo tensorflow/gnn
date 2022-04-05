@@ -109,7 +109,8 @@ GRAPH_PIECE_WITH_FEATURES_METHODS = ('get_features_dict', 'replace_features')
 for cls, gt_methods in [(EdgeSetKerasTensor, GRAPH_PIECE_WITH_FEATURES_METHODS),
                         (NodeSetKerasTensor, GRAPH_PIECE_WITH_FEATURES_METHODS),
                         (ContextKerasTensor, GRAPH_PIECE_WITH_FEATURES_METHODS),
-                        (GraphKerasTensor, ('replace_features',
+                        (GraphKerasTensor, ('remove_features',
+                                            'replace_features',
                                             'merge_batch_to_components')),
                         (HyperAdjacencyKerasTensor, ('get_indices_dict',))]:
   for gt_method in gt_methods:
