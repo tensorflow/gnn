@@ -6,6 +6,7 @@ from tensorflow_gnn.graph.keras.layers import graph_ops
 from tensorflow_gnn.graph.keras.layers import graph_update
 from tensorflow_gnn.graph.keras.layers import map_features
 from tensorflow_gnn.graph.keras.layers import next_state
+from tensorflow_gnn.graph.keras.layers import padding_ops
 from tensorflow_gnn.graph.keras.layers import parse_example
 
 ParseExample = parse_example.ParseExample
@@ -13,6 +14,9 @@ ParseSingleExample = parse_example.ParseSingleExample
 
 MapFeatures = map_features.MapFeatures
 TotalSize = map_features.TotalSize
+MakeEmptyFeature = map_features.MakeEmptyFeature
+
+PadToTotalSizes = padding_ops.PadToTotalSizes
 
 Broadcast = graph_ops.Broadcast
 Pool = graph_ops.Pool
@@ -38,4 +42,5 @@ del graph_ops
 del graph_update
 del map_features
 del next_state
+del padding_ops
 del parse_example
