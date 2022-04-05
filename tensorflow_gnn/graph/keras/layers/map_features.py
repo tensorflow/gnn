@@ -1,6 +1,6 @@
 """The MapFeatures layer and related definitions."""
 
-from typing import Mapping
+from typing import Mapping, Union
 
 import tensorflow as tf
 
@@ -316,3 +316,56 @@ class TotalSize(tf.keras.layers.Layer):
       raise ValueError("TotalSize(constant_from_spec=True)(x) "
                        "requires x.spec.total_size != None")
     return tf.constant(total_size, dtype=graph_piece.spec.indices_dtype)
+
+
+@tf.keras.utils.register_keras_serializable(package="GNN")
+class MakeEmptyFeature(tf.keras.layers.Layer):
+  """Returns an empty feature with a shape that fits the input graph piece.
+
+  Init args:
+    dtype: the tf.DType to use for the result, defaults to tf.float32.
+    **kwargs: Other arguments for the tf.keras.layers.Layer base class.
+
+  Call args:
+    graph_piece: a Context, NodeSet or EdgeSet from a GraphTensor.
+
+  Call returns:
+    A potentially ragged tensor of shape [*graph_shape, (num_items), 0] where
+    graph_shape is the shape of the graph_piece and its containing GraphTensor,
+    (num_items) is the number of edges, nodes or components contained in the
+    graph piece, and 0 is the feature dimension that makes this an empty tensor.
+    In particular, if graph_shape == [], meaning graph_piece is from a scalar
+    GraphTensor, the result is a Tensor of shape [graph_piece.total_size, 0].
+    That shape is constant (for use on TPU) if graph_piece.spec.total_size is
+    not None.
+  """
+
+  def call(self, graph_piece: Union[gt.EdgeSet, gt.NodeSet, gt.Context]):
+    def _make_empty_state(size):
+      return tf.zeros([size, 0], dtype=self.dtype)
+
+    # graph_rank = 0 occurs inside a model after .merge_batch_to_components(),
+    # and .total_size attempts to to provide a constant shape for TPU like so:
+    graph_rank = graph_piece.rank
+    if graph_rank == 0:
+      return _make_empty_state(graph_piece.total_size)
+
+    # graph_rank = 1 occurs for a GraphTensor of shape [batch_size] before
+    # .merge_batch_to_components(), so we don't need TPU compatibility.
+    # We need to build RaggedTensor of shape [batch_size, (num_items), 0]
+    # from the rank-1 tensor of num_items values.
+    # TODO(b/228126030): Can num_items be a non-ragged dimension?
+    if graph_rank == 1:
+      num_items = tf.reduce_sum(graph_piece.sizes, axis=-1)  # Sum components.
+      assert num_items.shape.rank == 1
+      result = tf.RaggedTensor.from_row_lengths(
+          values=_make_empty_state(tf.reduce_sum(num_items)),
+          row_lengths=num_items)
+      assert result.shape[0:graph_rank].is_compatible_with(num_items.shape)
+      assert result.shape[graph_rank:] == [None, 0]  # [(num_items), 0]
+      return result
+
+    # TODO(b/228126030): Implement and test the case graph_rank > 1 .
+    # (Maybe tf.ragged.map_flat_values(..., num_items) can help.)
+    raise NotImplementedError(
+        "Cannot yet MakeEmptyFeature for GraphTensor.rank > 1 (b/228126030).")

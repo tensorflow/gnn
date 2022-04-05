@@ -305,7 +305,8 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     # The nodes of each element have a "ragged_id" feature with
     # alternatingly 1 or 2 values, numbered consecutively.
     # Its shape is [*graph_shape, (num_nodes), (num_ids_per_node)].
-    input_graph = _make_batched_test_graph([[3], [2, 1], [1]])
+    input_graph = _make_batched_test_graph([[3], [2, 1], [1]],
+                                           add_ragged_ids=True)
     self.assertEqual([3], input_graph.shape)
     self.assertAllEqual(
         rc([[[0], [1, 2], [3]], [[100], [101, 102], [103]], [[200]]],
@@ -333,7 +334,8 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     rc = tf.ragged.constant
     # Test input is a GraphTensor of shape [3].
     # Each element has components with the given number of nodes in each.
-    input_graph = _make_batched_test_graph([[4], [2], [1]])
+    input_graph = _make_batched_test_graph([[4], [2], [1]],
+                                           add_ragged_ids=True)
 
     def node_sets_fn(node_set, **_):
       features = {}
@@ -411,43 +413,145 @@ def _make_scalar_test_graph(*, context=True, nodes=True, edges=True,
 
 def _make_test_graph_for_batching(node_sizes, start_id):
   """Returns graph with "nodes" with 1 or 2 "ragged_ids"."""
-  ragged_ids = []
-  next_id = start_id
-  for node_id in range(sum(node_sizes)):
-    num_ids_on_node = node_id % 2 + 1
-    ragged_ids.append(list(range(next_id, next_id + num_ids_on_node)))
-    next_id += num_ids_on_node
+  nodes_features = {}
+  if start_id is not None:
+    ragged_ids = []
+    next_id = start_id
+    for node_id in range(sum(node_sizes)):
+      num_ids_on_node = node_id % 2 + 1
+      ragged_ids.append(list(range(next_id, next_id + num_ids_on_node)))
+      next_id += num_ids_on_node
+    nodes_features["ragged_ids"] = tf.ragged.constant(ragged_ids)
 
   graph = gt.GraphTensor.from_pieces(
-      node_sets={
-          "nodes": gt.NodeSet.from_fields(
-              sizes=tf.constant(node_sizes),
-              features={"ragged_ids": tf.ragged.constant(ragged_ids)}),
-      })
+      node_sets={"nodes": gt.NodeSet.from_fields(
+          sizes=tf.constant(node_sizes),
+          features=nodes_features)})
   return graph
 
 
-def _make_batched_test_graph(all_node_sizes):
+def _make_batched_test_graph(all_node_sizes, *, add_ragged_ids=False):
   """Returns batch of graphs with "nodes" with "ragged_ids"."""
-  ragged_ids_spec = tf.RaggedTensorSpec(
-      tf.TensorShape([None, None]),  # [num_nodes, (num_ids_per_node)].
-      dtype=tf.int32, ragged_rank=1)
+  nodes_features_spec = {}
+  if add_ragged_ids:
+    nodes_features_spec["ragged_ids"] = tf.RaggedTensorSpec(
+        tf.TensorShape([None, None]),  # [num_nodes, (num_ids_per_node)].
+        dtype=tf.int32, ragged_rank=1)
   graph_spec = gt.GraphTensorSpec.from_piece_specs(
       node_sets_spec={
           "nodes": gt.NodeSetSpec.from_field_specs(
-              features_spec={"ragged_ids": ragged_ids_spec},
+              features_spec=nodes_features_spec,
               sizes_spec=tf.TensorSpec(shape=(None,),  # [num_components].
                                        dtype=tf.int32))},
       edge_sets_spec={})
 
   def generate_graphs():
     for i, node_sizes in enumerate(all_node_sizes):
-      yield _make_test_graph_for_batching(node_sizes, 100*i)
+      yield _make_test_graph_for_batching(
+          node_sizes,
+          start_id=100*i if add_ragged_ids else None)
 
   ds = tf.data.Dataset.from_generator(generate_graphs,
                                       output_signature=graph_spec)
   ds = ds.batch(len(all_node_sizes))
   return ds.get_single_element()
+
+
+class MakeEmptyFeatureTest(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      ("Basic", ReloadModel.SKIP),
+      ("Restored", ReloadModel.SAVED_MODEL),
+      ("RestoredKeras", ReloadModel.KERAS))
+  def testNodesScalar(self, reload_model):
+    input_graph = _make_scalar_test_graph(dense=False, ragged=False)
+
+    def node_sets_fn(node_set, node_set_name):
+      self.assertEqual(node_set_name, "nodes")
+      return {"empty": map_features.MakeEmptyFeature()(node_set)}
+    inputs = tf.keras.layers.Input(type_spec=input_graph.spec)
+    outputs = map_features.MapFeatures(node_sets_fn=node_sets_fn)(inputs)
+    model = tf.keras.Model(inputs, outputs)
+    # Trigger building.
+    _ = model(input_graph)
+
+    if reload_model:
+      export_dir = os.path.join(self.get_temp_dir(),
+                                "nodes-scalar-empty-features")
+      model.save(export_dir, include_optimizer=False)
+      if reload_model == ReloadModel.KERAS:
+        model = tf.keras.models.load_model(export_dir)
+      else:
+        model = tf.saved_model.load(export_dir)
+
+    empty_feature = model(input_graph).node_sets["nodes"]["empty"]
+    self.assertIsInstance(empty_feature, tf.Tensor)  # Not ragged.
+    self.assertAllEqual(empty_feature.shape, [2, 0])
+
+  @parameterized.named_parameters(
+      ("Basic", ReloadModel.SKIP),
+      ("Restored", ReloadModel.SAVED_MODEL),
+      ("RestoredKeras", ReloadModel.KERAS))
+  def testNodesBatched(self, reload_model):
+    # The test input has six graphs, with variable sizes per component.
+    all_node_sizes = [[4, 3], [3], [2, 1, 2], [4, 1, 2, 3], [11], [4, 5, 3]]
+    input_graph = _make_batched_test_graph(all_node_sizes)
+    all_num_nodes = [sum(x) for x in all_node_sizes]
+
+    def node_sets_fn(node_set, node_set_name):
+      self.assertEqual(node_set_name, "nodes")
+      return {"empty": map_features.MakeEmptyFeature()(node_set)}
+    inputs = tf.keras.layers.Input(type_spec=input_graph.spec)
+    outputs = map_features.MapFeatures(node_sets_fn=node_sets_fn)(inputs)
+    model = tf.keras.Model(inputs, outputs)
+    # Trigger building.
+    _ = model(input_graph)
+
+    if reload_model:
+      export_dir = os.path.join(self.get_temp_dir(), "batched-empty-features")
+      model.save(export_dir, include_optimizer=False)
+      if reload_model == ReloadModel.KERAS:
+        model = tf.keras.models.load_model(export_dir)
+      else:
+        model = tf.saved_model.load(export_dir)
+
+    empty_feature = model(input_graph).node_sets["nodes"]["empty"]
+    self.assertIsInstance(empty_feature, tf.RaggedTensor)
+    self.assertAllEqual(empty_feature.flat_values, [[]] * sum(all_num_nodes))
+    for idx, num_nodes in enumerate(all_num_nodes):
+      self.assertAllEqual([[]] * num_nodes, empty_feature[idx],
+                          msg=f"at index {idx}")
+
+  def testEdges(self):
+    input_graph = _make_scalar_test_graph(dense=False, ragged=False)
+
+    def edge_sets_fn(edge_set, edge_set_name):
+      self.assertEqual(edge_set_name, "edges")
+      return {"empty": map_features.MakeEmptyFeature()(edge_set)}
+    inputs = tf.keras.layers.Input(type_spec=input_graph.spec)
+    outputs = map_features.MapFeatures(edge_sets_fn=edge_sets_fn)(inputs)
+    model = tf.keras.Model(inputs, outputs)
+    # Trigger building.
+    _ = model(input_graph)
+
+    empty_feature = model(input_graph).edge_sets["edges"]["empty"]
+    self.assertIsInstance(empty_feature, tf.Tensor)
+    self.assertAllEqual(empty_feature.shape, [2, 0])
+
+  def testContext(self):
+    input_graph = _make_scalar_test_graph(dense=False, ragged=False)
+
+    def context_fn(context):
+      return {"empty": map_features.MakeEmptyFeature()(context)}
+    inputs = tf.keras.layers.Input(type_spec=input_graph.spec)
+    outputs = map_features.MapFeatures(context_fn=context_fn)(inputs)
+    model = tf.keras.Model(inputs, outputs)
+    # Trigger building.
+    _ = model(input_graph)
+
+    empty_feature = model(input_graph).context["empty"]
+    self.assertIsInstance(empty_feature, tf.Tensor)
+    self.assertAllEqual(empty_feature.shape, [1, 0])
 
 
 if __name__ == "__main__":
