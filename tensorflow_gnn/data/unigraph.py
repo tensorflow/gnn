@@ -15,7 +15,6 @@ import hashlib
 from os import path
 import re
 from typing import Any, Callable, Dict, List, Optional, Text, Tuple
-
 import apache_beam as beam
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -299,12 +298,16 @@ class WriteTable(beam.PTransform):
     file_pattern: Pattern of filenames to write.
     file_format: File format of container. See module docstring.
       If not specified, it is inferred from the filename.
+    coder: The beam.coders.ProtoCoder to use to encode the protos.
   """
 
-  def __init__(self, file_pattern: str, file_format: Optional[str] = None):
+  def __init__(self,
+               file_pattern: str,
+               file_format: Optional[str] = None,
+               coder=beam.coders.ProtoCoder(Example)):
     super().__init__()
     self.file_pattern = file_pattern
-
+    self.coder = coder
     # Default to TFRecords if we have to guess and we cannot guess the file
     # format.
     if file_format:
@@ -316,11 +319,10 @@ class WriteTable(beam.PTransform):
         self.file_format = "tfrecord"
 
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
-    coder = beam.coders.ProtoCoder(Example)
     kwargs = get_sharded_pattern_args(self.file_pattern)
     if self.file_format == "tfrecord":
       return (pcoll
-              | beam.io.tfrecordio.WriteToTFRecord(coder=coder, **kwargs))
+              | beam.io.tfrecordio.WriteToTFRecord(coder=self.coder, **kwargs))
     else:
       raise NotImplementedError(
           "Format not supported: {}".format(self.file_format))

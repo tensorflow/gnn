@@ -506,7 +506,8 @@ def run_sample_graph_pipeline(schema_filename: str,
                               sampling_spec: sampling_spec_pb2.SamplingSpec,
                               output_pattern: str,
                               seeds_filename: Optional[str] = None,
-                              runner_name: Optional[str] = None):
+                              runner_name: Optional[str] = None,
+                              batching: bool = False):
   """Runs the pipeline on a graph, which may be homogeneous or heterogeneous."""
 
   # Read the schema and validate it.
@@ -565,10 +566,22 @@ def run_sample_graph_pipeline(schema_filename: str,
                                 sampled_schema)
     graph_tensors = (subgraphs | "Encode" >> beam.Map(encoder))
 
-    # Write out the results in a file.
-    done = (
-        graph_tensors
-        | "WriteGraphTensors" >> unigraph.WriteTable(output_pattern))
+    done = None
+
+    if batching:
+      # Use IterableCoder if batching.
+      done = (
+          graph_tensors
+          | "Batching" >> beam.transforms.util.BatchElements(
+              min_batch_size=10, max_batch_size=100)
+          | "WriteGraphTensors" >> unigraph.WriteTable(
+              output_pattern,
+              coder=beam.coders.IterableCoder(beam.coders.ProtoCoder(Example))))
+    else:
+      # Write out the results in a file.
+      done = (
+          graph_tensors
+          | "WriteGraphTensors" >> unigraph.WriteTable(output_pattern))
 
     # Produce global count subgraph to tf.Example examples.
     _ = (
@@ -614,6 +627,9 @@ def define_flags():
 
   flags.DEFINE_bool("direct", False,
                     "Use the direct runner that will only work locally.")
+
+  flags.DEFINE_bool("batching", False,
+                    "Use batching when writing out TFRecords.")
 
   runner_choices = ["direct"]
   flags.DEFINE_enum(
