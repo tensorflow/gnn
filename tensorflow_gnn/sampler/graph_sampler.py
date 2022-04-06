@@ -40,6 +40,7 @@ Features = tf.train.Features
 Node = subgraph_pb2.Node
 Edge = subgraph_pb2.Node.Edge
 Subgraph = subgraph_pb2.Subgraph
+ID_FEATURE_NAME = "#id"
 
 
 def create_adjacency_list(
@@ -131,7 +132,7 @@ def sample_graph(
   """
   # Create an initial set of singleton subgraphs, one per seed.
   node_subgraph_empty = seeds | beam.Map(
-      functools.partial(create_initial_set, sampling_spec.insert_sample_ids))
+      functools.partial(create_initial_set, True))
   subgraphs = ({
       "subgraph": node_subgraph_empty,
       "node": nodes_map
@@ -549,11 +550,9 @@ def run_sample_graph_pipeline(schema_filename: str,
 
     # Produce the sample schema to output.
     sampled_schema = copy.copy(schema)
-    if sampling_spec.insert_sample_ids:
-      augment_schema_with_sample_features(sampled_schema)
-    if sampling_spec.node_id_feature:
-      augment_schema_with_node_ids(sampled_schema,
-                                   sampling_spec.node_id_feature)
+    # TODO(tsitsulin): Can make these augmentations optional.
+    augment_schema_with_sample_features(sampled_schema)
+    augment_schema_with_node_ids(sampled_schema, ID_FEATURE_NAME)
     # Remove any metadata fields.
     _clean_metadata(sampled_schema.context.metadata)
     for node_set in sampled_schema.node_sets.values():

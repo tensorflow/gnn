@@ -120,13 +120,11 @@ message SamplingSpec {
   // List of connected sampling operations.
   repeated SamplingOp sampling_ops = 2;
 
-  // If true, insert an extra `seed_id` and `sample_id` context feature to
-  // identify the seeds/samples.
-  optional bool insert_sample_ids = 3;
-
-  // Insert an `id` feature for the node ids. This can be useful for debugging,
-  // but otherwise wasteful.
-  optional string node_id_feature = 4;
+  // copybara:strip_begin(comment)
+  // repeated EdgeSamplingOp edge_sampling_ops = 3;
+  // string context_fetcher_impl = 4;
+  // copybara:strip_end
+  reserved 3 to 4;
 }
 
 // Defines the nodes from where to start the sampling.
@@ -136,6 +134,14 @@ message SeedOp {
 
   // The seed nodes set name.
   optional string node_set_name = 2;
+
+  // copybara:strip_begin(comment)
+  // oneof sample_ids {
+  //   Random random = 3;
+  //   Hash hash = 4;
+  // }
+  // copybara:strip_end
+  reserved 3 to 4;
 }
 
 // Defines how to sample graph edges for a set of source nodes. The sampling
@@ -161,13 +167,24 @@ message SamplingOp {
 
   // The sampling strategy to use.
   optional SamplingStrategy strategy = 5;
+
+  // copybara:strip_begin(comment)
+  // string edge_filter_impl = 6;
+  // copybara:strip_end
+  reserved 6;
 }
 
 // Supported sampling strategies.
 enum SamplingStrategy {
-  // Extracts up to `sample_size` edges with the highest weights. The result
-  // of this operation is deterministic: in case of edges with equal weights,
-  // they are selected based on their id (or target node id if edge id is not
-  // set.)
+  // Unimplemented.  Extracts up to `sample_size` edges with the highest
+  // weights.
   TOP_K = 0;
+  // Extracts up to `sample_size` edges uniformly at random. The result is
+  // non-deterministic (even within the same source node.)
+  RANDOM_UNIFORM = 1;
+  // Unimplemented. Extracts up to `sample_size` edges with probabilities
+  // proportional to the edge weights. Edges with zero weights are ignored (not
+  // sampled.) The result is non-deterministic (even within the same source
+  // node.)
+  RANDOM_WEIGHTED = 2;
 }
