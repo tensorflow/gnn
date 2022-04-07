@@ -356,7 +356,7 @@ class ConstraintsTestBase(tu.GraphTensorTestBase):
         actual, expected)
 
 
-class MinimumSizeConstraintsTest(ConstraintsTestBase):
+class FindTightSizeConstraintsTest(ConstraintsTestBase):
 
   def testEmptyDataset(self):
     ds = tf.data.Dataset.from_tensors(
@@ -380,6 +380,19 @@ class MinimumSizeConstraintsTest(ConstraintsTestBase):
     ds = tf.data.Dataset.from_tensors(_gt_from_sizes(value))
     result = batching_utils.find_tight_size_constraints(ds)
     self.assertContraintsEqual(result, value)
+
+  @parameterized.named_parameters(
+      ('PythonInt', 10),
+      ('TfInt32', tf.constant(10, tf.int32)),
+      ('TfInt64', tf.constant(10, tf.int64)))
+  def testTargetBatchSize(self, ten):
+    def generator(num_edges):
+      return _gt_from_sizes(SizeConstraints(5, {'n': 3}, {'n->n': num_edges}))
+    ds = tf.data.Dataset.range(0, 7).map(generator)
+    result = batching_utils.find_tight_size_constraints(
+        ds, target_batch_size=ten)
+    self.assertContraintsEqual(
+        result, SizeConstraints(51, {'n': 31}, {'n->n': 60}))
 
   def testMultipleExamples(self):
 

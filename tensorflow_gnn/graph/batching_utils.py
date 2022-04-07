@@ -1,5 +1,5 @@
 """Defines advanced batching operations for GraphTensor."""
-from typing import Any, cast, Iterable, List, NamedTuple, Tuple, Union
+from typing import Any, cast, Iterable, List, NamedTuple, Optional, Tuple, Union
 
 import numpy as np
 import tensorflow as tf
@@ -166,17 +166,35 @@ def dynamic_batch(dataset: tf.data.Dataset,
   return dataset
 
 
-def find_tight_size_constraints(dataset: tf.data.Dataset) -> SizeConstraints:
+def find_tight_size_constraints(
+    dataset: tf.data.Dataset,
+    *,
+    target_batch_size: Optional[Union[int, tf.Tensor]] = None,
+) -> SizeConstraints:
   """Returns smallest possible size constraints that allow dataset padding.
 
   Evaluated constraints are intended to be used when it is required that all
-  elements of the `dataset` can be padded, e.g. when evaluating models.
+  elements of the `dataset` can be padded, e.g., when evaluating models.
+
+  Typically, this function is used on a dataset of individual examples (that is,
+  not batched), and the `target_batch_size` is passed as an argument. The
+  returned constraints will work for all possible batches up to that size drawn
+  from the dataset.
+
+  Alternatively, this function can be used on a dataset that is already batched,
+  passing `target_batch_size=None`. The returned constraints will work for the
+  batches exactly as seen in the dataset. However, note that many performance-
+  optimized ways of building a Dataset (like parallel .map() and .interleave()
+  calls before .batch()) introduce nondeterminism and may not deliver the exact
+  same batches again.
 
   Note that this function iterates over all elements of the input dataset, so
-  its execution time is proportional to its cardinality.
+  its execution time is proportional to the dataset's cardinality.
 
   Args:
     dataset: finite dataset of graph tensors of any rank.
+    target_batch_size: if not None, an integer for multiplying the sizes
+      measured from dataset before making room for padding.
 
   Returns:
     Smalles possible size constraints that allows padding of all graph tensors
@@ -195,6 +213,17 @@ def find_tight_size_constraints(dataset: tf.data.Dataset) -> SizeConstraints:
   ds = dataset.map(_get_total_sizes_int64)
   size_contraints = preprocessing_common.compute_basic_stats(ds).maximum
   assert isinstance(size_contraints, SizeConstraints)
+
+  if target_batch_size is not None:
+    def multiply_by_batch_size(size):
+      if isinstance(size, tf.Tensor):
+        # Avoid errors from int32/64 mismatch.
+        return size * tf.cast(target_batch_size, size.dtype)
+      else:
+        return size * target_batch_size
+
+    size_contraints = tf.nest.map_structure(multiply_by_batch_size,
+                                            size_contraints)
 
   return _fine_tune_learned_constraints(
       size_contraints, graph_tensor_spec=graph_tensor_spec)
