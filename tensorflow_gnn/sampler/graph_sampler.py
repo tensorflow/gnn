@@ -14,7 +14,8 @@ import copy
 import functools
 import hashlib
 from os import path
-from typing import Any, Callable, Iterable, Iterator, Dict, Optional, Tuple, Set, Sequence
+import random
+from typing import Any, Callable, Dict, Iterable, Iterator, Optional, Sequence, Set, Tuple
 
 from absl import app
 from absl import flags
@@ -142,10 +143,15 @@ def sample_graph(
 
   # Sample new nodes from the boundary of each subgraph and join them into
   # existing subgraphs.
-  def node_combiner(sg: Subgraph, nodes: Iterable[Node]):
+  def node_combiner(sg: Subgraph, boundary: Iterable[Node]):
+    """Combines sampled nodes from boundary with current subgraph."""
     sg = copy.copy(sg)
-    for node in nodes:
+    # Clear old boundary.
+    sg.ClearField("boundary")
+    for node in boundary:
       sg.nodes.add().CopyFrom(node)
+      # Update boundary.
+      sg.boundary.add().CopyFrom(node)
     return sg
 
   # Keep track of the subgraphs generated after each operation.
@@ -263,6 +269,8 @@ def join_initial(
   sg = copy.copy(subgraphs[0])
   new_node = sg.nodes.add()
   new_node.CopyFrom(nodes[0])
+  new_node = sg.boundary.add()
+  new_node.CopyFrom(nodes[0])
   yield sg.sample_id, sg
 
 
@@ -344,7 +352,7 @@ def get_weight_feature(edge: Edge) -> float:
 
 def sample(sampling_op: sampling_spec_pb2.SamplingOp,
            weight_func: Optional[WeightFunc], sg: Subgraph) -> Iterable[NodeId]:
-  """Samples top-weighed nodes from the boundary of a subgraph.
+  """Samples nodes from the boundary of a subgraph.
 
   Args:
     sampling_op: The specification for this sample.
@@ -353,21 +361,40 @@ def sample(sampling_op: sampling_spec_pb2.SamplingOp,
     sg: A Subgraph instance.
 
   Yields:
-    Selected (sampled) node-id ids at the boundary (outside) of the subgraph.
+    Selected (sampled) node-id ids at the boundary of the subgraph.
     Those should be joined in the subgraph by further operations.
   """
   if weight_func is None:
     weight_func = lambda _: 1.0
 
-  nodeids = {node.id for node in sg.nodes}
-  weights = collections.defaultdict(float)
-  for node in sg.nodes:
-    for edge in node.outgoing_edges:
-      if edge.edge_set_name == sampling_op.edge_set_name and edge.neighbor_id not in nodeids:
-        weights[edge.neighbor_id] += weight_func(edge)
-  sorted_weights = sorted(
-      weights.items(), key=lambda item: item[1], reverse=True)
-  for node_id, _ in sorted_weights[:sampling_op.sample_size]:
+  new_boundary = set()
+
+  # TODO(tfgnn):  Pre-group edges by edgeset in order to speed this up.
+  if sampling_op.strategy == sampling_spec_pb2.RANDOM_UNIFORM:
+    for node in sg.boundary:
+      edges_to_sample = []
+      for edge in node.outgoing_edges:
+        if edge.edge_set_name == sampling_op.edge_set_name:
+          edges_to_sample.append(edge)
+      for _ in range(sampling_op.sample_size):
+        e = random.choice(edges_to_sample)
+        new_boundary.add((e.neighbor_id, weight_func(e)))
+  elif sampling_op.strategy == sampling_spec_pb2.TOP_K:
+    for node in sg.boundary:
+      weights = collections.defaultdict(float)
+      for edge in node.outgoing_edges:
+        if edge.edge_set_name == sampling_op.edge_set_name:
+          weights[edge.neighbor_id] += weight_func(edge)
+
+      sorted_weights = sorted(
+          weights.items(), key=lambda item: item[1], reverse=True)
+      new_boundary.update(sorted_weights[:sampling_op.sample_size])
+  else:
+    raise NotImplementedError(
+        "Sampling strategy not supported for: " +
+        sampling_spec_pb2.SamplingStrategy.Name(sampling_op.strategy))
+
+  for node_id, _ in new_boundary:
     yield node_id
 
 

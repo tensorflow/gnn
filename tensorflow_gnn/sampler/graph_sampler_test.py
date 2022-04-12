@@ -438,7 +438,7 @@ class TestSamplePipeline(tf.test.TestCase, parameterized.TestCase):
           edge_set_name: 'tastelike'
         >
       """, "testdata/homogeneous/one_seed.csv", [{
-          "nodes/fruits.name": [b"Amanatsu", b"Lumia", b"Daidai"],
+          "nodes/fruits.name": [b"Amanatsu", b"Lumia"],
       }]), ("two_branches_graph", "testdata/homogeneous/citrus.pbtxt", """
         seed_op: <
           op_name: 'seed'
@@ -480,7 +480,7 @@ class TestSamplePipeline(tf.test.TestCase, parameterized.TestCase):
           edge_set_name: 'tastelike'
         >
       """, "testdata/homogeneous/two_seeds.csv", [{
-          "nodes/fruits.name": [b"Amanatsu", b"Lumia", b"Daidai"],
+          "nodes/fruits.name": [b"Amanatsu", b"Lumia"],
       }, {
           "nodes/fruits.name": [b"Daidai"],
       }]), ("multiple_inputs", "testdata/homogeneous/citrus.pbtxt", """
@@ -503,7 +503,7 @@ class TestSamplePipeline(tf.test.TestCase, parameterized.TestCase):
           edge_set_name: 'tastelike'
         >
       """, "testdata/homogeneous/one_seed.csv", [{
-          "nodes/fruits.name": [b"Amanatsu", b"Lumia", b"Daidai"],
+          "nodes/fruits.name": [b"Amanatsu", b"Lumia"],
       }]), ("heterogeneous_simple", "testdata/heterogeneous/graph.pbtxt", """
         seed_op: <
           op_name: 'seed'
