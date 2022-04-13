@@ -98,8 +98,11 @@ get_io_spec = graph_tensor_io.get_io_spec
 
 # GraphTensor batching and padding.
 pad_to_total_sizes = padding_ops.pad_to_total_sizes
-assert_satisfies_total_sizes = padding_ops.assert_satisfies_total_sizes
-satisfies_total_sizes = padding_ops.satisfies_total_sizes
+assert_satisfies_size_constraints = padding_ops.assert_satisfies_size_constraints
+satisfies_size_constraints = padding_ops.satisfies_size_constraints
+
+assert_satisfies_total_sizes = padding_ops.assert_satisfies_size_constraints
+satisfies_total_sizes = padding_ops.satisfies_size_constraints
 
 # Learned batching and padding.
 find_tight_size_constraints = batching_utils.find_tight_size_constraints

@@ -232,6 +232,41 @@ class DynamicBatchTest(tu.GraphTensorTestBase):
         self.test_a2b4_ab3_graph,
         expand_composites=True)
 
+  def testBatchingWithMinNumComponents(self):
+
+    dataset = tf.data.Dataset.from_tensors(self.test_a2b4_ab3_graph)
+    dataset = dataset.repeat(10)
+    spec = SizeConstraints(
+        total_num_components=3,
+        total_num_nodes={
+            'a': 100,
+            'b': 4 + 5
+        },
+        total_num_edges={'a->b': 100},
+        min_nodes_per_component={'b': 2})
+
+    result = list(batching_utils.dynamic_batch(dataset, spec))
+    # We expect that only 1 graph could be added to the batch, since after the
+    # first graph is added to the batch the space left for nodes b is 5. It is
+    # not enough for 4 nodes from the real graph plus 2 node from the fake
+    # component used for padding.
+    self.assertLen(result, 10)
+    for graph in result:
+      self.assertAllEqual(graph.num_components, [1])
+      self.assertAllEqual(graph.node_sets['a'].sizes, [[2]])
+      self.assertAllEqual(graph.node_sets['b'].sizes, [[4]])
+      self.assertAllEqual(graph.edge_sets['a->b'].sizes, [[3]])
+
+    # Now let's check that removing `min_nodes_per_component` size 2 batches.
+    spec.min_nodes_per_component.clear()
+    result = list(batching_utils.dynamic_batch(dataset, spec))
+    self.assertLen(result, 5)
+    for graph in result:
+      self.assertAllEqual(graph.num_components, [1, 1])
+      self.assertAllEqual(graph.node_sets['a'].sizes, [[2], [2]])
+      self.assertAllEqual(graph.node_sets['b'].sizes, [[4], [4]])
+      self.assertAllEqual(graph.edge_sets['a->b'].sizes, [[3], [3]])
+
   def testRaisesOnInvalidConfig(self):
 
     dataset = tf.data.Dataset.from_tensors(self.test_a1b1_ab1_graph)
@@ -249,13 +284,55 @@ class DynamicBatchTest(tu.GraphTensorTestBase):
          r' `constraints.total_num_nodes\[<a>\]`'),
         lambda: batch(dataset, no_a_node))
 
+    invalid_node_name = SizeConstraints(
+        total_num_components=1,
+        total_num_nodes={
+            'y': 100,
+            'x': 100,
+            'a': 100,
+            'b': 100
+        },
+        total_num_edges={'a->b': 100})
+    self.assertRaisesRegex(
+        ValueError,
+        ('The `constraints.total_num_nodes` keys must be existing node set'
+         r' names. Invalid keys: \[<x>, <y>\]'),
+        lambda: batch(dataset, invalid_node_name))
+
+    invalid_edge_name = SizeConstraints(
+        total_num_components=1,
+        total_num_nodes={
+            'a': 100,
+            'b': 100
+        },
+        total_num_edges={'a->b': 100, 'x->y': 100})
+    self.assertRaisesRegex(
+        ValueError,
+        ('The `constraints.total_num_edges` keys must be existing edge set'
+         r' names. Invalid keys: \[<x->y>\]'),
+        lambda: batch(dataset, invalid_edge_name))
+
+    invalid_min_nodes_per_component = SizeConstraints(
+        total_num_components=1,
+        total_num_nodes={
+            'a': 100,
+            'b': 100
+        },
+        total_num_edges={'a->b': 100},
+        min_nodes_per_component={'x': 1})
+    self.assertRaisesRegex(
+        ValueError,
+        ('The `constraints.min_nodes_per_component` keys must be existing node'
+         r' set names. Invalid keys: \[<x>\]'),
+        lambda: batch(dataset, invalid_min_nodes_per_component))
+
     no_edge = SizeConstraints(
         total_num_components=1,
         total_num_nodes={
             'a': 100,
             'b': 100
         },
-        total_num_edges={'?': 200})
+        total_num_edges={})
     self.assertRaisesRegex(
         ValueError,
         ('The maximum total number of <a->b> edges must be specified as'
@@ -394,24 +471,42 @@ class FindTightSizeConstraintsTest(ConstraintsTestBase):
     self.assertContraintsEqual(
         result, SizeConstraints(51, {'n': 31}, {'n->n': 60}))
 
-  def testMultipleExamples(self):
+  @parameterized.product(min_nodes=[0, 1, 2, 3])
+  def testTargetBatchSizeWithMinNumNodes(self, min_nodes: int):
+    def generator(num_edges):
+      return _gt_from_sizes(SizeConstraints(5, {'n': 3}, {'n->n': num_edges}))
+    ds = tf.data.Dataset.range(0, 7).map(generator)
+    result = batching_utils.find_tight_size_constraints(
+        ds, target_batch_size=10, min_nodes_per_component={'n': min_nodes})
+    self.assertContraintsEqual(
+        result,
+        SizeConstraints(
+            51, {'n': 30 + max(min_nodes, 1)}, {'n->n': 60},
+            min_nodes_per_component={'n': min_nodes}))
+
+  @parameterized.product(min_a_nodes=[0, 1, 2], min_b_nodes=[0, 1, 2])
+  def testMultipleExamples(self, min_a_nodes: int, min_b_nodes: int):
 
     def generator(size):
       return _gt_from_sizes(
           SizeConstraints(size, {
-              'a': size + 1,
-              'b': size + 2
+              'a': size + min_a_nodes,
+              'b': size + min_b_nodes
           }, {'a->b': size + 3}))
 
     ds = tf.data.Dataset.range(1, 101).map(generator)
     ds = ds.shuffle(100, seed=42)
-    result = batching_utils.find_tight_size_constraints(ds)
+    min_nodes_per_component = {'a': min_a_nodes, 'b': min_b_nodes}
+    result = batching_utils.find_tight_size_constraints(
+        ds, min_nodes_per_component=min_nodes_per_component)
     self.assertContraintsEqual(
         result,
-        SizeConstraints(100 + 1, {
-            'a': 101 + 1,
-            'b': 102 + 1
-        }, {'a->b': 103}))
+        SizeConstraints(
+            100 + 1, {
+                'a': min_a_nodes + 100 + max(1, min_a_nodes),
+                'b': min_b_nodes + 100 + max(1, min_b_nodes)
+            }, {'a->b': 103},
+            min_nodes_per_component=min_nodes_per_component))
 
   def testRaisesOnInfiniteInput(self):
     ds = tf.data.Dataset.from_tensors(
@@ -486,50 +581,66 @@ class ConstraintsForStaticBatchTest(ConstraintsTestBase):
             },
             total_num_edges={'a->b': 4 * batch_size}))
 
-  @parameterized.product(batch_size=[1, 2], var_num_edges=[True, False])
-  def testMaxPadding(self, batch_size: int, var_num_edges: bool):
+  @parameterized.product(
+      batch_size=[1, 2],
+      var_num_edges=[True, False],
+      min_a_nodes=[0, 2],
+      min_b_nodes=[0, 1])
+  def testMaxPadding(self, batch_size: int, var_num_edges: bool,
+                     min_a_nodes: int, min_b_nodes: int):
     assert batch_size < 5, (
         'Larger batch sizes may require larger `sample_size` as the chances'
         ' of getting the largest possible graph exponentially go to zero.')
     sample_size = 1_000
     max_ab_edges = 4
-    max_a_nodes = 2
-    max_b_nodes = 3
+    max_a_var = 2
+    max_b_var = 3
 
     def generator(index) -> gt.GraphTensor:
       num_edges = index % (1 + max_ab_edges) if var_num_edges else max_ab_edges
       return _gt_from_sizes(
           SizeConstraints(
               1, {
-                  'a': (1 + (index * 17 + 53) % max_a_nodes),
-                  'b': (1 + (index * 53 + 19) % max_b_nodes),
+                  'a': (min_a_nodes + (index * 17 + 53) % (max_a_var + 1)),
+                  'b': (min_b_nodes + (index * 53 + 19) % (max_b_var + 1)),
               }, {'a->b': num_edges}))
 
     ds = tf.data.Dataset.range(sample_size).shuffle(sample_size)
     ds = ds.map(generator)
 
+    min_nodes_per_component = {'a': min_a_nodes, 'b': min_b_nodes}
     actual = batching_utils.learn_fit_or_skip_size_constraints(
-        ds, batch_size=batch_size, sample_size=sample_size, success_ratio=1.)
+        ds,
+        batch_size=batch_size,
+        sample_size=sample_size,
+        success_ratio=1.,
+        min_nodes_per_component=min_nodes_per_component)
 
     self.assertContraintsEqual(
         actual,
         SizeConstraints(
             total_num_components=1 * batch_size + 1,
             total_num_nodes={
-                'a': max_a_nodes * batch_size + (1 if var_num_edges else 0),
-                'b': max_b_nodes * batch_size + (1 if var_num_edges else 0)
+                'a':
+                    (min_a_nodes + max_a_var) * batch_size +
+                    max(min_a_nodes, 1 if var_num_edges else 0),
+                'b':
+                    (min_b_nodes + max_b_var) * batch_size +
+                    max(min_b_nodes, 1 if var_num_edges else 0)
             },
-            total_num_edges={'a->b': max_ab_edges * batch_size}))
+            total_num_edges={'a->b': max_ab_edges * batch_size},
+            min_nodes_per_component=min_nodes_per_component))
 
-  @parameterized.parameters([100, 400])
-  def testOnNormalLimit(self, batch_size: int):
+  @parameterized.product(batch_size=[100, 400], min_num_nodes=[0, 1, 2])
+  def testOnNormalLimit(self, batch_size: int, min_num_nodes: int):
     sample_size = 10_000
 
     def generator(index) -> gt.GraphTensor:
       return _gt_from_sizes(
-          SizeConstraints(1, {
-              'node': 2,
-          }, {'node->node': index % 2}))
+          SizeConstraints(
+              1, {
+                  'node': 2,
+              }, {'node->node': index % 2}))
 
     avg = std = 0.5
 
@@ -540,13 +651,16 @@ class ConstraintsForStaticBatchTest(ConstraintsTestBase):
         ds,
         batch_size=batch_size,
         sample_size=sample_size,
-        success_ratio=[0.5000, 0.6914, 0.8413, 0.9332, 0.9772])
+        success_ratio=[0.5000, 0.6914, 0.8413, 0.9332, 0.9772],
+        min_nodes_per_component={'node': min_num_nodes})
 
     self.assertLen(actual, 5)
     for constraints, n_std in zip(actual, [0.0, 0.5, 1.0, 1.5, 2.0]):
       self.assertIsInstance(constraints, SizeConstraints)
-      self.assertEqual(constraints.total_num_components, batch_size * 1 + 1)
-      self.assertEqual(constraints.total_num_nodes['node'], 2 * batch_size + 1)
+      self.assertEqual(constraints.total_num_components,
+                       batch_size * 1 + 1)
+      self.assertEqual(constraints.total_num_nodes['node'],
+                       2 * batch_size + max(1, min_num_nodes))
       num_edges = avg * batch_size + n_std * std * math.sqrt(batch_size)
       self.assertAllClose(
           float(constraints.total_num_edges['node->node']),

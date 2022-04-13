@@ -1,8 +1,9 @@
 """Defines advanced batching operations for GraphTensor."""
-from typing import Any, cast, Iterable, List, NamedTuple, Optional, Tuple, Union
+from typing import Any, cast, Iterable, List, Mapping, NamedTuple, Optional, Tuple, Union
 
 import numpy as np
 import tensorflow as tf
+from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import padding_ops
 from tensorflow_gnn.graph import preprocessing_common
@@ -12,7 +13,7 @@ SizeConstraints = preprocessing_common.SizeConstraints
 
 class _ScanState(NamedTuple):
   """The state used by `dynamic_batch` in `tf.data.Dataset.scan()`."""
-  budget_left: SizeConstraints
+  budget_left: SizeConstraints  # Upper bounds only.
   accumulator: Tuple[tf.TensorArray]
 
 
@@ -72,7 +73,8 @@ def dynamic_batch(dataset: tf.data.Dataset,
       cast(gt.GraphTensorSpec, input_spec), 'dynamic_batch()')
 
   output_spec = input_spec._batch(None)
-  constraints = _validate_and_prepare_constraints(constraints, input_spec)
+  budget, min_nodes_per_component = _validate_and_prepare_constraints(
+      constraints, input_spec)
 
   # A terminating element is needed at the end of a finite dataset to flush
   # accumulated inputs even if the size budget is not exhausted yet. We mark it
@@ -106,7 +108,7 @@ def dynamic_batch(dataset: tf.data.Dataset,
           tf.TensorArray(
               spec.dtype, size=0, dynamic_size=True, clear_after_read=True))
     accumulator = tuple(accumulator)
-    return _ScanState(budget_left=constraints, accumulator=accumulator)
+    return _ScanState(budget_left=budget, accumulator=accumulator)
 
   def extract_value(state: _ScanState) -> gt.GraphTensor:
     value = tf.nest.map_structure(lambda t: t.stack(), state.accumulator)
@@ -124,8 +126,9 @@ def dynamic_batch(dataset: tf.data.Dataset,
 
   def exceeds_budget(state: _ScanState,
                      graph_tensor: gt.GraphTensor) -> tf.Tensor:
-    within_budget = padding_ops.satisfies_total_sizes(graph_tensor,
-                                                      state.budget_left)
+    budget = _set_min_nodes_per_component(state.budget_left,
+                                          min_nodes_per_component)
+    within_budget = padding_ops.satisfies_size_constraints(graph_tensor, budget)
     return tf.math.logical_not(within_budget)
 
   def scan_func(
@@ -135,8 +138,8 @@ def dynamic_batch(dataset: tf.data.Dataset,
 
     def flush():
       with tf.control_dependencies(
-          padding_ops.assert_satisfies_total_sizes(
-              graph_tensor, target_total_sizes=constraints)):
+          padding_ops.assert_satisfies_size_constraints(
+              graph_tensor, size_constraints=budget)):
         # For simplicity, next_state remembers the graph_tensor in all cases.
         # If graph_tensor comes with eod_flag=True, there will be no further
         # call to flush(), and this artificially added graph_tensor is omitted
@@ -169,6 +172,7 @@ def dynamic_batch(dataset: tf.data.Dataset,
 def find_tight_size_constraints(
     dataset: tf.data.Dataset,
     *,
+    min_nodes_per_component: Optional[Mapping[const.NodeSetName, int]] = None,
     target_batch_size: Optional[Union[int, tf.Tensor]] = None,
 ) -> SizeConstraints:
   """Returns smallest possible size constraints that allow dataset padding.
@@ -193,6 +197,8 @@ def find_tight_size_constraints(
 
   Args:
     dataset: finite dataset of graph tensors of any rank.
+    min_nodes_per_component: mapping from a node set name to a minimum number of
+      nodes in each graph component. Defaults to 0.
     target_batch_size: if not None, an integer for multiplying the sizes
       measured from dataset before making room for padding.
 
@@ -226,13 +232,15 @@ def find_tight_size_constraints(
                                             size_contraints)
 
   return _fine_tune_learned_constraints(
-      size_contraints, graph_tensor_spec=graph_tensor_spec)
+      size_contraints, graph_tensor_spec=graph_tensor_spec,
+      min_nodes_per_component=min_nodes_per_component)
 
 
 def learn_fit_or_skip_size_constraints(
     dataset: tf.data.Dataset,
     batch_size: Union[int, Iterable[int]],
     *,
+    min_nodes_per_component: Optional[Mapping[const.NodeSetName, int]] = None,
     success_ratio: Union[float, Iterable[float]] = 1.0,
     sample_size: int = 100_000,
     num_thresholds: int = 1_000) -> Union[SizeConstraints, List[Any]]:
@@ -264,21 +272,22 @@ def learn_fit_or_skip_size_constraints(
       # Remove all batches that do not satisfy the learned constraints.
       dataset = dataset.filter(
           functools.partial(
-              tfgnn.satisfies_total_sizes,
+              tfgnn.satisfies_size_constraints,
               total_sizes=constraints))
 
       # Pad graph to the learned size constraints.
       dataset = dataset.map(
           functools.partial(
               tfgnn.pad_to_total_sizes,
-              target_total_sizes=constraints,
+              size_constraints=constraints,
               validate=False))
 
 
   The learned constraints are intend to be used only with randomized repeated
   dataset. This dataset are first batched using `tf.data.Dataset.batch()`, the
   batches that are too large to fit the learned contraints are filtered using
-  `tfgnn.satisfies_total_sizes()` and then padded `tfgnn.pad_to_total_sizes()`.
+  `tfgnn.satisfies_size_constraints()` and then padded
+  `tfgnn.pad_to_total_sizes()`.
 
   This approach, if applicable, is more efficient compared to padding to the
   maximum possible sizes. It is also simpler and faster compared to the dynamic
@@ -295,6 +304,8 @@ def learn_fit_or_skip_size_constraints(
     batch_size: the target batch size(s). Could be a single positive integer
       value or any iterable. For the latter case the result is reported for each
       requested value.
+    min_nodes_per_component: mapping from a node set name to a minimum number of
+      nodes in each graph component. Defaults to 0.
     success_ratio: the target probability(s) that a random batch of graph tensor
       satisfies the learned constraints. Could be a single float value between 0
       and 1 or any iterable. For the latter case the result is reported for
@@ -577,7 +588,8 @@ def learn_fit_or_skip_size_constraints(
     size_constraints = tf.nest.pack_sequence_as(
         result_type_spec, tf.unstack(flattened_constraints))
     return _fine_tune_learned_constraints(
-        size_constraints, graph_tensor_spec=graph_tensor_spec)
+        size_constraints, graph_tensor_spec=graph_tensor_spec,
+        min_nodes_per_component=min_nodes_per_component)
 
   result = tf.nest.map_structure(get_size_constraints, result)
 
@@ -590,47 +602,77 @@ def learn_fit_or_skip_size_constraints(
   return result
 
 
-def _make_room_for_padding(size_constraints: SizeConstraints,
-                           graph_tensor_spec: gt.GraphTensorSpec):
+def _set_min_nodes_per_component(
+    size_constraints: SizeConstraints,
+    min_nodes_per_component: Optional[Mapping[const.NodeSetName, int]]
+) -> SizeConstraints:
+  assert not size_constraints.min_nodes_per_component
+  if not min_nodes_per_component:
+    return size_constraints
+
+  return SizeConstraints(
+      total_num_components=size_constraints.total_num_components,
+      total_num_nodes=size_constraints.total_num_nodes.copy(),
+      total_num_edges=size_constraints.total_num_edges.copy(),
+      min_nodes_per_component=min_nodes_per_component.copy())
+
+
+def _make_room_for_padding(
+    size_constraints: SizeConstraints, graph_tensor_spec: gt.GraphTensorSpec,
+    min_nodes_per_component: Optional[Mapping[const.NodeSetName, int]]):
   """Reserves space in `size_constraints` for padding."""
-  total_num_components = graph_tensor_spec.total_num_components is None
+  # NOTE: there is currently no way to identify latent (w.o. features) node
+  # sets with a static total number of nodes (`node_set_spec.total_size` is
+  # always False). A side effect of this is that this function always reserves
+  # space for a fake graph component (`total_num_components` increased by 1).
+  # TODO(b/217538005): remove this comment after fixing.
+  extra_num_components = int(
+      graph_tensor_spec.total_num_components is None
+      or any(n.total_size is None
+             for n in graph_tensor_spec.node_sets_spec.values())
+      or any(e.total_size is None
+             for e in graph_tensor_spec.edge_sets_spec.values()))
+  if extra_num_components == 0:
+    return _set_min_nodes_per_component(size_constraints,
+                                        min_nodes_per_component)
 
-  total_num_nodes = {}
-  for node_set_name, node_set_spec in graph_tensor_spec.node_sets_spec.items():
-    total_num_nodes[node_set_name] = False
-    # NOTE: there is currently no way to identify latent (w.o. features) node
-    # sets with a static total number of nodes (`node_set_spec.total_size` is
-    # always False). A side effect of this is that this function always reserves
-    # space for a fake graph component (`total_num_components` increased by 1).
-    # TODO(b/217538005): remove this comment after fixing.
-    total_num_components |= node_set_spec.total_size is None
+  extra_num_nodes = {}
+  for node_set_name in graph_tensor_spec.node_sets_spec:
+    extra_num_nodes[node_set_name] = (min_nodes_per_component or
+                                      {}).get(node_set_name, 0)
 
-  total_num_edges = {}
+  extra_num_edges = {}
   for edge_set_name, edge_set_spec in graph_tensor_spec.edge_sets_spec.items():
-    total_num_edges[edge_set_name] = False
+    extra_num_edges[edge_set_name] = 0
     if edge_set_spec.total_size is None:
-      total_num_components = True
       adj = graph_tensor_spec.edge_sets_spec[edge_set_name].adjacency_spec
       for _, (incident_node_set_name, _) in adj.get_index_specs_dict().items():
-        total_num_nodes[incident_node_set_name] = True
+        extra_num_nodes[incident_node_set_name] = max(
+            extra_num_nodes[incident_node_set_name], 1)
 
-  return tf.nest.map_structure(
-      lambda size, needs_room: (size + (1 if needs_room else 0)),
-      size_constraints,
+  result = tf.nest.map_structure(
+      lambda size, extra_size: size + extra_size, size_constraints,
       SizeConstraints(
-          total_num_components=total_num_components,
-          total_num_nodes=total_num_nodes,
-          total_num_edges=total_num_edges))
+          total_num_components=extra_num_components,
+          total_num_nodes=extra_num_nodes,
+          total_num_edges=extra_num_edges))
+  return _set_min_nodes_per_component(result, min_nodes_per_component)
 
 
 def _fine_tune_learned_constraints(
-    size_constraints: SizeConstraints,
-    graph_tensor_spec: gt.GraphTensorSpec) -> SizeConstraints:
+    size_constraints: SizeConstraints, graph_tensor_spec: gt.GraphTensorSpec,
+    min_nodes_per_component: Optional[Mapping[const.NodeSetName, int]]
+) -> SizeConstraints:
   """Reserves space for padding and converts eager tensors to Python ints."""
-  result = _make_room_for_padding(size_constraints, graph_tensor_spec)
+  result = _make_room_for_padding(
+      size_constraints,
+      graph_tensor_spec,
+      min_nodes_per_component=min_nodes_per_component)
   if tf.executing_eagerly():
     # If executed eagerly, convert integer scalar tensors to the python int.
-    result = tf.nest.map_structure(lambda t: int(t.numpy()), result)
+    def cast_to_int(t):
+      return int(t.numpy() if isinstance(t, tf.Tensor) else t)
+    result = tf.nest.map_structure(cast_to_int, result)
   return result
 
 
@@ -669,9 +711,31 @@ def _get_total_sizes_int64(graph: gt.GraphTensor) -> SizeConstraints:
 
 
 def _validate_and_prepare_constraints(
-    constraints: SizeConstraints,
-    graph_tensor_spec: gt.GraphTensorSpec) -> SizeConstraints:
+    constraints: SizeConstraints, graph_tensor_spec: gt.GraphTensorSpec
+) -> Tuple[SizeConstraints, Mapping[const.NodeSetName, Union[int, tf.Tensor]]]:
   """Checks constraints and matches value types to the `graph_tensor_spec`."""
+  def keys_to_debug_str(keys):
+    return '[' + ', '.join(f'<{k}>' for k in sorted(keys)) + ']'
+
+  keys_diff = set(constraints.total_num_nodes) - set(
+      graph_tensor_spec.node_sets_spec)
+  if keys_diff:
+    raise ValueError(
+        'The `constraints.total_num_nodes` keys must be existing node set'
+        f' names. Invalid keys: {keys_to_debug_str(keys_diff)}.')
+  keys_diff = set(constraints.total_num_edges) - set(
+      graph_tensor_spec.edge_sets_spec)
+  if keys_diff:
+    raise ValueError(
+        'The `constraints.total_num_edges` keys must be existing edge set'
+        f' names. Invalid keys: {keys_to_debug_str(keys_diff)}.')
+  keys_diff = set(constraints.min_nodes_per_component) - set(
+      graph_tensor_spec.node_sets_spec)
+  if keys_diff:
+    raise ValueError(
+        'The `constraints.min_nodes_per_component` keys must be existing node'
+        f' set names. Invalid keys: {keys_to_debug_str(keys_diff)}.')
+
   total_num_nodes = {}
   for node_set_name, node_set_spec in graph_tensor_spec.node_sets_spec.items():
     if node_set_name not in constraints.total_num_nodes:
@@ -692,9 +756,10 @@ def _validate_and_prepare_constraints(
         constraints.total_num_edges[edge_set_name],
         edge_set_spec.sizes_spec.dtype)
 
-  return SizeConstraints(
+  max_total_sizes = SizeConstraints(
       total_num_components=tf.cast(
           constraints.total_num_components,
           graph_tensor_spec.context_spec.sizes_spec.dtype),
       total_num_nodes=total_num_nodes,
       total_num_edges=total_num_edges)
+  return max_total_sizes, dict(constraints.min_nodes_per_component)

@@ -10,6 +10,8 @@ class SizeConstraints(NamedTuple):
   total_num_components: Union[int, tf.Tensor]
   total_num_nodes: Mapping[const.NodeSetName, Union[int, tf.Tensor]]
   total_num_edges: Mapping[const.EdgeSetName, Union[int, tf.Tensor]]
+  min_nodes_per_component: Union[Mapping[const.NodeSetName,
+                                         Union[int, tf.Tensor]], Tuple[()]] = ()
 
 
 class FeatureDefaultValues(NamedTuple):
