@@ -36,6 +36,7 @@ function tfgnn::move_generated_files() {
   FILES="
     tensorflow_gnn/proto/graph_schema_pb2.py
     tensorflow_gnn/proto/examples_pb2.py
+    tensorflow_gnn/sampler/sampling_spec_pb2.py
     tensorflow_gnn/sampler/subgraph_pb2.py
     tensorflow_gnn/tools/sampled_stats_pb2.py
   "
