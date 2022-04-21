@@ -41,7 +41,7 @@ class MapFeatures(tf.keras.layers.Layer):
     features = node_set.features  # Immutable view.
     if features: # Concatenate and project all inputs (assumes they are floats).
       return tf.keras.layers.Dense(state_dim)(
-          tf.keras.layers.Concatente([v for _, v in sorted(features.items())]))
+          tf.keras.layers.Concatenate([v for _, v in sorted(features.items())]))
     else:  # There are no inputs, create a zero state.
       total_size = tfgnn.keras.layers.TotalSize()(node_set)
       return tf.zeros([total_size, state_dim])
