@@ -2,8 +2,7 @@
 
 The TensorFlow GNN library makes it easy to build neural networks on graph data
 (nodes and edges with arbitrary features). The library provides input data
-formats<!-- copybara:strip_begin(graph sampler) -->, tools for sampling large
-graph datasets,<!-- copybara:strip_end --> and an encoding for sampled subgraphs
+formats and an encoding for sampled subgraphs
 as training data.
 
 The library provides a GraphTensor class, a container of all the graph data as
@@ -34,16 +33,12 @@ Start with our documentation:
     required to configure and inform the various components of the library of
     your graphs’ characteristics.
 
-*   [Data preparation<!-- copybara:strip_begin(graph sampler) --> and
-    sampling<!-- copybara:strip_end -->](data_prep.md) Training data for GNN
+*   [Data preparation](data_prep.md) Training data for GNN
     models are graphs. When operating on very large graphs, we produce local
     subgraph samples from the full dataset which are serialized along with their
     features and streamed for training.
-    <!-- copybara:strip_begin(graph sampler) --> There are a number of sampling
-    tools you can use to generate your training data.
-    <!-- copybara:strip_end --> This document describes
-    <!-- copybara:strip_begin(graph sampler) --> how to use them, as well as
-    <!-- copybara:strip_end -->the data format we support for storing large
+    This document describes
+    the data format we support for storing large
     graphs.
 
 *   **Feature engineering** (doc incomplete). Before your graph data enters the

@@ -120,10 +120,6 @@ message SamplingSpec {
   // List of connected sampling operations.
   repeated SamplingOp sampling_ops = 2;
 
-  // copybara:strip_begin(comment)
-  // repeated EdgeSamplingOp edge_sampling_ops = 3;
-  // string context_fetcher_impl = 4;
-  // copybara:strip_end
   reserved 3 to 4;
 }
 
@@ -135,12 +131,6 @@ message SeedOp {
   // The seed nodes set name.
   optional string node_set_name = 2;
 
-  // copybara:strip_begin(comment)
-  // oneof sample_ids {
-  //   Random random = 3;
-  //   Hash hash = 4;
-  // }
-  // copybara:strip_end
   reserved 3 to 4;
 }
 
@@ -168,9 +158,6 @@ message SamplingOp {
   // The sampling strategy to use.
   optional SamplingStrategy strategy = 5;
 
-  // copybara:strip_begin(comment)
-  // string edge_filter_impl = 6;
-  // copybara:strip_end
   reserved 6;
 }
 
