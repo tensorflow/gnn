@@ -1,7 +1,10 @@
 """Tests for preprocessing_common."""
 
+import math
+from typing import List
 from absl.testing import parameterized
 import tensorflow as tf
+from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import preprocessing_common
 
 as_tensor = tf.convert_to_tensor
@@ -69,6 +72,114 @@ class ReduceMeanTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(result.maximum['x'], 99)
     self.assertAllClose(result.maximum['2x'], 99 * 2)
 
+
+class DatasetFilterWithSummaryTest(tf.test.TestCase, parameterized.TestCase):
+
+  def assertSummary(self,
+                    events_dir: str,
+                    expected_steps: List[int],
+                    expected_values: List[float],
+                    values_tol: float = 0.0):
+    files = tf.io.gfile.glob(f'{events_dir}/*.v2')
+    self.assertLen(files, 1)
+    steps, values = [], []
+    for event in tf.compat.v1.train.summary_iterator(files[0]):
+      for value_proto in event.summary.value:
+        steps.append(event.step)
+        values.append(
+            tf.io.parse_tensor(value_proto.tensor.SerializeToString(),
+                               tf.float32))
+    self.assertAllEqual(steps, expected_steps)
+    self.assertAllClose(values, expected_values, atol=values_tol)
+
+  def testWithNoRemoved(self):
+    dataset = tf.data.Dataset.from_tensors(True)
+    dataset = dataset.repeat(100)
+    events_dir = self.create_tempdir().full_path
+    with tf.summary.create_file_writer(events_dir).as_default():
+      dataset = preprocessing_common.dataset_filter_with_summary(
+          dataset, lambda g: g, summary_steps=10, summary_decay=0.9)
+      self.assertLen(list(dataset), 100)
+    self.assertSummary(
+        events_dir,
+        expected_steps=list(range(9, 100, 10)),
+        expected_values=[0.] * 10)
+
+  def testWithAllRemoved(self):
+    dataset = tf.data.Dataset.from_tensors(False)
+    dataset = dataset.repeat(100)
+    events_dir = self.create_tempdir().full_path
+    with tf.summary.create_file_writer(events_dir).as_default():
+      dataset = preprocessing_common.dataset_filter_with_summary(
+          dataset, lambda g: g, summary_steps=10, summary_decay=0.9)
+      self.assertEmpty(list(dataset))
+    self.assertSummary(
+        events_dir,
+        expected_steps=[0] * 10,
+        expected_values=[1.] * 10)
+
+  @parameterized.product(
+      summary_decay=[0.95, 0.99, 0.999],
+      sample_size=[1_000, 10_000],
+      remove_fraction=[0.01, 0.1, 0.5, 0.9, 0.99])
+  def testOnRandomData(self, summary_decay, sample_size, remove_fraction):
+    dataset = tf.data.Dataset.from_tensor_slices(
+        tf.random.stateless_uniform([sample_size], seed=[42, 42]))
+    events_dir = self.create_tempdir().full_path
+    err0 = 6. * math.sqrt(remove_fraction * (1. - remove_fraction))
+    with tf.summary.create_file_writer(events_dir).as_default():
+      dataset = preprocessing_common.dataset_filter_with_summary(
+          dataset,
+          lambda g: g > remove_fraction,
+          summary_steps=sample_size,
+          summary_decay=summary_decay)
+      final_size = len(list(dataset))
+      self.assertNear(
+          final_size,
+          sample_size * (1. - remove_fraction),
+          err=err0 * math.sqrt(sample_size))
+    ema_window_size = 1. / (1. - summary_decay)
+    self.assertSummary(
+        events_dir,
+        expected_steps=[final_size-1],
+        expected_values=[remove_fraction],
+        values_tol=err0 / math.sqrt(ema_window_size))
+
+  def testSensitiveToDataShift(self):
+    tp = tf.data.Dataset.from_tensors(True).repeat(1000)
+    fp = tf.data.Dataset.from_tensors(False).repeat(1000)
+    dataset = tp
+    dataset = dataset.concatenate(fp)
+    dataset = dataset.concatenate(tp)
+    events_dir = self.create_tempdir().full_path
+    with tf.summary.create_file_writer(events_dir).as_default():
+      dataset = preprocessing_common.dataset_filter_with_summary(
+          dataset, lambda g: g, summary_steps=1000, summary_decay=0.95)
+      self.assertLen(list(dataset), 1000 * 2)
+    self.assertSummary(
+        events_dir,
+        expected_steps=[999, 999, 1_999],
+        expected_values=[0., 1., 0.],
+        values_tol=1.0e-7)
+
+  def testSupportsGraphTensor(self):
+    dataset = tf.data.Dataset.from_tensors(
+        gt.GraphTensor.from_pieces(
+            context=gt.Context.from_fields(
+                features={'f': tf.constant([True])})))
+    dataset = dataset.repeat(10)
+    events_dir = self.create_tempdir().full_path
+    with tf.summary.create_file_writer(events_dir).as_default():
+      dataset = preprocessing_common.dataset_filter_with_summary(
+          dataset,
+          lambda g: g.context.features['f'][0],
+          summary_steps=1,
+          summary_decay=0.9)
+      self.assertLen(list(dataset), 10)
+    self.assertSummary(
+        events_dir,
+        expected_steps=list(range(10)),
+        expected_values=[0.] * 10)
 
 if __name__ == '__main__':
   tf.test.main()

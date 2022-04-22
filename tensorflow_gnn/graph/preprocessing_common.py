@@ -1,6 +1,6 @@
 """Common data classes and functions for all preprocessing operations."""
 
-from typing import Any, Optional, Mapping, NamedTuple, Tuple, Union
+from typing import Any, Callable, Optional, Mapping, NamedTuple, Tuple, Union
 import tensorflow as tf
 from tensorflow_gnn.graph import graph_constants as const
 
@@ -83,3 +83,80 @@ def compute_basic_stats(dataset: tf.data.Dataset) -> BasicStats:
       maximum=stats.maximum,
       mean=tf.nest.map_structure(cast_to_float32_or_float64,
                                  dataset.element_spec, stats.mean))
+
+
+def dataset_filter_with_summary(dataset: tf.data.Dataset,
+                                predicate: Callable[[Any], tf.Tensor],
+                                *,
+                                summary_name: str = 'dataset_removed_fraction',
+                                summary_steps: int = 1000,
+                                summary_decay: float = 0.999):
+  """Dataset filter with a summary for the fraction of dataset elements removed.
+
+  The fraction of removed elements is computed using exponential moving average.
+  See https://en.wikipedia.org/wiki/Moving_average.
+
+  The summary is reported each `summary_steps` using `tf.summary.scalar()`, see
+  https://tensorflow.org/tensorboard/scalars_and_keras#logging_custom_scalars
+  for how to write and retreive them.
+
+  TODO(b/218630619): check how metrics are reported in distributed settings.
+
+  Args:
+    dataset: An input dataset.
+    predicate: A function mapping a dataset element to a boolean.
+    summary_name: A name for this summary.
+    summary_steps: A number of steps to report summary.
+    summary_decay: An exponential moving average decay factor.
+
+  Returns:
+    The Dataset containing the elements of this dataset for which predicate is
+    True.
+  """
+  if not 0. < summary_decay < 1.:
+    raise ValueError(('Expected 0 < summary_decay < 1,'
+                      f' actual decay={summary_decay}.'))
+
+  def report(value: tf.Tensor, step: tf.Tensor) -> tf.Tensor:
+    ops = tf.summary.scalar(summary_name, value, step=step)
+    with tf.control_dependencies([ops]):
+      return tf.identity(value)
+
+  State = Tuple[tf.Tensor, tf.Tensor, tf.Tensor]
+  def scan_fn(state: State, value: Any) -> Tuple[State, Tuple[tf.Tensor, Any]]:
+    old_in_count, old_out_count, old_ema = state
+    pred = predicate(value)
+    ema_update = tf.cast(tf.logical_not(pred), old_ema.dtype)
+
+    in_count = old_in_count + 1
+    out_count = old_out_count + tf.cast(pred, old_out_count.dtype)
+
+    # Exponential moving average (EMA) is updated according to the rule
+    #    ema_{t + 1} = ema_{t} + alpha * (value_{t} - ema_{t})  (1),
+    # where alpha = 1 - decay. This formula suggests that an effective
+    # smoothing window size is O(1 / alpha), so for small alpha values a good
+    # initial estimate for ema_{0} becomes very important as it could take
+    # O(1 / alpha) steps to recover. The typical solution is to have some
+    # warm-up period t0, t0 ~ 1 / alpha, to estimate ema_{t0} e.g using simple
+    # average and only then use apply (1) for follow up updates:
+    #
+    # ema_{t + 1} = ema_{t} + alpha_{t} * (value_{t} - ema_{t}),
+    # with alpha_{t} = max(1 / (t + 1),  1 - decay).
+    #
+    # See https://en.wikipedia.org/wiki/Exponential_smoothing.
+    alpha = tf.maximum(
+        tf.constant(1.0 - summary_decay, old_ema.dtype),
+        1.0 / tf.cast(in_count, old_ema.dtype))
+    ema = old_ema + alpha * (ema_update - old_ema)
+    report_step = tf.maximum(out_count - 1, 0)
+    ema = tf.cond(in_count % summary_steps == 0,
+                  lambda: report(ema, step=report_step), lambda: ema)
+
+    return (in_count, out_count, ema), (pred, value)
+
+  state0 = (tf.constant(0, tf.int64), tf.constant(0, tf.int64),
+            tf.constant(0., tf.float64))
+  dataset = dataset.scan(state0, scan_fn)
+  dataset = dataset.filter(lambda predicate, value: predicate)
+  dataset = dataset.map(lambda predicate, value: value)
+  return dataset

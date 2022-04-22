@@ -91,6 +91,9 @@ Feature = graph_schema.Feature
 FeatureDefaultValues = preprocessing_common.FeatureDefaultValues
 SizeConstraints = preprocessing_common.SizeConstraints
 
+# General preprocessing helpers.
+dataset_filter_with_summary = preprocessing_common.dataset_filter_with_summary
+
 # I/O functions (input parsing).
 parse_example = graph_tensor_io.parse_example
 parse_single_example = graph_tensor_io.parse_single_example
