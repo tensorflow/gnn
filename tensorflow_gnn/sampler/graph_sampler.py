@@ -473,10 +473,11 @@ def _validate_sampling_spec(sampling_spec: sampling_spec_pb2.SamplingSpec,
       raise ValueError(
           f"Sampling spec edge set name '{sampling_op.edge_set_name}' does not "
           f"exist in graph edge sets.")
-    if sampling_op.strategy != sampling_spec_pb2.SamplingStrategy.TOP_K:
+    if sampling_op.strategy != sampling_spec_pb2.SamplingStrategy.TOP_K and sampling_op.strategy != sampling_spec_pb2.SamplingStrategy.RANDOM_UNIFORM:
       raise ValueError(
           f"Unsupported sampling strategy {sampling_op.strategy} for operation "
-          f"{sampling_op.op_name}, only TOP_K is supported at this time.")
+          f"{sampling_op.op_name}, only TOP_K and RANDOM_UNIFORM are supported "
+          "at this time.")
     if sampling_op.sample_size <= 0:
       raise ValueError(
           f"Unsupported sample size {sampling_op.sample_size} for operation "
