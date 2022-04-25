@@ -147,34 +147,50 @@ def get_node_ids(example: Example) -> Tuple[NodeId, Example]:
   return (feature.bytes_list.value[0], example)
 
 
-def get_edge_ids(example: Example) -> Tuple[NodeId, NodeId, Example]:
+def get_edge_ids(example: Example,
+                 edge_reversed=False) -> Tuple[NodeId, NodeId, Example]:
   """Extract the source and target node ids from the input example."""
-  source = example.features.feature[SOURCE_ID]
-  target = example.features.feature[TARGET_ID]
+  if edge_reversed:
+    source = example.features.feature[TARGET_ID]
+    target = example.features.feature[SOURCE_ID]
+  else:
+    source = example.features.feature[SOURCE_ID]
+    target = example.features.feature[TARGET_ID]
   return (source.bytes_list.value[0], target.bytes_list.value[0], example)
 
 
-def read_node_set(pcoll: PCollection, filename: str,
+def read_node_set(pcoll: PCollection,
+                  filename: str,
+                  set_name: str,
                   converters: Optional[Converters] = None) -> PCollection:
   sfx = _stage_suffix(filename)
   return (pcoll
-          | f"ReadNodes.{sfx}" >> ReadTable(filename, converters=converters)
-          | f"GetNodeIds.{sfx}" >> beam.Map(get_node_ids))
+          | f"ReadNodes.{set_name}.{sfx}" >> ReadTable(
+              filename, converters=converters)
+          | f"GetNodeIds.{set_name}.{sfx}" >> beam.Map(get_node_ids))
 
 
-def read_edge_set(pcoll: PCollection, filename: str,
-                  converters: Optional[Converters] = None) -> PCollection:
+def read_edge_set(pcoll: PCollection,
+                  filename: str,
+                  set_name: str,
+                  converters: Optional[Converters] = None,
+                  edge_reversed=False) -> PCollection:
   sfx = _stage_suffix(filename)
   return (pcoll
-          | f"ReadEdges.{sfx}" >> ReadTable(filename, converters=converters)
-          | f"GetEdgeIds.{sfx}" >> beam.Map(get_edge_ids))
+          | f"ReadEdges.{set_name}.{sfx}" >> ReadTable(
+              filename, converters=converters)
+          | f"GetEdgeIds.{set_name}.{sfx}" >> beam.Map(
+              get_edge_ids, edge_reversed=edge_reversed))
 
 
-def read_context_set(pcoll: PCollection, filename: str,
+def read_context_set(pcoll: PCollection,
+                     filename: str,
+                     set_name: str,
                      converters: Optional[Converters] = None) -> PCollection:
   sfx = _stage_suffix(filename)
   return (pcoll
-          | f"ReadContext.{sfx}" >> ReadTable(filename, converters=converters))
+          | f"ReadContext.{set_name}.{sfx}" >> ReadTable(
+              filename, converters=converters))
 
 
 def float_converter(feature: tf.train.Feature, value: bytes):
@@ -223,12 +239,19 @@ def read_graph(schema: tfgnn.GraphSchema,
     # Read the table, extracting ids where required.
     converters = build_converter_from_schema(fset.features)
     if set_type == "nodes":
-      pcoll = read_node_set(rcoll, filename, converters)
+      pcoll = read_node_set(rcoll, filename, set_name, converters)
     elif set_type == "edges":
-      pcoll = read_edge_set(rcoll, filename, converters)
+      # look for reverse edge flag
+      edge_reversed = False
+      for kv in fset.metadata.extra:
+        if kv.key == "edge_type" and kv.value == "reversed":
+          edge_reversed = True
+
+      pcoll = read_edge_set(
+          rcoll, filename, set_name, converters, edge_reversed=edge_reversed)
     else:
       assert set_type == "context"
-      pcoll = read_context_set(rcoll, filename, converters)
+      pcoll = read_context_set(rcoll, filename, set_name, converters)
 
     # Save the collection for output.
     set_dict = pcoll_dict.setdefault(set_type, {})

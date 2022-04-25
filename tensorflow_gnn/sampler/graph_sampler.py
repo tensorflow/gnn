@@ -211,22 +211,19 @@ def copy_context_features(sg: Subgraph, context: Example):
 
 def augment_schema_with_sample_features(schema: tfgnn.GraphSchema):
   """Add the `sample_id` and `seed_id` features to the schema."""
-  if "sample_id" in schema.context.features:
-    raise ValueError("Feature `sample_id` is already in the schema.")
-  if "seed_id" in schema.context.features:
-    raise ValueError("Feature `sample_id` is already in the schema.")
   features = schema.context.features
-  features["sample_id"].dtype = tf.string.as_datatype_enum
-  features["seed_id"].dtype = tf.string.as_datatype_enum
+  if "sample_id" not in schema.context.features:
+    features["sample_id"].dtype = tf.string.as_datatype_enum
+  if "seed_id" not in schema.context.features:
+    features["seed_id"].dtype = tf.string.as_datatype_enum
 
 
 def augment_schema_with_node_ids(schema: tfgnn.GraphSchema,
                                  node_id_feature: str):
   """Add node id feature to schema. Mutate `schema` in place."""
   for node_set in schema.node_sets.values():
-    if node_id_feature in node_set.features:
-      raise ValueError(f"Feature `{node_id_feature}` is already in the schema.")
-    node_set.features[node_id_feature].dtype = tf.string.as_datatype_enum
+    if node_id_feature not in node_set.features:
+      node_set.features[node_id_feature].dtype = tf.string.as_datatype_enum
 
 
 def create_initial_set(insert_sample_ids: bool,
@@ -555,7 +552,7 @@ def run_sample_graph_pipeline(schema_filename: str,
 
     # Read the seeds, or use the node ids as the seeds.
     if seeds_filename:
-      seed_nodes = unigraph.read_node_set(root, seeds_filename)
+      seed_nodes = unigraph.read_node_set(root, seeds_filename, "seeds")
     else:
       seed_nodes = graph_dict["nodes"][sampling_spec.seed_op.node_set_name]
     seeds = seed_nodes | beam.Keys()
@@ -579,9 +576,11 @@ def run_sample_graph_pipeline(schema_filename: str,
 
     # Produce the sample schema to output.
     sampled_schema = copy.copy(schema)
-    # TODO(tsitsulin): Can make these augmentations optional.
+
+    # Add missing fields to schema
     augment_schema_with_sample_features(sampled_schema)
     augment_schema_with_node_ids(sampled_schema, ID_FEATURE_NAME)
+
     # Remove any metadata fields.
     _clean_metadata(sampled_schema.context.metadata)
     for node_set in sampled_schema.node_sets.values():
