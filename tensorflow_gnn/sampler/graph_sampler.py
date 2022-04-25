@@ -167,7 +167,7 @@ def sample_graph(
     subgraphs = inner_join_protos(
         input_subgraphs, nodes_map,
         functools.partial(sample, sampling_op, get_weight_feature),
-        node_combiner, f"Sample{sampling_op.op_name}")
+        node_combiner, f"Sample_{sampling_op.op_name}")
     op_to_subgraph[sampling_op.op_name] = subgraphs
 
   # Combine all subgraphs that share the same seed node.
@@ -373,9 +373,11 @@ def sample(sampling_op: sampling_spec_pb2.SamplingOp,
       for edge in node.outgoing_edges:
         if edge.edge_set_name == sampling_op.edge_set_name:
           edges_to_sample.append(edge)
-      for _ in range(sampling_op.sample_size):
-        e = random.choice(edges_to_sample)
-        new_boundary.add((e.neighbor_id, weight_func(e)))
+
+      if edges_to_sample:
+        for _ in range(sampling_op.sample_size):
+          e = random.choice(edges_to_sample)
+          new_boundary.add((e.neighbor_id, weight_func(e)))
   elif sampling_op.strategy == sampling_spec_pb2.TOP_K:
     for node in sg.boundary:
       weights = collections.defaultdict(float)
