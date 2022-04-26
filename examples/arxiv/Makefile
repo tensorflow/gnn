@@ -4,7 +4,7 @@
 #
 
 # Temporary installation prefix setup on Linux.
-PYVERSION = 3.9
+PYVERSION = 3
 PYTHON = python$(PYVERSION)
 PREFIX ?= /tmp/install
 SOURCE ?= /tmp/tensorflow_gnn
