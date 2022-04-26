@@ -122,8 +122,9 @@ def dataset_filter_with_summary(dataset: tf.data.Dataset,
     with tf.control_dependencies([ops]):
       return tf.identity(value)
 
-  State = Tuple[tf.Tensor, tf.Tensor, tf.Tensor]
-  def scan_fn(state: State, value: Any) -> Tuple[State, Tuple[tf.Tensor, Any]]:
+  def scan_fn(
+      state: Tuple[tf.Tensor, tf.Tensor, tf.Tensor], value: Any
+  ) -> Tuple[Tuple[tf.Tensor, tf.Tensor, tf.Tensor], Tuple[tf.Tensor, Any]]:
     old_in_count, old_out_count, old_ema = state
     pred = predicate(value)
     ema_update = tf.cast(tf.logical_not(pred), old_ema.dtype)
