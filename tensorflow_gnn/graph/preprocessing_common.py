@@ -1,5 +1,6 @@
 """Common data classes and functions for all preprocessing operations."""
 
+import math
 from typing import Any, Callable, Optional, Mapping, NamedTuple, Tuple, Union
 import tensorflow as tf
 from tensorflow_gnn.graph import graph_constants as const
@@ -85,37 +86,47 @@ def compute_basic_stats(dataset: tf.data.Dataset) -> BasicStats:
                                  dataset.element_spec, stats.mean))
 
 
-def dataset_filter_with_summary(dataset: tf.data.Dataset,
-                                predicate: Callable[[Any], tf.Tensor],
-                                *,
-                                summary_name: str = 'dataset_removed_fraction',
-                                summary_steps: int = 1000,
-                                summary_decay: float = 0.999):
+def dataset_filter_with_summary(
+    dataset: tf.data.Dataset,
+    predicate: Callable[[Any], tf.Tensor],
+    *,
+    summary_name: str = 'dataset_removed_fraction',
+    summary_steps: int = 1000,
+    summary_decay: Optional[float] = None):
   """Dataset filter with a summary for the fraction of dataset elements removed.
 
   The fraction of removed elements is computed using exponential moving average.
   See https://en.wikipedia.org/wiki/Moving_average.
 
-  The summary is reported each `summary_steps` using `tf.summary.scalar()`, see
+  The summary is reported each `summary_steps` elements in the input dataset
+  before filtering. Statistics are reported using `tf.summary.scalar()` with
+  `step` set to the element index in the result (filtered) dataset, see
   https://tensorflow.org/tensorboard/scalars_and_keras#logging_custom_scalars
   for how to write and retreive them.
-
-  TODO(b/218630619): check how metrics are reported in distributed settings.
 
   Args:
     dataset: An input dataset.
     predicate: A function mapping a dataset element to a boolean.
     summary_name: A name for this summary.
-    summary_steps: A number of steps to report summary.
-    summary_decay: An exponential moving average decay factor.
+    summary_steps: Report summary for this number of elements in the input
+      dataset before filtering.
+    summary_decay: An exponential moving average decay factor. If not set,
+      defaults to the exp(- 1 / summary_steps).
 
   Returns:
     The Dataset containing the elements of this dataset for which predicate is
     True.
   """
-  if not 0. < summary_decay < 1.:
-    raise ValueError(('Expected 0 < summary_decay < 1,'
-                      f' actual decay={summary_decay}.'))
+  if not summary_steps > 0:
+    raise ValueError(('Expected summary_steps > 0,'
+                      f' actual summary_steps={summary_steps}.'))
+
+  if summary_decay is None:
+    summary_decay = math.exp(-1. / float(summary_steps))
+  else:
+    if not 0. < summary_decay < 1.:
+      raise ValueError(('Expected 0 < summary_decay < 1,'
+                        f' actual summary_decay={summary_decay}.'))
 
   def report(value: tf.Tensor, step: tf.Tensor) -> tf.Tensor:
     ops = tf.summary.scalar(summary_name, value, step=step)

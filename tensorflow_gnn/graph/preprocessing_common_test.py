@@ -79,12 +79,14 @@ class DatasetFilterWithSummaryTest(tf.test.TestCase, parameterized.TestCase):
                     events_dir: str,
                     expected_steps: List[int],
                     expected_values: List[float],
+                    expected_summary_name: str = 'dataset_removed_fraction',
                     values_tol: float = 0.0):
     files = tf.io.gfile.glob(f'{events_dir}/*.v2')
     self.assertLen(files, 1)
     steps, values = [], []
     for event in tf.compat.v1.train.summary_iterator(files[0]):
       for value_proto in event.summary.value:
+        self.assertEndsWith(value_proto.tag, expected_summary_name)
         steps.append(event.step)
         values.append(
             tf.io.parse_tensor(value_proto.tensor.SerializeToString(),
@@ -117,6 +119,19 @@ class DatasetFilterWithSummaryTest(tf.test.TestCase, parameterized.TestCase):
         events_dir,
         expected_steps=[0] * 10,
         expected_values=[1.] * 10)
+
+  def testSummaryName(self):
+    dataset = tf.data.Dataset.from_tensors(True)
+    events_dir = self.create_tempdir().full_path
+    with tf.summary.create_file_writer(events_dir).as_default():
+      dataset = preprocessing_common.dataset_filter_with_summary(
+          dataset, lambda g: g, summary_steps=1, summary_name='test_name')
+      self.assertLen(list(dataset), 1)
+    self.assertSummary(
+        events_dir,
+        expected_steps=[0],
+        expected_values=[0.],
+        expected_summary_name='test_name')
 
   @parameterized.product(
       summary_decay=[0.95, 0.99, 0.999],
@@ -180,6 +195,23 @@ class DatasetFilterWithSummaryTest(tf.test.TestCase, parameterized.TestCase):
         events_dir,
         expected_steps=list(range(10)),
         expected_values=[0.] * 10)
+
+  def testRaisesOnInvalidArguments(self):
+    # pylint:disable=g-long-lambda
+    dataset = tf.data.Dataset.from_tensors(True)
+    self.assertRaisesRegex(
+        ValueError, r'summary_steps > 0, actual summary_steps=0',
+        lambda: preprocessing_common.dataset_filter_with_summary(
+            dataset, lambda g: g, summary_steps=0))
+    self.assertRaisesRegex(
+        ValueError, r'0 < summary_decay < 1, actual summary_decay=1.0',
+        lambda: preprocessing_common.dataset_filter_with_summary(
+            dataset, lambda g: g, summary_steps=1, summary_decay=1.))
+    self.assertRaisesRegex(
+        ValueError, r'0 < summary_decay < 1, actual summary_decay=0.0',
+        lambda: preprocessing_common.dataset_filter_with_summary(
+            dataset, lambda g: g, summary_steps=1, summary_decay=0.))
+
 
 if __name__ == '__main__':
   tf.test.main()
