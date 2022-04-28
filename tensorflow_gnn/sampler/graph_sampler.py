@@ -174,9 +174,15 @@ def sample_graph(
     op_to_subgraph[sampling_op.op_name] = subgraphs
 
   # Combine all subgraphs that share the same seed node.
-  def combine_subgraphs(subgraphs: Sequence[Subgraph]) -> Subgraph:
+  def combine_subgraphs(
+      keyed_ops: Tuple[Any, Dict[str, Sequence[Subgraph]]]
+  ) -> Tuple[Any, Subgraph]:
     """Combine all Subgraphs that share the same seed node."""
-    subgraphs_list = list(iter(subgraphs))
+    sample_id, subgraphs_keyed_by_ops = keyed_ops
+    subgraphs_list = []
+    for sg_sequence in subgraphs_keyed_by_ops.values():
+      subgraphs_list += list(iter(sg_sequence))
+
     if not subgraphs_list:
       # Should never happen.
       raise ValueError("Combining subgraphs received empty list.")
@@ -191,12 +197,11 @@ def sample_graph(
     for node in node_id_to_nodes.values():
       combined_subgraph.nodes.add().CopyFrom(node)
 
-    return combined_subgraph
+    return (sample_id, combined_subgraph)
 
   subgraphs = (
-      op_to_subgraph.values() | "FlattenOps" >> beam.Flatten()
-      | beam.GroupByKey()
-      | "CombineSubgraphs" >> beam.CombineValues(combine_subgraphs))
+      op_to_subgraph | "CoGroupByOpToSubgraph" >> beam.CoGroupByKey()
+      | "CombineSubgraphs" >> beam.Map(combine_subgraphs))
 
   # Remove dangling node references.
   return subgraphs | "CleanEdges" >> beam.Map(clean_edges)
