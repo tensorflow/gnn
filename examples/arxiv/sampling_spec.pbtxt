@@ -1,4 +1,3 @@
-insert_sample_ids: True
 seed_op: <
   op_name: 'seed'
   node_set_name: 'nodes'
