@@ -21,7 +21,8 @@ from absl import app
 from absl import flags
 from absl import logging
 import apache_beam as beam
-from apache_beam.runners.direct import direct_runner
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.data import unigraph
@@ -42,6 +43,8 @@ Node = subgraph_pb2.Node
 Edge = subgraph_pb2.Node.Edge
 Subgraph = subgraph_pb2.Subgraph
 ID_FEATURE_NAME = "#id"
+_DIRECT_RUNNER = "DirectRunner"
+_DATAFLOW_RUNNER = "DataflowRunner"
 
 
 def create_adjacency_list(
@@ -433,8 +436,10 @@ def validate_schema(schema: tfgnn.GraphSchema):
 def create_beam_runner(
     runner_name: Optional[str]) -> beam.runners.PipelineRunner:
   """Creates appropriate runner."""
-  if runner_name == "direct":
-    runner = direct_runner.DirectRunner()
+  if runner_name == _DIRECT_RUNNER:
+    runner = beam.runners.DirectRunner()
+  elif runner_name == _DATAFLOW_RUNNER:
+    runner = beam.runners.DataflowRunner()
   else:
     runner = None
   return runner
@@ -529,12 +534,14 @@ def _clean_metadata(metadata):
   metadata.ClearField("filename")
 
 
-def run_sample_graph_pipeline(schema_filename: str,
-                              sampling_spec: sampling_spec_pb2.SamplingSpec,
-                              output_pattern: str,
-                              seeds_filename: Optional[str] = None,
-                              runner_name: Optional[str] = None,
-                              batching: bool = False):
+def run_sample_graph_pipeline(
+    schema_filename: str,
+    sampling_spec: sampling_spec_pb2.SamplingSpec,
+    output_pattern: str,
+    seeds_filename: Optional[str] = None,
+    runner_name: Optional[str] = None,
+    pipeline_options: Optional[PipelineOptions] = None,
+    batching: bool = False):
   """Runs the pipeline on a graph, which may be homogeneous or heterogeneous."""
 
   # Read the schema and validate it.
@@ -548,7 +555,8 @@ def run_sample_graph_pipeline(schema_filename: str,
   _validate_sampling_spec(sampling_spec, schema)
   logging.info("Sampling specification validated. Pipeline commencing...")
 
-  with beam.Pipeline(runner=create_beam_runner(runner_name)) as root:
+  with beam.Pipeline(
+      runner=create_beam_runner(runner_name), options=pipeline_options) as root:
     # Read the graph.
     graph_dict = unigraph.read_graph(schema, path.dirname(filename), root)
 
@@ -660,7 +668,7 @@ def define_flags():
   flags.DEFINE_bool("batching", False,
                     "Use batching when writing out TFRecords.")
 
-  runner_choices = ["direct"]
+  runner_choices = [_DIRECT_RUNNER, _DATAFLOW_RUNNER]
   flags.DEFINE_enum(
       "runner", None, runner_choices,
       "The underlying runner; if not specified, use the default runner.")
@@ -669,17 +677,34 @@ def define_flags():
       ["graph_schema", "sampling_spec", "output_samples"])
 
 
-def app_main(unused_argv):
+def app_main(argv):
+  """Main sampler entrypoint.
+
+  Args:
+    argv: List of arguments passed by flags parser.
+  """
   FLAGS = flags.FLAGS  # pylint: disable=invalid-name
+  pipeline_args = argv[1:]
+  logging.info("Additional pipeline args: %s", pipeline_args)
+  pipeline_options = PipelineOptions(pipeline_args)
+
+  # Make sure remote workers have access to variables/imports in the global
+  # namespace.
+  if FLAGS.runner == _DATAFLOW_RUNNER:
+    pipeline_options.view_as(SetupOptions).save_main_session = True
+
   with tf.io.gfile.GFile(FLAGS.sampling_spec) as spec_file:
     spec = text_format.Parse(spec_file.read(), sampling_spec_pb2.SamplingSpec())
+
   run_sample_graph_pipeline(FLAGS.graph_schema, spec, FLAGS.output_samples,
-                            FLAGS.input_seeds, FLAGS.runner)
+                            FLAGS.input_seeds, FLAGS.runner, pipeline_options,
+                            FLAGS.batching)
 
 
 def main():
   define_flags()
-  app.run(app_main)
+  app.run(
+      app_main, flags_parser=lambda argv: flags.FLAGS(argv, known_only=True))
 
 
 if __name__ == "__main__":
