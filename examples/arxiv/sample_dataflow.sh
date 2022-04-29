@@ -52,9 +52,9 @@ OUTPUT_SAMPLES="${EXAMPLE_ARTIFACT_DIRECTORY}/samples@20"
 # `gcr.io/${GOOGLE_CLOUD_PROJECT}/tfgnn:latest`.
 REMOTE_WORKER_CONTAINER="[FILL-ME-IN]"
 
-# Useful to define a private GCP VM that does not allocate external IP addresses
-# to worker machine to avoid being billed for these and quota limits.
-GCP_VPN_NAME="[FILL-ME-IN]"
+# Useful to define a private GCP VPC hat does not allocate external IP addresses
+# so worker machines do not impact quota limits.
+GCP_VPC_NAME="[FILL-ME-IN]"
 
 JOB_NAME="tensorflow-gnn-arxiv-sampling"
 
@@ -73,7 +73,7 @@ docker run -v ~/.config/gcloud:/root/.config/gcloud \
   --temp_location="${TEMP_LOCATION}" \
   --job_name="${JOB_NAME}" \
   --no_use_public_ips \
-  --network="${GCP_VPN_NAME}" \
+  --network="${GCP_VPC_NAME}" \
   --worker_machine_type="${MACHINE_TYPE}" \
   --experiments=use_monitoring_state_manager \
   --experiments=enable_execution_details_collection \
