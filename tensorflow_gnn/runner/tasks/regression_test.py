@@ -62,12 +62,45 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           expected_y_pred=[[-0.664317]],
           expected_loss=[181.10333]),
       dict(
+          description="GraphMeanSquaredError",
+          schema=SCHEMA,
+          task=regression.GraphMeanSquaredError(node_set_name="nodes"),
+          y_true=[[.8191]],
+          expected_y_pred=[[-0.6643174]],
+          expected_loss=[2.2005272]),
+      dict(
+          description="GraphMeanSquaredLogarithmicError",
+          schema=SCHEMA,
+          task=regression.GraphMeanSquaredLogarithmicError(
+              node_set_name="nodes",
+              units=3),
+          y_true=[[-0.407, -0.8191, 0.1634]],
+          expected_y_pred=[[-0.40946397, -0.16708127, -0.36614633]],
+          expected_loss=[0.00763526]),
+      dict(
+          description="GraphMeanSquaredLogScaledError",
+          schema=SCHEMA,
+          task=regression.GraphMeanSquaredLogScaledError(
+              node_set_name="nodes",
+              units=2),
+          y_true=[[0.8208, 0.9]],
+          expected_y_pred=[[0.09584035, 0.46599004]],
+          expected_loss=[12.97054865]),
+      dict(
           description="RootNodeMeanAbsoluteError",
           schema=SCHEMA,
           task=regression.RootNodeMeanAbsoluteError(node_set_name="nodes"),
           y_true=[[.8191]],
           expected_y_pred=[[-0.708226]],
           expected_loss=[1.5273261]),
+      dict(
+          description="RootNodeMeanAbsolutePercentageError",
+          schema=SCHEMA,
+          task=regression.RootNodeMeanAbsolutePercentageError(
+              node_set_name="nodes"),
+          y_true=[[.8191]],
+          expected_y_pred=[[-0.708226]],
+          expected_loss=[186.46393]),
       dict(
           description="RootNodeMeanSquaredError",
           schema=SCHEMA,
@@ -97,7 +130,7 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
   def test_adapt(self,
                  description: str,
                  schema: str,
-                 task: regression.RootNodeRegression,
+                 task: regression._Regression,
                  y_true: Sequence[float],
                  expected_y_pred: Sequence[float],
                  expected_loss: Sequence[float]):

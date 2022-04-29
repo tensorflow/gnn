@@ -1,13 +1,19 @@
 """Regression tasks."""
 import abc
-from typing import Callable, Sequence
+from typing import Callable, Optional, Sequence
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
+AUTO = tf.keras.losses.Reduction.AUTO
 
-class Regression(abc.ABC):
-  """Regression abstract class."""
+
+class _Regression(abc.ABC):
+  """Regression abstract class.
+
+  Any subclass must implement both `gather_activations` and `losses`, usually
+  by inheriting from the below mix ins.
+  """
 
   def __init__(self, units: int):
     self._units = units
@@ -17,7 +23,7 @@ class Regression(abc.ABC):
     raise NotImplementedError()
 
   def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
-    """Append a linear head with `self._units` units.
+    """Append a linear head with `units` output units.
 
     Multiple `tf.keras.Model` outputs are not supported.
 
@@ -27,8 +33,7 @@ class Regression(abc.ABC):
     Returns:
       An adapted `tf.keras.Model.`
     """
-    if not tfgnn.is_graph_tensor(model.output):
-      raise ValueError(f"Expected a GraphTensor, received {type(model.output)}")
+    tfgnn.check_scalar_graph_tensor(model.output, name="Regression")
     activations = self.gather_activations(model.output)
     logits = tf.keras.layers.Dense(
         self._units,
@@ -50,7 +55,7 @@ class Regression(abc.ABC):
             tf.keras.metrics.MeanAbsolutePercentageError())
 
 
-class GraphRegression(Regression):
+class _GraphRegression(_Regression):
   """Graph context regression abstract class."""
 
   def __init__(self,
@@ -59,13 +64,12 @@ class GraphRegression(Regression):
                node_set_name: str,
                state_name: str = tfgnn.DEFAULT_STATE_NAME,
                reduce_type: str = "mean"):
-    super(GraphRegression, self).__init__(units)
+    super().__init__(units)
     self._node_set_name = node_set_name
     self._state_name = state_name
     self._reduce_type = reduce_type
 
   def gather_activations(self, gt: tfgnn.GraphTensor) -> tfgnn.Field:
-    tfgnn.check_scalar_graph_tensor(gt, name="GraphRegression")
     return tfgnn.pool_nodes_to_context(
         gt,
         self._node_set_name,
@@ -73,21 +77,7 @@ class GraphRegression(Regression):
         feature_name=self._state_name)
 
 
-class GraphMeanAbsoluteError(GraphRegression):
-  """Graph context mean absolute error task."""
-
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return (tf.keras.losses.MeanAbsoluteError(),)
-
-
-class GraphMeanAbsolutePercentageError(GraphRegression):
-  """Graph context mean absolute percentage error task."""
-
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return (tf.keras.losses.MeanAbsolutePercentageError(),)
-
-
-class RootNodeRegression(Regression):
+class _RootNodeRegression(_Regression):
   """Root node regression abstract class."""
 
   def __init__(self,
@@ -95,7 +85,7 @@ class RootNodeRegression(Regression):
                *,
                node_set_name: str,
                state_name: str = tfgnn.DEFAULT_STATE_NAME):
-    super(RootNodeRegression, self).__init__(units)
+    super().__init__(units)
     self._node_set_name = node_set_name
     self._state_name = state_name
 
@@ -105,59 +95,44 @@ class RootNodeRegression(Regression):
         feature_name=self._state_name)(gt)
 
 
-class RootNodeMeanAbsoluteError(RootNodeRegression):
-  """Root node mean asbsolute error task."""
+class _MeanAbsoluteErrorLossMixIn:
+  """Mean absolute error task."""
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     return (tf.keras.losses.MeanAbsoluteError(),)
 
 
-class RootNodeMeanSquaredError(RootNodeRegression):
-  """Root node mean squared error task."""
+class _MeanAbsolutePercentageErrorLossMixIn:
+  """Mean absolute percentage error task."""
+
+  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+    return (tf.keras.losses.MeanAbsolutePercentageError(),)
+
+
+class _MeanSquaredErrorLossMixIn:
+  """Mean squared error task."""
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     return (tf.keras.losses.MeanSquaredError(),)
 
 
-class RootNodeMeanSquaredLogarithmicError(RootNodeRegression):
-  """Root node mean squared logarithmic error task."""
+class _MeanSquaredLogarithmicErrorLossMixIn:
+  """Mean squared logarithmic error task."""
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     return (tf.keras.losses.MeanSquaredLogarithmicError(),)
 
 
-class RootNodeMeanSquaredLogScaledError(RootNodeRegression):
-  """Root node mean squared log scaled error task, see: go/xtzqv."""
-
-  def __init__(self,
-               units: int = 1,
-               *,
-               node_set_name: str,
-               state_name: str = tfgnn.DEFAULT_STATE_NAME,
-               alpha_loss_param: float = 5.,
-               epsilon_loss_param: float = 1e-8):
-    super(RootNodeMeanSquaredLogScaledError, self).__init__(
-        units,
-        node_set_name=node_set_name,
-        state_name=state_name,)
-    self._alpha_loss_param = alpha_loss_param
-    self._epsilon_loss_param = epsilon_loss_param
-
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return (_MeanSquaredLogScaledError(
-        self._alpha_loss_param,
-        self._epsilon_loss_param),)
-
-
 class _MeanSquaredLogScaledError(tf.keras.losses.Loss):
-  """Mean squared log-scaled error as described in: go/xtzqv."""
+  """Mean squared log scaled error task, see: go/xtzqv."""
 
   def __init__(self,
+               reduction: tf.keras.losses.Reduction,
+               name: str,
+               *,
                alpha_loss_param: float,
-               epsilon_loss_param: float,
-               *args,
-               **kwargs):
-    super(_MeanSquaredLogScaledError, self).__init__(*args, **kwargs)
+               epsilon_loss_param: float):
+    super().__init__(reduction, name)
     self._alpha_loss_param = alpha_loss_param
     self._epsilon_loss_param = epsilon_loss_param
 
@@ -178,9 +153,80 @@ class _MeanSquaredLogScaledError(tf.keras.losses.Loss):
     return mse + self._alpha_loss_param * msle
 
   def get_config(self):
-    config = super(_MeanSquaredLogScaledError, self).get_config()
+    config = super().get_config()
     config.update({
         "alpha_loss_param": self._alpha_loss_param,
         "epsilon_loss_param": self._epsilon_loss_param
     })
     return config
+
+
+class _MeanSquaredLogScaledErrorLossMixIn:
+  """Mean squared log scaled error task."""
+
+  def __init__(self,
+               *args,
+               alpha_loss_param: float = 5.,
+               epsilon_loss_param: float = 1e-8,
+               reduction: tf.keras.losses.Reduction = AUTO,
+               name: Optional[str] = None,
+               **kwargs):
+    super().__init__(*args, **kwargs)
+    self._alpha_loss_param = alpha_loss_param
+    self._epsilon_loss_param = epsilon_loss_param
+    self._reduction = reduction
+    self._name = name
+
+  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+    return (_MeanSquaredLogScaledError(
+        self._reduction,
+        self._name,
+        alpha_loss_param=self._alpha_loss_param,
+        epsilon_loss_param=self._epsilon_loss_param),)
+
+
+class GraphMeanAbsoluteError(_MeanAbsoluteErrorLossMixIn, _GraphRegression):
+  pass
+
+
+class GraphMeanAbsolutePercentageError(_MeanAbsolutePercentageErrorLossMixIn,
+                                       _GraphRegression):
+  pass
+
+
+class GraphMeanSquaredError(_MeanSquaredErrorLossMixIn, _GraphRegression):
+  pass
+
+
+class GraphMeanSquaredLogarithmicError(_MeanSquaredLogarithmicErrorLossMixIn,
+                                       _GraphRegression):
+  pass
+
+
+class GraphMeanSquaredLogScaledError(_MeanSquaredLogScaledErrorLossMixIn,
+                                     _GraphRegression):
+  pass
+
+
+class RootNodeMeanAbsoluteError(_MeanAbsoluteErrorLossMixIn,
+                                _RootNodeRegression):
+  pass
+
+
+class RootNodeMeanAbsolutePercentageError(_MeanAbsolutePercentageErrorLossMixIn,
+                                          _RootNodeRegression):
+  pass
+
+
+class RootNodeMeanSquaredError(_MeanSquaredErrorLossMixIn, _RootNodeRegression):
+  pass
+
+
+class RootNodeMeanSquaredLogarithmicError(_MeanSquaredLogarithmicErrorLossMixIn,
+                                          _RootNodeRegression):
+  pass
+
+
+class RootNodeMeanSquaredLogScaledError(_MeanSquaredLogScaledErrorLossMixIn,
+                                        _RootNodeRegression):
+  pass
