@@ -701,6 +701,9 @@ def app_main(argv):
   with tf.io.gfile.GFile(FLAGS.sampling_spec) as spec_file:
     spec = text_format.Parse(spec_file.read(), sampling_spec_pb2.SamplingSpec())
 
+  logging.info("spec: %s", spec)
+  logging.info("output_samples: %s", FLAGS.output_samples)
+
   run_sample_graph_pipeline(FLAGS.graph_schema, spec, FLAGS.output_samples,
                             FLAGS.input_seeds, FLAGS.runner, pipeline_options,
                             FLAGS.batching)
