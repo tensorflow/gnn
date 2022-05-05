@@ -2,9 +2,8 @@
 from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.input import datasets
 from tensorflow_gnn.runner.tasks import attribution
+from tensorflow_gnn.runner.tasks import classification
 from tensorflow_gnn.runner.tasks import dgi
-from tensorflow_gnn.runner.tasks import graph_classification
-from tensorflow_gnn.runner.tasks import node_classification
 from tensorflow_gnn.runner.tasks import regression
 from tensorflow_gnn.runner.trainers import keras_fit
 from tensorflow_gnn.runner.utils import model_dir
@@ -34,9 +33,10 @@ ParameterServerStrategy = strategies.ParameterServerStrategy
 IntegratedGradients = attribution.IntegratedGradients
 DeepGraphInfomax = dgi.DeepGraphInfomax
 # Classification
-RootNodeBinaryClassification = node_classification.RootNodeBinaryClassification
-RootNodeMulticlassClassification = node_classification.RootNodeMulticlassClassification
-GraphMulticlassClassification = graph_classification.GraphMulticlassClassification
+RootNodeBinaryClassification = classification.RootNodeBinaryClassification
+RootNodeMulticlassClassification = classification.RootNodeMulticlassClassification
+GraphBinaryClassification = classification.GraphMulticlassClassification
+GraphMulticlassClassification = classification.GraphMulticlassClassification
 # Regression
 GraphMeanAbsoluteError = regression.GraphMeanAbsoluteError
 GraphMeanAbsolutePercentageError = regression.GraphMeanAbsolutePercentageError
@@ -55,9 +55,8 @@ KerasTrainer = keras_fit.KerasTrainer
 del orchestration
 del datasets
 del attribution
+del classification
 del dgi
-del graph_classification
-del node_classification
 del regression
 del keras_fit
 del model_dir
