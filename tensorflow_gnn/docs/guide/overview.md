@@ -1,39 +1,38 @@
-# TensorFlow Graph Neural Networks
+# TF-GNN: TensorFlow Graph Neural Networks
 
-The TensorFlow GNN library makes it easy to build neural networks on graph data
-(nodes and edges with arbitrary features). The library provides input data
-formats and an encoding for sampled subgraphs
-as training data.
+The TensorFlow GNN library makes it easy to build Graph Neural Networks, that
+is, neural networks on graph data (nodes and edges with arbitrary features).
+It provides TensorFlow code for building GNN models as well as tools for
+preparing their input data and running the training.
 
-The library provides a GraphTensor class, a container of all the graph data as
-tensors (or that of a batch of graphs) and an API that makes it easy to build
-graph neural network models by convolving features over any edges, learning
-neural network kernels at any stage. Highlights:
+Throughout, TF-GNN supports *heterogeneous* graphs, that is, graphs consisting
+of multiple sets of nodes and multiple sets of edges, each with their own set of
+features. These come up naturally when modeling different types of objects
+(nodes) and their different types of relations (edges).
 
-*   Heterogeneous graphs (both heterogeneous node and edge types).
-*   Flexible arbitrary kernels for updates and convolutions.
-*   Easy broadcasting and pooling operations between nodes, edges and graph
-    features.
+## Documentation
 
-Start with our documentation:
+Start with our introductory guides:
 
-*   [Introduction to Graph Neural Networks](intro.md). This page introduces the
+  * [Introduction to Graph Neural Networks](intro.md). This page introduces the
     concept of graph neural networks with a focus on their application at scale.
     It touches on various scenarios where GNNs are well-suited to the problem
     and provides you with enough context to start thinking about model design.
 
-*   [Scaling GNNs](scaling.md). This library adopts a method for batch sampling
-    for scaling up the training of GNN models in parallel. This page introduces
-    the various solutions that have been used to train scalable models and the
-    advantages and disadvantages of our approach.
+  * [The GraphTensor type](graph_tensor.md). This page introduces the
+    `tfgnn.GraphTensor` class, which defines our representation of graph data
+    in TensorFlow. We recommend that every user of our library understands its
+    basic data model.
 
-*   [Describing your graph](schema.md). The first step to designing your GNN
-    model is to describe the topology of your graph data, and which features are
-    available on its nodes and edges. This page outlines the schema that is
-    required to configure and inform the various components of the library of
-    your graphs’ characteristics.
+  * [Describing your graph](schema.md). This page explains how to declare the
+    node sets and edge sets of your graph, including their respective features,
+    with the `GraphSchema`
+    [protocol message](https://developers.google.com/protocol-buffers).
+    This defines the interface between data preparation (which creates such
+    graphs) and the GNN model written in TensorFlow (which consumes these
+    graphs as training data).
 
-*   [Data preparation](data_prep.md) Training data for GNN
+  * [Data preparation](data_prep.md). Training data for GNN
     models are graphs. When operating on very large graphs, we produce local
     subgraph samples from the full dataset which are serialized along with their
     features and streamed for training.
@@ -41,29 +40,25 @@ Start with our documentation:
     the data format we support for storing large
     graphs.
 
-*   **Feature engineering** (doc incomplete). Before your graph data enters the
-    model, the individual features attached to each node or edge set need to be
-    encoded, normalized and concatenated to a tensor of floating-point numbers
-    which is fed to the neural networks & convolutions for that set. This
-    document explains how to do that, and how to read and print your encoded
-    data for confirmation that it is usable and as expected for training.
+  * **The TF-GNN Runner** (doc incomplete) lets you train GNN models on the
+    prepared input data for some standard tasks (e.g., node prediction).
+    We recommend using the runner to get started quickly with a first model
+    for the data at hand, and then customize it as needed.
 
-*   **Building models** (doc incomplete; see
-    [this colab](https://colab.sandbox.google.com/drive/1sDIHr_-XvhKGXcFEQf1F4NiRDa9x8gTH)
-    in the meantime). With data now generated and ingested into Tensorflow, we
-    describe how to use the features from the `GraphTensor` object to put
-    together GNN models. This page also describes various operations on your
-    graph that you can use to regularize and/or normalize your graph to enhance
-    the model performance.
+The following docs go deeper into particular topics.
 
-*   **Tutorials** (doc incomplete). Some step-by-step tutorials with the
-    end-to-end process of building a model using Tensorflow GNN library.
+  * The [Input pipeline](input_pipeline.md) guide explains how to set up
+    a `tf.data.Dataset` for bulk input of the training and validation datasets
+    produced by the [data preparation](data_prep.md) step. The TF-GNN Runner
+    already takes care of this for its users.
 
-*   **Using GNNs in Inference** (doc incomplete). Inference over graphs involves
-    building and providing graph data that must be distributionally similar to
-    data used in training. We describe the application of a learned GNN model
-    over an existing graph (in batch) and how to use them dynamically (in a live
-    system).
+  * [TF-GNN modeling](gnn_modeling.md) explains how to build a Graph Neural
+    Network with TensorFlow and Keras, using the GraphTensor data from the
+    previous steps. The TF-GNN library provides both a collection of standard
+    models and a toolbox for writing your own. Users of the TF-GNN Runner
+    are encouraged to consult this page to define custom models in the Runner.
+
+
 
 ## Talks
 

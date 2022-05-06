@@ -45,6 +45,8 @@ This library is an OSS port of a Google internal library used in a broad variety
 of contexts, on homogeneous and heterogeneous graphs, and in conjunction with
 other scalable graph mining tools.
 
+For more details, please see our [documentation](tensorflow_gnn/docs/guide/overview.md).
+
 
 ## Installation Instructions
 
