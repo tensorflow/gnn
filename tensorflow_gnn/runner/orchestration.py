@@ -51,7 +51,7 @@ class Task(Protocol):
   of a training invocation: they are subject to the executing context
   of the `Trainer` and should, when needed, override it (e.g., a global
   policy, like `tf.keras.mixed_precision.global_policy()` and its implications
-  over logits and activation layers.).
+  over logit and activation layers).
   """
 
   def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
