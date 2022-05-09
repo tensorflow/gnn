@@ -1,4 +1,4 @@
-﻿# Introduction to Graph Neural Networks
+# Introduction to Graph Neural Networks
 
 This page provides a very brief, high-level introduction to what graph neural
 networks are, from the perspective of their application in practice.
@@ -6,11 +6,11 @@ networks are, from the perspective of their application in practice.
 ## What is a Graph?
 
 You can model very many domains of the world as entities and their
-relationships. “Nodes” are used to represent various types of entities and their
-relationships as links between them, or “edges”. These are also called
-“networks” and there’s a vast field of research around their properties called
-“network science.” For example, a historical log of transactions may involve
-nodes of type “customer” and “merchant”, and edges of type “purchase”. Networks
+relationships. "Nodes" are used to represent various types of entities and their
+relationships as links between them, or "edges". These are also called
+"networks" and there's a vast field of research around their properties called
+"network science." For example, a historical log of transactions may involve
+nodes of type "customer" and "merchant", and edges of type "purchase". Networks
 are a very general and powerful way to model many domains.
 
 Each of the entities can be associated with features. A customer could have a
@@ -79,8 +79,8 @@ variations are used to improve model accuracy and expressivity for particular
 scenarios. For example, one of the effects of running convolutions is that the
 averaging of feature values over neighborhoods tends to blur the features; to
 mitigate this effect, the original node features can be reintroduced at every
-hop (“skip connection” models) and meld the original feature detail with the
-averaged feature information from a node’s neighborhood.
+hop ("skip connection" models) and meld the original feature detail with the
+averaged feature information from a node's neighborhood.
 
 ## The Problem with Irregularity
 
