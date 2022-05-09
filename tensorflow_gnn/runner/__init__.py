@@ -51,6 +51,7 @@ RootNodeMeanSquaredLogScaledError = regression.RootNodeMeanSquaredLogScaledError
 
 # Training
 KerasTrainer = keras_fit.KerasTrainer
+KerasOptions = keras_fit.KerasOptions
 
 del orchestration
 del datasets

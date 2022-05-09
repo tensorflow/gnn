@@ -1,4 +1,5 @@
 """`tf.keras.Model.fit` training loop."""
+import dataclasses
 import functools
 import os
 from typing import Callable, Optional, Sequence, Union
@@ -9,6 +10,12 @@ from tensorflow_gnn.runner import orchestration
 
 BackupAndRestore = tf.keras.callbacks.experimental.BackupAndRestore
 DatasetProvider = orchestration.DatasetProvider
+
+
+@dataclasses.dataclass
+class KerasOptions:
+  """Provides Keras Modeling related options."""
+  policy: Optional[Union[str, tf.keras.mixed_precision.Policy]] = None
 
 
 class KerasTrainer:
@@ -27,7 +34,8 @@ class KerasTrainer:
       summarize_every_n_steps: Union[int, str] = 500,
       checkpoint_every_n_steps: Union[int, str] = "epoch",
       callbacks: Optional[Sequence[tf.keras.callbacks.Callback]] = None,
-      restore_best_weights: bool = True):
+      restore_best_weights: bool = True,
+      keras_options: Optional[KerasOptions] = None):
     """Sets training parameters.
 
     Args:
@@ -56,6 +64,8 @@ class KerasTrainer:
       restore_best_weights: Requires a `checkpoint_every_n_steps` other than
         "never." Whether to restore the best model weights as determined by
         `tf.keras.callbacks.ModelCheckpoint` after training.
+      keras_options: A `KerasOptions` for mixed precision, see:
+        https://www.tensorflow.org/guide/mixed_precision.
     """
     if restore_best_weights and checkpoint_every_n_steps == "never":
       raise ValueError("`restore_best_weights` requires a "
@@ -78,6 +88,7 @@ class KerasTrainer:
     self._checkpoint_every_n_steps = checkpoint_every_n_steps
     self._callbacks = callbacks
     self._restore_best_weights = restore_best_weights
+    self._keras_options = keras_options
 
   @property
   def model_dir(self) -> str:
@@ -146,6 +157,9 @@ class KerasTrainer:
     if self._restore_best_weights and valid_ds_provider is None:
       raise ValueError("`restore_best_weights` requires a validation dataset")
 
+    if self._keras_options and self._keras_options.policy:
+      tf.keras.mixed_precision.set_global_policy(self._keras_options.policy)
+
     def per_replica_ds_fn(input_context, *, delegate, repeat):
       ds = delegate.get_dataset(input_context)
       # The dataset could be repeated by the preprocessing, e.g. by
@@ -202,6 +216,14 @@ class KerasTrainer:
 
     with self._strategy.scope():
       model = model_fn()
+
+    if self._keras_options and self._keras_options.policy:
+      # Cast logits to `tf.keras.backend.floatx()` for mixed_precision.
+      # For more details, see:
+      # https://www.tensorflow.org/guide/mixed_precision#building_the_model.
+      floatx = tf.keras.backend.floatx()
+      outputs = [tf.cast(o, dtype=floatx) for o in model.outputs]
+      model = tf.keras.Model(model.inputs, outputs)
 
     model.fit(
         train_ds,

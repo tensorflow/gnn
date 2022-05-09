@@ -45,7 +45,14 @@ class _WrappedDatasetProvider:
 
 
 class Task(Protocol):
-  """Collects the ancillary, supporting pieces to train a Keras model."""
+  """Collects the ancillary, supporting pieces to train a Keras model.
+
+  `Task`s are applied and used to compile a `tf.keras.Model` in the scope
+  of a training invocation: they are subject to the executing context
+  of the `Trainer` and should, when needed, override it (e.g., a global
+  policy, like `tf.keras.mixed_precision.global_policy()` and its implications
+  over logits and activation layers.).
+  """
 
   def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
     """Adapt a model to a task by appending arbitrary head(s)."""
