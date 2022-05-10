@@ -157,6 +157,8 @@ message NodeSet {
   // Global features associated with this node set. The elements of this list
   // refer to feature names in the Context object associated with the graph.
   // This is metadata you can use to indicate how features are related.
+  // NOTE: This field is not currently used by any TF-GNN modeling code (last
+  // checked May 2022).
   repeated string context = 3;
 
   // Optional metadata associated with the node set.

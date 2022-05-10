@@ -1,4 +1,4 @@
-"""Given a schema, produce some sample tf.Example data.
+"""Given a schema, produce some dummy tf.Example data.
 
 The purpose of this script is to provide some example encoded data for a
 developer to inspect and get a sense of how to produce the correct encoding. The

@@ -348,8 +348,10 @@ batching can also be undone with `dataset.unbatch()`.
 Batching requires that all GraphTensors have the same fields and essentially
 comes down to stacking them, with the caveat that the items dimension
 (`num_nodes`, `num_edges` or `num_components`) is treated as potentially ragged.
-That means, in a GraphTensor of shape `[batch_size]`, all features have the
-shape `[batch_size, (num_items), *feature_shape]`. The `num_items` dimension
+That means, in a GraphTensor of shape `graph.shape`, all features have the
+shape `[*graph.shape, (num_items), *feature_shape]`
+(that is, `[batch_size, (num_items), *feature_shape]` in the common case of
+batching once).  The `num_items` dimension
 becomes ragged during batching, unless it happens to be statically known and
 equal across all inputs, which is typically not the case. By contrast, the
 dimensions in `*feature_shape` are not unchanged: each of them must be a ragged

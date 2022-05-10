@@ -1,4 +1,4 @@
-# Schema for codelab. "Takedown" hypothetical project.
+# Schema for hypothetical "Takedown" project in docs/guide/schema.md
 # tensorflow_gnn.GraphSchema
 
 node_sets {
@@ -96,10 +96,11 @@ edge_sets {
     target: "user"
 
     features {
-      key: "similarity"
+      key: "similarities"
       value: {
-        description: "The Jaccard similarity of the video sets between users."
+        description: "Similarity scores between users (Jaccard and cosine)."
         dtype: DT_FLOAT
+        shape { dim { size: 2 } }
       }
     }
   }
