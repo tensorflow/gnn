@@ -1,8 +1,4 @@
-"""Broadcasts and pools features between node sets, edge sets and graph context.
-
-See the `operations.md` document in the guide for an explanation of how to use
-this.
-"""
+"""Broadcasts and pools features between node sets, edge sets and context."""
 import functools
 from typing import Any, Callable, List, Mapping, Optional, Union
 import tensorflow as tf
