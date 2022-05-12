@@ -3,6 +3,7 @@ from typing import Any, Optional, Sequence
 
 from absl.testing import parameterized
 import tensorflow as tf
+from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.input import datasets
 
 
@@ -16,9 +17,9 @@ def interleave_fn(x: Any) -> tf.data.Dataset:
 
 class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
 
-  @parameterized.parameters([
+  @parameterized.named_parameters([
       dict(
-          description="num_input_pipelines=1",
+          testcase_name="num_input_pipelines=1",
           num_input_pipelines=1,
           input_pipeline_id=0,
           actual_dataset=dataset(0).take(1).concatenate(dataset(1).take(1)),
@@ -26,7 +27,7 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
           expected_values=[8191, 8192],
       ),
       dict(
-          description="input_pipeline_id=0",
+          testcase_name="input_pipeline_id=0",
           num_input_pipelines=2,
           input_pipeline_id=0,
           actual_dataset=dataset(0).take(1).concatenate(dataset(1).take(1)),
@@ -34,7 +35,7 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
           expected_values=[8191],
       ),
       dict(
-          description="input_pipeline_id=1",
+          testcase_name="input_pipeline_id=1",
           num_input_pipelines=2,
           input_pipeline_id=1,
           actual_dataset=dataset(0).take(1).concatenate(dataset(1).take(1)),
@@ -44,7 +45,6 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
   ])
   def test_get_dataset(
       self,
-      description: str,  # pylint: disable=unused-argument
       num_input_pipelines: int,
       input_pipeline_id: int,
       actual_dataset: tf.data.Dataset,
@@ -61,9 +61,9 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
 
     self.assertCountEqual(ds.as_numpy_iterator(), expected_values)
 
-  @parameterized.parameters([
+  @parameterized.named_parameters([
       dict(
-          description="fixed_cardinality=True",
+          testcase_name="fixed_cardinality=True",
           extra_datasets=[dataset()] * 4,
           extra_weights=None,
           fixed_cardinality=True,
@@ -73,7 +73,7 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
           expected_cardinality=5,
           ),
       dict(
-          description="fixed_cardinality=False",
+          testcase_name="fixed_cardinality=False",
           extra_datasets=[dataset()] * 4,
           extra_weights=None,
           fixed_cardinality=False,
@@ -83,7 +83,7 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
           expected_cardinality=tf.data.UNKNOWN_CARDINALITY,
           ),
       dict(
-          description="fixed_cardinality=True;with weights",
+          testcase_name="fixed_cardinality=True;with weights",
           extra_datasets=[dataset()] * 4,
           extra_weights=[.25] * 4,
           fixed_cardinality=True,
@@ -93,7 +93,7 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
           expected_cardinality=2,
           ),
       dict(
-          description="fixed_cardinality=False;with weights",
+          testcase_name="fixed_cardinality=False;with weights",
           extra_datasets=[dataset()] * 4,
           extra_weights=[.25] * 4,
           fixed_cardinality=False,
@@ -105,7 +105,6 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
   ])
   def test_get_sampled_dataset(
       self,
-      description: str,  # pylint: disable=unused-argument
       extra_datasets: Sequence[str],
       extra_weights: Optional[Sequence[float]],
       fixed_cardinality: bool,
@@ -126,9 +125,9 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
 
     self.assertEqual(ds.cardinality(), expected_cardinality)
 
-  @parameterized.parameters([
+  @parameterized.named_parameters([
       dict(
-          description="Missing extra_weights",
+          testcase_name="Missing extra_weights",
           extra_datasets=[dataset()] * 4,
           extra_weights=None,
           principal_dataset=dataset(),
@@ -138,7 +137,7 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
           expected_error="`extra_weights` required a `principal_weight`",
           ),
       dict(
-          description="Missing principal_weight",
+          testcase_name="Missing principal_weight",
           extra_datasets=[dataset()] * 4,
           extra_weights=[.25] * 4,
           principal_dataset=dataset(),
@@ -148,7 +147,7 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
           expected_error="`principal_weight` is required with `extra_weights`",
           ),
       dict(
-          description="Missing principal_cardinality",
+          testcase_name="Missing principal_cardinality",
           extra_datasets=[dataset()] * 4,
           extra_weights=None,
           principal_dataset=dataset(),
@@ -160,7 +159,6 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
   ])
   def test_get_sampled_dataset_error(
       self,
-      description: str,  # pylint: disable=unused-argument
       extra_datasets: Sequence[str],
       extra_weights: Optional[Sequence[float]],
       fixed_cardinality: Optional[bool],
@@ -179,6 +177,19 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
           fixed_cardinality=fixed_cardinality,
           principal_cardinality=principal_cardinality,
           interleave_fn=interleave_fn)
+
+  @parameterized.named_parameters([
+      dict(
+          testcase_name="TFRecordDatasetProvider",
+          klass=datasets.TFRecordDatasetProvider,
+      ),
+      dict(
+          testcase_name="SampleTFRecordDatasetsProvider",
+          klass=datasets.SampleTFRecordDatasetsProvider,
+      ),
+  ])
+  def test_protocol(self, klass: object):
+    self.assertIsInstance(klass, orchestration.DatasetProvider)
 
 
 if __name__ == "__main__":

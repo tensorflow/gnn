@@ -11,11 +11,14 @@ import tensorflow_gnn as tfgnn
 # pylint:disable=g-import-not-at-top
 if sys.version_info >= (3, 8):
   from typing import Protocol
+  from typing import runtime_checkable
 else:
   from typing_extensions import Protocol
+  from typing_extensions import runtime_checkable
 # pylint:enable=g-import-not-at-top
 
 
+@runtime_checkable
 class DatasetProvider(Protocol):
 
   def get_dataset(self, context: tf.distribute.InputContext) -> tf.data.Dataset:
@@ -44,6 +47,7 @@ class _WrappedDatasetProvider:
     return ds.apply(self._apply_fn)
 
 
+@runtime_checkable
 class Task(Protocol):
   """Collects the ancillary, supporting pieces to train a Keras model.
 
@@ -71,6 +75,7 @@ class Task(Protocol):
     raise NotImplementedError()
 
 
+@runtime_checkable
 class Trainer(Protocol):
   """A class for training and validation."""
 
@@ -109,7 +114,11 @@ class Trainer(Protocol):
     raise NotImplementedError()
 
 
-GraphTensorProcessorFn = Callable[[tfgnn.GraphTensor], tfgnn.GraphTensor]
+@runtime_checkable
+class GraphTensorProcessorFn(Protocol):
+
+  def __call__(self, gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
+    raise NotImplementedError()
 
 
 def make_preprocess_model(

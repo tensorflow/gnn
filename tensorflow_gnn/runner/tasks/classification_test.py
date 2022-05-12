@@ -5,6 +5,7 @@ from absl.testing import parameterized
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
+from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.tasks import classification
 
 as_tensor = tf.convert_to_tensor
@@ -138,6 +139,27 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
 
     model.compile(loss=task.losses(), metrics=task.metrics(), run_eagerly=True)
     model.fit(dataset)
+
+  @parameterized.named_parameters([
+      dict(
+          testcase_name="RootNodeMulticlassClassification",
+          klass=classification.RootNodeMulticlassClassification,
+      ),
+      dict(
+          testcase_name="RootNodeBinaryClassification",
+          klass=classification.RootNodeBinaryClassification,
+      ),
+      dict(
+          testcase_name="GraphMulticlassClassification",
+          klass=classification.GraphMulticlassClassification,
+      ),
+      dict(
+          testcase_name="GraphBinaryClassification",
+          klass=classification.GraphBinaryClassification,
+      ),
+  ])
+  def test_protocol(self, klass: object):
+    self.assertIsInstance(klass, orchestration.Task)
 
 
 if __name__ == "__main__":

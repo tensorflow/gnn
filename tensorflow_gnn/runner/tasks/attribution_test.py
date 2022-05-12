@@ -4,6 +4,7 @@ import itertools
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
+from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.tasks import attribution
 
 
@@ -246,6 +247,10 @@ class AttributionTest(tf.test.TestCase):
     self.assertAllClose(
         gt.edge_sets["edge"].features["weight"],
         tf.constant((1.43548858, 0), dtype=tf.float32))
+
+  def test_protocol(self):
+    self.assertIsInstance(attribution.IntegratedGradients, orchestration.Task)
+
 
 if __name__ == "__main__":
   tf.test.main()

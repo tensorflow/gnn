@@ -4,6 +4,7 @@ import functools
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
+from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.tasks import dgi
 
 SCHEMA = """
@@ -94,6 +95,9 @@ class DeepGraphInfomaxTest(tf.test.TestCase):
       self.assertAllEqual(
           y,
           tf.constant([[1, 0]], dtype=tf.int32))
+
+  def test_protocol(self):
+    self.assertIsInstance(dgi.DeepGraphInfomax, orchestration.Task)
 
 
 if __name__ == "__main__":
