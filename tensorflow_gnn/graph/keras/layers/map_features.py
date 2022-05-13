@@ -362,7 +362,7 @@ class MakeEmptyFeature(tf.keras.layers.Layer):
           values=_make_empty_state(tf.reduce_sum(num_items)),
           row_lengths=num_items)
       assert result.shape[0:graph_rank].is_compatible_with(num_items.shape)
-      assert result.shape[graph_rank:] == [None, 0]  # [(num_items), 0]
+      assert result.shape[graph_rank:].as_list() == [None, 0]  # [(num_items),0]
       return result
 
     # TODO(b/228126030): Implement and test the case graph_rank > 1 .
