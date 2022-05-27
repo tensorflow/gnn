@@ -1,4 +1,4 @@
-description: Stores graphs, possibly heterogeneous (i.e., with multiple node sets).
+description: A composite tensor for heterogeneous directed graphs with features.
 
 <div itemscope itemtype="http://developers.google.com/ReferenceObject">
 <meta itemprop="name" content="gnn.GraphTensor" />
@@ -6,6 +6,7 @@ description: Stores graphs, possibly heterogeneous (i.e., with multiple node set
 <meta itemprop="property" content="__init__"/>
 <meta itemprop="property" content="from_pieces"/>
 <meta itemprop="property" content="merge_batch_to_components"/>
+<meta itemprop="property" content="remove_features"/>
 <meta itemprop="property" content="replace_features"/>
 <meta itemprop="property" content="set_shape"/>
 </div>
@@ -16,207 +17,155 @@ description: Stores graphs, possibly heterogeneous (i.e., with multiple node set
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L432-L811">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L575-L1064">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
 
-
-
-Stores graphs, possibly heterogeneous (i.e., with multiple node sets).
+A composite tensor for heterogeneous directed graphs with features.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>gnn.GraphTensor(
-    data: Data,
-    spec: "GraphPieceSpecBase",
-    validate: bool = False
+    data: Data, spec: 'GraphPieceSpecBase', validate: bool = False
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
-A `GraphTensor` consists of
+A GraphTensor is an immutable container (as any composite tensor) to represent
+one or more heterogeneous directed graphs, as defined in the GraphTensor guide
+(or even hypergraphs). A GraphTensor consists of NodeSets, EdgeSets and a
+Context (collectively known as graph pieces), which are also composite tensors.
+The graph pieces consist of fields, which are `tf.Tensor`s and/or
+`tf.RaggedTensor`s that store the graph structure (esp. the edges between nodes)
+and user-defined features.
 
-* A `GraphTensorSpec` object that provides its type information. It defines
-  the node and edge sets, how node sets are connected by edge sets, and the
-  type and shape constraints of graph field values. The `GraphTensorSpec`s of
-  two graphs are equal if they agree in the features and shapes, independent
-  of the variable number of nodes and edges in an actual graph tensor.
+In the same way as `tf.Tensor` has numbers as its elements, the elements of the
+GraphTensor are graphs. Its `shape` of `[]` describes a scalar (single) graph, a
+shape of `[d0]` describes a `d0`-vector of graphs, a shape of `[d0, d1]` a `d0`
+x `d1` matrix of graphs, and so on.
 
-* Graph data, or "fields", which can be instances of `Tensor`s or
-  `RaggedTensor`s. Fields are stored on the `NodeSet`, `EdgeSet` and `Context`
-  tensors that make up the `GraphTensor`. Each of those tensors have fields to
-  represent user-defined data features. In addition, there are fields storing
-  the graph topology:  NodeSets and EdgeSets have a special `size` field that
-  provides a tensor of the number of nodes (or edges) of each graph component.
-  Moreover, adjacency information is stored in the `adjacency` property of the
-  EdgeSet.
+RULE: In the shape of a GraphTensor, no dimension except the outermost is
+allowed to be `None` (that is, of unknown size). Future versions of GraphTensor
+may lift that requirement.
 
-A `GraphTensor` object is a tensor with graphs as its elements. Its `.shape`
-attribute describes the shape of the graph tensor, where a shape of `[]`
-describes a scalar (single) graph, a shape of `[d0]` describes a `d0`-vector
-of graphs, a shape of `[d0, d1]` a `d0` x `d1` matrix of graphs, and so on.
+Each of those graphs in a GraphTensor consists of 0 or more disjoint
+(sub-)graphs called graph components. The number of components could vary from
+graph to graph or be fixed to a value known statically. On a batched
+GraphTensor, one can call the method merge_batch_to_components() to merge all
+graphs of the batch into one, contiguously indexed graph containing the same
+components as the original graph tensor. See the GraphTensor guide for the
+typical usage that has motivated this design (going from input graphs with one
+component each to a batch of input graphs and on to one merged graph with
+multiple components for use in GNN model).
 
-Context, node set, and edge set features are accessed via the `context`,
-`node_sets` and `edge_sets` properties, respectively. Note that
-the node sets and edge sets are mappings of a set name (a string) to either a
-`NodeSet` or `EdgeSet` object. These containers provide a mapping interface
-(via `getitem`, i.e., `[]`) to access individual feature values by their name,
-and a `features` property that provides an immutable mapping of feature names
-to their values. These features are those you defined in your schema.
+Example 1: A homogeneous scalar graph tensor with 1 graph component, 10 nodes
+and 3 edges. Edges connect nodes 0 and 3, 5 and 7, 9 and 1. There are no
+features.
 
-A "scalar" graph tensor describes a single graph with `C` disjoint components.
-When utilized in building models, this usually represents `C` example graphs
-bundled into a single graph with multiple disjoint graph components. This
-allows you to build models that work on batches of graphs all at once, with
-vectorized operations, as if they were a single graph with multiple
-components. The shapes of the tensors have elided the prefix batch dimension,
-but conceptually it is still present, and recoverable. The number of
-components (`C`) could vary from graph to graph, or if necessary for custom
-hardware, be fixed to a value known statically. In the simplest case of `C =
-1`, this number is constrained only by the available RAM and example sizes.
-The number of components in a graph corresponds to the concept of "batch-size"
-in a regular neural network context.
+```
+tfgnn.GraphTensor.from_pieces(
+    node_sets = {
+      'node': tfgnn.NodeSet.from_fields(sizes=[10], features={})},
+    edge_sets = {
+      'edge': tfgnn.EdgeSet.from_fields(
+         sizes=[3],
+         features={},
+         adjacency=tfgnn.Adjacency.from_indices(
+           source=('node', [0, 5, 9]),
+           target=('node', [3, 7, 1])))})
+```
 
-Note that since context features store data for each graph, the first
-dimension of all *context* features always index the graph component and has
-size `C`.
+All graph pieces provide a mapping interface to access their features by name as
+`graph_piece[feature_name]`. Each graph piece feature has the shape
+`[*graph_shape, num_items, *feature_shape]`, where graph_shape is the shape of
+the GraphTensor, num_items is the number of items in a piece (number of graph
+components, number of nodes in a node set or edges in an edge set). The
+`feature_shape` is the shape of the feature value for each item.
 
-Conceptually (but not in practice - see below), for scalar graphs, each
-node/edge set feature could be described as a ragged tensor with a shape
-`[c, n_c, f1..fk]` where `c` indexes the individual graph components, `n_c`
-indexes the nodes or edges within each component `c`, and `f1..fk` are inner
-dimensions of features, with `k` being the rank of the feature tensor.
-Dimensions `f1..fk` are typically fully defined, but the `GraphTensor`
-container also supports ragged features (of a variable size), in which case
-instances of `tf.RaggedTensor`s are provided in those mappings. The actual
-number of nodes in each graph is typically different for each `c` graph
-(variable number of nodes), so this dimension is normally ragged.
+Naturally, the first
+<a href="../gnn/Adjacency.md#rank"><code>GraphTensor.rank</code></a> dimensions
+of all graph tensor fields must index the same graphs, the item dimension must
+correspond to the same item (graph component, node or edge) within the same
+graph piece (context, node set or edge set).
 
-Please note some limitations inherent in the usage of `tf.RaggedTensor`s to
-represent features; it is not ideal, in that
+RULE: 'None' always denotes ragged or outer most field dimension. Uniform
+dimensions must have a fixed size that is given in the dimension.
 
-  * `tf.RaggedTensor`s are not supported on XLA compilers, and when used on
-    accelerators (e.g., TPUs), can cause error messages that are difficult to
-    understand;
+In particular this rule implies that if a feature has `tf.Tensor` type its
+`feature_shape` must by fully defined.
 
-  * Slices of features for individual graph components are rarely needed in
-    practice;
+Example 2: A scalar graph tensor with edges between authors, papers and their
+venues (journals or conferences). Each venue belongs to one graph component. The
+1st venue (1980519) has 2 authors and 3 papers. The 2nd venue (9756463) has 2
+authors and 1 paper. The paper 0 is written by authors 0 and 2; paper 1 - by
+authors 0 and 1; paper 2 - by author 2; paper 3 - by author 3.
 
-  * The ragged partitions (see docs on `tf.RaggedTensor`) are the same for all
-    features within the same node/edge set, hence they would be redundant to
-    represent as individual ragged tensor instances.
+```
+venues = tfgnn.GraphTensor.from_pieces(
+    context=tfgnn.Context.from_fields(
+        features={'venue': [1980519, 9756463]}),
+    node_sets={
+        'author': tfgnn.NodeSet.from_fields(sizes=[2, 2], features={}),
+        'paper': tfgnn.NodeSet.from_fields(
+            sizes=[3, 1], features={'year': [2018, 2017, 2017, 2022]})},
+    edge_sets={
+        'is_writen': tfgnn.EdgeSet.from_fields(
+            sizes=[4, 2],
+            features={},
+            adjacency=tfgnn.Adjacency.from_indices(
+                source=('paper', [0, 1, 1, 0, 2, 3]),
+                target=('author', [0, 0, 1, 2, 3, 3])))})
+```
 
-For these reasons, the `GraphTensor` extracts component partitions into a
-special node set field called 'size'. For scalar `GraphTensor` instances this
-is a rank-1 integer tensor containing the number of nodes/edges in each graph
-component.
+The assignment of an item to its graph components is stored as the `sizes`
+attribute of the graph piece. Its shape is `[*graph_shape, num_components]` (the
+same for all pieces). The stored values are number of items in each graph
+component (so the
+<a href="../gnn/Context.md#sizes"><code>Context.sizes</code></a> has all 1s as
+its values).
 
-It is important to know that feature values are stored with their component
-dimension flattened away, leading to shapes like `[n, f1..fk]`, where `n`
-(instead of `c` and `n_c`) indexes a node within a graph over all of its
-components. For the most common case of features with fully-defined shape of
-dimensions `f1..fk`, this allows us to represent those features as simple
-dense tensors. Finally, when all the dimensions including `n` are also
-fully-defined, the `GraphTensor` is XLA compatible (and this provides
-substantial performance opportunities). The same principle also applies to the
-edge set features.
+Example 3: The year of publication of the first article in each venue from the
+previous example:
 
-In general, for non-scalar graph tensors, the feature values can be a dense
-tensor (an instance of `tf.Tensor`) or a ragged tensors (an instance of a
-`tf.RaggedTensor`). This union is usually referred to as a "potentially ragged
-tensor" (mainly due to the recursive nature of the definition of ragged
-tensors). For our purposes, the leading dimensions of the shapes of a set of
-feature tensors must match the shape of their containing graph tensor.
+```
+papers = venues.node_sets['paper']
+years_by_venue = tf.RaggedTensor.from_row_lengths(papers['year'],
+                                                  papers.sizes)
+first_paper_year = tf.reduce_min(years_by_venue, -1)  # [2017, 2022]
+```
 
-`GraphTensor` allows batching of graphs. Batching changes a `GraphTensor`
-instance's shape to `[batch_size] + shape` and the graph tensor's rank is
+The GraphTensor, as a composite tensor, can be used directly in a
+tf.data.Dataset, as an input or output of a Keras Layer or a tf.function, and so
+on. As any other tensor, the GraphTensor has an associated type specification
+object, a GraphTensorSpec, that holds the `tf.TensorSpec` and
+`tf.RaggedTensorSpec` objects for all its fields, plus a bit of metadata such as
+graph connectivity (see tfgnn.GraphTensorSpec).
+
+The GraphTensor allows batching of graphs. Batching changes a GraphTensor
+instance's shape to `[batch_size, *graph_shape]` and the GraphTensor's rank is
 increased by 1. Unbatching removes dimension-0, as if truncating with
-`shape[1:]`, and the `GraphTensor`'s rank is decreased by 1. This works
-naturally with the batch and unbatch methods of tf.data.Datatset.
+`shape[1:]`, and the GraphTensor's rank is decreased by 1. This works naturally
+with the batch and unbatch methods of tf.data.Datatset.
 
-Batching and unbatching are equivalent to the batching and unbatching of
-individual fields. Dense fields with static shapes (that is, fully-defined
-shapes known at compile time) are always batched to `(rank + 1)` dense
-tensors. If a field has ragged dimensions, batching results in `(rank + 1)`
-ragged tensors. In general, graph tensor operations always try to preserve
-fully-defined field shapes and dense representations wherever possible, as
-this makes it possible to leverage as XLA optimizations where possible.
+RULE: Batching followed by unbatching results in a dataset with equal
+GraphTensors as before, except for the last incomplete batch (if batching used
+drop_remainder=True).
 
-A `GraphTensor` of any rank can be converted to a scalar graph using the
-'merge_batch_to_components()' method. This method is a graph transformation
-operation that merges the graph components of each graph into a single
-disjoint graph. Typically, this happens after the input pipeline is done with
-shuffling and batching the graphs from individual training examples and before
-the actual model treats them as components of a single graph with contiguous
-indexing.
+For now, GraphTensor requires that GraphTensor.shape does not contain None,
+except maybe as the outermost dimension. That means repeated calls to .batch()
+must set drop_remainder=True in all but the last one. Future versions of
+GraphTensor may lift that requirement.
 
-Example 1: A homogeneous scalar graph with one component having 10 nodes and
-20 edges and no values.
+All pieces and its fields are batched together with their GraphTensor so that
+shapes of a graph tensor, its pieces and features are all in sync.
 
-    gnn.GraphTensor.from_pieces(
-      node_sets = {
-        'node': gnn.NodeSet.from_fields(sizes=[10], features={})
-      },
-      edge_sets = {
-        'edge': gnn.EdgeSet.from_fields(
-           sizes=[10],
-           features={},
-           adjacency=gnn.Adjacency.from_indices(
-             source=('node', [0, 5, 9]),
-             target=('node', [19, 10, 0])))})
-
-Example 2: A rank-1 graph tensor with three graphs. Each graph is a tree with
-a single scalar label.
-
-    rt = tf.ragged.constant
-
-    gnn.GraphTensor.from_pieces(
-      context=gnn.Context.from_fields(features={
-        'label': rt([['GOOD'], ['BAD'], ['UGLY']])
-      }),
-      node_sets={
-        'root': gnn.NodeSet.from_fields(
-                  sizes=rt([[1], [1], [1]]),
-                  features={}),
-        'leaf': gnn.NodeSet.from_fields(
-                  sizes=rt([[2], [3], [1]]),
-                  features={'id': rt([['a', 'b'], ['c', 'a', 'd'], ['e']])})},
-      edge_sets={
-        'leaf->root': gnn.EdgeSet.from_fields(
-           sizes=rt([[2], [3], [1]]),
-           features={'weight': rt([[.5, .6], [.3, .4, .5], [.9]])},
-           adjacency=gnn.Adjacency.from_indices(
-             source=('leaf', rt([[0, 1], [0, 1, 2], [0]])),
-             target=('root', rt([[0, 0], [0, 0, 0], [0]]))))})
-
-Example 3: An application of `merge_batch_to_components()` to the previous
-example. Please note how the source and target edge indices have changed to
-reference nodes within a graph.
-
-    gnn.GraphTensor.from_pieces(
-      context=gnn.Context.from_fields(features={
-        'label': ['GOOD', 'BAD', 'UGLY']
-      }),
-      node_sets={
-        'root': gnn.NodeSet.from_fields(sizes=[1, 1, 1], features={}),
-        'leaf': gnn.NodeSet.from_fields(
-                  sizes=[2, 3, 1],
-                  features={'id': ['a', 'b', 'c', 'a', 'd', 'e']}
-                ),
-      },
-      edge_sets={
-        'leaf->root': gnn.EdgeSet.from_fields(
-                        sizes=[2, 3, 1],
-                        features={'weight': [.5, .6, .3, .4, .5, .9]},
-                        adjacency=gnn.Adjacency.from_indices(
-                          source=('leaf', [0, 1, 0, 1, 2, 0]),
-                          target=('root', [0, 0, 0, 0, 0, 0]),
-                        ))})
+RULE: Batching fields with an outermost dimension of `None` turns it into a
+ragged dimension of a RaggedTensor. (Note this is only allowed for the items
+dimension, not a graph dimension.) In all other cases, the type of the field
+(Tensor or RaggedTensor) is preserved.
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -258,47 +207,14 @@ supported.
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>
 
-<tr>
-<td>
-`context`
-</td>
-<td>
-The graph context feature container.
-</td>
-</tr><tr>
-<td>
-`edge_sets`
-</td>
-<td>
-A read-only view for edge sets.
-</td>
-</tr><tr>
-<td>
-`indices_dtype`
-</td>
-<td>
-The integer type to represent ragged splits.
-</td>
-</tr><tr>
-<td>
-`node_sets`
-</td>
-<td>
-A read-only view of node sets.
-</td>
-</tr><tr>
-<td>
-`rank`
-</td>
-<td>
-The rank of this Tensor. Guaranteed not to be `None`.
-</td>
-</tr><tr>
-<td>
-`shape`
-</td>
-<td>
-A possibly-partial shape specification for this Tensor.
+<tr> <td> `context` </td> <td> The graph context. </td> </tr><tr> <td>
+`edge_sets` </td> <td> A read-only mapping from node set name to the node set.
+</td> </tr><tr> <td> `indices_dtype` </td> <td> The integer type to represent
+ragged splits. </td> </tr><tr> <td> `node_sets` </td> <td> A read-only mapping
+from node set name to the node set. </td> </tr><tr> <td> `num_components` </td>
+<td> The number of graph components for each graph. </td> </tr><tr> <td> `rank`
+</td> <td> The rank of this Tensor. Guaranteed not to be `None`. </td> </tr><tr>
+<td> `shape` </td> <td> A possibly-partial shape specification for this Tensor.
 
 The returned `TensorShape` is guaranteed to have a known rank, but the
 individual dimension sizes may be unknown.
@@ -310,16 +226,22 @@ individual dimension sizes may be unknown.
 <td>
 The public type specification of this tensor.
 </td>
+</tr><tr>
+<td>
+`total_num_components`
+</td>
+<td>
+The total number of graph components.
+</td>
 </tr>
 </table>
-
-
 
 ## Methods
 
 <h3 id="from_pieces"><code>from_pieces</code></h3>
 
-<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L619-L640">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L709-L741">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>@classmethod</code>
@@ -327,7 +249,7 @@ The public type specification of this tensor.
     context: Optional[<a href="../gnn/Context.md"><code>gnn.Context</code></a>] = None,
     node_sets: Optional[Mapping[NodeSetName, NodeSet]] = None,
     edge_sets: Optional[Mapping[EdgeSetName, EdgeSet]] = None
-) -> "GraphTensor"
+) -> 'GraphTensor'
 </code></pre>
 
 Constructs a new `GraphTensor` from context, node sets and edge sets.
@@ -335,54 +257,69 @@ Constructs a new `GraphTensor` from context, node sets and edge sets.
 
 <h3 id="merge_batch_to_components"><code>merge_batch_to_components</code></h3>
 
-<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L642-L712">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L743-L824">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
-<code>merge_batch_to_components() -> "GraphTensor"
+<code>merge_batch_to_components() -> 'GraphTensor'
 </code></pre>
 
-Merges the contained graphs into a single scalar `GraphTensor`.
+Merges all contained graphs into one contiguously indexed graph.
 
-For example, flattening of
+On a batched GraphTensor, one can call this method merge all graphs of the batch
+into one, contiguously indexed graph. The resulting GraphTensor has shape
+[](i.e., is scalar) and its features have the shape [total_num_items,
+*feature_shape] where total_num_items is the sum of the previous num_items per
+batch element. Most TF-GNN models expect scalar GraphTensors. There is no
+function to reverse this method.
 
-    GraphTensor.from_pieces(
-      node_sets={
-        'node': NodeSet.from_fields(
-          # Three graphs with
-          #   - 1st graph having two components with 3 and 2 nodes;
-          #   - 2nd graph having 1 component with 2 nodes;
-          #   - 3rd graph having 1 component with 3 nodes;
-          sizes=tf.ragged.constant([[3, 2], [2], [3]]),
-          features={...},
-        )
-      }
-      edge_sets={
-        'edge': EdgeSet.from_fields(
-          sizes=tf.ragged.constant([[6, 7], [8], [3]]),
-          features={...},
-          adjacency=...,
-        )
-      }
-    )
+Example: Flattening of
 
-would result in the equivalent graph of
+```
+tfgnn.GraphTensor.from_pieces(
+    node_sets={
+        'node': tfgnn.NodeSet.from_fields(
+            # Three graphs:
+            #   - 1st graph has two components with 2 and 1 nodes;
+            #   - 2nd graph has 1 component with 1 node;
+            #   - 3rd graph has 1 component with 1 node;
+            sizes=tf.ragged.constant([[2, 1], [1], [1]]),
+            features={
+               'id': tf.ragged.constant([['a11', 'a12', 'a21'],
+                                         ['b11'],
+                                         ['c11']])})},
+    edge_sets={
+        'edge': tfgnn.EdgeSet.from_fields(
+            sizes=tf.ragged.constant([[3, 1], [1], [1]]),
+            features={},
+            adjacency=tfgnn.Adjacency.from_indices(
+                source=('node', tf.ragged.constant([[0, 1, 1, 2],
+                                                    [0],
+                                                    [0]])),
+                target=('node', tf.ragged.constant([[0, 0, 1, 2],
+                                                    [0],
+                                                    [0]]))))})
+```
 
-    GraphTensor.from_pieces(
-      node_sets={
-        'node': NodeSet.from_fields(
-          # One graph with 4 components with 3, 2, 2, 3 nodes each.
-          sizes=[3, 2, 2, 3],
-          features={...},
-        )
-      }
-      edge_sets={
-        'edge': EdgeSet.from_fields(
-          sizes=[6, 7, 8, 3],
-          features={...},
-          adjacency=...,
-        )
-      }
-    )
+results in the equivalent graph of
+
+```
+tfgnn.GraphTensor.from_pieces(
+    node_sets={
+        'node': tfgnn.NodeSet.from_fields(
+            # One graph with 4 components with 2, 1, 1, 1 nodes.
+            sizes=[2, 1, 1, 1],
+            features={'id': ['a11', 'a12', 'a21', 'b11', 'c11']})},
+    edge_sets={
+        'edge': tfgnn.EdgeSet.from_fields(
+            sizes=[3, 2, 1, 1],
+            features={},
+            Note:how node indices have changes to reference nodes
+            # withing the same graph ignoring its components.
+            adjacency=tfgnn.Adjacency.from_indices(
+                source=('node', [0, 1, 1, 2, 3 + 0, 3 + 1 + 0]),
+                target=('node', [0, 0, 1, 2, 3 + 0, 3 + 1 + 0])))})
+```
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -396,59 +333,150 @@ A scalar (rank 0) graph tensor.
 
 </table>
 
+<h3 id="remove_features"><code>remove_features</code></h3>
 
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L963-L1050">View
+source</a>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>remove_features(
+    context: Optional[Sequence[NodeSetName]] = None,
+    node_sets: Optional[Mapping[NodeSetName, Sequence[NodeSetName]]] = None,
+    edge_sets: Optional[Mapping[NodeSetName, Sequence[EdgeSetName]]] = None
+) -> 'GraphTensor'
+</code></pre>
+
+Returns a new GraphTensor with some features removed.
+
+The graph topology and the other features remain unchanged.
+
+Example 1. Removes the id feature from node set 'node.a'.
+
+```
+graph = tfgnn.GraphTensor.from_pieces(
+    node_sets={
+        'node.a': tfgnn.NodeSet.from_fields(
+            features={'id': ['a1', 'a3']},
+            sizes=[2]),
+        'node.b': tfgnn.NodeSet.from_fields(
+            features={'id': ['b4', 'b1']},
+            sizes=[2])})
+result = graph.remove_features(node_sets={'node.a': ['id']})
+```
+
+#### Result:
+
+tfgnn.GraphTensor.from_pieces( node_sets={ 'node.a': tfgnn.NodeSet.from_fields(
+features={}, sizes=[2]), 'node.b': tfgnn.NodeSet.from_fields( features={'id':
+['b4', 'b1']}, sizes=[2])})
+
+<!-- Tabular view -->
+
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Args</th></tr>
+
+<tr>
+<td>
+`context`
+</td>
+<td>
+A list of feature names to remove from the context, or None.
+</td>
+</tr><tr>
+<td>
+`node_sets`
+</td>
+<td>
+A mapping from node set names to lists of feature names to be
+removed from the respective node sets.
+</td>
+</tr><tr>
+<td>
+`edge_sets`
+</td>
+<td>
+A mapping from edge set names to lists of feature names to be
+removed from the respective edge sets.
+</td>
+</tr>
+</table>
+
+<!-- Tabular view -->
+
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Returns</th></tr>
+<tr class="alt">
+<td colspan="2">
+A `GraphTensor` with the same graph topology as the input and a subset
+of its features. Each feature of the input either was named as a feature
+to be removed or is still present in the output.
+</td>
+</tr>
+
+</table>
+
+<!-- Tabular view -->
+
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Raises</th></tr>
+
+<tr>
+<td>
+`ValueError`
+</td>
+<td>
+if some feature names in the arguments were not present in the
+input graph tensor.
+</td>
+</tr>
+</table>
 
 <h3 id="replace_features"><code>replace_features</code></h3>
 
-<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L729-L807">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L866-L961">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>replace_features(
     context: Optional[<a href="../gnn/Fields.md"><code>gnn.Fields</code></a>] = None,
     node_sets: Optional[Mapping[NodeSetName, Fields]] = None,
     edge_sets: Optional[Mapping[EdgeSetName, Fields]] = None
-) -> "GraphTensor"
+) -> 'GraphTensor'
 </code></pre>
 
 Returns a new instance with a new set of features for the same topology.
 
 Example 1. Replaces all features for node set 'node.a' but not 'node.b'.
 
-    graph = gnn.GraphTensor.from_pieces(
-      context=gnn.Context.from_fields(features={
-        'label': tf.ragged.constant([['A'], ['B']])
-      }),
-      node_sets={
-          'node.a': gnn.NodeSet.from_fields(features={
-            'id': ['a1', 'a3']
-          }, sizes=[2]),
-          'node.b': gnn.NodeSet.from_fields(features={
-            'id': ['b4', 'b1']
-          }, sizes=[2])
-      }
-    )
-    result = graph.replace_features(
-      node_sets={'node.a': {'h': tf.ragged.constant([[1., 0.], [3., 0.]])}}
-    )
+```
+graph = tfgnn.GraphTensor.from_pieces(
+    context=tfgnn.Context.from_fields(
+        features={'label': tf.ragged.constant([['A'], ['B']])}),
+    node_sets={
+        'node.a': tfgnn.NodeSet.from_fields(
+            features={'id': ['a1', 'a3']},
+            sizes=[2]),
+        'node.b': tfgnn.NodeSet.from_fields(
+            features={'id': ['b4', 'b1']},
+            sizes=[2])})
+result = graph.replace_features(
+    node_sets={
+        'node.a': {
+            'h': tf.ragged.constant([[1., 0.], [3., 0.]])
+         }
+    })
+```
 
 #### Result:
 
-
-gnn.GraphTensor.from_pieces(
-  context=gnn.Context.from_fields(features={
-    'label': tf.ragged.constant([['A'], ['B']])
-  }),
-  node_sets={
-      'node.a': gnn.NodeSet.from_fields(features={
-        'h': tf.ragged.constant([[1., 0.], [3., 0.]])
-      }, sizes=[2]),
-      'node.b': gnn.NodeSet.from_fields(features={
-        'id': ['b4', 'b1']
-      }, sizes=[2])
-  }
-)
-
-
+tfgnn.GraphTensor.from_pieces( context=tfgnn.Context.from_fields(
+features={'label': tf.ragged.constant([['A'], ['B']])}), node_sets={ 'node.a':
+tfgnn.NodeSet.from_fields( features={ 'h': tf.ragged.constant([[1., 0.], [3.,
+0.]]) }, sizes=[2]), 'node.b': tfgnn.NodeSet.from_fields( features={ 'id':
+['b4', 'b1'] }, sizes=[2]) })
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -461,52 +489,71 @@ gnn.GraphTensor.from_pieces(
 </td>
 <td>
 A substitute for the context features, or None (which keeps the
-prior features).
+prior features). Their tensor shapes must match the number of existing
+components, which remains unchanged.
 </td>
 </tr><tr>
 <td>
 `node_sets`
 </td>
 <td>
-A substitute for specified node set features. Node sets which
-are not included remain unchanged.
+Substitutes for the features of the specified node sets. Their
+tensor shapes must match the existing number of nodes, which remains
+unchanged. Features on node sets that are not included remain unchanged.
 </td>
 </tr><tr>
 <td>
 `edge_sets`
 </td>
 <td>
-A substitute for specified edge set features. Edge sets which
+Substitutes for the features of the specified edge sets. Their
+tensor shapes must match the existing number of edges. The number of
+edges and their incident nodes are unchanged. Features on edge sets that
 are not included remain unchanged.
 </td>
 </tr>
 </table>
 
-
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Returns</th></tr>
 <tr class="alt">
 <td colspan="2">
-A `GraphTensor` instance with features overridden according to the
+A `GraphTensor` instance with feature maps replaced according to the
 arguments.
 </td>
 </tr>
 
 </table>
 
+<!-- Tabular view -->
 
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Raises</th></tr>
+
+<tr>
+<td>
+`ValueError`
+</td>
+<td>
+if some node sets or edge sets are not present in the graph
+tensor.
+</td>
+</tr>
+</table>
 
 <h3 id="set_shape"><code>set_shape</code></h3>
 
-<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L295-L301">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L290-L296">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>set_shape(
     new_shape: ShapeLike
-) -> "GraphPieceSpecBase"
+) -> 'GraphPieceSpecBase'
 </code></pre>
 
 Enforce the common prefix shape on all the contained features.

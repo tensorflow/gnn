@@ -32,7 +32,7 @@ class GraphSAGEAggregatorConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       *,
       receiver_tag: tfgnn.IncidentNodeTag,
       reduce_type: str = "mean",
-      sender_node_feature: Optional[tfgnn.FieldName] = tfgnn.DEFAULT_STATE_NAME,
+      sender_node_feature: Optional[tfgnn.FieldName] = tfgnn.HIDDEN_STATE,
       units: int,
       dropout_rate: float = 0.,
       **kwargs):
@@ -48,7 +48,7 @@ class GraphSAGEAggregatorConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
         `tfgnn.get_registered_reduce_operation_names()`.
       sender_node_feature: Can be set to specify the feature name for use as the
         input feature from sender nodes to GraphSAGE aggregation, defaults to
-        `tfgnn.DEFAULT_STATE_NAME`.
+        `tfgnn.HIDDEN_STATE`.
       units: Number of output units for the linear transformation applied to
         sender node features.
       dropout_rate: Can be set to a dropout rate that will be applied to sender
@@ -135,7 +135,7 @@ class GraphSAGEPoolingConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       self,
       *,
       receiver_tag: tfgnn.IncidentNodeTag,
-      sender_node_feature: Optional[tfgnn.FieldName] = tfgnn.DEFAULT_STATE_NAME,
+      sender_node_feature: Optional[tfgnn.FieldName] = tfgnn.HIDDEN_STATE,
       units: int,
       hidden_units: int,
       reduce_type: str = "max_no_inf",
@@ -152,7 +152,7 @@ class GraphSAGEPoolingConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
         set and will aggregate results at the specified endpoint of the edges.
       sender_node_feature: Can be set to specify the feature name for use as the
         input feature from sender nodes to GraphSAGE aggregation, defaults to
-        `tfgnn.DEFAULT_STATE_NAME`.
+        `tfgnn.HIDDEN_STATE`.
       units: Number of output units for the final dimensionality of the output
         from the layer.
       hidden_units: Number of output units for the linear transformation applied
@@ -289,8 +289,8 @@ class GCNGraphSAGENodeSetUpdate(tf.keras.layers.Layer):
                edge_set_names: Set[str],
                receiver_tag: tfgnn.IncidentNodeTag,
                reduce_type: str = "mean",
-               self_node_feature: str = tfgnn.DEFAULT_STATE_NAME,
-               sender_node_feature: str = tfgnn.DEFAULT_STATE_NAME,
+               self_node_feature: str = tfgnn.HIDDEN_STATE,
+               sender_node_feature: str = tfgnn.HIDDEN_STATE,
                units: int,
                dropout_rate: float = 0.0,
                activation: Union[str, Callable[..., Any]] = "relu",
@@ -312,9 +312,9 @@ class GCNGraphSAGENodeSetUpdate(tf.keras.layers.Layer):
         operators are sum or mean.
       self_node_feature: Feature name for the self node sets to be aggregated
         with the broadcasted sender node states. Default is
-        `tfgnn.DEFAULT_STATE_NAME`.
+        `tfgnn.HIDDEN_STATE`.
       sender_node_feature: Feature name for the sender node sets. Default is
-        `tfgnn.DEFAULT_STATE_NAME`.
+        `tfgnn.HIDDEN_STATE`.
       units: Number of output units for the linear transformation applied to
         sender node and self node features.
       dropout_rate: Can be set to a dropout rate that will be applied to both
@@ -468,7 +468,7 @@ def GraphSAGEGraphUpdate(*,
                          l2_normalize: bool = True,
                          combine_type: str = "sum",
                          activation: Union[str, Callable[..., Any]] = "relu",
-                         feature_name: str = tfgnn.DEFAULT_STATE_NAME,
+                         feature_name: str = tfgnn.HIDDEN_STATE,
                          name: str = "graph_sage",
                          **kwargs):
   """Returns a GraphSAGE GraphUpdater layer for nodes in node_set_names.
@@ -526,7 +526,7 @@ def GraphSAGEGraphUpdate(*,
       layer, a tf.keras.activations.* function, or a string understood by
       `tf.keras.layers.Activation()`. Defaults to relu.
     feature_name: The feature name of node states; defaults to
-      `tfgnn.DEFAULT_STATE_NAME`.
+      `tfgnn.HIDDEN_STATE`.
     name: Optionally, a name for the layer returned.
     **kwargs: Any optional arguments to `GraphSAGEPoolingConv`,
       `GraphSAGEAggregatorConv` or `GraphSAGENextState`, see there.
@@ -642,7 +642,7 @@ class GraphSAGENextState(tf.keras.layers.Layer):
                units: int,
                use_bias: bool = True,
                dropout_rate: float = 0.0,
-               feature_name: str = tfgnn.DEFAULT_STATE_NAME,
+               feature_name: str = tfgnn.HIDDEN_STATE,
                l2_normalize: bool = True,
                combine_type: str = "sum",
                activation: Union[str, Callable[..., Any]] = "relu",
@@ -657,7 +657,7 @@ class GraphSAGENextState(tf.keras.layers.Layer):
       dropout_rate: Can be set to a dropout rate that will be applied to the
         node feature.
       feature_name: The feature name of node states; defaults to
-        `tfgnn.DEFAULT_STATE_NAME`.
+        `tfgnn.HIDDEN_STATE`.
       l2_normalize: If enabled l2 normalization will be applied to node state
         vectors.
       combine_type: Can be set to "sum" or "concat". If it's specified as concat

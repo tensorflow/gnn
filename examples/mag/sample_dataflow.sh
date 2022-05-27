@@ -1,5 +1,4 @@
 #!/bin/bash
-#!/bin/bash
 #
 # Dataflow workers must have access to the tfgnn docker container.
 # Clients must have a local copy of the tensorflow_gnn image to launch the
@@ -25,7 +24,11 @@
 #
 # ./[path-to]/tensorflow_gnn/examples/arxiv/sample_dataflow.sh
 #
-MACHINE_TYPE="n1-standard-1"
+NUMBER_OF_WORKER_HARNESS_THREADS=4
+MB_PER_THREAD=$((38*1024))
+# DF starts 1 processs and 1 thread per vCPU.
+MB_PER_MACHINE=$(($NUMBER_OF_WORKER_HARNESS_THREADS*$MB_PER_THREAD))
+MACHINE_TYPE="custom-${NUMBER_OF_WORKER_HARNESS_THREADS}-${MB_PER_THREAD}-ext"
 MAX_NUM_WORKERS=1000
 
 # The sampling spec is included in the container, read by the controller and
@@ -37,7 +40,8 @@ GOOGLE_CLOUD_PROJECT="[FILL-ME-IN]"
 GOOGLE_CLOUD_COMPUTE_REGION="[FILL-ME-In]"
 # Make sure you have already made the GCP bucket with something like:
 # `gsutil mb gs://${GOOGLE_CLOUD_PROJECT}`.
-EXAMPLE_ARTIFACT_DIRECTORY="gs://${GOOGLE_CLOUD_PROJECT}/tfgnn/examples/arxiv"
+TIMESTAMP="$(date +"%Y-%m-%d-%H-%M-%S")"
+EXAMPLE_ARTIFACT_DIRECTORY="gs://${GOOGLE_CLOUD_PROJECT}/tfgnn/ogbn-mag/${TIMESTAMP}"
 
 # Sampler expects the graph artifacts to be in the same directory as the
 # schema.
@@ -47,7 +51,7 @@ GRAPH_SCHEMA="${EXAMPLE_ARTIFACT_DIRECTORY}/schema.pbtxt"
 TEMP_LOCATION="${EXAMPLE_ARTIFACT_DIRECTORY}/tmp"
 
 # (Sharded) output sample tfrecord filespec.
-OUTPUT_SAMPLES="${EXAMPLE_ARTIFACT_DIRECTORY}/samples@20"
+OUTPUT_SAMPLES="${EXAMPLE_ARTIFACT_DIRECTORY}/samples@100"
 
 # This should be a path to a docker image with TFGNN installed that pinned to
 # the image version that the user is running this script with. A valid example
@@ -59,7 +63,7 @@ REMOTE_WORKER_CONTAINER="[FILL-ME-IN]"
 # so worker machines do not impact quota limits.
 GCP_VPC_NAME="[FILL-ME-IN]"
 
-JOB_NAME="tensorflow-gnn-mag-sampling"
+JOB_NAME="tensorflow-gnn-mag-sampling-${TIMESTAMP}"
 
 docker run -v ~/.config/gcloud:/root/.config/gcloud \
   -e "GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}" \
@@ -82,4 +86,5 @@ docker run -v ~/.config/gcloud:/root/.config/gcloud \
   --experiments=enable_execution_details_collection \
   --experiment=use_runner_v2 \
   --worker_harness_container_image=gcr.io/${GOOGLE_CLOUD_PROJECT}/tfgnn:latest \
+  --number_of_worker_harness_threads="${NUMBER_OF_WORKER_HARNESS_THREADS}" \
   --alsologtostderr

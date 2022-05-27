@@ -31,7 +31,7 @@ edge_sets {
     target: "nodes"
   }
 }
-""" % tfgnn.DEFAULT_STATE_NAME
+""" % tfgnn.HIDDEN_STATE
 
 
 class Classification(tf.test.TestCase, parameterized.TestCase):
@@ -79,10 +79,10 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
                  expected_loss: Sequence[float]):
     gtspec = tfgnn.create_graph_spec_from_schema_pb(tfgnn.parse_schema(schema))
     inputs = tf.keras.layers.Input(type_spec=gtspec)
-    hidden_state = inputs.node_sets["nodes"][tfgnn.DEFAULT_STATE_NAME]
+    hidden_state = inputs.node_sets["nodes"][tfgnn.HIDDEN_STATE]
     output = inputs.replace_features(
         node_sets={"nodes": {
-            tfgnn.DEFAULT_STATE_NAME: tf.keras.layers.Dense(16)(hidden_state)
+            tfgnn.HIDDEN_STATE: tf.keras.layers.Dense(16)(hidden_state)
         }})
     model = tf.keras.Model(inputs, output)
     model = task.adapt(model)
@@ -124,10 +124,10 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
                task: classification._Classification):
     gtspec = tfgnn.create_graph_spec_from_schema_pb(tfgnn.parse_schema(schema))
     inputs = tf.keras.layers.Input(type_spec=gtspec)
-    hidden_state = inputs.node_sets["nodes"][tfgnn.DEFAULT_STATE_NAME]
+    hidden_state = inputs.node_sets["nodes"][tfgnn.HIDDEN_STATE]
     output = inputs.replace_features(
         node_sets={"nodes": {
-            tfgnn.DEFAULT_STATE_NAME: tf.keras.layers.Dense(16)(hidden_state)
+            tfgnn.HIDDEN_STATE: tf.keras.layers.Dense(16)(hidden_state)
         }})
     model = tf.keras.Model(inputs, output)
     model = task.adapt(model)

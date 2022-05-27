@@ -62,7 +62,7 @@ class _GraphRegression(_Regression):
                units: int = 1,
                *,
                node_set_name: str,
-               state_name: str = tfgnn.DEFAULT_STATE_NAME,
+               state_name: str = tfgnn.HIDDEN_STATE,
                reduce_type: str = "mean"):
     super().__init__(units)
     self._node_set_name = node_set_name
@@ -84,7 +84,7 @@ class _RootNodeRegression(_Regression):
                units: int = 1,
                *,
                node_set_name: str,
-               state_name: str = tfgnn.DEFAULT_STATE_NAME):
+               state_name: str = tfgnn.HIDDEN_STATE):
     super().__init__(units)
     self._node_set_name = node_set_name
     self._state_name = state_name

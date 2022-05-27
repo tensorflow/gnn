@@ -3,7 +3,7 @@ workspace(name = "tensorflow_gnn")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 # Define the TensorFlow archive.
-load("//package:tfdep.bzl", "tf_setup")
+load("@tensorflow_gnn//package:tfdep.bzl", "tf_setup")
 tf_setup()
 
 # Initialize the TensorFlow repository and all dependencies.

@@ -32,14 +32,14 @@ class ModelingTemplateTest(tf.test.TestCase, parameterized.TestCase):
         node_sets={
             "dense": tfgnn.NodeSet.from_fields(
                 sizes=[2],
-                features={tfgnn.DEFAULT_STATE_NAME: tf.constant([[1.], [2.]])}),
+                features={tfgnn.HIDDEN_STATE: tf.constant([[1.], [2.]])}),
             "ragged": tfgnn.NodeSet.from_fields(
                 sizes=[2],
-                features={tfgnn.DEFAULT_STATE_NAME: tf.ragged.constant(
+                features={tfgnn.HIDDEN_STATE: tf.ragged.constant(
                     [[1], [2, 3]])}),
             "other": tfgnn.NodeSet.from_fields(
                 sizes=[2],
-                features={tfgnn.DEFAULT_STATE_NAME: tf.constant([[3.], [1.]])}),
+                features={tfgnn.HIDDEN_STATE: tf.constant([[3.], [1.]])}),
         })
     init_states_fn = functools.partial(
         modeling.init_states_by_embed_and_transform,
@@ -58,13 +58,13 @@ class ModelingTemplateTest(tf.test.TestCase, parameterized.TestCase):
 
     graph = model(input_graph)
     self.assertAllEqual(
-        graph.node_sets["dense"][tfgnn.DEFAULT_STATE_NAME],
+        graph.node_sets["dense"][tfgnn.HIDDEN_STATE],
         [[2., 3.,], [3., 5.]])
     self.assertAllEqual(
-        graph.node_sets["ragged"][tfgnn.DEFAULT_STATE_NAME],
+        graph.node_sets["ragged"][tfgnn.HIDDEN_STATE],
         [[10., 11.], [(20.+30.)/2., (21.+31.)/2.]])
     self.assertAllEqual(
-        graph.node_sets["other"][tfgnn.DEFAULT_STATE_NAME],
+        graph.node_sets["other"][tfgnn.HIDDEN_STATE],
         [[3.,], [1.]])
     self.assertAllClose(
         tf.add_n(model.losses),
@@ -91,10 +91,10 @@ class ModelingTemplateTest(tf.test.TestCase, parameterized.TestCase):
         node_sets={
             "a": tfgnn.NodeSet.from_fields(
                 sizes=[2],
-                features={tfgnn.DEFAULT_STATE_NAME: tf.constant([[1.], [2.]])}),
+                features={tfgnn.HIDDEN_STATE: tf.constant([[1.], [2.]])}),
             "b": tfgnn.NodeSet.from_fields(
                 sizes=[1],
-                features={tfgnn.DEFAULT_STATE_NAME: tf.constant([[1., 2.]])})},
+                features={tfgnn.HIDDEN_STATE: tf.constant([[1., 2.]])})},
         edge_sets={
             "edges": tfgnn.EdgeSet.from_fields(
                 sizes=[2],
@@ -133,10 +133,10 @@ class ModelingTemplateTest(tf.test.TestCase, parameterized.TestCase):
 
     graph = model(input_graph)
     self.assertAllEqual(
-        graph.node_sets["a"][tfgnn.DEFAULT_STATE_NAME],
+        graph.node_sets["a"][tfgnn.HIDDEN_STATE],
         [[1.], [2.]])  # Unchanged.
     self.assertAllEqual(
-        graph.node_sets["b"][tfgnn.DEFAULT_STATE_NAME],
+        graph.node_sets["b"][tfgnn.HIDDEN_STATE],
         [[4., 3., 21.]])
     self.assertAllClose(
         tf.add_n(model.losses),
@@ -156,10 +156,10 @@ class ModelingTemplateTest(tf.test.TestCase, parameterized.TestCase):
         node_sets={
             "a": tfgnn.NodeSet.from_fields(
                 sizes=[1],
-                features={tfgnn.DEFAULT_STATE_NAME: tf.constant([[1.]*dim])}),
+                features={tfgnn.HIDDEN_STATE: tf.constant([[1.]*dim])}),
             "b": tfgnn.NodeSet.from_fields(
                 sizes=[1],
-                features={tfgnn.DEFAULT_STATE_NAME: tf.constant([[]])})},
+                features={tfgnn.HIDDEN_STATE: tf.constant([[]])})},
         edge_sets={
             "edges": tfgnn.EdgeSet.from_fields(
                 sizes=[1],
@@ -191,13 +191,13 @@ class ModelingTemplateTest(tf.test.TestCase, parameterized.TestCase):
 
     # Baseline: no dropout.
     graph = model(input_graph)
-    node_state = graph.node_sets["b"][tfgnn.DEFAULT_STATE_NAME]
+    node_state = graph.node_sets["b"][tfgnn.HIDDEN_STATE]
     self.assertAllEqual(node_state, [[1.]*(dim)])
 
     # Test dropout. It's random, but tf.test.TestCase fixes the random seed, so
     # we can accept a small failure probability without making this test flaky.
     graph = model(input_graph, training=True)
-    node_state_with_dropout = graph.node_sets["b"][tfgnn.DEFAULT_STATE_NAME]
+    node_state_with_dropout = graph.node_sets["b"][tfgnn.HIDDEN_STATE]
     self.assertAllEqual(node_state_with_dropout.shape, [1, dim])
     # Check for non-dropped out units, scaled up to preserve the expected value.
     # We'll see this for any one unit with probability (1-0.4)**2 = 0.36, so

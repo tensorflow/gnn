@@ -18,8 +18,8 @@ def pass_messages_with_gat_v2(
   """Performs message passing with GATv2 pooling.
 
   Args:
-    graph: a scalar GraphTensor with `tfgnn.DEFAULT_STATE_NAME` features on all
-       node sets.
+    graph: a scalar GraphTensor with `tfgnn.HIDDEN_STATE` features on all
+      node sets.
     receiver_tag: one of `tfgnn.TARGET` or `tfgnn.SOURCE`, to select the
       incident node of each edge that receives the message.
     num_heads: The number of attention heads used by GATv2.
@@ -33,8 +33,8 @@ def pass_messages_with_gat_v2(
     state_dropout_rate: The dropout rate applied to the resulting node states.
 
   Returns:
-    A scalar GraphTensor with `tfgnn.DEFAULT_STATE_NAME` features on all node
-    sets that have been updated by the specified rounds of message passing.
+    A scalar GraphTensor with `tfgnn.HIDDEN_STATE` features on all node sets
+    that have been updated by the specified rounds of message passing.
   """
   if message_dim % num_heads:
     raise ValueError("message_dim must be divisible by num_heads, "

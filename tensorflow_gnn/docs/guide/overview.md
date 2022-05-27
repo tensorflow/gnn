@@ -16,8 +16,6 @@ Start with our introductory guides:
 
   * [Introduction to Graph Neural Networks](intro.md). This page introduces the
     concept of graph neural networks with a focus on their application at scale.
-    It touches on various scenarios where GNNs are well-suited to the problem
-    and provides you with enough context to start thinking about model design.
 
   * [The GraphTensor type](graph_tensor.md). This page introduces the
     `tfgnn.GraphTensor` class, which defines our representation of graph data
@@ -32,17 +30,15 @@ Start with our introductory guides:
     graphs) and the GNN model written in TensorFlow (which consumes these
     graphs as training data).
 
-  * [Data preparation](data_prep.md). Training data for GNN
+  * [Data preparation and sampling](data_prep.md). Training data for GNN
     models are graphs. When operating on very large graphs, we produce local
     subgraph samples from the full dataset which are serialized along with their
-    features and streamed for training.
-    This document describes
-    the data format we support for storing large
-    graphs.
+    features and streamed for training. This document describes the sampler tool
+    as well as the data format we support for storing large graphs.
 
-  * **The TF-GNN Runner** (doc incomplete) lets you train GNN models on the
-    prepared input data for some standard tasks (e.g., node prediction).
-    We recommend using the runner to get started quickly with a first model
+  * [The TF-GNN Runner](runner.md) lets you train GNN models on the
+    prepared input data for a variety of tasks (e.g., node prediction).
+    We recommend using the Runner to get started quickly with a first model
     for the data at hand, and then customize it as needed.
 
 The following docs go deeper into particular topics.

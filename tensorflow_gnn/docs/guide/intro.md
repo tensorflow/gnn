@@ -6,13 +6,15 @@ networks are, from the perspective of their application in practice.
 ## What is a Graph?
 
 You can model very many domains of the world as entities and their
-relationships. "Nodes" are used to represent various types of entities and their
-relationships as links between them, or "edges". These are also called
-"networks" and there's a vast field of research around their properties called
-"network science." For example, a historical log of transactions may involve
-nodes of type "customer" and "merchant", and edges of type "purchase". Networks
-are a very general and powerful way to model many domains.
+relationships. "Nodes" are used to represent various types of entities,
+and "edges" represent their relationships as links between them.
+These structures are called "graphs" (as mathematical objects) or "networks"
+(as real-world phenomena). Their properties are studied in
+[Graph Theory](https://en.wikipedia.org/wiki/Graph_theory) and
+[Network Science](https://en.wikipedia.org/wiki/Network_science).
 
+For example, a log of historical transactions may involve nodes of type
+"customer" and "merchant", and edges of type "purchase".
 Each of the entities can be associated with features. A customer could have a
 location, a credit score, and a credit card, which itself has a history of
 payments. The edges also can have feature information associated with them as
@@ -52,75 +54,85 @@ clusters of nodes on existing graphs are well-established and label propagation
 algorithms that trickle information between nodes have been around for decades.
 But how do we use graphs with neural networks?
 
-The essence of the method is the graph convolution. The features of each node
-are first normalized and encoded to a single tensor of floating-point numbers,
-as is required at the input of a regular neural network. The node features are
-then run through four stages:
+The essence of the method is the graph convolution. The input features of each
+node are transformed into a single vector of floating-point numbers.
+The specifics of this initial transformation can vary a lot, ranging from a
+simple normalization and encoding (as required for any neural network) up to
+running a sophisticated, trained encoder (e.g., to embed words or images).
+In any case, this provides each node with its initial *hidden state*.
+The hidden states then go through rounds of updates using information from their
+neighbors. One such update is called a "graph convolution". In its simplest
+form, it consists of four stages:
 
-1. gather: The node features are broadcast across each of the edges;
-2. transform: The results are transformed by a function (possibly itself a
-   neural network);
-3. pooling: The results of these edge transformations are averaged and projected
-   back to the nodes;
-4. update: The aggregated results over the nodes are run through another neural
-   network to produce updated features for each node.
+ 1. broadcast: the node states are copied onto edges (that is, outgoing edges,
+    possibly also incoming edges);
+ 2. transform: the value(s) on each edge are transformed by a function,
+    possibly itself a neural network;
+ 3. pooling: the results of these edge transformations are aggregated back
+    onto nodes (e.g., by averaging over incoming edges);
+ 4. state update: the pooled results from the edges are used to produce an
+    updated state for each node (e.g., by running them through another small
+    neural network).
 
-This happens over all the nodes and edges, at the same time. This process can be
-repeated and allows for the propagation of features, hopping over graph edges.
-Every time a feature is propagated it can be transformed by a neural network or
-a fixed function. The backpropagation method optimizes neural network kernels by
-computing gradients over each of these hops to learn transformations that will
-minimize a loss objective, in the usual way. Finally, classification and/or
-regression over nodes, edges or the entire graph is possible by adding a final
-head neural network to the model.
+This happens over all the nodes and edges, at the same time. This process can
+be repeated for multiple rounds and allows for the propagation of features,
+hopping over graph edges. Every time a feature is propagated, it can be
+transformed by a neural network or a fixed function. Finally, classification
+and/or regression over nodes, edges or the entire graph is possible by reading
+out the relevant state(s) and sending them through a final neural
+network, the prediction head.
 
-This is the basic primitive we use, in its simplest form. In practice, small
-variations are used to improve model accuracy and expressivity for particular
-scenarios. For example, one of the effects of running convolutions is that the
-averaging of feature values over neighborhoods tends to blur the features; to
-mitigate this effect, the original node features can be reintroduced at every
-hop ("skip connection" models) and meld the original feature detail with the
-averaged feature information from a node's neighborhood.
+The neural networks involved have trainable weights. These are shared across
+the different locations in the graph within one round (like a convnet uses the
+same convolution kernel at each pixel), potentially even across rounds.
+As usual, backpropagation is used to compute gradients over the entire network
+(all rounds) to minimize some loss function of the predictions.
+
+There is a rapidly growing body of research literature, and practical experience
+is improving on Graph Neural Networks (GNN).
 
 ## The Problem with Irregularity
 
-Neural network libraries operate over very large tensors of floating-point
-numbers, and are essentially optimized matrix-multiplication engines with
-concurrent execution. Regular deep neural networks have a fixed shape and are
-able to operate on fixed-size vectors in memory.
+Standard deep neural networks are served well by a `Tensor` datatype and the
+kind of data-parallel, large-scale matrix multiplications offered on it by the
+usual software-hardware stack for deep learning.
 
-In contrast, each training example of a GNN is a graph with a different number
-of nodes and edges. We have to handle the irregular number of corresponding
-features. This introduces a fair amount of complexity in the representation,
-library code and model API. To a large extent, this is what this library
-addresses.
+In contrast, graph neural networks encounter irregular shapes and data flow
+in a number of places.
 
-The data preparation tools accompanying this library are able to produce an
-encoding of graphs that takes care of the irregular shapes. To represent
-irregularly shaped tensors in memory, we rely on the tf.RaggedTensor class from
-TensorFlow, which is designed to handle tensors with several dimensions that
-vary in size, ragged dimensions. We wrap these tensors in a container of our
-own, the GraphTensor, whose feature shapes are constrained to represent valid
-graphs. This container provides methods to access the various parts of a graph
-as tensors (node features, edge indices, edge features). The library also
-provides methods to easily build convolutions on these features. Finally, the
-library also supports additional constraints to run on hardware architectures
-which require fixed buffer sizes (such as TPUs).
+  * Each training example of a GNN is a graph with a different number of nodes
+    or edges, leading to ragged feature shapes when training examples are
+    batched.
+  * Even within one example, input features themselves can have irregular shapes
+    from one node (or edge) to the next. This is similar to the challenges in
+    sequence or NLP data, but here it happens in addition to the variable number
+    of nodes/edges.
+  * The incidence of edges to nodes and hence the dataflow between them is
+    not fixed, but defined differently by the input data of each example.
 
-Two of the features we support in this project are often ignored in the
-research: the need to encode and represent multiple features for each node
-and/or edge (which is necessary for categorical features and computed
-embeddings) and good support for heterogeneous models (which extends the reach
-of GNNs substantially).
+The `tfgnn.GraphTensor` type helps to address all these. It is the unified
+container type for graph data for all stages of a TensorFlow program: from
+the results of the data preparation tools included with this library,
+along the entire TensorFlow input pipeline that processes them, and then
+through the GNN model itself. It uses the `tf.RaggedTensor` class to represent
+irregular inputs and supports their incremental transformation to uniformly
+shaped `tf.Tensor` representations inside the GNN model, including padding to
+fixed sizes if needed (usually for Cloud TPUs). It provides broadcast and pool
+operations along the graph using the endpoints it stores for each edge.
+
+Two strengths of GraphTensor are often ignored in GNN research: the need to
+encode and represent multiple features for each node and/or edge (which is
+necessary for categorical features and computed embeddings), and first-class
+support for heterogeneous models (which extends the reach of GNNs
+substantially).
 
 ## Scaling Up
 
-In practice many graphs are very large, e.g. billions of nodes. Many graphs
-simply do not fit in memory. How do we train models on such graphs? The approach
-adopted in this library is to sample local neighborhoods around nodes which we
-want to train over, e.g., nodes with associated ground truth labels. See the
-dedicated chapter ["Scaling Graph Neural Networks"](scaling.md) on the topic of
-scalability in the project documentation.
+In practice, many graphs are very large (e.g., a large social network may have
+billions of nodes) and may not fit in memory. The approach this library uses
+in the case of large graphs is to sample neighborhoods around nodes which we
+want to train over (say, nodes with associated ground truth labels), and stream
+them from the filesytem into the TensorFlow training code.
 
 ## More Information and Research
 
@@ -136,13 +148,25 @@ details.
 Here are a few papers surveying the development of the field and the various
 methods that have been published:
 
-* Machine Learning on Graphs: A Model and Comprehensive Taxonomy
-  (https://arxiv.org/pdf/2005.03675.pdf)
-* Relational inductive biases, deep learning, and graph networks
-  (https://arxiv.org/abs/1806.01261)
-* Graph neural networks: A review of methods and applications
-  (https://arxiv.org/pdf/1812.08434.pdf)
-* A Survey on Heterogeneous Graph Embedding: Methods, Techniques, Applications
-  and Sources (https://arxiv.org/pdf/2011.14867.pdf)
-* A Comprehensive Survey on Graph Neural Networks
-  (https://arxiv.org/pdf/1901.00596.pdf)
+  * I. Chami, S. Abu-El-Haija, B. Perozzi, C. Ré, K. Murphy:
+    [Machine Learning on Graphs: A Model and Comprehensive
+    Taxonomy](https://arxiv.org/abs/2005.03675), 2020.
+  * P.W. Battaglia et al.: [Relational inductive biases, deep learning, and
+    graph networks](https://arxiv.org/abs/1806.01261), 2018.
+  * J. Zhou, G. Cui, S. Hu, Z. Zhang, C. Yang, Z. Liu, L. Wang, C. Li, M. Sun:
+    [Graph neural networks: A review of methods
+    and applications](https://arxiv.org/abs/1812.08434), 2018.
+  * X. Wang, D. Bo, C. Shi, S. Fan, Y. Ye, P.S. Yu:
+    [A Survey on Heterogeneous Graph Embedding: Methods, Techniques,
+    Applications and Sources](https://arxiv.org/abs/2011.14867), 2020.
+  * Z. Wu, S. Pan, F. Chen, G. Long, C. Zhang, P.S. Yu:
+    [A Comprehensive Survey
+    on Graph Neural Networks](https://arxiv.org/abs/1901.00596), 2019.
+
+For more comprehensive introduction to the field at large, see
+
+  * W.L. Hamilton:
+    [Graph Representation Learning](https://doi.org/10.2200/S00980ED1V01Y202001AIM045).
+    *Synthesis Lectures on AI and ML* **14** (2020), pp.1-159.
+    [Preprint](https://www.cs.mcgill.ca/~wlh/grl_book/) available from
+    the author.

@@ -11,6 +11,7 @@ similar to `tf.TensorSpec`. For example, a `FieldSpec` describes an instance of
 `Field`, and a `GraphTensorSpec` describes an instance of `GraphTensor`.
 """
 
+from tensorflow_gnn import version
 from tensorflow_gnn.graph import adjacency
 from tensorflow_gnn.graph import batching_utils
 from tensorflow_gnn.graph import graph_constants
@@ -20,7 +21,6 @@ from tensorflow_gnn.graph import graph_tensor_io
 from tensorflow_gnn.graph import graph_tensor_ops
 from tensorflow_gnn.graph import graph_tensor_pprint
 from tensorflow_gnn.graph import graph_tensor_random
-from tensorflow_gnn.graph import keras  # For use as a subpackage.
 from tensorflow_gnn.graph import normalization_ops
 from tensorflow_gnn.graph import padding_ops
 from tensorflow_gnn.graph import preprocessing_common
@@ -29,11 +29,15 @@ from tensorflow_gnn.graph import schema_validation
 from tensorflow_gnn.graph import tag_utils
 from tensorflow_gnn.proto import graph_schema
 
+# Package version.
+__version__ = version.__version__
+
 # String constants for feature name components, and special feature names.
 CONTEXT = graph_constants.CONTEXT
 NODES = graph_constants.NODES
 EDGES = graph_constants.EDGES
-DEFAULT_STATE_NAME = graph_constants.DEFAULT_STATE_NAME
+HIDDEN_STATE = graph_constants.HIDDEN_STATE
+DEFAULT_STATE_NAME = graph_constants.DEFAULT_STATE_NAME  # Deprecated.
 
 # Integer tags.
 SOURCE = graph_constants.SOURCE
@@ -159,6 +163,7 @@ check_scalar_graph_tensor = graph_tensor.check_scalar_graph_tensor
 # Prune imported module symbols so they're not accessible implicitly,
 # except those meant to be used as subpackages, like tfgnn.keras.*.
 # Please use the same order as for the import statements at the top.
+del version
 del adjacency
 del batching_utils
 del graph_constants

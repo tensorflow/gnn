@@ -1,5 +1,5 @@
-"""Base classes for all CompositeTensors used inside a GraphTensor.
-"""
+"""Base classes for all CompositeTensors used inside a GraphTensor."""
+
 import abc
 import functools
 from typing import Any, Callable, Mapping, Optional, Union
@@ -103,6 +103,7 @@ class GraphPieceBase(composite_tensor.CompositeTensor, metaclass=abc.ABCMeta):
      graph pieces to all their children.
 
   """
+  # TODO(b/188399175): Migrate to the new Extension Type API.
 
   __slots__ = ['_data', '_spec']
 
@@ -368,6 +369,11 @@ class GraphPieceSpecBase(type_spec.BatchableTypeSpec, metaclass=abc.ABCMeta):
     """Constructs GraphTensor type spec."""
     super().__init__()
     assert isinstance(shape, tf.TensorShape), f'got: {type(shape).__name__}'
+    if not shape[1:].is_fully_defined():
+      raise ValueError(
+          ('All shape dimensions except the outermost must be fully defined,'
+           f' got shape={shape}.'))
+
     if metadata is not None and const.validate_internal_results:
       assert isinstance(metadata, Mapping)
       for k, v in metadata.items():
@@ -509,6 +515,18 @@ class GraphPieceSpecBase(type_spec.BatchableTypeSpec, metaclass=abc.ABCMeta):
 
   def _batch(self, batch_size: Optional[int]) -> 'GraphPieceSpecBase':
     """Extension Types API: Batching."""
+    if not self._shape.is_fully_defined():
+      raise NotImplementedError((
+          f'Batching a graph piece without fully defined shape={self.shape} is'
+          ' not supported. This error is typically a result of two consecutive'
+          ' dataset batching, as ds.batch(batch_size1).batch(batch_size2),'
+          ' where the first batch operation produces graph pieces with an'
+          ' undefined (None) outermost dimension as it allows incomplete'
+          ' batches. This indicates a potential error, as it is not generally'
+          ' possible to stack two pieces with different shapes. If that is the'
+          ' case, consider setting drop_remainder=True, for'
+          ' ds.batch(batch_size1, drop_remainder=True).batch(batch_size2).'
+      ))
 
     def batch_fn(spec):
       # Convert all specs for potentially ragged tensors to ragged rank-0 type

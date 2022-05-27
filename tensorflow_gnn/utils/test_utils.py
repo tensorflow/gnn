@@ -28,7 +28,7 @@ def get_resource(filename: str) -> str:
     OSError: If the resource filename does not exist.
   """
   # pylint: disable=unreachable
-  filename = path.join(find_root(__file__), filename)
+  filename = path.join(filename)
   if not path.exists(filename):
     raise OSError("Resource {} does not exist.".format(filename))
   return filename

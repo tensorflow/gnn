@@ -6,7 +6,8 @@ The `tensorflow_gnn` library supports reading streams of `tf.train.Example`
 proto messages with all the contents of a graph encoded in them. This document
 describes how to produce such a stream of encoded data using the library helper
 functions, details of the encoding (if you’d like to write your own graph data
-generator). You can provide this tool the large
+generator), and showcases a scalable sampling tool based on Apache Beam that we
+provide to sample from very large graph. You can provide this tool the large
 graph format it supports, further adapt it to process data in the formats you
 own.
 
@@ -49,12 +50,11 @@ writing jobs that will run on a variety of platforms, clusters and clouds.
 There are a variety of graph data formats in existence and your application data
 may even live on an in-house data warehousing server. This means that in many
 cases you will end up having to write your own sampler and produce the sampled
-data format directly instead of
-using converters we provide. The
-sampled data is encoded as a set of `tf.train.Feature` objects within a
-`tf.train.Example` protocol buffer (protocol buffer messages are efficient
-compact binary containers for your training data). For more information about
-these, see the
+data format directly instead of using the sampling tools and converters we
+provide. The sampled data is encoded as a set of `tf.train.Feature` objects
+within a `tf.train.Example` protocol buffer (protocol buffer messages are
+efficient compact binary containers for your training data). For more
+information about these, see the
 [TensorFlow documentation](https://www.tensorflow.org/api_docs/python/tf/train/Example)
 .
 
@@ -439,3 +439,316 @@ gt = tfgnn.GraphTensor.from_pieces(
 
 tfgnn.write_example(gt)
 ```
+
+## Running the Built-in Sampler
+
+The library comes with a basic sampler implementation that can produce such
+streams of encoded `tf.train.Example` proto messages in sharded output files.
+This is the format we produce for training datasets from data preparation jobs.
+
+### Input Graph Format
+
+The graph sampler accepts graphs in a simple data format we call “unigraph.”
+This data format supports very large graphs, homogeneous and heterogeneous
+graphs, with variable numbers of node sets and edge sets. In order to use the
+graph sampler tool we provide, you need to convert your graph to unigraph
+format.
+
+A text-formatted protocol buffer message file describes the topology of a
+unigraph formatted graph using the same `GraphSchema` message used for graph
+tensors (but describing the full, unsampled graph), and for each context, node
+set and edge set, there is an associated “table” of ids and features. Each table
+can be one of many supported formats, such as a CSV file, sharded files of
+serialized `tf.train.Example` protos in a TFRecords container, and more. The
+filename associated with each set’s table is provided as metadata in the
+`filename` field of its metadata and can be an absolute or local path
+specification. Typically, a schema and all the tables live under the same
+directory, which is dedicated to that graph’s data.
+
+Any sets of features can be defined on these tables; requirements on the table
+files are minimal:
+
+*   Node sets are required to provide a special **id** string column to identify
+    the node row.
+*   Edge sets are required to provide two special string columns: **source** and
+    **target**, defining the origin and destination of the edge. Edge rows may
+    also contain features, such as weight, or anything else, really.
+*   Context sets have no special requirement, this is for a table of data
+    applying to the entire graph (and rarely used).
+
+This format is kept as simple and flexible on purpose. See `unigraph.py` in the
+source code for an Apache Beam reader library that can be used to read those
+files and process them.
+
+### Sampler Configuration
+
+The sampler is configured by providing three files:
+
+*   **A graph, in unigraph format.** This is specified by providing the path to
+    the text-formatted `GraphSchema` protocol buffer file, or the directory
+    containing it and the graph’s data tables. This file has to include
+    `filename` fields to existing files.
+*   **A sampling specification.** This is a text-formatted
+    `sampling_spec.proto:SamplingSpec`proto file that defines how sampling will
+    be performed. For example, you can specify how many sampling steps to run
+    and which sampling strategy to use at each hop. For full details on the
+    sampling specification, see the proto file for instructions. There is also
+    an example below.
+*   **The seed node ids to sampler.** An (optional) input file with a list of
+    nodes of interest at which to seed the sampling. This defines the points
+    where the sampler will gather a neighborhood for training, testing and/or
+    inference. This file can be in any of the supported `Universal Graph Format`
+    table formats. If this is not provided, very node specified in the `seed_op`
+    node set will be used as a sampling seed.
+
+Upon completion, the sampler will output a file with **serialized `GraphTensor`
+instances as `tf.train.Example` protos**. These can then be read using the
+`tfgnn.parse_example()` function mapping over a stream of these protos provided
+by a `tf.data.Dataset`, as is customary in TensorFlow.
+
+### Example Configuration
+
+The following is an example of sampling over the OGBN-MAG dataset, a large,
+popular heterogeneous citation network. The graph has four node sets (or types):
+
+*   "paper" contains 736,389 published academic papers, each with a
+    128-dimensional word2vec feature vector computed by averaging the embeddings
+    of the words in its title and abstract.
+*   "field_of_study" contains 59,965 fields of study, with no associated
+    features.
+*   "author" contains the 1,134,649 distinct authors of the papers, with no
+    associated features.
+*   "institution" contains 8740 institutions listed as affiliations of authors,
+    with no associated features.
+
+The graph has four directed edge sets (or types), with no associated features on
+any of them.
+
+*   "cites" contains 5,416,217 edges from papers to the papers they cite.
+*   "has_topic" contains 7,505,078 edges from papers to their zero or more
+    fields of study.
+*   "writes" contains 7,145,660 edges from authors to the papers that list them
+    as authors.
+*   "affiliated_with" contains 1,043,998 edges from authors to the zero or more
+    institutions that have been listed as their affiliation(s) on any paper.
+
+The following GraphSchema message (pbtxt file) would define the graph topology
+for the full graph, defining all the node sets and the edges sets relating them:
+
+```
+node_sets {
+  key: "author"
+  value {
+    features {
+      key: "#id"
+      value {
+        dtype: DT_STRING
+      }
+    }
+    metadata {
+      filename: "nodes-author.tfrecords@15"
+      cardinality: 1134649
+    }
+  }
+}
+node_sets {
+  key: "field_of_study"
+  value {
+    features {
+      key: "#id"
+      value {
+        dtype: DT_STRING
+      }
+    }
+    metadata {
+      filename: "nodes-field_of_study.tfrecords@2"
+      cardinality: 59965
+    }
+  }
+}
+node_sets {
+  key: "institution"
+  value {
+    features {
+      key: "#id"
+      value {
+        dtype: DT_STRING
+      }
+    }
+    metadata {
+      filename: "nodes-institution.tfrecords"
+      cardinality: 8740
+    }
+  }
+}
+node_sets {
+  key: "paper"
+  value {
+    features {
+     key: "#id"
+      value {
+        dtype: DT_STRING
+      }
+    }
+    features {
+      key: "feat"
+      value {
+        dtype: DT_FLOAT
+        shape {
+          dim {
+            size: 128
+          }
+        }
+      }
+    }
+    features {
+      key: "labels"
+      value {
+        dtype: DT_INT64
+        shape {
+          dim {
+            size: 1
+          }
+        }
+      }
+    }
+    features {
+      key: "year"
+      value {
+        dtype: DT_INT64
+        shape {
+          dim {
+            size: 1
+          }
+        }
+      }
+    }
+    metadata {
+      filename: "nodes-paper.tfrecords@397"
+      cardinality: 736389
+    }
+  }
+}
+edge_sets {
+  key: "affiliated_with"
+  value {
+    source: "author"
+    target: "institution"
+    metadata {
+      filename: "edges-affiliated_with.tfrecords@30"
+      cardinality: 1043998
+    }
+  }
+}
+edge_sets {
+  key: "cites"
+  value {
+    source: "paper"
+    target: "paper"
+    metadata {
+      filename: "edges-cites.tfrecords@120"
+      cardinality: 5416271
+    }
+  }
+}
+edge_sets {
+  key: "has_topic"
+  value {
+    source: "paper"
+    target: "field_of_study"
+    metadata {
+      filename: "edges-has_topic.tfrecords@226"
+      cardinality: 7505078
+    }
+  }
+}
+edge_sets {
+  key: "writes"
+  value {
+    source: "author"
+    target: "paper"
+    metadata {
+      filename: "edges-writes.tfrecords@172"
+      cardinality: 7145660
+    }
+  }
+}
+```
+
+One task is to **predict the venue** (journal or conference) at which a paper
+from a test set has been published. Given the large number of papers in the
+dataset, it may be possible to sample subgraphs from the full graph starting
+from the "paper" node set. A plausible sampling specification for this task
+could be:
+
+```
+seed_op {
+  op_name: "seed"
+  node_set_name: "paper"
+
+}
+sampling_ops {
+  op_name: "seed->paper"
+  input_op_names: "seed"
+  edge_set_name: "cites"
+  sample_size: 32
+  # Sample edges uniformly at random, because that works without any further
+  # information. We could use TOP_K or RANDOM_WEIGHTED if we had put a
+  # "#weight" column into the edge set's input table.
+  strategy: RANDOM_UNIFORM
+}
+sampling_ops {
+  op_name: "paper->author"
+  input_op_names: ["seed", "seed->paper"]
+  edge_set_name: "written"
+  sample_size: 8
+  strategy: RANDOM_UNIFORM
+}
+sampling_ops {
+  op_name: "author->paper"
+  input_op_names: "paper->author"
+  edge_set_name: "writes"
+  sample_size: 16
+  strategy: RANDOM_UNIFORM
+}
+sampling_ops {
+  op_name: "author->institution"
+  input_op_names: "paper->author"
+  edge_set_name: "affiliated_with"
+  sample_size: 16
+  strategy: RANDOM_UNIFORM
+}
+sampling_ops {
+  op_name: "paper->field_of_study"
+  input_op_names: ["seed", "seed->paper", "author->paper"]
+  edge_set_name: "has_topic"
+  sample_size: 16
+  strategy: RANDOM_UNIFORM
+}
+```
+
+The sampling specification deines the following graph sampling traversal scheme:
+
+1.  Use all entries in the "papers" node set as "seed" nodes (roots of the
+    sampled subgraphs).
+2.  Sample 16 more papers randomly starting from the "seed" nodes through the
+    citation network. Call this sampled set "seed->paper".
+3.  For both the "seed" and "seed->paper" sets, sample 8 authors using the
+    "written" edge set. Name the resulting set of sampled authors
+    "paper->author".
+4.  For each author in the "paper->author" set, sample 16 institutions via the
+    "affiliated_with" edge set.
+5.  For each paper in the "seed", "seed->paper" and "author->paper" sample 16
+    fields of study via the "has_topic" relation.
+
+### Sampling Homogeneous Graphs
+
+The example above supports any number of node sets and is broadly general over
+heterogeneous graphs. Note that this maps well to database tables with cross
+references: you would write a custom job to extract the data to be sampled from
+your database to Unigraph format, or write a sampler that directly accesses them
+yourself.
+
+Homogeneous graphs in this context are simply degenerate graphs with a single
+set of nodes and a single set of edges. There is nothing special to do to
+support them.

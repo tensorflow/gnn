@@ -1,5 +1,4 @@
-"""GraphTensor adjacency types.
-"""
+"""GraphTensor adjacency types."""
 
 from typing import Dict, Mapping, Optional, Tuple, Union
 
@@ -22,15 +21,22 @@ Indices = Mapping[IncidentNodeTag, Index]
 
 
 class HyperAdjacency(gp.GraphPieceBase):
-  """Stores edges as indices of nodes in node sets.
+  """Stores how (hyper-)edges connect tuples of nodes from incident node sets.
 
-  Node adjacency is represented as a mapping of unique node tags to pairs of
-  (node set names, index tensors) into them. The tags are `SOURCE` and
-  `TARGET` for ordinary graphs but there can be more of them for hypergraphs
-  (e.g., edges linking more than two nodes, also known as "hyper-edges"). All
-  index tensors must agree in their type (`tf.Tensor` or `tf.RaggedTensor`),
-  integer dtype, and shape. Corresponding values are the indices of nodes that
-  belong to the same hyper-edge.
+  The incident node sets in the hyper-adjacency are referenced by a unique
+  integer identifier called the node set tag. (For a non-hyper graph, it is
+  conventional to use the integers `tfgnn.SOURCE` and `tfgnn.TARGET`.) This
+  allows the hyper-adjacency to connect nodes from the same or different node
+  sets. Each hyper-edge connects a fixed number of nodes, one node from each
+  incident node set. The adjacency information is stored as a mapping from the
+  node set tags to integer tensors containing indices of nodes in corresponding
+  node sets. Those tensors are indexed by edges. All index tensors have the same
+  type spec and shape of `[*graph_shape, num_edges]`, where num_edges is the
+  number of edges in the edge set (could be potentially ragged). The index
+  tensors are of `tf.Tensor` type if num_edges is not None or
+  `graph_shape.rank = 0` and of `tf.RaggedTensor` type otherwise.
+
+  The HyperAdjacency is a composite tensor.
   """
 
   # TODO(b/210004712): Replace `*_` by more Pythonic `*`.
@@ -42,42 +48,43 @@ class HyperAdjacency(gp.GraphPieceBase):
                    validate: bool = True) -> 'HyperAdjacency':
     """Constructs a new instance from the `indices` tensors.
 
-    Example 1. Single graph (rank is 0). Connects pairs of nodes (a.0, b.2),
-    (a.1, b.1), (a.2, b.0) from node sets a and b:
+    Example 1. Single graph (rank is 0). Connects pairs of nodes (a[0], b[2]),
+    (a[1], b[1]), (a[2], b[0]) from node sets a and b:
 
-        gnn.HyperAdjacency.from_indices({
-            gnn.SOURCE: ('a', [0, 1, 2]),
-            gnn.TARGET: ('b', [2, 1, 0])
+        tfgnn.HyperAdjacency.from_indices({
+            tfgnn.SOURCE: ('a', [0, 1, 2]),
+            tfgnn.TARGET: ('b', [2, 1, 0])
         })
 
     Example 2. Single hypergraph (rank is 0). Connects triplets of nodes
-    (a.0, b.2, c.1), (a.1, b.1, c.0) from the node sets a, b and c:
+    (a[0], b[2], c[1]), (a[1], b[1], c[0]) from the node sets a, b and c:
 
-        gnn.HyperAdjacency.from_indices({
+        tfgnn.HyperAdjacency.from_indices({
             0: ('a', [0, 1]),
             1: ('b', [2, 1]),
             2: ('c', [1, 0]),
         })
 
-    Example 3. Batch of two graphs (rank is 1). Connects pairs of nodes
-    graph 0: (a.0, b.2), (a.1, b.1); graph 1: (a.2, b.0):
+    Example 3. Batch of two graphs (rank is 1). Connects pairs of nodes in
+    graph 0: (a[0], b[2]), (a[1], b[1]); graph 1: (a[2], b[0]):
 
-        gnn.HyperAdjacency.from_indices({
-            gnn.SOURCE: ('a', tf.ragged.constant([[0, 1], [2]])),
-            gnn.TARGET: ('b', tf.ragged.constant([[2, 1], [0]])),
+        tfgnn.HyperAdjacency.from_indices({
+            tfgnn.SOURCE: ('a', tf.ragged.constant([[0, 1], [2]])),
+            tfgnn.TARGET: ('b', tf.ragged.constant([[2, 1], [0]])),
         })
 
     Args:
-      indices: Mapping from node tags to tuples of node set names and integer
-        Tensors or RaggedTensors with the indices of nodes in the respective
-        node set. All tensors must have shape = graph_shape + [num_edges], where
-        num_edges is a number of edges in each graph. If graph_shape.rank > 0
-        and num_edges has variable size, the tensors are ragged.
-      validate: if set, checks that node indices have the same shapes.
+      indices: A mapping from node tags to 2-tuples of node set name and node
+        index tensor. The index tensors must have the same type spec and shape
+        of `[*graph_shape, num_edges]`, where num_edges is the number of edges
+        in each graph (could be ragged). The index tensors are of `tf.Tensor`
+        type if num_edges is not None or `graph_shape.rank = 0` and of
+        `tf.RaggedTensor` type otherwise.
+      validate: If True, checks that node indices have the same type spec.
 
     Returns:
-      A `HyperAdjacency` tensor with a shape and an indices_dtype being inferred
-      from the `indices` values.
+      A `HyperAdjacency` tensor with its `shape` and `indices_dtype` being
+      inferred from the passed `indices` values.
     """
     if _:
       raise TypeError('Positional arguments are not supported:', _)
@@ -94,6 +101,9 @@ class HyperAdjacency(gp.GraphPieceBase):
         _node_tag_to_index_key(tag): index
         for tag, (_, index) in indices.items()
     }
+    # This graph piece uses metadata fields as a mapping from an indcident node
+    # tag as f'{const.INDEX_KEY_PREFIX}{node_tag}' (see b/187015015) to the
+    # node set name.
     metadata = {
         _node_tag_to_index_key(tag): name for tag, (name, _) in indices.items()
     }
@@ -105,16 +115,16 @@ class HyperAdjacency(gp.GraphPieceBase):
         metadata=metadata)
 
   def __getitem__(self, node_set_tag: IncidentNodeTag) -> Field:
-    """Returns index tensor for a given node set tag."""
+    """Returns an index tensor for the given node set tag."""
     return self._data[_node_tag_to_index_key(node_set_tag)]
 
   def node_set_name(self, node_set_tag: IncidentNodeTag) -> NodeSetName:
-    """Returns node set name for a given node set tag."""
+    """Returns a node set name for the given node set tag."""
     return self.spec.node_set_name(node_set_tag)
 
   def get_indices_dict(
       self) -> Dict[IncidentNodeTag, Tuple[NodeSetName, Field]]:
-    """Returns copy of indices tensor."""
+    """Returns copy of indices as a dictionary."""
     return {
         _index_key_to_node_tag(key):
         (self.node_set_name(_index_key_to_node_tag(key)), index)
@@ -150,7 +160,7 @@ class HyperAdjacency(gp.GraphPieceBase):
 
 @type_spec.register('tensorflow_gnn.HyperAdjacencySpec')
 class HyperAdjacencySpec(gp.GraphPieceSpecBase):
-  """TypeSpec for HyperAdjacency."""
+  """A type spec for `tfgnn.HyperAdjacency`."""
 
   @classmethod
   def from_incident_node_sets(
@@ -162,11 +172,12 @@ class HyperAdjacencySpec(gp.GraphPieceSpecBase):
     """Constructs a new instance from the `incident_node_sets`.
 
     Args:
-      incident_node_sets: mapping from incident node tags to node set names.
-      index_spec: type spec for all index tensors. Its shape must be graph_shape
-        + [num_edges], where num_edges is the number of edges in each graph. If
-        graph_shape.rank > 0 and num_edges has variable size, the spec should be
-        an instance of tf.RaggedTensorSpec.
+      incident_node_sets: A mapping from incident node tags to node set names.
+      index_spec: type spec for all index tensors of shape
+        `[*graph_shape, num_edges]`, where num_edges is the number of edges in
+        each graph. If num_edges is not None or `graph_shape.rank = 0` the spec
+        must be of `tf.TensorSpec` type and of `tf.RaggedTensorSpec` type
+        otherwise.
 
     Returns:
       A `HyperAdjacencySpec` TypeSpec.
@@ -180,6 +191,9 @@ class HyperAdjacencySpec(gp.GraphPieceSpecBase):
     data_spec = {
         _node_tag_to_index_key(tag): index_spec for tag in incident_node_sets
     }
+    # This graph piece uses metadata fields as a mapping from an indcident node
+    # tag as f'{const.INDEX_KEY_PREFIX}{node_tag}' (see b/187015015) to the
+    # node set name.
     metadata = {
         _node_tag_to_index_key(tag): name
         for tag, name in incident_node_sets.items()
@@ -195,12 +209,12 @@ class HyperAdjacencySpec(gp.GraphPieceSpecBase):
     return HyperAdjacency
 
   def __getitem__(self, node_set_tag: IncidentNodeTag) -> FieldSpec:
-    """Returns index tensor type spec for a given node set tag."""
+    """Returns an index tensor type spec for the given node set tag."""
     return self._data_spec[_node_tag_to_index_key(node_set_tag)]
 
   def get_index_specs_dict(
       self) -> Dict[IncidentNodeTag, Tuple[NodeSetName, FieldSpec]]:
-    """Returns copy of index type specs."""
+    """Returns copy of indices type specs as a dictionary."""
     return {
         _index_key_to_node_tag(key):
         (self.node_set_name(_index_key_to_node_tag(key)), index)
@@ -208,25 +222,32 @@ class HyperAdjacencySpec(gp.GraphPieceSpecBase):
     }
 
   def node_set_name(self, node_set_tag: IncidentNodeTag) -> NodeSetName:
-    """Returns node set name for a given node set tag."""
+    """Returns a node set name for the given node set tag."""
     return self._metadata[_node_tag_to_index_key(node_set_tag)]
 
   @property
   def total_size(self) -> Optional[int]:
-    """Returns the total number of edges across dimensions if known."""
+    """The total number of edges if known."""
     ind_spec = _get_indicative_index(self._data_spec)
     assert ind_spec is not None
     return ind_spec.shape[:(self.rank + 1)].num_elements()
 
 
 class Adjacency(HyperAdjacency):
-  """Stores simple binary edges with a source and target.
+  """Stores how edges connect pairs of nodes from source and target node sets.
 
-  Node adjacency is represented as mapping of source and target edge endpoints
-  to pairs of (node set names, index tensors) into them. All index tensors must
-  agree in their type (`tf.Tensor` or `tf.RaggedTensor`), integer dtype, and
-  shape. Corresponding values are the indices of nodes that belong to the same
-  edge.
+  Each hyper-edge connect one node from the source node set with one node from
+  the target node sets. The source and target node sets could be the same.
+  The adjacency information is a pair of integer tensors containing indices of
+  nodes in source and target node sets. Those tensors are indexed by
+  edges, have the same type spec and shape of `[*graph_shape, num_edges]`,
+  where num_edges is the number of edges in the edge set (could be potentially
+  ragged). The index tensors are of `tf.Tensor` type if num_edges is not None
+  or `graph_shape.rank = 0` and of`tf.RaggedTensor` type otherwise.
+
+  The Adjacency is a composite tensor and a special case of tfgnn.HyperAdjacency
+  class with `tfgnn.SOURCE` and `tfgnn.TARGET` node tags used for the source and
+  target nodes correspondingly.
   """
 
   # TODO(b/210004712): Replace `*_` by more Pythonic `*`.
@@ -237,28 +258,30 @@ class Adjacency(HyperAdjacency):
                    target: Index,
                    *_,
                    validate: bool = True) -> 'Adjacency':
-    """Constructs a new instance from the `indices` tensors.
+    """Constructs a new instance from the `source` and `target` node indices.
 
-    Example 1. Single graph (rank is 0). Connects pairs of nodes (a.0, b.2),
-    (a.1, b.1), (a.2, b.0) from node sets a and b:
+    Example 1. Single graph (rank is 0). Connects pairs of nodes (a[0], b[2]),
+    (a[1], b[1]), (a[2], b[0]) from node sets a and b:
 
-        gnn.Adjacency.from_indices(('a', [0, 1, 2]),
-                                   ('b', [2, 1, 0]))
+        tfgnn.Adjacency.from_indices(('a', [0, 1, 2]),
+                                     ('b', [2, 1, 0]))
 
-    Example 2. Batch of two graphs (rank is 1). Connects pairs of nodes
-    graph 0: (a.0, b.2), (a.1, b.1); graph 1: (a.2, b.0):
+    Example 2. Batch of two graphs (rank is 1). Connects pairs of nodes in
+    graph 0: (a[0], b[2]), (a[1], b[1]); graph 1: (a[2], b[0]):
 
-        gnn.Adjacency.from_indices(('a', tf.ragged.constant([[0, 1], [2]])),
-                                   ('b', tf.ragged.constant([[2, 1], [0]])))
+        tfgnn.Adjacency.from_indices(('a', tf.ragged.constant([[0, 1], [2]])),
+                                     ('b', tf.ragged.constant([[2, 1], [0]])))
 
     Args:
-      source: Tuple of (node set name, integer Tensors or RaggedTensors with the
-        indices of nodes in the respective node set). Must have shape =
-        graph_shape + [num_edges], where num_edges is a number of edges in each
-        graph. If graph_shape.rank > 0 and num_edges has variable size, the
-        tensors are ragged.
-      target: Like `source` field, but for target edge endpoint.
-      validate: if set, checks that node indices have the same shapes.
+      source: The tuple of node set name and nodes index integer tensor. The
+        index must have shape of `[*graph_shape, num_edges]`, where num_edges
+        is the number of edges in each graph (could be ragged). It has
+        `tf.Tensor` type if num_edges is not None or `graph_shape.rank = 0` and
+        `tf.RaggedTensor` type otherwise.
+      target: Like `source` field, but for target edge endpoint. Index tensor
+        must have the same type spec as for the `source`.
+      validate: If True, checks that source and target indices have the same
+        type spec.
 
     Returns:
       An `Adjacency` tensor with a shape and an indices_dtype being inferred
@@ -270,20 +293,22 @@ class Adjacency(HyperAdjacency):
 
   @property
   def source(self) -> Field:
+    """The indices of source nodes."""
     return self[const.SOURCE]
 
   @property
   def target(self) -> Field:
+    """The indices of target nodes."""
     return self[const.TARGET]
 
   @property
   def source_name(self) -> NodeSetName:
-    """Returns the node set name for source nodes."""
+    """The node set name of source nodes."""
     return self.node_set_name(const.SOURCE)
 
   @property
   def target_name(self) -> NodeSetName:
-    """Returns the node set name for target nodes."""
+    """The node set name of target nodes."""
     return self.node_set_name(const.TARGET)
 
   @staticmethod
@@ -299,7 +324,7 @@ class Adjacency(HyperAdjacency):
 
 @type_spec.register('tensorflow_gnn.AdjacencySpec')
 class AdjacencySpec(HyperAdjacencySpec):
-  """TypeSpec for Adjacency."""
+  """A type spec for `tfgnn.Adjacency`."""
 
   @classmethod
   def from_incident_node_sets(
@@ -312,12 +337,13 @@ class AdjacencySpec(HyperAdjacencySpec):
     """Constructs a new instance from the `incident_node_sets`.
 
     Args:
-      source_node_set: A string, the name of the source node set.
-      target_node_set: A string, the name of the target node set.
-      index_spec: type spec for all index tensors. Its shape must be graph_shape
-        + [num_edges], where num_edges is the number of edges in each graph. If
-        graph_shape.rank > 0 and num_edges has variable size, the spec should be
-        an instance of tf.RaggedTensorSpec.
+      source_node_set: The name of the source node set.
+      target_node_set: The name of the target node set.
+      index_spec: type spec for source and target index tensors of shape
+        `[*graph_shape, num_edges]`, where num_edges is the number of edges in
+        each graph. If num_edges is not None or `graph_shape.rank = 0` the spec
+        must be of `tf.TensorSpec` type and of `tf.RaggedTensorSpec` type
+        otherwise.
 
     Returns:
       A `AdjacencySpec` TypeSpec.
@@ -358,7 +384,7 @@ def _validate_indices(indices: Indices) -> Indices:
 
   def check_index(tag, name, index):
     if index.dtype not in (tf.int32, tf.int64):
-      raise ValueError((f'Adjacency indices ({tag_0}, {name_0}) must have '
+      raise ValueError((f'Adjacency indices ({tag}, {name}) must have '
                         f'tf.int32 or tf.int64 dtype, got {index.dtype}'))
     if isinstance(index, tf.RaggedTensor):
       if index.flat_values.shape.rank != 1:
@@ -395,7 +421,7 @@ def _validate_indices(indices: Indices) -> Indices:
                 message=err_message))
         return
     except:
-      raise ValueError(err_message)
+      raise ValueError(err_message) from None
 
     raise ValueError(err_message)
 

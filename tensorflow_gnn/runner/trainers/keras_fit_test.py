@@ -1,4 +1,4 @@
-"""Tests for attribution."""
+"""Tests for keras_fit."""
 import tensorflow as tf
 
 from tensorflow_gnn.runner import orchestration

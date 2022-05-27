@@ -109,12 +109,12 @@ def set_initial_node_state(node_set, node_set_name):
 
 Either way, the tensors returned by `set_initial_node_state` are stored in the
 output `GraphTensor` of `MapFeatures` as features with the name
-`"hidden_state"`, for which TF-GNN defines the constant `DEFAULT_STATE_NAME`:
+`"hidden_state"`, for which TF-GNN defines the constant `tfgnn.HIDDEN_STATE`:
 
 ```python
 graph = tfgnn.keras.layers.MapFeatures(
     node_sets_fn=set_initial_node_state)(input_graph)
-assert list(graph.node_sets["authors"].keys()) == [tfgnn.DEFAULT_STATE_NAME]
+assert list(graph.node_sets["authors"].keys()) == [tfgnn.HIDDEN_STATE]
 ```
 
 Observe how all other node features are dropped. (If that's undesired for
@@ -198,7 +198,7 @@ graph = gnn(graph)
 
 ```python
 ...  # As above.
-logits = tf.keras.layers.Dense(1)(graph.node_sets["papers"][tfgnn.DEFAULT_STATE_NAME])
+logits = tf.keras.layers.Dense(1)(graph.node_sets["papers"][tfgnn.HIDDEN_STATE])
 model = tf.keras.Model(input_graph, logits)
 ```
 
@@ -434,7 +434,7 @@ transform the features of any of these graph pieces. Please refer to its
 documentation for details. In particular, this is how input features on edge
 sets and the context can be embedded or combined in a trainable manner at the
 start of the model. For features that are not updated like hidden states, we
-recommend using a descriptive name other name than `tfgnn.DEFAULT_STATE_NAME`.
+recommend using a descriptive name other name than `tfgnn.HIDDEN_STATE`.
 To do so, return a singleton dict `{"my_feature": tensor}` instead of the plain
 `tensor`.
 
@@ -520,7 +520,7 @@ the actual computations:
 Please see the class docstring for details. The later section on "convolutions
 to context" will discuss pooling in smarter ways with attention.
 
-The context state, stored under feature name `tfgnn.DEFAULT_STATE_NAME`, can be
+The context state, stored under feature name `tfgnn.HIDDEN_STATE`, can be
 used in node set updates (and the edge set updates discussed below) much like
 any context feature.
 
@@ -643,10 +643,10 @@ class MyFirstConvolution(tf.keras.layers.Layer):
   def call(self, graph, edge_set_name):
     receiver_states = tfgnn.broadcast_node_to_edges(
         graph, edge_set_name, self._receiver_tag,
-        feature_name=tfgnn.DEFAULT_STATE_NAME)
+        feature_name=tfgnn.HIDDEN_STATE)
     sender_states = tfgnn.broadcast_node_to_edges(
         graph, edge_set_name, tfgnn.reverse_tag(self._receiver_tag),
-        feature_name=tfgnn.DEFAULT_STATE_NAME)
+        feature_name=tfgnn.HIDDEN_STATE)
 
     message_inputs = [sender_states, receiver_states]
     messages = self._message_fn(tf.concat(message_inputs, axis=-1))
@@ -685,7 +685,7 @@ attention over the neighbor nodes, because it provides that same kind of
 attention for "smart pooling" of node states to the context.
 
 For example, `GATv2Conv(..., receiver_tag=tfgnn.CONTEXT)` supports this,
-as long as the context has a feature (`tfgnn.DEFAULT_STATE_NAME` or as
+as long as the context has a feature (`tfgnn.HIDDEN_STATE` or as
 specified) that can provide the query input for attention. This helps to reuse
 the same implementation of attention for both cases.
 
@@ -766,8 +766,8 @@ class ExampleConvolution(tfgnn.keras.layers.AnyToAnyConvolutionBase):
 
   def __init__(self, units, *,
                receiver_tag=None,
-               receiver_feature=tfgnn.DEFAULT_STATE_NAME,
-               sender_node_feature=tfgnn.DEFAULT_STATE_NAME,
+               receiver_feature=tfgnn.HIDDEN_STATE,
+               sender_node_feature=tfgnn.HIDDEN_STATE,
                sender_edge_feature=None,
                **kwargs):
     super().__init__(
@@ -832,7 +832,7 @@ For **edge-to-node** or **edge-to-context** pooling, we want a wrapper for layer
 creation to supply more appropriate default values:
 
 ```python
-def ExampleEdgePool(*args, sender_feature=tfgnn.DEFAULT_STATE_NAME, **kwargs):
+def ExampleEdgePool(*args, sender_feature=tfgnn.HIDDEN_STATE, **kwargs):
   return ExampleConvolution(*args, sender_node_feature=None,
                             sender_edge_feature=sender_feature, **kwargs)
 ```

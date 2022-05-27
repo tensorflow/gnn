@@ -27,7 +27,7 @@ edge_sets {
     target: "node"
   }
 }
-""" % tfgnn.DEFAULT_STATE_NAME
+""" % tfgnn.HIDDEN_STATE
 
 
 class DeepGraphInfomaxTest(tf.test.TestCase):
@@ -43,7 +43,7 @@ class DeepGraphInfomaxTest(tf.test.TestCase):
           graph,
           "edge",
           tfgnn.TARGET,
-          feature_name=tfgnn.DEFAULT_STATE_NAME)
+          feature_name=tfgnn.HIDDEN_STATE)
       messages = tf.keras.layers.Dense(16)(values)
 
       pooled = tfgnn.pool_edges_to_node(
@@ -52,14 +52,14 @@ class DeepGraphInfomaxTest(tf.test.TestCase):
           tfgnn.SOURCE,
           reduce_type="sum",
           feature_value=messages)
-      h_old = graph.node_sets["node"].features[tfgnn.DEFAULT_STATE_NAME]
+      h_old = graph.node_sets["node"].features[tfgnn.HIDDEN_STATE]
 
       h_next = tf.keras.layers.Concatenate()((pooled, h_old))
       h_next = tf.keras.layers.Dense(8)(h_next)
 
       graph = graph.replace_features(
           node_sets={"node": {
-              tfgnn.DEFAULT_STATE_NAME: h_next
+              tfgnn.HIDDEN_STATE: h_next
           }})
 
     return tf.keras.Model(inputs=inputs, outputs=graph)
@@ -90,8 +90,8 @@ class DeepGraphInfomaxTest(tf.test.TestCase):
 
     for x, y in ds:
       self.assertAllEqual(
-          x.node_sets["node"].features[tfgnn.DEFAULT_STATE_NAME],
-          gt.node_sets["node"].features[tfgnn.DEFAULT_STATE_NAME])
+          x.node_sets["node"].features[tfgnn.HIDDEN_STATE],
+          gt.node_sets["node"].features[tfgnn.HIDDEN_STATE])
       self.assertAllEqual(
           y,
           tf.constant([[1, 0]], dtype=tf.int32))

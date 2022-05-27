@@ -16,6 +16,15 @@ py_proto_library(
     ],
 )
 
+py_library(
+    name = "graph_schema",
+    srcs = ["graph_schema.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":graph_schema_py_proto",
+    ],
+)
+
 py_proto_library(
     name = "examples_py_proto",
     srcs = ["examples.proto"],

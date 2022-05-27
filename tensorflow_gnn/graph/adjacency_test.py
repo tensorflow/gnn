@@ -160,7 +160,9 @@ class HyperAdjacencyTest(tf.test.TestCase, parameterized.TestCase):
 
   def testMergeRank2BatchToComponents(self):
     adj = adjacency.HyperAdjacency.from_indices({
-        0: ('node', tf.ragged.constant([[[0, 1], [1]], [[0], [0]]])),
+        0: ('node',
+            tf.RaggedTensor.from_uniform_row_length(
+                tf.ragged.constant([[0, 1], [1], [0], [0]]), 2)),
     })
     result = adj._merge_batch_to_components(
         as_tensor([2, 1, 1]), {

@@ -11,14 +11,12 @@ description: Parses a batch of serialized Example protos into a single GraphTens
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_io.py#L37-L82">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_io.py#L37-L83">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Parses a batch of serialized Example protos into a single `GraphTensor`.
 
@@ -59,7 +57,8 @@ verifications of this encoding.
 `spec`
 </td>
 <td>
-A graph tensor type specification.
+A graph tensor type specification of a single serialized graph tensor
+value.
 </td>
 </tr><tr>
 <td>
@@ -88,8 +87,6 @@ values form a valid GraphTensor. Defaults to True.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

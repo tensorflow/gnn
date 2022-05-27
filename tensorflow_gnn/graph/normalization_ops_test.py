@@ -20,7 +20,7 @@ class NormalizationOpsTest(tf.test.TestCase, parameterized.TestCase):
                'signals':
                    gt.NodeSet.from_fields(
                        features={
-                           const.DEFAULT_STATE_NAME: ct([1., 5., 3., 2., 4.]),
+                           const.HIDDEN_STATE: ct([1., 5., 3., 2., 4.]),
                        },
                        sizes=[5]),
            },
@@ -45,7 +45,7 @@ class NormalizationOpsTest(tf.test.TestCase, parameterized.TestCase):
                'signals':
                    gt.NodeSet.from_fields(
                        features={
-                           const.DEFAULT_STATE_NAME:
+                           const.HIDDEN_STATE:
                                rt([[1., 5., 3., 2., 4.], [1., 2., 3.]]),
                        },
                        sizes=[[5], [3]]),
@@ -77,7 +77,7 @@ class NormalizationOpsTest(tf.test.TestCase, parameterized.TestCase):
                'signals':
                    gt.NodeSet.from_fields(
                        features={
-                           const.DEFAULT_STATE_NAME: ct([]),
+                           const.HIDDEN_STATE: ct([]),
                        }, sizes=[0]),
            },
            edge_sets={
@@ -94,7 +94,7 @@ class NormalizationOpsTest(tf.test.TestCase, parameterized.TestCase):
                'signals':
                    gt.NodeSet.from_fields(
                        features={
-                           const.DEFAULT_STATE_NAME:
+                           const.HIDDEN_STATE:
                                rt([[1., 5., 3., 2., 4.], []]),
                        },
                        sizes=[[5], [0]]),
@@ -122,7 +122,7 @@ class NormalizationOpsTest(tf.test.TestCase, parameterized.TestCase):
   def testSoftmax(self, gt_input, want):
     """Unit tests for the softmax function."""
     broadcasted = ops.broadcast_node_to_edges(
-        gt_input, 'edges', const.SOURCE, feature_name=const.DEFAULT_STATE_NAME)
+        gt_input, 'edges', const.SOURCE, feature_name=const.HIDDEN_STATE)
     got = normalization_ops.softmax_edges_per_node(
         gt_input, 'edges', const.TARGET, feature_value=broadcasted)
     self.assertAllClose(got, want, atol=.001)

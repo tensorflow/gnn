@@ -3,7 +3,8 @@ import functools
 import itertools
 import os
 import sys
-from typing import Callable, Optional, Sequence
+from typing import Callable, Optional, Sequence, Tuple, Union
+import uuid
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -33,17 +34,33 @@ class _WrappedDatasetProvider:
                apply_fn: Callable[[tf.data.Dataset], tf.data.Dataset],
                delegate: DatasetProvider,
                drop_remainder: bool,
-               global_batch_size: int):
+               global_batch_size: int,
+               tf_data_service_address: Optional[str] = None):
     self._apply_fn = apply_fn
     self._delegate = delegate
     self._drop_remainder = drop_remainder
     self._global_batch_size = global_batch_size
+    self._tf_data_service_address = tf_data_service_address
+    self._tf_data_service_job_name = uuid.uuid4().hex
 
   def get_dataset(self, context: tf.distribute.InputContext) -> tf.data.Dataset:
+    """Get a `tf.data.Dataset`."""
+    if self._tf_data_service_address:
+      # Prevent any sharding for tf.data service.
+      context = tf.distribute.InputContext(
+          num_input_pipelines=1,
+          input_pipeline_id=0,
+          num_replicas_in_sync=context.num_replicas_in_sync)
     ds = self._delegate.get_dataset(context)
     ds = ds.batch(
         context.get_per_replica_batch_size(self._global_batch_size),
         drop_remainder=self._drop_remainder)
+    if self._tf_data_service_address:
+      ds = ds.apply(
+          tf.data.experimental.service.distribute(
+              processing_mode="parallel_epochs",
+              service=self._tf_data_service_address,
+              job_name=self._tf_data_service_job_name))
     return ds.apply(self._apply_fn)
 
 
@@ -114,10 +131,24 @@ class Trainer(Protocol):
     raise NotImplementedError()
 
 
+GraphTensorAndField = Tuple[tfgnn.GraphTensor, tfgnn.Field]
+
+
 @runtime_checkable
 class GraphTensorProcessorFn(Protocol):
+  """A class for `GraphTensor` processing."""
 
-  def __call__(self, gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
+  def __call__(
+      self,
+      gt: tfgnn.GraphTensor) -> Union[tfgnn.GraphTensor, GraphTensorAndField]:
+    """Processes a `GraphTensor` with optional `Field` extraction.
+
+    Args:
+      gt: A `GraphTensor` for processing.
+
+    Returns:
+      A processed `GraphTensor` or a processed `GraphTensor` and `Field.`
+    """
     raise NotImplementedError()
 
 
@@ -172,7 +203,8 @@ def run(*,
         drop_remainder: bool = True,
         export_dirs: Optional[Sequence[str]] = None,
         feature_processors: Optional[Sequence[GraphTensorProcessorFn]] = None,
-        valid_ds_provider: Optional[DatasetProvider] = None):
+        valid_ds_provider: Optional[DatasetProvider] = None,
+        tf_data_service_address: Optional[str] = None):
   """Runs training (and validation) of a model on a task with the given data.
 
   This includes preprocessing the input data, adapting the model by appending
@@ -203,6 +235,7 @@ def run(*,
       `tfgnn.Field`) where the `tfgnn.Field` is used for training labels.
     valid_ds_provider: A `DatasetProvider` for validation. The `tf.data.Dataset`
       is not batched and contains scalar `GraphTensor` values.
+    tf_data_service_address: Address for tf.data service.
   """
   preprocess_model = make_preprocess_model(gtspec, feature_processors or ())
 
@@ -224,11 +257,9 @@ def run(*,
     m.compile(optimizer_fn(), loss=task.losses(), metrics=task.metrics())
     return m
 
-  train_ds_provider = _WrappedDatasetProvider(
-      apply_fn,
-      train_ds_provider,
-      drop_remainder,
-      global_batch_size)
+  train_ds_provider = _WrappedDatasetProvider(apply_fn, train_ds_provider,
+                                              drop_remainder, global_batch_size,
+                                              tf_data_service_address)
 
   if valid_ds_provider is not None:
     valid_ds_provider = _WrappedDatasetProvider(

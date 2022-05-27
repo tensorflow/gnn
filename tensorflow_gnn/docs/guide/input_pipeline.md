@@ -17,6 +17,11 @@ For the preceding step of converting source data into TF-GNN's tf.Example format
 and defining a schema for it, please see guides on
 [Describing your graph](schema.md) and [Data preparation](data_prep.md).
 
+This doc provides an in-depth explanation, sufficient to implement your own
+input pipeline. For rapid experimentation, we recommend starting with the
+[TF-GNN Runner](runner.md) and its built-in file input and model export.
+(You can return here to find more details when needed.)
+
 
 ## File input and parsing
 

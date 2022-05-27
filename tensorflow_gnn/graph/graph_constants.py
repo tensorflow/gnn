@@ -30,7 +30,7 @@ RESERVED_FEATURES = frozenset({SIZE_NAME, SOURCE_NAME, TARGET_NAME})
 # The conventional feature name for the hidden state (neuron activations) of
 # an edge set, a node set or the context. Not special in GraphTensor, but used
 # in some modeling libraries on top if explicit names are not needed.
-DEFAULT_STATE_NAME = 'hidden_state'
+HIDDEN_STATE = 'hidden_state'
 
 # The pattern of feature names that are not allowed on a graph tensor and
 # schema.
@@ -80,3 +80,8 @@ validate_internal_results = True
 #
 # IMPORTANT: On TPUs tf.int64 is not implemented.
 default_indices_dtype = tf.int32
+
+# DEPRECATED
+
+# An older name used before tensorflow_gnn 0.2.
+DEFAULT_STATE_NAME = HIDDEN_STATE

@@ -29,7 +29,7 @@ class DeepGraphInfomax:
   def __init__(self,
                node_set_name: str,
                *,
-               state_name: str = tfgnn.DEFAULT_STATE_NAME,
+               state_name: str = tfgnn.HIDDEN_STATE,
                seed: Optional[int] = None):
     self._state_name = state_name
     self._node_set_name = node_set_name

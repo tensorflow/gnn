@@ -54,7 +54,7 @@ class GCNConv(tf.keras.layers.Layer):
   ...    node_sets={
   ...        tfgnn.NODES: tfgnn.NodeSet.from_fields(
   ...            sizes=[2, 2],
-  ...            features={tfgnn.DEFAULT_STATE_NAME: tf.constant(
+  ...            features={tfgnn.HIDDEN_STATE: tf.constant(
   ...                          [[1., 0, 0], [0, 1, 0]]*2)})},
   ...    edge_sets={
   ...        tfgnn.EDGES: tfgnn.EdgeSet.from_fields(
@@ -79,7 +79,7 @@ class GCNConv(tf.keras.layers.Layer):
                add_self_loops: bool = True,
                normalize: bool = True,
                kernel_initializer: bool = None,
-               node_feature: Optional[str] = tfgnn.DEFAULT_STATE_NAME,
+               node_feature: Optional[str] = tfgnn.HIDDEN_STATE,
                **kwargs):
 
     super().__init__(**kwargs)
@@ -173,7 +173,7 @@ def GCNConvGraphUpdate(*,  # To be called like a class initializer.  pylint: dis
                        units: int,
                        edge_set_name: str,
                        receiver_tag: tfgnn.IncidentNodeTag = tfgnn.TARGET,
-                       feature_name: str = tfgnn.DEFAULT_STATE_NAME,
+                       feature_name: str = tfgnn.HIDDEN_STATE,
                        name: str = 'gcn',
                        **kwargs):
   """Returns a graph update layer for GCN convolution.
@@ -196,7 +196,7 @@ def GCNConvGraphUpdate(*,  # To be called like a class initializer.  pylint: dis
       the incident nodes of a directed edge, data flow in a GNN may happen
       in either direction.)
     feature_name: The feature name of node states; defaults to
-      tfgnn.DEFAULT_STATE_NAME.
+      tfgnn.HIDDEN_STATE.
     name: Optionally, a name for the layer returned.
     **kwargs: Any optional arguments to GCNConv, see there.
   """

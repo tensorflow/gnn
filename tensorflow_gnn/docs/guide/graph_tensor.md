@@ -91,8 +91,8 @@ supports storing the feature as a `tf.RaggedTensor`, which allows for
 variable-size feature values. This support for an arbitrary number of features,
 ragged or dense, makes GraphTensor a good fit
 for both input features (often more than one, possibly variable-length)
-and hidden states in a GNN (stored as a single feature under the
-`tfgnn.DEFAULT_STATE_NAME = "hidden_state"`).
+and hidden states in a GNN (stored as a single feature under the name
+`tfgnn.HIDDEN_STATE = "hidden_state"`).
 
 Each edge set contains edges that connect a particular pair of source and target
 node sets. (There can be more than one edge set between the same pair of node
@@ -118,24 +118,44 @@ dict of **features** as well as the structural information stored in size and
 adjacency tensors.
 
 
-## GraphTensorSpec and GraphSchema
+## The GraphTensorSpec and static shapes
 
 Recall how TensorFlow distinguishes between the actual numbers in a Tensor,
 which may vary from one model input to the next, and the Tensor's dtype and
 shape, which typically are the same for all inputs (maybe except for some
-undefined dimensions in the shape). This allows to translate or "trace"
-the model's Python code into TensorFlow ops once, and then execute them in bulk,
-say, for a training loop. As a composite tensor, the same is true for each
-`tfgnn.GraphTensor`: Its associated `tfgnn.GraphTensorSpec` object holds the
-`tf.TensorSpec` and `tf.RaggedTensorSpec` objects for all its fields, plus a bit
-of metadata, notably adjacency.source_name and .target_name for each edge set.
-Inside a TensorFlow program, users can mostly just work with the GraphTensor;
-its spec will be updated on the fly, and TensorFlow can get it where needed.
+dimensions in the shape that are not statically known). This allows to translate
+or "trace" the model's Python code into TensorFlow ops once, and then execute
+them many times, say, for a training loop. As a composite tensor, the same is
+true for each `tfgnn.GraphTensor`: Its associated `tfgnn.GraphTensorSpec` object
+holds the `tf.TensorSpec` and `tf.RaggedTensorSpec` objects for all its fields,
+plus a bit of metadata, notably `adjacency.source_name` and `.target_name` for
+each edge set. Inside a TensorFlow program, users can mostly just work with the
+GraphTensor; its spec will be updated on the fly, and TensorFlow can get it
+where needed.
 
-One notable exception is the bulk input of GraphTensors from disk for training,
-which needs one GraphTensorSpec for all incoming values before any of them are
-read. This coincides with the need of other tools that handle graph data in bulk
-to know about the node sets, the edge sets, and their respective features.
+For consistency between its fields, GraphTensor tightens TensorFlow's usual
+rules for shapes as follows:
+
+  * Each field must have a shape of known rank (number of dimension).
+  * Each dimension has the meaning explained in the documentation. If the same
+    dimension occurs in the shapes of multiple fields (e.g., the number *n* of
+    nodes in a node set occurs in the shapes of all its features), it must have
+    the same value in the static shape of each.
+  * The value `None` is allowed only
+      * for the outermost (i.e., first) dimension of a field,
+      * for a ragged dimenson in a field that is a `tf.RaggedTensor`.
+
+The last item can be summarized as: `None` means outermost or ragged.
+It forbids the use of `None` for uniform dimensions of unknown size,
+except the outermost. This comes naturally for most applications and greatly
+simplifies code that deals with field values based on their shapes.
+
+## The GraphSchema
+
+The bulk input of GraphTensors from disk for training needs one GraphTensorSpec
+for all incoming values before any of them can be read. This coincides with the
+need of other tools that handle graph data in bulk to know about the node sets,
+the edge sets, and their respective features.
 To that end, the TF-GNN library defines the
 [tfgnn.GraphSchema](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/proto/graph_schema.proto)
 protocol message. We recommend that all GraphTensor datasets stored on disk
@@ -205,9 +225,15 @@ fields) not present in the GraphTensorSpec.
 
 Congratulations, you have now understood the basic structure of a GraphTensor!
 
-If you want to define your own model and/or understand what happens under the
-hood, you can read
+If you want to progress rapidly to training a first GNN model on your data,
+you can stop here and continue with the introduction to TF-GNN's
+[Runner](runner.md), which is an end-to-end training pipeline that comes with
+a pre-configured GNN model.
 
+If you want to define your own model and/or understand what happens under the
+hood, you can read the following in parallel:
+
+  * the end-to-end example (to be written),
   * the guides that cover its techniques in more depth:
       * the rest of this doc about GraphTensor,
       * the [modeling guide](gnn_modeling.md) for information about creating
@@ -295,14 +321,14 @@ length 1, i.e., with shape `[1]`. More generally, their shape is
 not added, when merging a batch of input graphs into one. This way,
 the separation between components (usually one per input graph) is preserved.
 
-Some input graphs may come with features that belong to the graph as a whole,
+Input graphs may come with features that belong to each input graph as a whole,
 not any particular node or edge. GraphTensor supports the notion of graph
-context to store such features. The graph context provides a map of features,
-much like node sets and edge sets, except that the context features have shape
-`[num_components, ...]`. That means, the items of the context are the graph
-components (just like the items of a node set are the nodes and the items of an
-edge set are the edges). For uniformity, the context also has a size tensor: its
-shape is `[num_components]`, and its values are all 1s.
+context to store such features. The `GraphTensor.context` object provides a map
+of features, much like node sets and edge sets, except that the context features
+have shape `[num_components, ...]`. That means, the items of the context are the
+graph components (just like the items of a node set are the nodes and the items
+of an edge set are the edges). For uniformity, the context also has a size
+tensor: its shape is `[num_components]`, and its values are all 1s.
 
 GraphTensor supports broadcast and pool operations between the context (that is,
 values per component) and an edge set or a node set (that is, values per edge or
@@ -327,44 +353,53 @@ The GraphTensors we've seen so far are scalar, that is to say, their shape is
 library expects such scalar GraphTensors. The previous section has described
 how one graph can contain multiple components as the result of merging multiple
 inputs into one graph. However, the direct construction of the merged graph
-from its pieces as seen above is impractical for bulk input for training,
-evaluation or inference.
+from its pieces is impractical for bulk input for training, evaluation or
+inference.
 
-To integrate with tf.data.Dataset, GraphTensor supports a two-step approach to
-combining multiple inputs: batching inputs, followed by merging each batch.
+To integrate with `tf.data.Dataset`, GraphTensor supports a two-step approach to
+combine multiple inputs: batching inputs, followed by merging each batch.
 
-Let's look at batching first. If a Dataset contains a GraphTensor of shape `[]`
-in its elements, then `dataset = dataset.batch(batch_size)` produces batched
-GraphTensors, which are no longer scalar but have shape `[batch_size]`
-(where, as usual, the size of the last batch can vary, unless
-`dataset.batch(..., drop_remainder=True)` is set). If you like, you can think
-of that as a vector of graphs. Technically, each graph in this GraphTensor could
-contain multiple components, but commonly it's just one.
+### Batching
 
-GraphTensors can be batched more than once, yielding shapes of rank 2 (a matrix
-of graphs), rank 3, rank 4, and so on, but that is rarely useful. As usual,
-batching can also be undone with `dataset.unbatch()`.
+Let's look at batching first. If a Dataset contains a GraphTensor of shape `[]`,
+then `dataset = dataset.batch(batch_size, drop_remainder=True)` produces
+batched GraphTensors that are no longer scalar but have shape `[batch_size]`.
+If you like, you can think of them as vectors of graphs, all of the same length.
+Technically, each graph in such a GraphTensor could contain multiple components,
+but commonly it's just one.
+
+With `drop_remainder=False` (the default), there might be a final batch that
+contains fewer that `batch_size` graphs. To account for that, the static shape
+of the GraphTensors from such a dataset is `[None]`.
 
 Batching requires that all GraphTensors have the same fields and essentially
-comes down to stacking them, with the caveat that the items dimension
-(`num_nodes`, `num_edges` or `num_components`) is treated as potentially ragged.
-That means, in a GraphTensor of shape `graph.shape`, all features have the
-shape `[*graph.shape, (num_items), *feature_shape]`
-(that is, `[batch_size, (num_items), *feature_shape]` in the common case of
-batching once).  The `num_items` dimension
-becomes ragged during batching, unless it happens to be statically known and
-equal across all inputs, which is typically not the case. By contrast, the
-dimensions in `*feature_shape` are not unchanged: each of them must be a ragged
-dimension across all inputs already, or a uniform (non-ragged) dimension with
-the same size across all inputs.
+comes down to stacking them, which results in prepending the `batch_size`
+or `None` as a new outermost dimension. If a field's previous outermost
+dimension was `None`, GraphTensor treats it as a ragged dimension, in line
+with the rule from above that `None` means outermost or ragged.
 
-At this stage, it is still easy to split a batch (say, between training
-replicas), or unbatch it again, because it merely collects multiple, separately
-indexed graphs.
+It is rarely useful, but GraphTensors can be batched more than once, yielding
+GraphTensor shapes of rank 2 (a matrix of graphs), rank 3, rank 4, and so on.
+Generally speaking, in a GraphTensor of shape `graph_shape`, all features have
+the shape `[*graph_shape, num_items, *feature_shape]`.
+
+For the common case of batching scalar GraphTensors once, this means all
+features have the shape `[batch_size, num_items, *feature_shape]`.
+If `num_items` is `None`, the field is a `tf.RaggedTensor`, and the
+batching operation turned `num_items` from the outermost into a ragged
+dimension. The dimensions in `feature_shape` stay unchanged.
+
+For now, GraphTensor requires that `GraphTensor.shape` does not contain `None`,
+except maybe as the outermost dimension. That means repeated calls to `.batch()`
+must set `drop_remainder=True` in all but the last one. Future versions of
+GraphTensor may lift that requirement.
+
+
+### Merging a batch of graphs to components of one graph
 
 On a batched GraphTensor, one can call the method
 `graph = graph.merge_batch_to_components()` to merge all graphs of the batch
-into one, contiguously indexed graph, as seen in the previous section.
+into one, contiguously indexed graph, as described above.
 The resulting GraphTensor has shape `[]` (i.e., is scalar) and its features
 have the shape `[total_num_items, *feature_shape]` where `total_num_items` is
 the sum of the previous `num_items` per batch element. At that stage,
@@ -400,6 +435,7 @@ each.
     tensor-to-tensor functions from `tf.*`, which will be wrapped ad-hoc as
     layers. However (as of May 2022), you cannot call freestanding functions
     from `tfgnn.*`,due to a limitation in Keras.
+
   * Keras' [Subclassing API](https://www.tensorflow.org/guide/keras/custom_layers_and_models)
     lets you define your own Keras Layers, or even a complete Keras Model
     in terms of raw TensorFlow code inside the overridden `call()` method.

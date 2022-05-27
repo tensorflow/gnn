@@ -20,7 +20,7 @@ import subprocess
 import sys
 
 import setuptools
-from setuptools import find_packages
+from setuptools import find_namespace_packages
 from setuptools import setup
 from setuptools.command.install import install
 from setuptools.dist import Distribution
@@ -87,7 +87,7 @@ class _BazelBuildCommand(setuptools.Command):
         [self._bazel_cmd,
          'run', '-c', 'opt', '--experimental_repo_remote_exec'] +
         self._additional_build_options +
-        ['//package:move_generated_files'],
+        ['@tensorflow_gnn//package:move_generated_files'],
         # Bazel should be invoked in a directory containing bazel WORKSPACE
         # file, which is the root directory.
         cwd=os.path.dirname(os.path.realpath(__file__)),
@@ -178,14 +178,12 @@ setup(
     namespace_packages=[],
     install_requires=[
         'apache-beam[gcp]>=2.32',
-        'matplotlib',
         'networkx',
         'pyarrow',
-        'pygraphviz',
-        'tensorflow-cpu>=2.7.0',
+        'tensorflow>=2.7.0',
     ],
     python_requires='>=3.7,<4',
-    packages=find_packages(),
+    packages=find_namespace_packages(),
     include_package_data=True,
     package_data={'': ['*.proto']},
     zip_safe=False,
@@ -194,6 +192,10 @@ setup(
     long_description=_LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
     keywords='tensorflow gnn graph',
+    # TODO(b/231478710): Associate a public URL for the project, e.g.,
+    # url=https://www.tensorflow.org/gnn.
+    # TODO(b/231478710): Associate a public download URL for the project, e.g.,
+    # https://github.com/tensorflow/gnn/tags.
     download_url='https://github.com/tensorflow/gnn.git',
     requires=[],
     cmdclass={

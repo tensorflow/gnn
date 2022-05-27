@@ -1,4 +1,5 @@
-description: Stores edges as indices of nodes in node sets.
+description: Stores how (hyper-)edges connect tuples of nodes from incident node
+sets.
 
 <div itemscope itemtype="http://developers.google.com/ReferenceObject">
 <meta itemprop="name" content="gnn.HyperAdjacency" />
@@ -17,36 +18,37 @@ description: Stores edges as indices of nodes in node sets.
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L28-L146">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L23-L158">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
 
-
-
-Stores edges as indices of nodes in node sets.
+Stores how (hyper-)edges connect tuples of nodes from incident node sets.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>gnn.HyperAdjacency(
-    data: Data,
-    spec: "GraphPieceSpecBase",
-    validate: bool = False
+    data: Data, spec: 'GraphPieceSpecBase', validate: bool = False
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
-Node adjacency is represented as a mapping of unique node tags to pairs of
-(node set names, index tensors) into them. The tags are `SOURCE` and
-`TARGET` for ordinary graphs but there can be more of them for hypergraphs
-(e.g., edges linking more than two nodes, also known as "hyper-edges"). All
-index tensors must agree in their type (`tf.Tensor` or `tf.RaggedTensor`),
-integer dtype, and shape. Corresponding values are the indices of nodes that
-belong to the same hyper-edge.
+The incident node sets in the hyper-adjacency are referenced by a unique integer
+identifier called the node set tag. (For a non-hyper graph, it is conventional
+to use the integers `tfgnn.SOURCE` and `tfgnn.TARGET`.) This allows the
+hyper-adjacency to connect nodes from the same or different node sets. Each
+hyper-edge connects a fixed number of nodes, one node from each incident node
+set. The adjacency information is stored as a mapping from the node set tags to
+integer tensors containing indices of nodes in corresponding node sets. Those
+tensors are indexed by edges. All index tensors have the same type spec and
+shape of `[*graph_shape, num_edges]`, where num_edges is the number of edges in
+the edge set (could be potentially ragged). The index tensors are of `tf.Tensor`
+type if num_edges is not None or `graph_shape.rank = 0` and of `tf.RaggedTensor`
+type otherwise.
+
+The HyperAdjacency is a composite tensor.
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -128,43 +130,48 @@ The public type specification of this tensor.
 
 <h3 id="from_indices"><code>from_indices</code></h3>
 
-<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L40-L103">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L43-L115">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>@classmethod</code>
 <code>from_indices(
-    indices: Indices,
-    *,
-    validate: bool = True
-) -> "HyperAdjacency"
+    indices: Indices, *_, validate: bool = True
+) -> 'HyperAdjacency'
 </code></pre>
 
 Constructs a new instance from the `indices` tensors.
 
-Example 1. Single graph (rank is 0). Connects pairs of nodes (a.0, b.2),
-(a.1, b.1), (a.2, b.0) from node sets a and b:
+Example 1. Single graph (rank is 0). Connects pairs of nodes (a[0], b[2]),
+(a[1], b[1]), (a[2], b[0]) from node sets a and b:
 
-    gnn.HyperAdjacency.from_indices({
-        gnn.SOURCE: ('a', [0, 1, 2]),
-        gnn.TARGET: ('b', [2, 1, 0])
-    })
+```
+tfgnn.HyperAdjacency.from_indices({
+    tfgnn.SOURCE: ('a', [0, 1, 2]),
+    tfgnn.TARGET: ('b', [2, 1, 0])
+})
+```
 
-Example 2. Single hypergraph (rank is 0). Connects triplets of nodes
-(a.0, b.2, c.1), (a.1, b.1, c.0) from the node sets a, b and c:
+Example 2. Single hypergraph (rank is 0). Connects triplets of nodes (a[0],
+b[2], c[1]), (a[1], b[1], c[0]) from the node sets a, b and c:
 
-    gnn.HyperAdjacency.from_indices({
-        0: ('a', [0, 1]),
-        1: ('b', [2, 1]),
-        2: ('c', [1, 0]),
-    })
+```
+tfgnn.HyperAdjacency.from_indices({
+    0: ('a', [0, 1]),
+    1: ('b', [2, 1]),
+    2: ('c', [1, 0]),
+})
+```
 
-Example 3. Batch of two graphs (rank is 1). Connects pairs of nodes
-graph 0: (a.0, b.2), (a.1, b.1); graph 1: (a.2, b.0):
+Example 3. Batch of two graphs (rank is 1). Connects pairs of nodes in graph 0:
+(a[0], b[2]), (a[1], b[1]); graph 1: (a[2], b[0]):
 
-    gnn.HyperAdjacency.from_indices({
-        gnn.SOURCE: ('a', tf.ragged.constant([[0, 1], [2]])),
-        gnn.TARGET: ('b', tf.ragged.constant([[2, 1], [0]])),
-    })
+```
+tfgnn.HyperAdjacency.from_indices({
+    tfgnn.SOURCE: ('a', tf.ragged.constant([[0, 1], [2]])),
+    tfgnn.TARGET: ('b', tf.ragged.constant([[2, 1], [0]])),
+})
+```
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -176,32 +183,32 @@ graph 0: (a.0, b.2), (a.1, b.1); graph 1: (a.2, b.0):
 `indices`
 </td>
 <td>
-Mapping from node tags to tuples of node set names and integer
-Tensors or RaggedTensors with the indices of nodes in the respective
-node set. All tensors must have shape = graph_shape + [num_edges], where
-num_edges is a number of edges in each graph. If graph_shape.rank > 0
-and num_edges has variable size, the tensors are ragged.
+A mapping from node tags to 2-tuples of node set name and node
+index tensor. The index tensors must have the same type spec and shape
+of `[*graph_shape, num_edges]`, where num_edges is the number of edges
+in each graph (could be ragged). The index tensors are of `tf.Tensor`
+type if num_edges is not None or `graph_shape.rank = 0` and of
+`tf.RaggedTensor` type otherwise.
 </td>
 </tr><tr>
 <td>
 `validate`
 </td>
 <td>
-if set, checks that node indices have the same shapes.
+If True, checks that node indices have the same type spec.
 </td>
 </tr>
 </table>
 
-
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Returns</th></tr>
 <tr class="alt">
 <td colspan="2">
-A `HyperAdjacency` tensor with a shape and an indices_dtype being inferred
-from the `indices` values.
+A `HyperAdjacency` tensor with its `shape` and `indices_dtype` being
+inferred from the passed `indices` values.
 </td>
 </tr>
 
@@ -211,18 +218,19 @@ from the `indices` values.
 
 <h3 id="get_indices_dict"><code>get_indices_dict</code></h3>
 
-<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L113-L120">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L125-L132">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>get_indices_dict() -> Dict[IncidentNodeTag, Tuple[NodeSetName, Field]]
 </code></pre>
 
-Returns copy of indices tensor.
-
+Returns copy of indices as a dictionary.
 
 <h3 id="node_set_name"><code>node_set_name</code></h3>
 
-<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L109-L111">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L121-L123">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>node_set_name(
@@ -230,17 +238,17 @@ Returns copy of indices tensor.
 ) -> NodeSetName
 </code></pre>
 
-Returns node set name for a given node set tag.
-
+Returns a node set name for the given node set tag.
 
 <h3 id="set_shape"><code>set_shape</code></h3>
 
-<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L295-L301">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L290-L296">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>set_shape(
     new_shape: ShapeLike
-) -> "GraphPieceSpecBase"
+) -> 'GraphPieceSpecBase'
 </code></pre>
 
 Enforce the common prefix shape on all the contained features.
@@ -248,7 +256,8 @@ Enforce the common prefix shape on all the contained features.
 
 <h3 id="__getitem__"><code>__getitem__</code></h3>
 
-<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L105-L107">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L117-L119">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>__getitem__(
@@ -256,8 +265,4 @@ Enforce the common prefix shape on all the contained features.
 ) -> <a href="../gnn/Field.md"><code>gnn.Field</code></a>
 </code></pre>
 
-Returns index tensor for a given node set tag.
-
-
-
-
+Returns an index tensor for the given node set tag.

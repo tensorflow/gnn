@@ -27,7 +27,7 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                       tfgnn.NodeSet.from_fields(
                           sizes=[2],
                           features={
-                              tfgnn.DEFAULT_STATE_NAME:
+                              tfgnn.HIDDEN_STATE:
                                   tf.constant([[1., 0, 0], [0, 1, 0]])
                           },
                       )
@@ -53,7 +53,7 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                       tfgnn.NodeSet.from_fields(
                           sizes=[2],
                           features={
-                              tfgnn.DEFAULT_STATE_NAME:
+                              tfgnn.HIDDEN_STATE:
                                   tf.constant([[1., 0, 0], [0, 1, 0]])
                           },
                       )
@@ -80,7 +80,7 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                       tfgnn.NodeSet.from_fields(
                           sizes=[2, 2],
                           features={
-                              tfgnn.DEFAULT_STATE_NAME:
+                              tfgnn.HIDDEN_STATE:
                                   tf.constant([[1., 0, 0], [0, 1, 0]] * 2)
                           },
                       )
@@ -122,7 +122,7 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                 tfgnn.NodeSet.from_fields(
                     sizes=[2],
                     features={
-                        tfgnn.DEFAULT_STATE_NAME:
+                        tfgnn.HIDDEN_STATE:
                             tf.constant([[-1., 0, 0], [0, 1, 0]])
                     },
                 )
@@ -156,7 +156,7 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                 tfgnn.NodeSet.from_fields(
                     sizes=[2],
                     features={
-                        tfgnn.DEFAULT_STATE_NAME:
+                        tfgnn.HIDDEN_STATE:
                             tf.constant([[1., 0, 0], [0, 1, 0]])
                     },
                 )
@@ -190,7 +190,7 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                 tfgnn.NodeSet.from_fields(
                     sizes=[2],
                     features={
-                        tfgnn.DEFAULT_STATE_NAME:
+                        tfgnn.HIDDEN_STATE:
                             tf.constant([[1., 0, 0], [0, 1, 0]])
                     },
                 )
@@ -230,7 +230,7 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
         model = tf.saved_model.load(export_dir)
 
     got_gt = model(gt_input)
-    got = got_gt.node_sets['nodes'][tfgnn.DEFAULT_STATE_NAME]
+    got = got_gt.node_sets['nodes'][tfgnn.HIDDEN_STATE]
 
     # The fourth column with values x.y from nodes is analogous to the
     # testBasic test above, with the contribution x from the favored

@@ -1,4 +1,4 @@
-description: Returns tf.io parsing features for GraphTensorSpec.
+description: Returns tf.io parsing features for GraphTensorSpec type spec.
 
 <div itemscope itemtype="http://developers.google.com/ReferenceObject">
 <meta itemprop="name" content="gnn.get_io_spec" />
@@ -11,16 +11,14 @@ description: Returns tf.io parsing features for GraphTensorSpec.
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_io.py#L114-L209">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_io.py#L115-L210">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
 
-
-
-Returns tf.io parsing features for GraphTensorSpec.
+Returns tf.io parsing features for `GraphTensorSpec` type spec.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>gnn.get_io_spec(
@@ -42,7 +40,7 @@ be used with `tf.io.parse_example()` for reading the individual fields of a
 to a `tf.train.Example` proto.
 
 (This is an internal function. You are not likely to be using this if you're
-decoding graph tensors. Instead, you should use the <a href="../gnn/parse_example.md"><code>gnn.parse_example()</code></a>
+decoding graph tensors. Instead, you should use the `tfgnn.parse_example()`
 routine directly, which handles this process for you.)
 
 <!-- Tabular view -->
@@ -71,12 +69,10 @@ this if you are encoding other data in the same protocol buffer.
 </td>
 <td>
 A boolean indicating whether or not to validate that the input
-fields form a valid GraphTensor. Defaults to True.
+fields form a valid `GraphTensor`. Defaults to True.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

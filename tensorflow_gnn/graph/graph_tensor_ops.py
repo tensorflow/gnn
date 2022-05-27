@@ -6,7 +6,7 @@ import tensorflow as tf
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import tensor_utils as utils
-from tensorflow_gnn.graph.keras import keras_tensors as kt
+from tensorflow_gnn.keras import keras_tensors as kt
 
 Field = const.Field
 FieldName = const.FieldName

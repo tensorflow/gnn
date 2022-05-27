@@ -11,16 +11,14 @@ description: Parses a single serialized Example proto into a single GraphTensor.
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_io.py#L85-L111">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_io.py#L86-L112">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
 
-
-
-Parses a single serialized Example proto into a single GraphTensor.
+Parses a single serialized Example proto into a single `GraphTensor`.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>gnn.parse_single_example(
@@ -72,12 +70,10 @@ this if you are encoding other data in the same protocol buffer.
 </td>
 <td>
 A boolean indicating whether or not to validate that the input
-fields form a valid GraphTensor. Defaults to True.
+fields form a valid `GraphTensor`. Defaults to True.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

@@ -116,7 +116,7 @@ class _GraphClassification(_Classification):
   def __init__(self,
                *args,
                node_set_name: str,
-               state_name: str = tfgnn.DEFAULT_STATE_NAME,
+               state_name: str = tfgnn.HIDDEN_STATE,
                reduce_type: str = "mean",
                **kwargs):
     """Classification by the label provided in the graph context.
@@ -130,7 +130,7 @@ class _GraphClassification(_Classification):
       *args: Additional positional arguments.
       node_set_name: Node set to pool representations from.
       state_name: The feature name for node activations
-        (typically: tfgnn.DEFAULT_STATE_NAME).
+        (typically: tfgnn.HIDDEN_STATE).
       reduce_type: The context pooling reduction type.
       **kwargs: Additional keyword arguments.
     """
@@ -153,7 +153,7 @@ class _RootNodeClassification(_Classification):
   def __init__(self,
                *args,
                node_set_name: str,
-               state_name: str = tfgnn.DEFAULT_STATE_NAME,
+               state_name: str = tfgnn.HIDDEN_STATE,
                **kwargs):
     """Classification by root node label.
 
@@ -170,7 +170,7 @@ class _RootNodeClassification(_Classification):
       *args: Additional positional arguments.
       node_set_name: The node set containing the root node.
       state_name: The feature name for activations
-        (typically: tfgnn.DEFAULT_STATE_NAME).
+        (typically: tfgnn.HIDDEN_STATE).
       **kwargs: Additional keyword arguments.
     """
     super().__init__(*args, **kwargs)

@@ -23,7 +23,7 @@ def vanilla_mpnn_model(
       model for which the non-trainable preprocessing of features has already
       been done.
     init_states_fn: A function that maps an input GraphTensor matching
-      `graph_tensor_spec` to a GraphTensor with a tfgnn.DEFAULT_STATE_NAME
+      `graph_tensor_spec` to a GraphTensor with a tfgnn.HIDDEN_STATE
       feature on each node set, suitable for use with `pass_messages_fn`.
       Typically, this performs the trainable transformations per node (like
       lookups in a trainable embedding table) before any message passing starts.
@@ -54,7 +54,7 @@ def pass_simple_messages(
   """Performs message passing for simple (plain MPNN) messages.
 
   Args:
-    graph: A scalar GraphTensor with `tfgnn.DEFAULT_STATE_NAME` features on all
+    graph: A scalar GraphTensor with `tfgnn.HIDDEN_STATE` features on all
        node sets.
     num_message_passing: The number of rounds of message passing along edges.
     receiver_tag: One of `tfgnn.TARGET` or `tfgnn.SOURCE`, to select the
@@ -80,7 +80,7 @@ def pass_simple_messages(
           methods of `tfgnn.keras.ConvGNNBuilder`.
 
   Returns:
-    A scalar GraphTensor with `tfgnn.DEFAULT_STATE_NAME` features on all node
+    A scalar GraphTensor with `tfgnn.HIDDEN_STATE` features on all node
     sets that have been updated by the specified rounds of message passing.
   """
   # Bind hparam kwargs for subroutines.
@@ -145,12 +145,12 @@ def _pass_messages_with_raw_gnn_ops(
               graph,
               edge_name,
               tfgnn.reverse_tag(receiver_tag),  # Sender.
-              feature_name=tfgnn.DEFAULT_STATE_NAME),
+              feature_name=tfgnn.HIDDEN_STATE),
           tfgnn.broadcast_node_to_edges(
               graph,
               edge_name,
               receiver_tag,
-              feature_name=tfgnn.DEFAULT_STATE_NAME)
+              feature_name=tfgnn.HIDDEN_STATE)
       ]
       messages = dense(message_dim)(tf.keras.layers.Concatenate()(values))
       pooled_message = tfgnn.pool_edges_to_node(
@@ -166,10 +166,10 @@ def _pass_messages_with_raw_gnn_ops(
     node_set_states = collections.defaultdict(dict)
 
     for source_node_name in sorted(pooled_messages.keys()):
-      h_olds = [graph.node_sets[source_node_name][tfgnn.DEFAULT_STATE_NAME]]
+      h_olds = [graph.node_sets[source_node_name][tfgnn.HIDDEN_STATE]]
       inputs = h_olds + pooled_messages[source_node_name]
       h_new = dense(h_next_dim)(tf.keras.layers.Concatenate()(inputs))
-      node_set_states[source_node_name][tfgnn.DEFAULT_STATE_NAME] = h_new
+      node_set_states[source_node_name][tfgnn.HIDDEN_STATE] = h_new
 
     return graph.replace_features(node_sets=node_set_states)
 
@@ -276,10 +276,10 @@ def init_states_by_embed_and_transform(
     graph: A scalar input GraphTensor to the model for which the non-trainable
       preprocessing of features has already been done.
     node_embeddings: Optional tail node embedding dimensions, keyed by node set
-      name. Node set features are assumed to be `tfgnn.DEFAULT_STATE_NAME`.
+      name. Node set features are assumed to be `tfgnn.HIDDEN_STATE`.
     node_transformations: Optional tail node transformation dimensions, keyed
       by node set name. Node set features are assumed to be
-      `tfgnn.DEFAULT_STATE_NAME`.
+      `tfgnn.HIDDEN_STATE`.
     l2_regularization: The coefficient of L2 regularization for weights and
       biases of the node transformations (if any).
     dropout_rate: The dropout rate applied after the node transformations
@@ -307,7 +307,7 @@ def _embed_inputs(graph: tfgnn.GraphTensor,
   node_sets = {}
 
   for node_set_name, dims in configs.items():
-    features = graph.node_sets[node_set_name].features[tfgnn.DEFAULT_STATE_NAME]
+    features = graph.node_sets[node_set_name].features[tfgnn.HIDDEN_STATE]
     features = tf.keras.layers.Embedding(*dims)(features)
 
     if len(features.shape) > 2:
@@ -315,7 +315,7 @@ def _embed_inputs(graph: tfgnn.GraphTensor,
       features = tf.math.reduce_mean(features, axis=-2)
 
     node_sets[node_set_name] = {
-        tfgnn.DEFAULT_STATE_NAME: features
+        tfgnn.HIDDEN_STATE: features
     }
 
   return graph.replace_features(node_sets=node_sets)
@@ -330,14 +330,14 @@ def _transform_inputs(graph: tfgnn.GraphTensor,
   node_sets = {}
 
   for node_set_name, dim in configs.items():
-    features = graph.node_sets[node_set_name].features[tfgnn.DEFAULT_STATE_NAME]
+    features = graph.node_sets[node_set_name].features[tfgnn.HIDDEN_STATE]
     features = _dense_layer(
         dim,
         l2_regularization=l2_regularization,
         dropout_rate=dropout_rate)(features)
 
     node_sets[node_set_name] = {
-        tfgnn.DEFAULT_STATE_NAME: features
+        tfgnn.HIDDEN_STATE: features
     }
 
   return graph.replace_features(node_sets=node_sets)

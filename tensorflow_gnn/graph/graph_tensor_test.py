@@ -660,11 +660,11 @@ class BatchingUnbatchingMergingTest(tf.test.TestCase, parameterized.TestCase):
                       tf.stack([0, num_nodes, 0], 0)),
           })
 
-    ds = tf.data.Dataset.range(0, 7)
+    ds = tf.data.Dataset.range(0, 9)
     ds = ds.map(generate)
     ds = ds.batch(1)
     ds = ds.unbatch()
-    ds = ds.batch(3)
+    ds = ds.batch(3, True)
     ds = ds.batch(2)
 
     itr = iter(ds)
@@ -686,19 +686,23 @@ class BatchingUnbatchingMergingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(
         type_spec.type_spec_from_value(element['x']),
         tf.RaggedTensorSpec(
-            shape=[2, None, None],
+            shape=[2, 3, None],
             dtype=tf.int64,
             ragged_rank=2,
             row_splits_dtype=tf.int32))
 
     element = next(itr)
-    self.assertAllEqual(element['x'], as_ragged([
-        [[0, 1, 2, 3, 4, 5]],
-    ]))
+    self.assertAllEqual(
+        element['x'],
+        as_ragged([
+            [[0, 1, 2, 3, 4, 5],
+             [0, 1, 2, 3, 4, 5, 6],
+             [0, 1, 2, 3, 4, 5, 6, 7]],
+        ]))
     self.assertAllEqual(
         type_spec.type_spec_from_value(element['x']),
         tf.RaggedTensorSpec(
-            shape=[1, None, None],
+            shape=[1, 3, None],
             dtype=tf.int64,
             ragged_rank=2,
             row_splits_dtype=tf.int32))

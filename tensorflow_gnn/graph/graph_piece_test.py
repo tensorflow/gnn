@@ -327,14 +327,14 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
 
     ds = tf.data.Dataset.range(0, 7)
     ds = ds.map(generate)
-    ds = ds.batch(3)
+    ds = ds.batch(3, True)
 
     self.assertAllEqual(ds.element_spec._data_spec,
-                        tf.TensorSpec(shape=[None, 3], dtype=tf.int64))
+                        tf.TensorSpec(shape=[3, 3], dtype=tf.int64))
 
     ds = ds.batch(2)
     self.assertAllEqual(ds.element_spec._data_spec,
-                        tf.TensorSpec(shape=[None, None, 3], dtype=tf.int64))
+                        tf.TensorSpec(shape=[None, 3, 3], dtype=tf.int64))
 
   def testDynamicSpecs(self):
 
@@ -344,12 +344,12 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
 
     ds = tf.data.Dataset.range(0, 7)
     ds = ds.map(generate)
-    ds = ds.batch(3)
+    ds = ds.batch(3, True)
 
     self.assertAllEqual(
         ds.element_spec._data_spec,
         tf.RaggedTensorSpec(
-            shape=[None, None],
+            shape=[3, None],
             dtype=tf.int64,
             ragged_rank=1,
             row_splits_dtype=tf.int32))
@@ -358,7 +358,7 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(
         ds.element_spec._data_spec,
         tf.RaggedTensorSpec(
-            shape=[None, None, None],
+            shape=[None, 3, None],
             dtype=tf.int64,
             ragged_rank=2,
             row_splits_dtype=tf.int32))
@@ -375,11 +375,11 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
                       tf.stack([0, num_nodes, 0], 0)),
           })
 
-    ds = tf.data.Dataset.range(0, 7)
+    ds = tf.data.Dataset.range(0, 9)
     ds = ds.map(generate)
     ds = ds.batch(1)
     ds = ds.unbatch()
-    ds = ds.batch(3)
+    ds = ds.batch(3, True)
     ds = ds.batch(2)
 
     itr = iter(ds)
@@ -387,7 +387,7 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(
         type_spec.type_spec_from_value(element.value['r']),
         tf.RaggedTensorSpec(
-            shape=[2, None, 3, None],
+            shape=[2, 3, 3, None],
             dtype=tf.float32,
             ragged_rank=3,
             row_splits_dtype=tf.int64))
@@ -396,7 +396,7 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(
         type_spec.type_spec_from_value(element.value['r']),
         tf.RaggedTensorSpec(
-            shape=[1, None, 3, None],
+            shape=[1, 3, 3, None],
             dtype=tf.float32,
             ragged_rank=3,
             row_splits_dtype=tf.int64))
@@ -481,20 +481,32 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
     def generate(num_nodes):
       return TestPiece.from_value(value=tf.range(num_nodes),)
 
-    ds = tf.data.Dataset.range(0, 5)
+    ds = tf.data.Dataset.range(0, 6)
     ds = ds.map(generate)
     ds = ds.batch(3)
     element = next(iter(ds))
     self.assertAllEqual(element.value, tf.ragged.constant([[], [0], [0, 1]]))
-    ds = ds.unbatch().batch(2).batch(2)
+    ds = ds.unbatch().batch(2, True).batch(2)
 
     itr = iter(ds)
     element = next(itr)
     self.assertAllEqual(element.value,
                         tf.ragged.constant([[[], [0]], [[0, 1], [0, 1, 2]]]))
     element = next(itr)
-    self.assertAllEqual(element.value, tf.ragged.constant([[[0, 1, 2, 3]]]))
+    self.assertAllEqual(element.value,
+                        tf.ragged.constant([[[0, 1, 2, 3], [0, 1, 2, 3, 4]]]))
     self.assertRaises(StopIteration, lambda: next(itr))
+
+  def testRaisesOnVarSizeBatching(self):
+
+    @tf.function
+    def generate(num_nodes):
+      return TestPiece.from_value(value=tf.range(num_nodes),)
+
+    ds = tf.data.Dataset.range(0, 6)
+    ds = ds.map(generate)
+    ds = ds.batch(3)
+    self.assertRaises(NotImplementedError, lambda: ds.batch(2))
 
   def testNestedPieces(self):
 
@@ -510,7 +522,7 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
     element = next(iter(ds))
     self.assertAllEqual(element.value.value.value,
                         tf.ragged.constant([[], [0], [0, 1]]))
-    ds = ds.unbatch().batch(2).batch(2)
+    ds = ds.unbatch().batch(2, True).batch(2)
     element = next(iter(ds))
     self.assertAllEqual(element.value.value.value,
                         tf.ragged.constant([[[], [0]], [[0, 1], [0, 1, 2]]]))
@@ -547,11 +559,11 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
                       tf.stack([0, num_nodes, 0], 0)),
           })
 
-    ds = tf.data.Dataset.range(0, 7)
+    ds = tf.data.Dataset.range(0, 9)
     ds = ds.map(generate)
     ds = ds.batch(1)
     ds = ds.unbatch()
-    ds = ds.batch(3)
+    ds = ds.batch(3, True)
     ds = ds.batch(2)
 
     itr = iter(ds)
@@ -573,12 +585,14 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
     element = next(itr)
     self.assertAllEqual(element.value['x'],
                         tf.ragged.constant([
-                            [[0, 1, 2, 3, 4, 5]],
+                            [[0, 1, 2, 3, 4, 5],
+                             [0, 1, 2, 3, 4, 5, 6],
+                             [0, 1, 2, 3, 4, 5, 6, 7]],
                         ]))
     self.assertAllEqual(
         type_spec.type_spec_from_value(element.value['x']),
         tf.RaggedTensorSpec(
-            shape=[1, None, None],
+            shape=[1, 3, None],
             dtype=tf.int64,
             ragged_rank=2,
             row_splits_dtype=tf.int32))
@@ -630,16 +644,20 @@ class MergeBatchToComponentsTest(tf.test.TestCase, parameterized.TestCase):
           expected=np.array([1, 2, 3, 4])),
       dict(
           description='variable size scalar',
-          batch_dims=(None, None),
-          source=tf.ragged.constant([[['a', 'b']], [], [['c']], [['d']], []]),
+          batch_dims=(None, 4),
+          source=tf.RaggedTensor.from_uniform_row_length(
+              tf.ragged.constant([['a', 'b'], [], ['c', 'd'], []]),
+              uniform_row_length=4),
           expected=np.array(['a', 'b', 'c', 'd'])),
       dict(
           description='variable size vector',
-          batch_dims=(None, None),
-          source=tf.ragged.constant([[[['a', '1'], ['b', '2']]], [],
-                                     [[['c', '3']]], [[['d', '4']]], []],
-                                    ragged_rank=2,
-                                    inner_shape=(2,)),
+          batch_dims=(None, 2),
+          source=tf.RaggedTensor.from_uniform_row_length(
+              tf.ragged.constant([[['a', '1'], ['b', '2']], [], [['c', '3']],
+                                  [['d', '4']], [], []],
+                                 ragged_rank=1,
+                                 inner_shape=(2,)),
+              uniform_row_length=2),
           expected=np.array([['a', 1], ['b', 2], ['c', 3], ['d', 4]])),
   ])
   def testRank2Plain(self, description: str, batch_dims: Tuple[int, int],

@@ -25,14 +25,12 @@ description: Reads a feature out of a GraphTensor.
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/keras/layers/graph_ops.py#L48-L190">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L42-L185">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Reads a feature out of a GraphTensor.
 
@@ -60,11 +58,11 @@ A location in the graph is selected by setting exactly one of the keyword
 arguments `edge_set_name=...`, `node_set_name=...` or `from_context=True`.
 From there, the keyword argument `feature_name=...` selects the feature.
 
-Both the initialization of and the call to this layer accept arguments to
-select the feature location and the feature name. The call arguments take
-effect for that call only and can supply missing values, but they are not
-allowed to contradict initialization arguments. The feature name can be left
-unset to select tfgnn.DEFAULT_STATE_NAME.
+Both the initialization of and the call to this layer accept arguments to select
+the feature location and the feature name. The call arguments take effect for
+that call only and can supply missing values, but they are not allowed to
+contradict initialization arguments. The feature name can be left unset to
+select tfgnn.HIDDEN_STATE.
 
 #### For example:
 
@@ -77,26 +75,22 @@ assert value == graph_tensor.edge_sets["edge"]["value"]
 
 #### Init args:
 
-
-* <b>`edge_set_name`</b>: If set, the feature will be read from this edge set.
-  Mutually exclusive with node_set_name and from_context.
-* <b>`node_set_name`</b>: If set, the feature will be read from this node set.
-  Mutually exclusive with edge_set_name and from_context.
-* <b>`from_context`</b>: If true, the feature will be read from the context.
-  Mutually exclusive with edge_set_name and node_set_name.
-* <b>`feature_name`</b>: The name of the feature to read. If unset (also in call),
-  tfgnn.DEFAULT_STATE_NAME will be read.
-
+*   <b>`edge_set_name`</b>: If set, the feature will be read from this edge set.
+    Mutually exclusive with node_set_name and from_context.
+*   <b>`node_set_name`</b>: If set, the feature will be read from this node set.
+    Mutually exclusive with edge_set_name and from_context.
+*   <b>`from_context`</b>: If true, the feature will be read from the context.
+    Mutually exclusive with edge_set_name and node_set_name.
+*   <b>`feature_name`</b>: The name of the feature to read. If unset (also in
+    call), tfgnn.HIDDEN_STATE will be read.
 
 #### Call args:
 
-
-* <b>`graph`</b>: The GraphTensor to read from.
-edge_set_name, node_set_name, from_context: Same meaning as for init. One of
-  them must be passed to init, or to call, or to both (with the same value).
-* <b>`feature_name`</b>: Same meaning as for init. If passed to both, the value must
-  be the same. If passed to neither, tfgnn.DEFAULT_STATE_NAME is used.
-
+*   <b>`graph`</b>: The GraphTensor to read from. edge_set_name, node_set_name,
+    from_context: Same meaning as for init. One of them must be passed to init,
+    or to call, or to both (with the same value).
+*   <b>`feature_name`</b>: Same meaning as for init. If passed to both, the
+    value must be the same. If passed to neither, tfgnn.HIDDEN_STATE is used.
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -138,20 +132,14 @@ mixed precision is used, this is the same as `Layer.dtype`, the dtype of
 the weights.
 
 Layers automatically cast their inputs to the compute dtype, which causes
-computations and the output to be in the compute dtype as well. This is done
-by the base Layer class in `Layer.__call__`, so you do not have to insert
-these casts if implementing your own layer.
+computations and the output to be in the compute dtype as well. This is done by
+the base Layer class in `Layer.__call__`, so you do not have to insert these
+casts if implementing your own layer.
 
 Layers often perform certain internal computations in higher precision when
-`compute_dtype` is float16 or bfloat16 for numeric stability. The output
-will still typically be float16 or bfloat16 in such cases.
-</td>
-</tr><tr>
-<td>
-`dtype`
-</td>
-<td>
-The dtype of the layer weights.
+`compute_dtype` is float16 or bfloat16 for numeric stability. The output will
+still typically be float16 or bfloat16 in such cases. </td> </tr><tr> <td>
+`dtype` </td> <td> The dtype of the layer weights.
 
 This is equivalent to `Layer.dtype_policy.variable_dtype`. Unless
 mixed precision is used, this is the same as `Layer.compute_dtype`, the
@@ -197,18 +185,17 @@ i.e. if it is connected to one incoming layer.
 <td>
 `InputSpec` instance(s) describing the input format for this layer.
 
-When you create a layer subclass, you can set `self.input_spec` to enable
-the layer to run input compatibility checks when it is called.
-Consider a `Conv2D` layer: it can only be called on a single input tensor
-of rank 4. As such, you can set, in `__init__()`:
+When you create a layer subclass, you can set `self.input_spec` to enable the
+layer to run input compatibility checks when it is called. Consider a `Conv2D`
+layer: it can only be called on a single input tensor of rank 4. As such, you
+can set, in `__init__()`:
 
 ```python
 self.input_spec = tf.keras.layers.InputSpec(ndim=4)
 ```
 
-Now, if you try to call the layer on an input that isn't rank 4
-(for instance, an input of shape `(2,)`, it will raise a nicely-formatted
-error:
+Now, if you try to call the layer on an input that isn't rank 4 (for instance,
+an input of shape `(2,)`, it will raise a nicely-formatted error:
 
 ```
 ValueError: Input 0 of layer conv2d is incompatible with the layer:
@@ -243,9 +230,9 @@ empty, and one of them must be set at call time.
 <td>
 List of losses added using the `add_loss()` API.
 
-Variable regularization tensors are created when this property is accessed,
-so it is eager safe: accessing `losses` under a `tf.GradientTape` will
-propagate gradients back to the corresponding variables.
+Variable regularization tensors are created when this property is accessed, so
+it is eager safe: accessing `losses` under a `tf.GradientTape` will propagate
+gradients back to the corresponding variables.
 
 ```
 >>> class MyLayer(tf.keras.layers.Layer):
@@ -322,15 +309,9 @@ Returns a `tf.name_scope` instance for this class.
 <td>
 List of all non-trainable weights tracked by this layer.
 
-Non-trainable weights are *not* updated during training. They are expected
-to be updated manually in `call()`.
-</td>
-</tr><tr>
-<td>
-`output`
-</td>
-<td>
-Retrieves the output tensor(s) of a layer.
+Non-trainable weights are *not* updated during training. They are expected to be
+updated manually in `call()`. </td> </tr><tr> <td> `output` </td> <td> Retrieves
+the output tensor(s) of a layer.
 
 Only applicable if the layer has exactly one output,
 i.e. if it is connected to one incoming layer.
@@ -413,11 +394,10 @@ Returns the list of all layer variables/weights.
 
 Add loss tensor(s), potentially dependent on layer inputs.
 
-Some losses (for instance, activity regularization losses) may be dependent
-on the inputs passed when calling a layer. Hence, when reusing the same
-layer on different inputs `a` and `b`, some entries in `layer.losses` may
-be dependent on `a` and some on `b`. This method automatically keeps track
-of dependencies.
+Some losses (for instance, activity regularization losses) may be dependent on
+the inputs passed when calling a layer. Hence, when reusing the same layer on
+different inputs `a` and `b`, some entries in `layer.losses` may be dependent on
+`a` and some on `b`. This method automatically keeps track of dependencies.
 
 This method can be used inside a subclassed layer or model's `call`
 function, in which case `losses` should be a Tensor or list of Tensors.
@@ -434,9 +414,9 @@ class MyLayer(tf.keras.layers.Layer):
 ```
 
 This method can also be called directly on a Functional Model during
-construction. In this case, any loss Tensors passed to this Model must
-be symbolic and be able to be traced back to the model's `Input`s. These
-losses become part of the model's topology and are tracked in `get_config`.
+construction. In this case, any loss Tensors passed to this Model must be
+symbolic and be able to be traced back to the model's `Input`s. These losses
+become part of the model's topology and are tracked in `get_config`.
 
 #### Example:
 
@@ -451,8 +431,8 @@ model = tf.keras.Model(inputs, outputs)
 model.add_loss(tf.abs(tf.reduce_mean(x)))
 ```
 
-If this is not the case for your loss (if, for example, your loss references
-a `Variable` of one of the model's layers), you can wrap your loss in a
+If this is not the case for your loss (if, for example, your loss references a
+`Variable` of one of the model's layers), you can wrap your loss in a
 zero-argument lambda. These losses are not tracked as part of the model's
 topology since they can't be serialized.
 
@@ -480,22 +460,19 @@ model.add_loss(lambda: tf.reduce_mean(d.kernel))
 `losses`
 </td>
 <td>
-Loss tensor, or list/tuple of tensors. Rather than tensors, losses
-may also be zero-argument callables which create a loss tensor.
+Loss tensor, or list/tuple of tensors. Rather than tensors,
+losses may also be zero-argument callables which create a loss
+tensor.
 </td>
 </tr><tr>
 <td>
 `**kwargs`
 </td>
 <td>
-Additional keyword arguments for backward compatibility.
-Accepted values:
-  inputs - Deprecated, will be automatically inferred.
+Used for backwards compatibility only.
 </td>
 </tr>
 </table>
-
-
 
 <h3 id="add_metric"><code>add_metric</code></h3>
 
@@ -536,9 +513,9 @@ model = tf.keras.Model(inputs, outputs)
 model.add_metric(math_ops.reduce_sum(x), name='metric_1')
 ```
 
-Note: Calling `add_metric()` with the result of a metric object on a
-Functional Model, as shown in the example below, is not supported. This is
-because we cannot trace the metric result tensor back to the model's inputs.
+Note: Calling `add_metric()` with the result of a metric object on a Functional
+Model, as shown in the example below, is not supported. This is because we
+cannot trace the metric result tensor back to the model's inputs.
 
 ```python
 inputs = tf.keras.Input(shape=(10,))
@@ -574,14 +551,12 @@ String metric name.
 <td>
 Additional keyword arguments for backward compatibility.
 Accepted values:
-`aggregation` - When the `value` tensor provided is not the result of
-calling a `keras.Metric` instance, it will be aggregated by default
-using a `keras.Metric.Mean`.
+`aggregation` - When the `value` tensor provided is not the result
+of calling a `keras.Metric` instance, it will be aggregated by
+default using a `keras.Metric.Mean`.
 </td>
 </tr>
 </table>
-
-
 
 <h3 id="build"><code>build</code></h3>
 
@@ -809,7 +784,8 @@ A layer instance.
 
 <h3 id="get_config"><code>get_config</code></h3>
 
-<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/keras/layers/graph_ops.py#L107-L111">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L102-L106">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>get_config()
@@ -826,9 +802,9 @@ The config of a layer does not include connectivity
 information, nor the layer class name. These are handled
 by `Network` (one layer of abstraction above).
 
-Note that `get_config()` does not guarantee to return a fresh copy of dict
-every time it is called. The callers should make a copy of the returned dict
-if they want to modify it.
+Note that `get_config()` does not guarantee to return a fresh copy of dict every
+time it is called. The callers should make a copy of the returned dict if they
+want to modify it.
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -852,14 +828,13 @@ Python dictionary.
 
 Returns the current weights of the layer, as NumPy arrays.
 
-The weights of a layer represent the state of the layer. This function
-returns both trainable and non-trainable weight values associated with this
-layer as a list of NumPy arrays, which can in turn be used to load state
-into similarly parameterized layers.
+The weights of a layer represent the state of the layer. This function returns
+both trainable and non-trainable weight values associated with this layer as a
+list of NumPy arrays, which can in turn be used to load state into similarly
+parameterized layers.
 
-For example, a `Dense` layer returns a list of two values: the kernel matrix
-and the bias vector. These can be used to set the weights of another
-`Dense` layer:
+For example, a `Dense` layer returns a list of two values: the kernel matrix and
+the bias vector. These can be used to set the weights of another `Dense` layer:
 
 ```
 >>> layer_a = tf.keras.layers.Dense(1,
@@ -913,9 +888,8 @@ passed in the order they are created by the layer. Note that the layer's
 weights must be instantiated before calling this function, by calling
 the layer.
 
-For example, a `Dense` layer returns a list of two values: the kernel matrix
-and the bias vector. These can be used to set the weights of another
-`Dense` layer:
+For example, a `Dense` layer returns a list of two values: the kernel matrix and
+the bias vector. These can be used to set the weights of another `Dense` layer:
 
 ```
 >>> layer_a = tf.keras.layers.Dense(1,
@@ -1092,18 +1066,15 @@ Output tensor(s).
 
 #### Note:
 
-- The following optional keyword arguments are reserved for specific uses:
-  * `training`: Boolean scalar tensor of Python boolean indicating
-    whether the `call` is meant for training or inference.
-  * `mask`: Boolean input mask.
-- If the layer's `call` method takes a `mask` argument (as some Keras
-  layers do), its default value will be set to the mask generated
-  for `inputs` by the previous layer (if `input` did come from
-  a layer that generated a corresponding mask, i.e. if it came from
-  a Keras layer with masking support.
-- If the layer is not built, the method will call `build`.
-
-
+-   The following optional keyword arguments are reserved for specific uses:
+    *   `training`: Boolean scalar tensor of Python boolean indicating whether
+        the `call` is meant for training or inference.
+    *   `mask`: Boolean input mask.
+-   If the layer's `call` method takes a `mask` argument (as some Keras layers
+    do), its default value will be set to the mask generated for `inputs` by the
+    previous layer (if `input` did come from a layer that generated a
+    corresponding mask, i.e. if it came from a Keras layer with masking support.
+-   If the layer is not built, the method will call `build`.
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -1115,19 +1086,16 @@ Output tensor(s).
 `ValueError`
 </td>
 <td>
-if the layer's `call` method returns None (an invalid value).
+if the layer's `call` method returns None (an invalid
+value).
 </td>
 </tr><tr>
 <td>
 `RuntimeError`
 </td>
 <td>
-if `super().__init__()` was not called in the constructor.
+if `super().__init__()` was not called in the
+constructor.
 </td>
 </tr>
 </table>
-
-
-
-
-

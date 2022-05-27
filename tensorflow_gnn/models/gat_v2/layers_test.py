@@ -185,7 +185,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         num_heads=1,
         per_head_channels=5,
         edge_set_name="edges",
-        sender_edge_feature=tfgnn.DEFAULT_STATE_NAME,  # Activate edge input.
+        sender_edge_feature=tfgnn.HIDDEN_STATE,  # Activate edge input.
         attention_activation="relu")
 
     _ = layer(gt_input)  # Build weights.
@@ -227,7 +227,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         model = tf.saved_model.load(export_dir)
 
     got_gt = model(gt_input)
-    got = got_gt.node_sets["nodes"][tfgnn.DEFAULT_STATE_NAME]
+    got = got_gt.node_sets["nodes"][tfgnn.HIDDEN_STATE]
 
     # The fourth column with values x.y from nodes is analogous to the
     # testBasic test above, with the contribution x from the favored
@@ -253,18 +253,18 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         node_sets={
             "sources": tfgnn.NodeSet.from_fields(
                 sizes=[2, 2],
-                features={tfgnn.DEFAULT_STATE_NAME: tf.constant(
+                features={tfgnn.HIDDEN_STATE: tf.constant(
                     [[1., 0., 0., 1.],
                      [0., 1., 0., 2.]] * 2)}),  # Repeated for both components.
             "targets": tfgnn.NodeSet.from_fields(
                 sizes=[1, 1],
-                features={tfgnn.DEFAULT_STATE_NAME: tf.constant(
+                features={tfgnn.HIDDEN_STATE: tf.constant(
                     [[0., 0., 1., 3.],
                      [1., 0., 0., 4.]])}),
         },
         context=tfgnn.Context.from_fields(
             # Same as "targets".
-            features={tfgnn.DEFAULT_STATE_NAME: tf.constant(
+            features={tfgnn.HIDDEN_STATE: tf.constant(
                 [[0., 0., 1., 3.],
                  [1., 0., 0., 4.]])}),
         edge_sets={
@@ -336,7 +336,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
                 adjacency=tfgnn.Adjacency.from_indices(
                     ("sources", tf.constant([0, 1, 2, 3])),
                     ("targets", tf.constant([0, 0, 1, 1]))),
-                features={tfgnn.DEFAULT_STATE_NAME: tf.constant(
+                features={tfgnn.HIDDEN_STATE: tf.constant(
                     [[1., 0., 0., 1.],
                      [0., 1., 0., 2.]] * 2)}),  # Repeated for both components.
         },
@@ -345,13 +345,13 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
                 sizes=[2, 2]),  # No features.
             "targets": tfgnn.NodeSet.from_fields(
                 sizes=[1, 1],
-                features={tfgnn.DEFAULT_STATE_NAME: tf.constant(
+                features={tfgnn.HIDDEN_STATE: tf.constant(
                     [[0., 0., 1., 3.],
                      [1., 0., 0., 4.]])}),
         },
         context=tfgnn.Context.from_fields(
             # Same as "targets".
-            features={tfgnn.DEFAULT_STATE_NAME: tf.constant(
+            features={tfgnn.HIDDEN_STATE: tf.constant(
                 [[0., 0., 1., 3.],
                  [1., 0., 0., 4.]])}))
 
@@ -409,10 +409,10 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         node_sets={
             "sources": tfgnn.NodeSet.from_fields(
                 sizes=[num_sources],
-                features={tfgnn.DEFAULT_STATE_NAME: tf.eye(num_sources)}),
+                features={tfgnn.HIDDEN_STATE: tf.eye(num_sources)}),
             "target": tfgnn.NodeSet.from_fields(
                 sizes=[1],
-                features={tfgnn.DEFAULT_STATE_NAME: tf.constant([[1.]])}),
+                features={tfgnn.HIDDEN_STATE: tf.constant([[1.]])}),
         },
         edge_sets={
             "edges": tfgnn.EdgeSet.from_fields(
@@ -465,7 +465,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
     # expected value remains at (1-1/3) * 3/2 == 1), so min = 0 and max = 1.5.
     def min_max(**kwargs):
       got_gt = model(gt_input, **kwargs)
-      got = got_gt.node_sets["target"][tfgnn.DEFAULT_STATE_NAME]
+      got = got_gt.node_sets["target"][tfgnn.HIDDEN_STATE]
       return [tf.reduce_min(got), tf.reduce_max(got)]
     self.assertAllEqual(min_max(), [1., 1.])  # Inference is the default.
     self.assertAllEqual(min_max(training=False), [1., 1.])
@@ -477,7 +477,7 @@ def _get_test_bidi_cycle_graph(node_state, edge_state=None):
       node_sets={
           "nodes": tfgnn.NodeSet.from_fields(
               sizes=[3],
-              features={tfgnn.DEFAULT_STATE_NAME: node_state}),
+              features={tfgnn.HIDDEN_STATE: node_state}),
       },
       edge_sets={
           "edges": tfgnn.EdgeSet.from_fields(
@@ -486,7 +486,7 @@ def _get_test_bidi_cycle_graph(node_state, edge_state=None):
                   ("nodes", tf.constant([0, 1, 2, 0, 2, 1])),
                   ("nodes", tf.constant([1, 2, 0, 2, 1, 0]))),
               features=(None if edge_state is None else
-                        {tfgnn.DEFAULT_STATE_NAME: edge_state})),
+                        {tfgnn.HIDDEN_STATE: edge_state})),
       })
 
 

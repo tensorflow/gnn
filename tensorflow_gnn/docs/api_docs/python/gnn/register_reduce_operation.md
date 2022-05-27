@@ -11,14 +11,12 @@ description: Register a new reduction operation for pooling.
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L360-L387">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L604-L631">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Register a new reduction operation for pooling.
 
@@ -26,12 +24,10 @@ Register a new reduction operation for pooling.
 <code>gnn.register_reduce_operation(
     reduce_type: str,
     *,
-    unsorted_reduce_op: UnsortedReduceOp = False,
+    unsorted_reduce_op: UnsortedReduceOp,
     allow_override: bool = False
 ) -> None
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
 

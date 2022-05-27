@@ -1,4 +1,4 @@
-description: A convolution layer that applies message_fn on each edge.
+description: A convolution layer that applies a passed-in message_fn.
 
 <div itemscope itemtype="http://developers.google.com/ReferenceObject">
 <meta itemprop="name" content="gnn.keras.layers.SimpleConvolution" />
@@ -11,6 +11,7 @@ description: A convolution layer that applies message_fn on each edge.
 <meta itemprop="property" content="build"/>
 <meta itemprop="property" content="compute_mask"/>
 <meta itemprop="property" content="compute_output_shape"/>
+<meta itemprop="property" content="convolve"/>
 <meta itemprop="property" content="count_params"/>
 <meta itemprop="property" content="from_config"/>
 <meta itemprop="property" content="get_config"/>
@@ -25,68 +26,172 @@ description: A convolution layer that applies message_fn on each edge.
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/keras/layers/convolutions.py#L71-L120">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/convolutions.py#L12-L128">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
 
+A convolution layer that applies a passed-in message_fn.
 
-
-A convolution layer that applies message_fn on each edge.
-
-Inherits From: [`ConvolutionFromEdgeSetUpdate`](../../../gnn/keras/layers/ConvolutionFromEdgeSetUpdate.md)
+Inherits From:
+[`AnyToAnyConvolutionBase`](../../../gnn/keras/layers/AnyToAnyConvolutionBase.md)
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>gnn.keras.layers.SimpleConvolution(
     message_fn: tf.keras.layers.Layer,
     reduce_type: str = &#x27;sum&#x27;,
     *,
-    node_input_tags: Sequence[const.IncidentNodeTag] = (const.SOURCE, const.TARGET),
-    edge_input_feature: Optional[const.FieldNameOrNames] = None,
-    receiver_tag: const.IncidentNodeTag = const.TARGET
+    combine_type: str = &#x27;concat&#x27;,
+    receiver_tag: const.IncidentNodeTag = const.TARGET,
+    receiver_feature: const.FieldName = const.HIDDEN_STATE,
+    sender_node_feature: Optional[const.FieldName] = const.HIDDEN_STATE,
+    sender_edge_feature: Optional[const.FieldName] = None,
+    **kwargs
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
-This layer that can be used in NodeSetInput({edge_set_name: ...}) to provide
-pooled messages from an edge set as input to the node set's state update.
+This layer can compute a convolution over an edge set by applying the passed-in
+message_fn for all edges on the concatenated inputs from some or all of: the
+edge itself, the sender node, and the receiver node, followed by pooling to the
+receiver node.
+
+Alternatively, depending on init arguments, it can perform the equivalent
+computation from nodes to context, edges to incident nodes, or edges to context,
+with the calling conventions described in the docstring for
+tfgnn.keras.layers.AnyToAnyConvolutionBase.
+
+Example: Using a SimpleConvolution in an MPNN-style graph update with a
+single-layer network to compute "sum"-pooled message on each edge from
+concatenated source and target states. (The result is then fed into the
+next-state layer, which concatenates the old node state and applies another
+single-layer network.)
+
+```
+dense = tf.keras.layers.Dense  # ...or some fancier feed-forward network.
+graph = tfgnn.keras.layers.GraphUpdate(
+    node_sets={"paper": tfgnn.keras.layers.NodeSetUpdate(
+        {"cites": tfgnn.keras.layers.SimpleConvolution(
+             dense(message_dim, "relu"), "sum", receiver_tag=tfgnn.TARGET)},
+        tfgnn.keras.layers.NextStateFromConcat(dense(state_dim, "relu")))}
+)(graph)
+```
 
 #### Init args:
 
-
-* <b>`message_fn`</b>: A Keras layer that takes input features concatenated into a
-  single tensor and computes the message of each edge.
-  Input and output tensors are shaped like edge features. (See `reduce_type`
-  and `receiver_tag` about the pooling that happens afterwards.)
-* <b>`reduce_type`</b>: Specifies how to pool the per-edge results to each edge's
-  receiver node. Defaults to "sum", can be set to any name from
-  tfgnn.get_registered_reduce_operation_names().
-* <b>`node_input_tags`</b>: The incident nodes of each edge whose states are used
-  as an input, specified as IncidentNodeTags (tfgnn.SOURCE and tfgnn.TARGET
-  by default).
-* <b>`edge_input_feature`</b>: Can be set to a feature name of the EdgeSet (or a
-  sequence of those) for use as additional inputs to message_fn.
-  By default, no edge features are used.
-* <b>`receiver_tag`</b>: This layer's result is obtained by pooling the per-edge
-  results at this endpoint of each edge. The default is `tfgnn.TARGET`,
-  but it is perfectly reasonable to do a convolution towards the
-  `tfgnn.SOURCE` instead. (Source and target are conventional names for
-  the incident nodes of a directed edge, data flow in a GNN may happen
-  in either direction.)
-
+*   <b>`message_fn`</b>: A Keras layer that computes the individual messages
+    from the combined input features (see combine_type).
+*   <b>`reduce_type`</b>: Specifies how to pool the messages to receivers.
+    Defaults to "sum", can be any name from
+    tfgnn.get_registered_reduce_operation_names().
+*   <b>`combine_type`</b>: a string understood by tfgnn.combine_values(), to
+    specify how the inputs are combined before passing them to the message_fn.
+    Defaults to "concat", which concatenates inputs along the last axis.
+*   <b>`receiver_tag`</b>: one of `tfgnn.SOURCE`, `tfgnn.TARGET` or
+    `tfgnn.CONTEXT`. Selects the receiver of the pooled messages. If set to
+    `tfgnn.SOURCE` or `tfgnn.TARGET`, the layer can be called for an edge set
+    and will pool results at the specified endpoint of the edges. If set to
+    `tfgnn.CONTEXT`, the layer can be called for an edge set or node set and
+    will pool results for the context (i.e., per graph component). If left unset
+    for init, the tag must be passed at call time.
+*   <b>`receiver_feature`</b>: Can be set to override
+    `tfgnn.DEFAULT_FEATURE_NAME` for use as the input feature from the receiver.
+    Passing `None` disables input from the receiver.
+*   <b>`sender_node_feature`</b>: Can be set to override
+    `tfgnn.DEFAULT_FEATURE_NAME` for use as the input feature from sender nodes.
+    Passing `None` disables input from the sender node. IMPORANT: Must be set to
+    `None` for use with `receiver_tag=tfgnn.CONTEXT` on an edge set, or for
+    pooling from edges without sender node states.
+*   <b>`sender_edge_feature`</b>: Can be set to a feature name of the edge set
+    to select it as an input feature. By default, this set to `None`, which
+    disables this input. IMPORTANT: Must be set for use with
+    `receiver_tag=tfgnn.CONTEXT` on an edge set.
 
 #### Call returns:
 
-A tensor or dict of tensors with the result of edge_set_update, pooled for
-the receiver node set.
+A Tensor whose leading dimension is indexed by receivers, with the pooled
+messages for each receiver.
 
+<!-- Tabular view -->
 
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
+<tr>
+<td>
+`receiver_tag`
+</td>
+<td>
+one of `tfgnn.SOURCE`, `tfgnn.TARGET` or `tfgnn.CONTEXT`.
+The results are aggregated for this graph piece.
+If set to `tfgnn.SOURCE` or `tfgnn.TARGET`, the layer can be called for
+an edge set and will aggregate results at the specified endpoint of the
+edges.
+If set to `tfgnn.CONTEXT`, the layer can be called for an edge set or a
+node set and will aggregate results for context (per graph component).
+If left unset for init, the tag must be passed at call time.
+</td>
+</tr><tr>
+<td>
+`receiver_feature`
+</td>
+<td>
+The name of the feature that is read from the receiver
+graph piece and passed as convolve(receiver_input=...).
+</td>
+</tr><tr>
+<td>
+`sender_node_feature`
+</td>
+<td>
+The name of the feature that is read from the sender
+nodes, if any, and passed as convolve(sender_node_input=...).
+NOTICE this must be `None` for use with `receiver_tag=tfgnn.CONTEXT`
+on an edge set, or for pooling from edges without sender node states.
+</td>
+</tr><tr>
+<td>
+`sender_edge_feature`
+</td>
+<td>
+The name of the feature that is read from the sender
+edges, if any, and passed as convolve(sender_edge_input=...).
+NOTICE this must not be `None` for use with `receiver_tag=tfgnn.CONTEXT`
+on an edge set.
+</td>
+</tr><tr>
+<td>
+`extra_receiver_ops`
+</td>
+<td>
+A str-keyed dictionary of Python callables that are
+wrapped to bind some arguments and then passed on to `convolve()`.
+Sample usage: `extra_receiver_ops={"softmax": tfgnn.softmax}`.
+The values passed in this dict must be callable as follows, with two
+positional arguments:
+`f(graph, receiver_tag, node_set_name=..., feature_value=..., ...)
+f(graph, receiver_tag, edge_set_name=..., feature_value=..., ...)`
+The wrapped callables seen by `convolve()` can be called like
+`wrapped_f(feature_value, ...)`
+The first three arguments of `f` are set to the input GraphTensor of
+the layer and the tag/name pair required by `tfgnn.broadcast()` and
+`tfgnn.pool()` to move values between the receiver and the messages that
+are computed inside the convolution. The sole positional argument of
+`wrapped_f()` is passed to `f()  as`feature_value=`, and any keyword
+arguments are forwarded.
+</td>
+</tr><tr>
+<td>`**kwargs`
+</td>
+<td>
+Forwarded to the base class tf.keras.layers.Layer.
+</td>
+</tr>
+</table>
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -112,20 +217,14 @@ mixed precision is used, this is the same as `Layer.dtype`, the dtype of
 the weights.
 
 Layers automatically cast their inputs to the compute dtype, which causes
-computations and the output to be in the compute dtype as well. This is done
-by the base Layer class in `Layer.__call__`, so you do not have to insert
-these casts if implementing your own layer.
+computations and the output to be in the compute dtype as well. This is done by
+the base Layer class in `Layer.__call__`, so you do not have to insert these
+casts if implementing your own layer.
 
 Layers often perform certain internal computations in higher precision when
-`compute_dtype` is float16 or bfloat16 for numeric stability. The output
-will still typically be float16 or bfloat16 in such cases.
-</td>
-</tr><tr>
-<td>
-`dtype`
-</td>
-<td>
-The dtype of the layer weights.
+`compute_dtype` is float16 or bfloat16 for numeric stability. The output will
+still typically be float16 or bfloat16 in such cases. </td> </tr><tr> <td>
+`dtype` </td> <td> The dtype of the layer weights.
 
 This is equivalent to `Layer.dtype_policy.variable_dtype`. Unless
 mixed precision is used, this is the same as `Layer.compute_dtype`, the
@@ -164,18 +263,17 @@ i.e. if it is connected to one incoming layer.
 <td>
 `InputSpec` instance(s) describing the input format for this layer.
 
-When you create a layer subclass, you can set `self.input_spec` to enable
-the layer to run input compatibility checks when it is called.
-Consider a `Conv2D` layer: it can only be called on a single input tensor
-of rank 4. As such, you can set, in `__init__()`:
+When you create a layer subclass, you can set `self.input_spec` to enable the
+layer to run input compatibility checks when it is called. Consider a `Conv2D`
+layer: it can only be called on a single input tensor of rank 4. As such, you
+can set, in `__init__()`:
 
 ```python
 self.input_spec = tf.keras.layers.InputSpec(ndim=4)
 ```
 
-Now, if you try to call the layer on an input that isn't rank 4
-(for instance, an input of shape `(2,)`, it will raise a nicely-formatted
-error:
+Now, if you try to call the layer on an input that isn't rank 4 (for instance,
+an input of shape `(2,)`, it will raise a nicely-formatted error:
 
 ```
 ValueError: Input 0 of layer conv2d is incompatible with the layer:
@@ -197,9 +295,9 @@ For more information, see `tf.keras.layers.InputSpec`.
 <td>
 List of losses added using the `add_loss()` API.
 
-Variable regularization tensors are created when this property is accessed,
-so it is eager safe: accessing `losses` under a `tf.GradientTape` will
-propagate gradients back to the corresponding variables.
+Variable regularization tensors are created when this property is accessed, so
+it is eager safe: accessing `losses` under a `tf.GradientTape` will propagate
+gradients back to the corresponding variables.
 
 ```
 >>> class MyLayer(tf.keras.layers.Layer):
@@ -276,15 +374,9 @@ Returns a `tf.name_scope` instance for this class.
 <td>
 List of all non-trainable weights tracked by this layer.
 
-Non-trainable weights are *not* updated during training. They are expected
-to be updated manually in `call()`.
-</td>
-</tr><tr>
-<td>
-`output`
-</td>
-<td>
-Retrieves the output tensor(s) of a layer.
+Non-trainable weights are *not* updated during training. They are expected to be
+updated manually in `call()`. </td> </tr><tr> <td> `output` </td> <td> Retrieves
+the output tensor(s) of a layer.
 
 Only applicable if the layer has exactly one output,
 i.e. if it is connected to one incoming layer.
@@ -312,19 +404,15 @@ True
 >>> list(c.submodules) == []
 True
 ```
-</td>
-</tr><tr>
-<td>
-`supports_masking`
-</td>
-<td>
-Whether this layer supports computing a mask using `compute_mask`.
-</td>
-</tr><tr>
-<td>
-`trainable`
-</td>
-<td>
+
+</td> </tr><tr> <td> `supports_masking` </td> <td> Whether this layer supports
+computing a mask using `compute_mask`. </td> </tr><tr> <td>
+`takes_receiver_input` </td> <td> If false, all calls to convolve() will get
+receiver_input=None. </td> </tr><tr> <td> `takes_sender_edge_input` </td> <td>
+If false, all calls to convolve() will get sender_edge_input=None. </td>
+</tr><tr> <td> `takes_sender_node_input` </td> <td> If false, all calls to
+convolve() will get sender_node_input=None. </td> </tr><tr> <td> `trainable`
+</td> <td>
 
 </td>
 </tr><tr>
@@ -367,11 +455,10 @@ Returns the list of all layer variables/weights.
 
 Add loss tensor(s), potentially dependent on layer inputs.
 
-Some losses (for instance, activity regularization losses) may be dependent
-on the inputs passed when calling a layer. Hence, when reusing the same
-layer on different inputs `a` and `b`, some entries in `layer.losses` may
-be dependent on `a` and some on `b`. This method automatically keeps track
-of dependencies.
+Some losses (for instance, activity regularization losses) may be dependent on
+the inputs passed when calling a layer. Hence, when reusing the same layer on
+different inputs `a` and `b`, some entries in `layer.losses` may be dependent on
+`a` and some on `b`. This method automatically keeps track of dependencies.
 
 This method can be used inside a subclassed layer or model's `call`
 function, in which case `losses` should be a Tensor or list of Tensors.
@@ -388,9 +475,9 @@ class MyLayer(tf.keras.layers.Layer):
 ```
 
 This method can also be called directly on a Functional Model during
-construction. In this case, any loss Tensors passed to this Model must
-be symbolic and be able to be traced back to the model's `Input`s. These
-losses become part of the model's topology and are tracked in `get_config`.
+construction. In this case, any loss Tensors passed to this Model must be
+symbolic and be able to be traced back to the model's `Input`s. These losses
+become part of the model's topology and are tracked in `get_config`.
 
 #### Example:
 
@@ -405,8 +492,8 @@ model = tf.keras.Model(inputs, outputs)
 model.add_loss(tf.abs(tf.reduce_mean(x)))
 ```
 
-If this is not the case for your loss (if, for example, your loss references
-a `Variable` of one of the model's layers), you can wrap your loss in a
+If this is not the case for your loss (if, for example, your loss references a
+`Variable` of one of the model's layers), you can wrap your loss in a
 zero-argument lambda. These losses are not tracked as part of the model's
 topology since they can't be serialized.
 
@@ -434,22 +521,19 @@ model.add_loss(lambda: tf.reduce_mean(d.kernel))
 `losses`
 </td>
 <td>
-Loss tensor, or list/tuple of tensors. Rather than tensors, losses
-may also be zero-argument callables which create a loss tensor.
+Loss tensor, or list/tuple of tensors. Rather than tensors,
+losses may also be zero-argument callables which create a loss
+tensor.
 </td>
 </tr><tr>
 <td>
 `**kwargs`
 </td>
 <td>
-Additional keyword arguments for backward compatibility.
-Accepted values:
-  inputs - Deprecated, will be automatically inferred.
+Used for backwards compatibility only.
 </td>
 </tr>
 </table>
-
-
 
 <h3 id="add_metric"><code>add_metric</code></h3>
 
@@ -490,9 +574,9 @@ model = tf.keras.Model(inputs, outputs)
 model.add_metric(math_ops.reduce_sum(x), name='metric_1')
 ```
 
-Note: Calling `add_metric()` with the result of a metric object on a
-Functional Model, as shown in the example below, is not supported. This is
-because we cannot trace the metric result tensor back to the model's inputs.
+Note: Calling `add_metric()` with the result of a metric object on a Functional
+Model, as shown in the example below, is not supported. This is because we
+cannot trace the metric result tensor back to the model's inputs.
 
 ```python
 inputs = tf.keras.Input(shape=(10,))
@@ -528,14 +612,12 @@ String metric name.
 <td>
 Additional keyword arguments for backward compatibility.
 Accepted values:
-`aggregation` - When the `value` tensor provided is not the result of
-calling a `keras.Metric` instance, it will be aggregated by default
-using a `keras.Metric.Mean`.
+`aggregation` - When the `value` tensor provided is not the result
+of calling a `keras.Metric` instance, it will be aggregated by
+default using a `keras.Metric.Mean`.
 </td>
 </tr>
 </table>
-
-
 
 <h3 id="build"><code>build</code></h3>
 
@@ -670,6 +752,134 @@ An input shape tuple.
 
 </table>
 
+<h3 id="convolve"><code>convolve</code></h3>
+
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/convolutions.py#L106-L128">View
+source</a>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>convolve(
+    *,
+    sender_node_input: Optional[tf.Tensor],
+    sender_edge_input: Optional[tf.Tensor],
+    receiver_input: Optional[tf.Tensor],
+    broadcast_from_sender_node: Callable[[tf.Tensor], tf.Tensor],
+    broadcast_from_receiver: Callable[[tf.Tensor], tf.Tensor],
+    pool_to_receiver: Callable[..., tf.Tensor],
+    training: bool
+) -> tf.Tensor
+</code></pre>
+
+Returns the convolution result.
+
+The Tensor inputs to this function still have their original shapes and need to
+be broadcast such that the leading dimension is indexed by the items in the
+graph for which messages are computed (usually edges; except when convolving
+from nodes to context). In the end, values have to be pooled from there into a
+Tensor with a leading dimension indexed by receivers, see `pool_to_receiver`.
+
+<!-- Tabular view -->
+
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Args</th></tr>
+
+<tr>
+<td>
+`sender_node_input`
+</td>
+<td>
+The input Tensor from the sender NodeSet, or None.
+If self.takes_sender_node_input is False, this arg will be None.
+(If it is True, that depends on how this layer gets called.)
+See also broadcast_from_sender_node.
+</td>
+</tr><tr>
+<td>
+`sender_edge_input`
+</td>
+<td>
+The input Tensor from the sender EdgeSet, or None.
+If self.takes_sender_edge_input is False, this arg will be None.
+(If it is True, it depends on how this layer gets called.)
+If present, this Tensor is already indexed by the items for which
+messages are computed.
+</td>
+</tr><tr>
+<td>
+`receiver_input`
+</td>
+<td>
+The input Tensor from the receiver NodeSet or Context,
+or None. If self.takes_receiver_input is False, this arg will be None.
+(If it is True, it depends on how this layer gets called.)
+See broadcast_from_receiver.
+</td>
+</tr><tr>
+<td>
+`broadcast_from_sender_node`
+</td>
+<td>
+A function that broadcasts a Tensor indexed
+like sender_node_input to a Tensor indexed by the items for which
+messages are computed.
+</td>
+</tr><tr>
+<td>
+`broadcast_from_receiver`
+</td>
+<td>
+Call this as `broadcast_from_receiver(value)`
+to broadcast a Tensor indexed like receiver_input to a Tensor indexed
+by the items for which messages are computed.
+</td>
+</tr><tr>
+<td>
+`pool_to_receiver`
+</td>
+<td>
+Call this as `pool_to_receiver(value, reduce_type=...)`
+to pool an item-indexed Tensor to a receiver-indexed tensor, using
+a reduce_type understood by tfgnn.pool(), such as "sum".
+</td>
+</tr><tr>
+<td>
+`extra_receiver_ops`
+</td>
+<td>
+The extra_receiver_ops passed to init, see there,
+wrapped so that they can be called directly on a feature value.
+If init did not receive extra_receiver_ops, convolve() will not receive
+this argument, so subclass implementors not using it can omit it.
+</td>
+</tr><tr>
+<td>
+`training`
+</td>
+<td>
+The `training` boolean that was passed to Layer.call(). If true,
+the result is computed for training rather than inference. For example,
+calls to tf.nn.dropout() are usually conditioned on this flag.
+By contrast, calling another Keras layer (like tf.keras.layers.Dropout)
+does not require forwarding this arg, Keras does that automatically.
+</td>
+</tr>
+</table>
+
+<!-- Tabular view -->
+
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Returns</th></tr>
+<tr class="alt">
+<td colspan="2">
+A Tensor whose leading dimension is indexed by receivers, with the
+result of the convolution for each receiver.
+</td>
+</tr>
+
+</table>
+
 
 
 <h3 id="count_params"><code>count_params</code></h3>
@@ -763,40 +973,32 @@ A layer instance.
 
 <h3 id="get_config"><code>get_config</code></h3>
 
-<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/keras/layers/convolutions.py#L52-L57">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/convolutions.py#L99-L104">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>get_config()
 </code></pre>
 
-Returns the config of the layer.
+Returns config with features and tag managed by AnyToAnyConvolutionBase.
 
-A layer config is a Python dictionary (serializable)
-containing the configuration of a layer.
-The same layer can be reinstantiated later
-(without its trained weights) from this configuration.
+AnyToAnyConvolutionBase.get_config() returns a dict that includes: - its
+initializer arguments to control what the convolution is run on, that is, the
+`receiver_tag` and all `*_feature` names. - the configuration of its base class.
 
-The config of a layer does not include connectivity
-information, nor the layer class name. These are handled
-by `Network` (one layer of abstraction above).
+Usually, a subclass accepts these args in their `__init__()` method and forward
+them verbatim to `super().__init__()`. Correspondingly, its `get_config()` will
+get them from `super().get_config()` and does not need to insert them itself
+(cf. `ExampleConvolution.get_config()` in the usage example in the docstring of
+class AnyToAnyConvolutionBase).
 
-Note that `get_config()` does not guarantee to return a fresh copy of dict
-every time it is called. The callers should make a copy of the returned dict
-if they want to modify it.
-
-<!-- Tabular view -->
- <table class="responsive fixed orange">
-<colgroup><col width="214px"><col></colgroup>
-<tr><th colspan="2">Returns</th></tr>
-<tr class="alt">
-<td colspan="2">
-Python dictionary.
-</td>
-</tr>
-
-</table>
-
-
+The init arg `extra_receiver_ops` is not returned here, because it is not a free
+parameter: The subclass initializer sets it when calling
+<a href="../../../gnn/keras/layers/AnyToAnyConvolutionBase.md#__init__"><code>AnyToAnyConvolutionBase.__init__()</code></a>
+to do whatever `convolve()` needs; that works the same way whether the
+initializer is called the usual way from user code or as part of initializing
+from a config. (Besides, generic Python callables are unsuitable for
+serialization.)
 
 <h3 id="get_weights"><code>get_weights</code></h3>
 
@@ -806,14 +1008,13 @@ Python dictionary.
 
 Returns the current weights of the layer, as NumPy arrays.
 
-The weights of a layer represent the state of the layer. This function
-returns both trainable and non-trainable weight values associated with this
-layer as a list of NumPy arrays, which can in turn be used to load state
-into similarly parameterized layers.
+The weights of a layer represent the state of the layer. This function returns
+both trainable and non-trainable weight values associated with this layer as a
+list of NumPy arrays, which can in turn be used to load state into similarly
+parameterized layers.
 
-For example, a `Dense` layer returns a list of two values: the kernel matrix
-and the bias vector. These can be used to set the weights of another
-`Dense` layer:
+For example, a `Dense` layer returns a list of two values: the kernel matrix and
+the bias vector. These can be used to set the weights of another `Dense` layer:
 
 ```
 >>> layer_a = tf.keras.layers.Dense(1,
@@ -867,9 +1068,8 @@ passed in the order they are created by the layer. Note that the layer's
 weights must be instantiated before calling this function, by calling
 the layer.
 
-For example, a `Dense` layer returns a list of two values: the kernel matrix
-and the bias vector. These can be used to set the weights of another
-`Dense` layer:
+For example, a `Dense` layer returns a list of two values: the kernel matrix and
+the bias vector. These can be used to set the weights of another `Dense` layer:
 
 ```
 >>> layer_a = tf.keras.layers.Dense(1,
@@ -1046,18 +1246,15 @@ Output tensor(s).
 
 #### Note:
 
-- The following optional keyword arguments are reserved for specific uses:
-  * `training`: Boolean scalar tensor of Python boolean indicating
-    whether the `call` is meant for training or inference.
-  * `mask`: Boolean input mask.
-- If the layer's `call` method takes a `mask` argument (as some Keras
-  layers do), its default value will be set to the mask generated
-  for `inputs` by the previous layer (if `input` did come from
-  a layer that generated a corresponding mask, i.e. if it came from
-  a Keras layer with masking support.
-- If the layer is not built, the method will call `build`.
-
-
+-   The following optional keyword arguments are reserved for specific uses:
+    *   `training`: Boolean scalar tensor of Python boolean indicating whether
+        the `call` is meant for training or inference.
+    *   `mask`: Boolean input mask.
+-   If the layer's `call` method takes a `mask` argument (as some Keras layers
+    do), its default value will be set to the mask generated for `inputs` by the
+    previous layer (if `input` did come from a layer that generated a
+    corresponding mask, i.e. if it came from a Keras layer with masking support.
+-   If the layer is not built, the method will call `build`.
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -1069,19 +1266,16 @@ Output tensor(s).
 `ValueError`
 </td>
 <td>
-if the layer's `call` method returns None (an invalid value).
+if the layer's `call` method returns None (an invalid
+value).
 </td>
 </tr><tr>
 <td>
 `RuntimeError`
 </td>
 <td>
-if `super().__init__()` was not called in the constructor.
+if `super().__init__()` was not called in the
+constructor.
 </td>
 </tr>
 </table>
-
-
-
-
-

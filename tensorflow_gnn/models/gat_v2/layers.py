@@ -35,7 +35,6 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       enabled or disabled by storing or not storing an explicit loop in the
       edge set. The example above uses a separate layer to combine the old
       node state with the attention result to form the new node state.
-      TODO(b/205960151): Do we have a good example for not storing the loop?
     * Attention values can be computed from a sender node state that gets
       broadcast onto the edge (see arg `sender_node_feature`), from an edge
       feature (see arg `sender_edge_feature`), or from their concatenation
@@ -103,9 +102,9 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
                num_heads: int,
                per_head_channels: int,
                receiver_tag: Optional[tfgnn.IncidentNodeOrContextTag] = None,
-               receiver_feature: tfgnn.FieldName = tfgnn.DEFAULT_STATE_NAME,
+               receiver_feature: tfgnn.FieldName = tfgnn.HIDDEN_STATE,
                sender_node_feature: Optional[
-                   tfgnn.FieldName] = tfgnn.DEFAULT_STATE_NAME,
+                   tfgnn.FieldName] = tfgnn.HIDDEN_STATE,
                sender_edge_feature: Optional[tfgnn.FieldName] = None,
                use_bias: bool = True,
                edge_dropout: float = 0.,
@@ -287,8 +286,8 @@ def GATv2EdgePool(*,  # To be called like a class initializer.  pylint: disable=
                   num_heads: int,
                   per_head_channels: int,
                   receiver_tag: Optional[tfgnn.IncidentNodeOrContextTag] = None,
-                  receiver_feature: tfgnn.FieldName = tfgnn.DEFAULT_STATE_NAME,
-                  sender_feature: tfgnn.FieldName = tfgnn.DEFAULT_STATE_NAME,
+                  receiver_feature: tfgnn.FieldName = tfgnn.HIDDEN_STATE,
+                  sender_feature: tfgnn.FieldName = tfgnn.HIDDEN_STATE,
                   **kwargs):
   """Returns a layer for pooling edges with GATv2-style attention.
 
@@ -341,7 +340,7 @@ def GATv2GraphUpdate(*,  # To be called like a class initializer.  pylint: disab
                      num_heads: int,
                      per_head_channels: int,
                      edge_set_name: str,
-                     feature_name: str = tfgnn.DEFAULT_STATE_NAME,
+                     feature_name: str = tfgnn.HIDDEN_STATE,
                      name: str = "gat_v2",
                      **kwargs):
   """Returns a GraphUpdater layer with a Graph Attention Network V2 (GATv2).
@@ -364,7 +363,7 @@ def GATv2GraphUpdate(*,  # To be called like a class initializer.  pylint: disab
     edge_set_name: A GATv2 update happens on this edge set and its incident
       node set(s) of the input GraphTensor.
     feature_name: The feature name of node states; defaults to
-      tfgnn.DEFAULT_STATE_NAME.
+      tfgnn.HIDDEN_STATE.
     name: Optionally, a name for the layer returned.
     **kwargs: Any optional arguments to GATv2Conv, see there.
   """
