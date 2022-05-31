@@ -139,6 +139,10 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     if not 0 <= edge_dropout < 1:
       raise ValueError(f"Edge dropout {edge_dropout} must be in [0, 1).")
     self._edge_dropout = edge_dropout
+    if self._edge_dropout > 0:
+      self._edge_dropout_layer = tf.keras.layers.Dropout(self._edge_dropout)
+    else:
+      self._edge_dropout_layer = None
 
     self._attention_activation = tf.keras.activations.get(attention_activation)
     self._activation = tf.keras.activations.get(activation)
@@ -206,7 +210,7 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
                pool_to_receiver: Callable[..., tf.Tensor],
                extra_receiver_ops: Optional[
                    Mapping[str, Callable[..., Any]]] = None,
-               training: bool) -> tf.Tensor:
+               **kwargs) -> tf.Tensor:
 
     # Form the attention query for each head.
     # [num_items, *extra_dims, num_heads, channels_per_head]
@@ -236,13 +240,14 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     logits = tf.expand_dims(self._attention_logits_fn(attention_features), -1)
     attention_coefficients = extra_receiver_ops["softmax"](logits)
 
-    if training:
-      # Apply dropout to the normalized attention coefficients, as is done in
-      # the original GAT paper. This should have the same effect as edge
-      # dropout. Also, note that tf.nn.dropout upscales the remaining values,
+    if self._edge_dropout_layer is not None:
+      # If requested, add layer with dropout to the normalized attention
+      # coefficients, as is done in the original GAT paper. This should
+      # have the same effect as edge dropout.
+      # Also, note that `keras.layers.Dropout` upscales the remaining values,
       # which should maintain the sum-up-to-1 per node in expectation.
-      attention_coefficients = tf.nn.dropout(attention_coefficients,
-                                             self._edge_dropout)
+      attention_coefficients = self._edge_dropout_layer(attention_coefficients,
+                                                        **kwargs)
 
     # Apply the attention coefficients to the transformed query.
     # [num_items, *extra_dims, num_heads, per_head_channels]
