@@ -380,13 +380,13 @@ def sample(sampling_op: sampling_spec_pb2.SamplingOp,
       edges_to_sample = set()
       for edge in node.outgoing_edges:
         if edge.edge_set_name == sampling_op.edge_set_name:
-          edges_to_sample.add(edge)
+          edges_to_sample.add((edge.neighbor_id, weight_func(edge)))
 
       for _ in range(sampling_op.sample_size):
         if edges_to_sample:
           e = random.choice(tuple(edges_to_sample))
           edges_to_sample.remove(e)
-          new_boundary.add((e.neighbor_id, weight_func(e)))
+          new_boundary.add(e)
         else:
           break
   elif sampling_op.strategy == sampling_spec_pb2.TOP_K:
