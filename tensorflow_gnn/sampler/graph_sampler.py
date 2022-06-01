@@ -377,15 +377,18 @@ def sample(sampling_op: sampling_spec_pb2.SamplingOp,
   # TODO(tfgnn):  Pre-group edges by edgeset in order to speed this up.
   if sampling_op.strategy == sampling_spec_pb2.RANDOM_UNIFORM:
     for node in sg.boundary:
-      edges_to_sample = []
+      edges_to_sample = set()
       for edge in node.outgoing_edges:
         if edge.edge_set_name == sampling_op.edge_set_name:
-          edges_to_sample.append(edge)
+          edges_to_sample.add(edge)
 
-      if edges_to_sample:
-        for _ in range(sampling_op.sample_size):
-          e = random.choice(edges_to_sample)
+      for _ in range(sampling_op.sample_size):
+        if edges_to_sample:
+          e = random.choice(tuple(edges_to_sample))
+          edges_to_sample.remove(e)
           new_boundary.add((e.neighbor_id, weight_func(e)))
+        else:
+          break
   elif sampling_op.strategy == sampling_spec_pb2.TOP_K:
     for node in sg.boundary:
       weights = collections.defaultdict(float)
