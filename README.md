@@ -50,9 +50,12 @@ For more details, please see our [documentation](g3doc/guide/overview.md).
 
 ## Installation Instructions
 
+##### Latest available pip wheel.
+
+`pip install tensorflow_gnn --pre`
+
 ##### Installation from source.
 
-This is currently the only way to install the preview release of ```tensorflow_gnn```.
 A virtual environment is highly recommended.
 
 1.  **Clone tensorflow_gnn**
@@ -75,13 +78,6 @@ A virtual environment is highly recommended.
     instructions here to install Bazel for your OS:
     https://docs.bazel.build/versions/main/install.html
 
-4.  **Install GraphViz**
-
-    This package uses GraphViz for visualization tools. Installation
-    instructions vary depending on your operating system. E.g. for Ubuntu:
-
-    > `$> sudo apt-get install graphviz graphviz-dev`
-
-5.  **Install tensorflow_gnn**
+4.  **Install tensorflow_gnn**
 
     > `$> cd tensorflow_gnn && python3 -m pip install .`
