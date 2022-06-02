@@ -15,6 +15,7 @@ pytype_strict_library(
         "//tensorflow_gnn/runner/tasks:regression",
         "//tensorflow_gnn/runner/trainers:keras_fit",
         "//tensorflow_gnn/runner/utils:model_dir",
+        "//tensorflow_gnn/runner/utils:model_export",
         "//tensorflow_gnn/runner/utils:strategies",
     ],
 )
@@ -27,5 +28,6 @@ pytype_strict_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//tensorflow_gnn/runner/utils:model_export",
     ],
 )

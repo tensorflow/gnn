@@ -7,6 +7,7 @@ from tensorflow_gnn.runner.tasks import dgi
 from tensorflow_gnn.runner.tasks import regression
 from tensorflow_gnn.runner.trainers import keras_fit
 from tensorflow_gnn.runner.utils import model_dir
+from tensorflow_gnn.runner.utils import model_export
 from tensorflow_gnn.runner.utils import strategies
 
 # Input
@@ -18,6 +19,10 @@ SampleTFRecordDatasetsProvider = datasets.SampleTFRecordDatasetsProvider
 
 # Model directory
 incrementing_model_dir = model_dir.incrementing_model_dir
+
+# Model export
+KerasModelExporter = model_export.KerasModelExporter
+SubmoduleExporter = model_export.SubmoduleExporter
 
 # Orchestration
 DatasetProvider = orchestration.DatasetProvider
