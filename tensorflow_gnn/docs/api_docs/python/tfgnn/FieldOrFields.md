@@ -14,12 +14,10 @@ This symbol is a **type alias**.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>FieldOrFields = Union[
-    tensorflow.python.framework.ops.Tensor,
-    tensorflow.python.ops.ragged.ragged_tensor.RaggedTensor,
+    tf.Tensor,
+    tf.RaggedTensor,
     <a href="../tfgnn/Fields.md"><code>tfgnn.Fields</code></a>
 ]
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->

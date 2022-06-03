@@ -14,11 +14,9 @@ This symbol is a **type alias**.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>FieldSpec = Union[
-    tensorflow.python.framework.tensor_spec.TensorSpec,
-    tensorflow.python.ops.ragged.ragged_tensor.RaggedTensorSpec
+    tf.TensorSpec,
+    tf.RaggedTensorSpec
 ]
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
