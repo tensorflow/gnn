@@ -36,15 +36,15 @@ def graph_tensor_to_values(graph: gt.GraphTensor) -> Dict[str, Any]:
   """Convert an eager `GraphTensor` to a mapping of mappings of PODTs.
 
   This is used for pretty-printing. Convert your graph tensor with this and run
-  the result through pprint.pprint() or pprint.pformat() for display of its
+  the result through `pprint.pprint()` or `pprint.pformat()` for display of its
   contents.
 
   Args:
     graph: An eager `GraphTensor` instance to be pprinted.
 
   Returns:
-    A dict of plain-old data types that can be run through pprint.pprint() or a
-    JSON conversion library.
+    A dict of plain-old data types that can be run through `pprint.pprint()` or
+    a JSON conversion library.
   """
   context_data = _get_features_data(graph.context.features)
   node_data = {name: _get_features_data(nodeset.features)

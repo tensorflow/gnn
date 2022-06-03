@@ -199,7 +199,7 @@ def find_tight_size_constraints(
     dataset: finite dataset of graph tensors of any rank.
     min_nodes_per_component: mapping from a node set name to a minimum number of
       nodes in each graph component. Defaults to 0.
-    target_batch_size: if not None, an integer for multiplying the sizes
+    target_batch_size: if not `None`, an integer for multiplying the sizes
       measured from dataset before making room for padding.
 
   Returns:
@@ -254,34 +254,35 @@ def learn_fit_or_skip_size_constraints(
 
   Example:
 
-    # Learn size constraints for a given dataset of graph tensors and the target
-    # batch size(s). The constraints could be learned once and then reused.
-    constraints = tfgnn.learn_fit_or_skip_size_constraints(dataset, batch_size)
+  ```python
+  # Learn size constraints for a given dataset of graph tensors and the target
+  # batch size(s). The constraints could be learned once and then reused.
+  constraints = tfgnn.learn_fit_or_skip_size_constraints(dataset, batch_size)
 
-    # Batch merge contained graphs into scalar graph tensors.
-    if training:
-      # Randomize and repeat dataset for training. Note that the fit-or-skip
-      # technique is only applicable for randomizer infinite datasets. It is
-      # incorrect to apply it during models evaluation because some input
-      # examples may be filtered out.
-      dataset = dataset.shuffle(shuffle_size).repeat()
-    dataset = dataset.batch(batch_size)
-    dataset = dataset.map(lambda graph: graph.merge_batch_to_components())
+  # Batch merge contained graphs into scalar graph tensors.
+  if training:
+    # Randomize and repeat dataset for training. Note that the fit-or-skip
+    # technique is only applicable for randomizer infinite datasets. It is
+    # incorrect to apply it during models evaluation because some input
+    # examples may be filtered out.
+    dataset = dataset.shuffle(shuffle_size).repeat()
+  dataset = dataset.batch(batch_size)
+  dataset = dataset.map(lambda graph: graph.merge_batch_to_components())
 
-    if training:
-      # Remove all batches that do not satisfy the learned constraints.
-      dataset = dataset.filter(
-          functools.partial(
-              tfgnn.satisfies_size_constraints,
-              total_sizes=constraints))
+  if training:
+    # Remove all batches that do not satisfy the learned constraints.
+    dataset = dataset.filter(
+        functools.partial(
+            tfgnn.satisfies_size_constraints,
+            total_sizes=constraints))
 
-      # Pad graph to the learned size constraints.
-      dataset = dataset.map(
-          functools.partial(
-              tfgnn.pad_to_total_sizes,
-              size_constraints=constraints,
-              validate=False))
-
+    # Pad graph to the learned size constraints.
+    dataset = dataset.map(
+        functools.partial(
+            tfgnn.pad_to_total_sizes,
+            size_constraints=constraints,
+            validate=False))
+  ```
 
   The learned constraints are intend to be used only with randomized repeated
   dataset. This dataset are first batched using `tf.data.Dataset.batch()`, the

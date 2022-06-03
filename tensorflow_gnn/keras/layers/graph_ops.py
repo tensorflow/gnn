@@ -29,7 +29,8 @@ class Readout(tf.keras.layers.Layer):
   unset to select tfgnn.HIDDEN_STATE.
 
   For example:
-  ```
+
+  ```python
   readout = tfgnn.keras.layers.Readout(feature="value")
   value = readout(graph_tensor, edge_set_name="edges")
   assert value == graph_tensor.edge_sets["edge"]["value"]
@@ -259,6 +260,7 @@ class BroadcastPoolBase(tf.keras.layers.Layer):
   GraphTensor, just with different directions of data flow. This base class
   provides their common handling of init and call args that specify the
   relationship:
+
     * An edge_set_name or node_set_name specifies the "many" things that are
       being broadcast to or pooled from. Collectively, the edge or node set name
       is called the location.
@@ -394,6 +396,7 @@ class Broadcast(BroadcastPoolBase):
   broadcast feature value.
 
   There are two kinds of broadcast that this layer can be used for:
+
     * From a node set to an edge set. This is selected by specifying
       the origin by tag `tgnn.SOURCE` or `tfgnn.TARGET` and the receiver
       as `edge_set_name=...`; the node set name is implied.
@@ -479,6 +482,7 @@ class Pool(BroadcastPoolBase):
   result of pooling some feature.
 
   There are two kinds of pooling that this layer can be used for:
+
     * From an edge set to a node set. This is selected by specifying the
       origin as `edge_set_name=...` and the receiver with tag `tgnn.SOURCE`
       or `tfgnn.TARGET`; the corresponding node set name is implied.

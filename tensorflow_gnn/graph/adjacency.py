@@ -31,9 +31,9 @@ class HyperAdjacency(gp.GraphPieceBase):
   incident node set. The adjacency information is stored as a mapping from the
   node set tags to integer tensors containing indices of nodes in corresponding
   node sets. Those tensors are indexed by edges. All index tensors have the same
-  type spec and shape of `[*graph_shape, num_edges]`, where num_edges is the
+  type spec and shape of `[*graph_shape, num_edges]`, where `num_edges` is the
   number of edges in the edge set (could be potentially ragged). The index
-  tensors are of `tf.Tensor` type if num_edges is not None or
+  tensors are of `tf.Tensor` type if `num_edges` is not `None` or
   `graph_shape.rank = 0` and of `tf.RaggedTensor` type otherwise.
 
   The HyperAdjacency is a composite tensor.
@@ -48,39 +48,48 @@ class HyperAdjacency(gp.GraphPieceBase):
                    validate: bool = True) -> 'HyperAdjacency':
     """Constructs a new instance from the `indices` tensors.
 
-    Example 1. Single graph (rank is 0). Connects pairs of nodes (a[0], b[2]),
-    (a[1], b[1]), (a[2], b[0]) from node sets a and b:
+    Example 1:
 
-        tfgnn.HyperAdjacency.from_indices({
-            tfgnn.SOURCE: ('a', [0, 1, 2]),
-            tfgnn.TARGET: ('b', [2, 1, 0])
-        })
+    ```python
+    # Single graph (rank is 0). Connects pairs of nodes (a[0], b[2]),
+    # (a[1], b[1]), (a[2], b[0]) from node sets a and b.
+    tfgnn.HyperAdjacency.from_indices({
+        tfgnn.SOURCE: ('a', [0, 1, 2]),
+        tfgnn.TARGET: ('b', [2, 1, 0])
+    })
+    ```
 
-    Example 2. Single hypergraph (rank is 0). Connects triplets of nodes
-    (a[0], b[2], c[1]), (a[1], b[1], c[0]) from the node sets a, b and c:
+    Example 2:
 
-        tfgnn.HyperAdjacency.from_indices({
-            0: ('a', [0, 1]),
-            1: ('b', [2, 1]),
-            2: ('c', [1, 0]),
-        })
+    ```python
+    # Single hypergraph (rank is 0). Connects triplets of nodes
+    # (a[0], b[2], c[1]), (a[1], b[1], c[0]) from the node sets a, b and c.
+    tfgnn.HyperAdjacency.from_indices({
+        0: ('a', [0, 1]),
+        1: ('b', [2, 1]),
+        2: ('c', [1, 0]),
+    })
+    ```
 
-    Example 3. Batch of two graphs (rank is 1). Connects pairs of nodes in
-    graph 0: (a[0], b[2]), (a[1], b[1]); graph 1: (a[2], b[0]):
+    Example 3:
 
-        tfgnn.HyperAdjacency.from_indices({
-            tfgnn.SOURCE: ('a', tf.ragged.constant([[0, 1], [2]])),
-            tfgnn.TARGET: ('b', tf.ragged.constant([[2, 1], [0]])),
-        })
+    ```python
+    # Batch of two graphs (rank is 1). Connects pairs of nodes in
+    # graph 0: (a[0], b[2]), (a[1], b[1]); graph 1: (a[2], b[0]).
+    tfgnn.HyperAdjacency.from_indices({
+        tfgnn.SOURCE: ('a', tf.ragged.constant([[0, 1], [2]])),
+        tfgnn.TARGET: ('b', tf.ragged.constant([[2, 1], [0]])),
+    })
+    ```
 
     Args:
       indices: A mapping from node tags to 2-tuples of node set name and node
         index tensor. The index tensors must have the same type spec and shape
-        of `[*graph_shape, num_edges]`, where num_edges is the number of edges
+        of `[*graph_shape, num_edges]`, where `num_edges` is the number of edges
         in each graph (could be ragged). The index tensors are of `tf.Tensor`
-        type if num_edges is not None or `graph_shape.rank = 0` and of
+        type if `num_edges` is not `None` or `graph_shape.rank = 0` and of
         `tf.RaggedTensor` type otherwise.
-      validate: If True, checks that node indices have the same type spec.
+      validate: If `True`, checks that node indices have the same type spec.
 
     Returns:
       A `HyperAdjacency` tensor with its `shape` and `indices_dtype` being
@@ -174,9 +183,9 @@ class HyperAdjacencySpec(gp.GraphPieceSpecBase):
     Args:
       incident_node_sets: A mapping from incident node tags to node set names.
       index_spec: type spec for all index tensors of shape
-        `[*graph_shape, num_edges]`, where num_edges is the number of edges in
-        each graph. If num_edges is not None or `graph_shape.rank = 0` the spec
-        must be of `tf.TensorSpec` type and of `tf.RaggedTensorSpec` type
+        `[*graph_shape, num_edges]`, where `num_edges` is the number of edges in
+        each graph. If `num_edges` is not `None` or `graph_shape.rank = 0` the
+        spec must be of `tf.TensorSpec` type and of `tf.RaggedTensorSpec` type
         otherwise.
 
     Returns:
@@ -241,9 +250,9 @@ class Adjacency(HyperAdjacency):
   The adjacency information is a pair of integer tensors containing indices of
   nodes in source and target node sets. Those tensors are indexed by
   edges, have the same type spec and shape of `[*graph_shape, num_edges]`,
-  where num_edges is the number of edges in the edge set (could be potentially
-  ragged). The index tensors are of `tf.Tensor` type if num_edges is not None
-  or `graph_shape.rank = 0` and of`tf.RaggedTensor` type otherwise.
+  where `num_edges` is the number of edges in the edge set (could be potentially
+  ragged). The index tensors are of `tf.Tensor` type if `num_edges` is not
+  `None` or `graph_shape.rank = 0` and of`tf.RaggedTensor` type otherwise.
 
   The Adjacency is a composite tensor and a special case of tfgnn.HyperAdjacency
   class with `tfgnn.SOURCE` and `tfgnn.TARGET` node tags used for the source and
@@ -260,27 +269,33 @@ class Adjacency(HyperAdjacency):
                    validate: bool = True) -> 'Adjacency':
     """Constructs a new instance from the `source` and `target` node indices.
 
-    Example 1. Single graph (rank is 0). Connects pairs of nodes (a[0], b[2]),
-    (a[1], b[1]), (a[2], b[0]) from node sets a and b:
+    Example 1:
 
-        tfgnn.Adjacency.from_indices(('a', [0, 1, 2]),
-                                     ('b', [2, 1, 0]))
+    ```python
+    # Single graph (rank is 0). Connects pairs of nodes (a[0], b[2]),
+    # (a[1], b[1]), (a[2], b[0]) from node sets a and b.
+    tfgnn.Adjacency.from_indices(('a', [0, 1, 2]),
+                                 ('b', [2, 1, 0]))
+    ```
 
-    Example 2. Batch of two graphs (rank is 1). Connects pairs of nodes in
-    graph 0: (a[0], b[2]), (a[1], b[1]); graph 1: (a[2], b[0]):
+    Example 2:
 
-        tfgnn.Adjacency.from_indices(('a', tf.ragged.constant([[0, 1], [2]])),
-                                     ('b', tf.ragged.constant([[2, 1], [0]])))
+    ```python
+    # Batch of two graphs (rank is 1). Connects pairs of nodes in
+    # graph 0: (a[0], b[2]), (a[1], b[1]); graph 1: (a[2], b[0]).
+    tfgnn.Adjacency.from_indices(('a', tf.ragged.constant([[0, 1], [2]])),
+                                 ('b', tf.ragged.constant([[2, 1], [0]])))
+    ```
 
     Args:
       source: The tuple of node set name and nodes index integer tensor. The
-        index must have shape of `[*graph_shape, num_edges]`, where num_edges
+        index must have shape of `[*graph_shape, num_edges]`, where `num_edges`
         is the number of edges in each graph (could be ragged). It has
-        `tf.Tensor` type if num_edges is not None or `graph_shape.rank = 0` and
-        `tf.RaggedTensor` type otherwise.
+        `tf.Tensor` type if `num_edges` is not `None` or `graph_shape.rank = 0`
+        and `tf.RaggedTensor` type otherwise.
       target: Like `source` field, but for target edge endpoint. Index tensor
         must have the same type spec as for the `source`.
-      validate: If True, checks that source and target indices have the same
+      validate: If `True`, checks that source and target indices have the same
         type spec.
 
     Returns:
@@ -341,8 +356,8 @@ class AdjacencySpec(HyperAdjacencySpec):
       target_node_set: The name of the target node set.
       index_spec: type spec for source and target index tensors of shape
         `[*graph_shape, num_edges]`, where num_edges is the number of edges in
-        each graph. If num_edges is not None or `graph_shape.rank = 0` the spec
-        must be of `tf.TensorSpec` type and of `tf.RaggedTensorSpec` type
+        each graph. If `num_edges` is not `None` or `graph_shape.rank = 0` the
+        spec must be of `tf.TensorSpec` type and of `tf.RaggedTensorSpec` type
         otherwise.
 
     Returns:

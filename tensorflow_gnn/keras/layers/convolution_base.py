@@ -26,7 +26,7 @@ class AnyToAnyConvolutionBase(tf.keras.layers.Layer, abc.ABC):
 
   Here is a minimal example:
 
-  ```
+  ```python
   @tf.keras.utils.register_keras_serializable(package="MyGNNProject")
   class ExampleConvolution(tfgnn.keras.layers.AnyToAnyConvolutionBase):
 
@@ -113,7 +113,7 @@ class AnyToAnyConvolutionBase(tf.keras.layers.Layer, abc.ABC):
   wrapper function in the following style so that the proper term "edge pool"
   can be used in code:
 
-  ```
+  ```python
   def ExampleEdgePool(*args, sender_feature=tfgnn.HIDDEN_STATE, **kwargs):
     return ExampleConvolution(*args, sender_node_feature=None,
                               sender_edge_feature=sender_feature, **kwargs)
@@ -161,19 +161,23 @@ class AnyToAnyConvolutionBase(tf.keras.layers.Layer, abc.ABC):
         Sample usage: `extra_receiver_ops={"softmax": tfgnn.softmax}`.
         The values passed in this dict must be callable as follows, with two
         positional arguments:
-        ```
+
+        ```python
         f(graph, receiver_tag, node_set_name=..., feature_value=..., ...)
         f(graph, receiver_tag, edge_set_name=..., feature_value=..., ...)
         ```
+
         The wrapped callables seen by `convolve()` can be called like
-        ```
+
+        ```python
         wrapped_f(feature_value, ...)
         ```
+
         The first three arguments of `f` are set to the input GraphTensor of
         the layer and the tag/name pair required by `tfgnn.broadcast()` and
         `tfgnn.pool()` to move values between the receiver and the messages that
         are computed inside the convolution. The sole positional argument of
-        `wrapped_f()` is passed to `f()  as `feature_value=`, and any keyword
+        `wrapped_f()` is passed to `f()`  as `feature_value=`, and any keyword
         arguments are forwarded.
       **kwargs: Forwarded to the base class tf.keras.layers.Layer.
     """
@@ -215,17 +219,17 @@ class AnyToAnyConvolutionBase(tf.keras.layers.Layer, abc.ABC):
 
   @property
   def takes_receiver_input(self) -> bool:
-    """If false, all calls to convolve() will get receiver_input=None."""
+    """If `False`, all calls to convolve() will get `receiver_input=None`."""
     return self._receiver_feature is not None
 
   @property
   def takes_sender_node_input(self) -> bool:
-    """If false, all calls to convolve() will get sender_node_input=None."""
+    """If `False`, all calls to convolve() will get `sender_node_input=None`."""
     return self._sender_node_feature is not None
 
   @property
   def takes_sender_edge_input(self) -> bool:
-    """If false, all calls to convolve() will get sender_edge_input=None."""
+    """If `False`, all calls to convolve() will get `sender_edge_input=None`."""
     return self._sender_edge_feature is not None
 
   def call(self, graph: gt.GraphTensor, *,
@@ -335,18 +339,18 @@ class AnyToAnyConvolutionBase(tf.keras.layers.Layer, abc.ABC):
     receivers, see `pool_to_receiver`.
 
     Args:
-      sender_node_input: The input Tensor from the sender NodeSet, or None.
-        If self.takes_sender_node_input is False, this arg will be None.
-        (If it is True, that depends on how this layer gets called.)
+      sender_node_input: The input Tensor from the sender NodeSet, or `None`.
+        If self.takes_sender_node_input is `False`, this arg will be `None`.
+        (If it is `True`, that depends on how this layer gets called.)
         See also broadcast_from_sender_node.
-      sender_edge_input: The input Tensor from the sender EdgeSet, or None.
-        If self.takes_sender_edge_input is False, this arg will be None.
-        (If it is True, it depends on how this layer gets called.)
+      sender_edge_input: The input Tensor from the sender EdgeSet, or `None`.
+        If self.takes_sender_edge_input is `False`, this arg will be `None`.
+        (If it is `True`, it depends on how this layer gets called.)
         If present, this Tensor is already indexed by the items for which
         messages are computed.
       receiver_input: The input Tensor from the receiver NodeSet or Context,
-        or None. If self.takes_receiver_input is False, this arg will be None.
-        (If it is True, it depends on how this layer gets called.)
+        or None. If self.takes_receiver_input is `False`, this arg will be
+        `None`. (If it is `True`, it depends on how this layer gets called.)
         See broadcast_from_receiver.
       broadcast_from_sender_node: A function that broadcasts a Tensor indexed
         like sender_node_input to a Tensor indexed by the items for which

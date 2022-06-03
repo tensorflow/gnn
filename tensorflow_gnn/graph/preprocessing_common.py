@@ -111,11 +111,11 @@ def dataset_filter_with_summary(
     summary_steps: Report summary for this number of elements in the input
       dataset before filtering.
     summary_decay: An exponential moving average decay factor. If not set,
-      defaults to the exp(- 1 / summary_steps).
+      defaults to the `exp(- 1 / summary_steps)`.
 
   Returns:
-    The Dataset containing the elements of this dataset for which predicate is
-    True.
+    Thed dataset containing the elements of this dataset for which predicate is
+    `True`.
   """
   if not summary_steps > 0:
     raise ValueError(('Expected summary_steps > 0,'

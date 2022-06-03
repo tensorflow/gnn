@@ -23,10 +23,10 @@ def random_ragged_tensor(
     validate: bool = True) -> gc.Field:
   """Generate a ragged tensor with random values.
 
-  Note: This is running in pure Python, not building a TensorFlow graph.
+  NOTE: This is running in pure Python, not building a TensorFlow graph.
 
   Args:
-    shape: The desired shape of the tensor, as a list of integers, None (for
+    shape: The desired shape of the tensor, as a list of integers, `None` (for
       ragged dimensions) or a dynamically computed size (as a tensor of rank 0).
       Do not provide a tf.TensorShape here as it cannot hold tensors.
     dtype: Data type for the values.
@@ -49,7 +49,7 @@ def random_ragged_tensor(
   # tensor (`size`).
   nested_row_lengths = []
   if not isinstance(shape, list):
-    raise ValueError(f"Requested shape must be a list of integers, None or "
+    raise ValueError(f"Requested shape must be a list of integers, `None` or "
                      f"rank-0 tensors: {shape}")
   if shape:
     size = tf.constant(1, tf.int32)

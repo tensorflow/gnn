@@ -25,24 +25,27 @@ class ConvGNNBuilder:
   Layers created by ConvGNNBuilder can be (re-)used in any order.
 
   Example:
-    # Model hyper-parameters:
-    h_dims = {'a': 64, 'b': 32, 'c': 32}
-    m_dims = {'a->b': 64, 'b->c': 32, 'c->a': 32}
 
-    # ConvGNNBuilder initialization:
-    gnn = tfgnn.keras.ConvGNNBuilder(
-      lambda edge_set_name, receiver_tag: tfgnn.keras.layers.SimpleConvolution(
-          tf.keras.layers.Dense(m_dims[edge_set_name]),
-          receiver_tag=receiver_tag),
-      lambda node_set_name: tfgnn.keras.layers.NextStateFromConcat(
-          tf.keras.layers.Dense(h_dims[node_set_name])),
-      receiver_tag=tfgnn.TARGET)
+  ```python
+  # Model hyper-parameters:
+  h_dims = {'a': 64, 'b': 32, 'c': 32}
+  m_dims = {'a->b': 64, 'b->c': 32, 'c->a': 32}
 
-    # Two rounds of message passing to target node sets:
-    model = tf.keras.models.Sequential([
-        gnn.Convolve({"a", "b", "c"}),  # equivalent to gnn.Convolve()
-        gnn.Convolve({"c"}),
-    ])
+  # ConvGNNBuilder initialization:
+  gnn = tfgnn.keras.ConvGNNBuilder(
+    lambda edge_set_name, receiver_tag: tfgnn.keras.layers.SimpleConvolution(
+        tf.keras.layers.Dense(m_dims[edge_set_name]),
+        receiver_tag=receiver_tag),
+    lambda node_set_name: tfgnn.keras.layers.NextStateFromConcat(
+        tf.keras.layers.Dense(h_dims[node_set_name])),
+    receiver_tag=tfgnn.TARGET)
+
+  # Two rounds of message passing to target node sets:
+  model = tf.keras.models.Sequential([
+      gnn.Convolve({"a", "b", "c"}),  # equivalent to gnn.Convolve()
+      gnn.Convolve({"c"}),
+  ])
+  ```
 
   Init args:
     convolutions_factory: called as
@@ -55,7 +58,7 @@ class ConvGNNBuilder:
       for the respectve NodeSetUpdate.
     receiver_tag: Set this to `tfgnn.TARGET` or `tfgnn.SOURCE` to choose which
       incident node of each edge receives the convolution result.
-      DEPRECATED: This used to be optional and effectivcely default to TARGET.
+      DEPRECATED: This used to be optional and effectively default to TARGET.
       New code is expected to set it in any case.
   """
 

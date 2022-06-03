@@ -1011,7 +1011,7 @@ class CheckScalarGraphTensorTest(tf.test.TestCase):
             sizes=[[1]],
             features={'f': [[[1.]]]})})
     with self.assertRaisesRegex(ValueError,
-                                r'My test code requires.*got rank=1'):
+                                r'My test code requires.*got `rank=1`'):
       gt.check_scalar_graph_tensor(graph_tensor, 'My test code')
 
 
