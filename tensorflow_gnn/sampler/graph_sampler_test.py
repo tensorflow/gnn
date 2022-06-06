@@ -155,8 +155,9 @@ class TestCombineSubgraphs(tf.test.TestCase):
       fake_op_to_subgraph = {"seed": seeds, "op1": op1, "op2": op2}
 
       combined_subgraphs = (
-          fake_op_to_subgraph | "CoGroup" >> beam.CoGroupByKey()
-          | "Combine" >> beam.Map(sampler.combine_subgraphs))
+          fake_op_to_subgraph.values() | "FlattenOps" >> beam.Flatten()
+          |
+          "CombineSubgraphs" >> beam.CombinePerKey(sampler.SubgraphCombiner()))
 
       def _assert_fn(pcol):
         expected = {
