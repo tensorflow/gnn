@@ -119,8 +119,7 @@ class SubgraphCombiner(beam.CombineFn):
   """CombineFn implementation to combine subgraphs."""
 
   def create_accumulator(self) -> Tuple[Subgraph, Set[NodeId]]:
-    """Returns an empty subgraph and an empty set of unique nodes.
-    """
+    """Returns an empty subgraph and an empty set of unique nodes."""
     return (Subgraph(), set({}))
 
   def add_input(self, accumulator: Tuple[Subgraph, Set[NodeId]],
@@ -263,7 +262,7 @@ def sample_graph(
     input_subgraphs = [
         op_to_subgraph[input_op] for input_op in sampling_op.input_op_names
     ] | f"FlattenInputs{sampling_op.op_name}" >> beam.Flatten()
-    subgraphs = inner_join_protos(
+    subgraphs = sample_from_subgraphs(
         input_subgraphs, nodes_map,
         functools.partial(sample, sampling_op, get_weight_feature),
         node_combiner, f"Sample_{sampling_op.op_name}")
@@ -347,21 +346,23 @@ def join_initial(
   yield sg.sample_id, sg
 
 
-def inner_join_protos(left_table: PCollection, right_table: PCollection,
-                      enumerator_fn: Callable[[Any], Iterable[bytes]],
-                      combiner_fn: Callable[[Any, Iterable[Any]],
-                                            Any], name: str) -> PCollection:
-  """Runs an inner join between two tables of (id, proto).
+def sample_from_subgraphs(input_subgraphs: PCollection[Tuple[SampleId,
+                                                             Subgraph]],
+                          adjacency_list: PCollection[Tuple[NodeId, Node]],
+                          sampler_fn: Callable[[Subgraph], Iterable[NodeId]],
+                          combiner_fn: Callable[[Subgraph, Iterable[Node]],
+                                                Subgraph],
+                          name: str) -> PCollection[Tuple[SampleId, Subgraph]]:
+  """Generates a set of samples from subgraphs (as new subgraphs).
 
   Args:
-    left_table: A collection of (key1, proto1), where the proto can enumerate a
-      list of `key2` ids to join with. Must be a unique mapping, not a multimap.
-    right_table: A collection (key2, proto2) to join to the left table. Must be
-      a unique mapping, not a multimap.
-    enumerator_fn: A function that given a `proto1` enumerates a list of `key2`
-      to join against.
-    combiner_fn: A function that accepts a `proto1` and a list of `proto2`
-      corresponding to the `key2` ids.
+    input_subgraphs: PCollection of SampleId-Subgraph pairs representing the
+      boundary of a previous sampling operation.
+    adjacency_list: PCollection of NodeId-Node pairs for all node ids.
+    sampler_fn: A function that can generate samples from a subgraph.
+    combiner_fn: A function that accepts a Subgraph and a list of NodeIds and
+      generates a new subgraph that is a copy of the input Subgraph updated with
+      the new NodeIds.
     name: A unique prefix string for the name of the stage.
 
   Returns:
@@ -370,49 +371,97 @@ def inner_join_protos(left_table: PCollection, right_table: PCollection,
   """
 
   # Functor generating sampled (Node) IDs mapped to the original Subgraph ID.
-  def enumerator(item):
-    left_id, proto = item
-    for right_id in enumerator_fn(proto):
-      yield (right_id, left_id)
+  def sample_node_ids(
+      keyed_subgraph: Tuple[SampleId, Subgraph]
+  ) -> Iterable[Tuple[NodeId, SampleId]]:
+    """Given keyed Subgraph generate a set of samples.
 
-  right_ids = (left_table | f"{name}_Enumerate" >> beam.FlatMap(enumerator))
+    Args:
+      keyed_subgraph: A subgraph keyed by SampleId.
 
-  def join_right(right_info: Tuple[bytes, Any]) -> Iterable[Tuple[bytes, Any]]:
-    (_, info) = right_info
-    ids = info["ids"]  # List of subgraph IDs that contain the new sample
-    protos = info["protos"]  # Node proto of the new sample
-    if protos:
-      assert len(protos) == 1
-      proto = protos[0]
-      for iid in ids:
-        yield iid, proto
+    Yields:
+      A sequency of Tuple[NodeId, SampleId] mapping the new sample to the
+        original sample ID.
+    """
+    sample_id, sg = keyed_subgraph
+    for node_id in sampler_fn(sg):
+      yield (node_id, sample_id)
 
-  # right will be: PCol[SubgraphIDs, NodeProto]
-  right = ({
-      "ids": right_ids,  # [NodeID, subgraph_id]
-      "protos": right_table  # The adjacency list: [NodeId, Node]
-  }
-           | f"{name}_GroupRightByKey" >> beam.CoGroupByKey()
-           | f"{name}_JoinRightNodes" >> beam.FlatMap(join_right))
+  sampled_node_ids: PCollection[Tuple[NodeId, SampleId]] = (
+      input_subgraphs | f"{name}_Enumerate" >> beam.FlatMap(sample_node_ids))
 
-  # Add all new sampled Node protos to the appropriate Subgraph proto.
-  def join_right_to_left(
-      left_info: Tuple[bytes, Any]) -> Iterable[Tuple[bytes, Any]]:
-    """Initial new nodes into existing subgraphs."""
-    (left_id, info) = left_info  # [Subgraph, {'left': Subgraph, 'right': Node}]
-    left_protos = info["left"]
-    right_protos = info["right"]
-    for l in left_protos:
-      left_proto = combiner_fn(l, right_protos)
-      yield left_id, left_proto  # [SubgraphId, Subgraph]
+  def sampled_ids_to_nodes(
+      join_result: Tuple[bytes, Dict[str,
+                                     Any]]) -> Iterable[Tuple[SampleId, Node]]:
+    """MapFn for join result emitting [SampleId, Node] pairs.
 
-  # Returns PCol[SubgraphId, Subgraph]
-  return ({
-      "left": left_table,  # [SugraphId, SubgraphProto]
-      "right": right  # [SubgraphID, NodeProto]
-  }
-          | f"{name}_GroupLeftByKey" >> beam.CoGroupByKey()
-          | f"{name}_JoinLeftNodes" >> beam.FlatMap(join_right_to_left))
+    Processes the join result of
+      Join(PCol[NodeId, SampleId], PCol[NodeId, Node]) to map the full
+      Node proto of the newly sampled NodeIds back to the SampleId it
+      belongs to.
+
+    Args:
+      join_result: Tuple[NodeId, Dict[Str, Any]]
+
+    Yields:
+      Tuple[SampleId, Node]
+    """
+    (_, info) = join_result
+    # List of subgraph IDs that contain the new sample
+    sample_ids = info["sample_ids"]
+
+    nodes = info["node_protos"]  # Node proto of the new sample
+    if nodes:
+      assert len(nodes) == 1
+      node = nodes[0]
+      # There may be more than one sample_id associated with a sampled node.
+      for sample_id in sample_ids:
+        yield sample_id, node
+
+  sample_id_to_node: PCollection[Tuple[SampleId, Node]] = (
+      {
+          "sample_ids": sampled_node_ids,  # PCollection[NodeId, SampleId]
+          "node_protos": adjacency_list  # PCollection[NodeId, Node]
+      }
+      | f"{name}_GroupRightByKey" >> beam.CoGroupByKey()
+      | f"{name}_JoinRightNodes" >> beam.FlatMap(sampled_ids_to_nodes))
+
+  # Generate new subgraphs from the sampled Nodes
+  def sampled_nodes_to_subgraphs(
+      join_result: Tuple[SampleId, Dict[str, Any]]
+  ) -> Iterable[Tuple[SampleId, Subgraph]]:
+    """Generate new subgraphs from sampled nodes.
+
+    Args:
+      join_result: Tuple[bytes, Dict[str,Any]] where the dictionary will contain
+        {"input_subgraphs": Iterable[SampleId, Subgraph], "node_samples":
+        Iterable[SampleId, Node]}
+
+    Yields:
+      Tuple[SampleId, Subgraph]
+    """
+    (sample_id, join_dict) = join_result
+
+    subgraphs = join_dict["input_subgraphs"]
+    nodes = join_dict["sampled_nodes"]
+    for sg in subgraphs:
+
+      new_subgraph = combiner_fn(sg, nodes)
+      yield sample_id, new_subgraph  # [SampleId, Subgraph]
+
+  # TODO(tfgnn): This seems like a bug, we don't need to aggregate subgraphs
+  # since they will be combined, just need to create the new frontier? We
+  # probably only CombinePerKey on PCol[SampleId, Node] ->
+  # PCol[SampleID, Subgraph]
+  result: PCollection[Tuple[SampleId, Subgraph]] = (
+      {
+          "input_subgraphs": input_subgraphs,  # [SampleId, Subgraph]
+          "sampled_nodes": sample_id_to_node  # [SampleId, Node]
+      }
+      | f"{name}_GroupLeftByKey" >> beam.CoGroupByKey()
+      | f"{name}_JoinLeftNodes" >> beam.FlatMap(sampled_nodes_to_subgraphs))
+
+  return result
 
 
 WeightFunc = Callable[[Edge], float]
