@@ -33,6 +33,7 @@ from tensorflow_gnn.sampler import subgraph_pb2
 from google.protobuf import text_format
 
 PCollection = beam.pvalue.PCollection
+PTransform = beam.PTransform
 NodeId = bytes
 NodeSetName = str
 EdgeSetName = str
@@ -185,6 +186,29 @@ class SubgraphCombiner(beam.CombineFn):
     return accumulator[0]
 
 
+class CombineSubgraphs(beam.PTransform):
+  """A PTransform that combines subgraphs."""
+
+  def expand(
+      self, op_to_subgraphs: Dict[str, PCollection[Tuple[SampleId, Subgraph]]]
+  ) -> PCollection[Tuple[SampleId, Subgraph]]:
+    """Combine subgraphs keyed by SampleID.
+
+    Args:
+      op_to_subgraphs: A Dict[str, PCollection[Tuple[SampleId, Subgraph]]]
+        mapping sampling operation names to PCollections of (SampleId, Subgraph)
+        pairs.
+
+    Returns:
+      A PCollection[Tuple[SampleId, Subgraph]] mapping each unique SampleId to
+        a single, aggregated subgraph.
+    """
+    return (op_to_subgraphs.values()
+            | "FlattenSamplingOpsToSubgraph" >> beam.Flatten()
+            |
+            "CombineSubgraphsPerKey" >> beam.CombinePerKey(SubgraphCombiner()))
+
+
 def sample_graph(
     nodes_map: PCollection[Tuple[NodeId, Node]], seeds: PCollection[NodeId],
     sampling_spec: sampling_spec_pb2.SamplingSpec
@@ -245,9 +269,7 @@ def sample_graph(
         node_combiner, f"Sample_{sampling_op.op_name}")
     op_to_subgraph[sampling_op.op_name] = subgraphs
 
-  subgraphs = (
-      op_to_subgraph.values() | "FlattenOps" >> beam.Flatten()
-      | "CombineSubgraphs" >> beam.CombinePerKey(SubgraphCombiner()))
+  subgraphs = op_to_subgraph | "CombineSubgraphs" >> CombineSubgraphs()
 
   # Remove dangling node references.
   return subgraphs | "CleanEdges" >> beam.Map(clean_edges)
