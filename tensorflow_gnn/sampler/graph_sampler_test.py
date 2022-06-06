@@ -23,6 +23,7 @@ from google.protobuf import text_format
 
 Example = tf.train.Example
 Node = subgraph_pb2.Node
+Subgraph = subgraph_pb2.Subgraph
 PCollection = beam.PCollection
 
 
@@ -106,6 +107,111 @@ def _make_random_graph_tables(
       parent | "Features" >> beam.Create(
           [(node.id, _make_example({"letter": node.id[0]})) for node in nodes]))
   return schema, nodes_coll, features_coll
+
+
+class TestCombineSubgraphs(tf.test.TestCase):
+
+  def test_combine_subgraphs(self):
+    with beam.Pipeline() as p:
+      seeds = p | "CreateSeedOp" >> beam.Create([(b"sid0",
+                                                  text_format.Parse(
+                                                      """
+                sample_id: 'sid0'
+                seed_node_id: 'a'
+                nodes {
+                  id: 'a'
+                  outgoing_edges {
+                    neighbor_id: 'b'
+                  }
+                }
+              """, Subgraph()))])
+
+      op1 = p | "CreateOp1" >> beam.Create([(b"sid0",
+                                             text_format.Parse(
+                                                 """
+              sample_id: 'sid0'
+              seed_node_id: 'a'
+              nodes {
+                id: 'd'
+                outgoing_edges {
+                  neighbor_id: 'z'
+                }
+              }
+            """, Subgraph()))])
+
+      op2 = p | "CreateOp2" >> beam.Create([(b"sid1",
+                                             text_format.Parse(
+                                                 """
+              sample_id: 'sid1'
+              seed_node_id: 'a'
+              nodes {
+                id: 'd'
+                outgoing_edges {
+                  neighbor_id: 'z'
+                }
+              }
+            """, Subgraph()))])
+
+      fake_op_to_subgraph = {"seed": seeds, "op1": op1, "op2": op2}
+
+      combined_subgraphs = (
+          fake_op_to_subgraph | "CoGroup" >> beam.CoGroupByKey()
+          | "Combine" >> beam.Map(sampler.combine_subgraphs))
+
+      def _assert_fn(pcol):
+        expected = {
+            b"sid0":
+                text_format.Parse(
+                    """
+                sample_id: 'sid0'
+                seed_node_id: "a"
+                nodes {
+                  id: "a"
+                  outgoing_edges {
+                    neighbor_id: "b"
+                  }
+                }
+                nodes {
+                  id: "d"
+                  outgoing_edges {
+                    neighbor_id: "z"
+                  }
+                }""", Subgraph()),
+            b"sid1":
+                text_format.Parse(
+                    """
+              sample_id: 'sid1'
+              seed_node_id: "a"
+              nodes {
+                id: "d"
+                outgoing_edges {
+                  neighbor_id: "z"
+                }
+              }
+            """, Subgraph())
+        }
+        self.assertEqual(len(expected), len(pcol))
+
+        key_counts = {b"sid0": 0, b"sid1": 0}
+        for key, sg in pcol:
+          # Raises exception if key not in key_counts
+          key_counts[key] += 1
+
+          # To ignore repeated field ordering.
+          expected_node_map = {}
+          for node in expected[key].nodes:
+            expected_node_map[node.id] = node
+          for node in sg.nodes:
+            # Raises exception if key DNE.
+            expected_node = expected_node_map[node.id]
+            # All outgoing edges in this example have one element so
+            # ProtoEquals should be OK.
+            self.assertProtoEquals(node, expected_node)
+
+        self.assertEqual(key_counts[b"sid0"], 1)
+        self.assertEqual(key_counts[b"sid1"], 1)
+
+      util.assert_that(combined_subgraphs, _assert_fn)
 
 
 class TestSampleGraph(tf.test.TestCase):

@@ -113,6 +113,44 @@ def create_adjacency_list(
           | beam.FlatMap(join_nodes_edges))
 
 
+# Combine all subgraphs that share the same seed node.
+def combine_subgraphs(
+    keyed_ops: Tuple[SampleId, Dict[str, Sequence[Subgraph]]]
+) -> Tuple[SampleId, Subgraph]:
+  """Combine all Subgraphs that share the same seed node.
+
+  Args:
+    keyed_ops: A tuple mapping a SampleID to a dictionary mapping sampling op
+      names to subgraph protobufs.
+
+  Returns:
+    Tuple containing a single [SampleId, Subgraph] pair.
+  """
+  sample_id, subgraphs_keyed_by_ops = keyed_ops
+  subgraphs_list = []
+  for sg_sequence in subgraphs_keyed_by_ops.values():
+    subgraphs_list += list(iter(sg_sequence))
+
+  if not subgraphs_list:
+    # Should never happen.
+    raise ValueError("Combining subgraphs received empty list.")
+
+  # Copy any subgraph context or features
+  # (which is replicated in every subgraph) to the new aggregate.
+  combined_subgraph = copy.copy(subgraphs_list[0])
+  del combined_subgraph.nodes[:]  # Will be populated next.
+
+  # Add all the nodes to the Subgraph.
+  node_id_to_nodes = {}
+  for sg in subgraphs_list:
+    for node in sg.nodes:
+      node_id_to_nodes[node.id] = node
+  for node in node_id_to_nodes.values():
+    combined_subgraph.nodes.add().CopyFrom(node)
+
+  return (sample_id, combined_subgraph)
+
+
 def sample_graph(
     nodes_map: PCollection[Tuple[NodeId, Node]], seeds: PCollection[NodeId],
     sampling_spec: sampling_spec_pb2.SamplingSpec
@@ -172,32 +210,6 @@ def sample_graph(
         functools.partial(sample, sampling_op, get_weight_feature),
         node_combiner, f"Sample_{sampling_op.op_name}")
     op_to_subgraph[sampling_op.op_name] = subgraphs
-
-  # Combine all subgraphs that share the same seed node.
-  def combine_subgraphs(
-      keyed_ops: Tuple[Any, Dict[str, Sequence[Subgraph]]]
-  ) -> Tuple[Any, Subgraph]:
-    """Combine all Subgraphs that share the same seed node."""
-    sample_id, subgraphs_keyed_by_ops = keyed_ops
-    subgraphs_list = []
-    for sg_sequence in subgraphs_keyed_by_ops.values():
-      subgraphs_list += list(iter(sg_sequence))
-
-    if not subgraphs_list:
-      # Should never happen.
-      raise ValueError("Combining subgraphs received empty list.")
-    combined_subgraph = copy.copy(subgraphs_list[0])
-    del combined_subgraph.nodes[:]  # Will be populated next.
-
-    # Add all the nodes to the Subgraph.
-    node_id_to_nodes = {}
-    for sg in subgraphs_list:
-      for node in sg.nodes:
-        node_id_to_nodes[node.id] = node
-    for node in node_id_to_nodes.values():
-      combined_subgraph.nodes.add().CopyFrom(node)
-
-    return (sample_id, combined_subgraph)
 
   subgraphs = (
       op_to_subgraph | "CoGroupByOpToSubgraph" >> beam.CoGroupByKey()
@@ -301,6 +313,7 @@ def inner_join_protos(left_table: PCollection, right_table: PCollection,
     been processed by `combiner_fn`.
   """
 
+  # Functor generating sampled (Node) IDs mapped to the original Subgraph ID.
   def enumerator(item):
     left_id, proto = item
     for right_id in enumerator_fn(proto):
@@ -310,34 +323,37 @@ def inner_join_protos(left_table: PCollection, right_table: PCollection,
 
   def join_right(right_info: Tuple[bytes, Any]) -> Iterable[Tuple[bytes, Any]]:
     (_, info) = right_info
-    ids = info["ids"]
-    protos = info["protos"]
+    ids = info["ids"]  # List of subgraph IDs that contain the new sample
+    protos = info["protos"]  # Node proto of the new sample
     if protos:
       assert len(protos) == 1
       proto = protos[0]
       for iid in ids:
         yield iid, proto
 
+  # right will be: PCol[SubgraphIDs, NodeProto]
   right = ({
-      "ids": right_ids,
-      "protos": right_table
+      "ids": right_ids,  # [NodeID, subgraph_id]
+      "protos": right_table  # The adjacency list: [NodeId, Node]
   }
            | f"{name}_GroupRightByKey" >> beam.CoGroupByKey()
            | f"{name}_JoinRightNodes" >> beam.FlatMap(join_right))
 
+  # Add all new sampled Node protos to the appropriate Subgraph proto.
   def join_right_to_left(
       left_info: Tuple[bytes, Any]) -> Iterable[Tuple[bytes, Any]]:
     """Initial new nodes into existing subgraphs."""
-    (left_id, info) = left_info
+    (left_id, info) = left_info  # [Subgraph, {'left': Subgraph, 'right': Node}]
     left_protos = info["left"]
     right_protos = info["right"]
     for l in left_protos:
       left_proto = combiner_fn(l, right_protos)
-      yield left_id, left_proto
+      yield left_id, left_proto  # [SubgraphId, Subgraph]
 
+  # Returns PCol[SubgraphId, Subgraph]
   return ({
-      "left": left_table,
-      "right": right
+      "left": left_table,  # [SugraphId, SubgraphProto]
+      "right": right  # [SubgraphID, NodeProto]
   }
           | f"{name}_GroupLeftByKey" >> beam.CoGroupByKey()
           | f"{name}_JoinLeftNodes" >> beam.FlatMap(join_right_to_left))
