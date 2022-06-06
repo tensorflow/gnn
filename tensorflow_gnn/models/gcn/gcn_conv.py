@@ -132,7 +132,7 @@ class GCNConv(tf.keras.layers.Layer):
           edge_set_name,
           self._receiver,
           'sum',
-          feature_value=edge_ones))
+          feature_value=edge_ones), -1)
       # Degree matrix is the sum of rows of adjacency
       # Adding self-loops adds an identity matrix to the adjacency
       # This adds 1 to each diagonal element of the degree matrix
