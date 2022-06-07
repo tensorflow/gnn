@@ -30,7 +30,7 @@ ModelExporter = orchestration.ModelExporter
 SubmoduleExporter = model_export.SubmoduleExporter
 
 # Model helpers
-chain_first_output = model_utils.chain_first_output
+chain_first_output = model_utils.chain
 
 # Orchestration
 DatasetProvider = orchestration.DatasetProvider

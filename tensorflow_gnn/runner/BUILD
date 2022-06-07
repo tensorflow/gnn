@@ -1,4 +1,5 @@
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_library")
+load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "py_strict_test")
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "distribute_py_test")
 
 licenses(["notice"])
@@ -30,6 +31,7 @@ pytype_strict_library(
     srcs_version = "PY3",
     visibility = [":__subpackages__"],
     deps = [
+        "//third_party/py/absl/logging",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
         "//tensorflow_gnn/runner/utils:model",
@@ -37,10 +39,28 @@ pytype_strict_library(
     ],
 )
 
-distribute_py_test(
+py_strict_test(
     name = "orchestration_test",
-    size = "medium",
     srcs = ["orchestration_test.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":orchestration",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+        "//tensorflow_gnn/models/vanilla_mpnn",
+        "//tensorflow_gnn/runner/tasks:classification",
+        "//tensorflow_gnn/runner/tasks:dgi",
+        "//tensorflow_gnn/runner/trainers:keras_fit",
+        "//tensorflow_gnn/runner/utils:model_export",
+        "//tensorflow_gnn/runner/utils:model_templates",
+    ],
+)
+
+distribute_py_test(
+    name = "distribute_test",
+    size = "medium",
+    srcs = ["distribute_test.py"],
     python_version = "PY3",
     shard_count = 4,
     tags = [

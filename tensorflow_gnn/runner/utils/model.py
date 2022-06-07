@@ -1,45 +1,31 @@
 """Model helpers."""
 import collections
-from typing import Any, Callable
+import functools
+from typing import Any
 
 import tensorflow as tf
 
-Model = tf.keras.Model
+
+def _chain_first_output(inputs: Any, m: tf.keras.Model) -> Any:
+  if isinstance(inputs, collections.Sequence):
+    return m(inputs[0])
+  return m(inputs)
 
 
-def _if_nested(maybe_nested: Any,
-               true_fn: Callable[..., Any],
-               false_fn: Callable[..., Any]) -> Any:
-  if tf.nest.is_nested(maybe_nested):
-    if isinstance(maybe_nested, collections.abc.Sequence):
-      return true_fn(maybe_nested)
-    else:
-      raise ValueError("Only Sequence nested structures are supported")
-  return false_fn(maybe_nested)
+def chain(*args: tf.keras.Model) -> tf.keras.Model:
+  """Concatenates many `tf.keras.Model` by chaining their output.
 
-
-def chain_first_output(m1: Model,
-                       m2: Model,
-                       first_output_only: bool = True) -> Model:
-  """Concatenates two `tf.keras.Model` by chaining the first output.
-
-  Note: Outputs of `m1` and `m2` maybe be atoms or nested structures of kind
-  `collections.abc.Sequence` only. Example psuedocode, where single outputs are
-  treated as lists of length one:
-
-  out1first, *out1rest = m1(m1.input)
-  out2first, *out2rest = m2(out1first)
-  return out2first if first_output_only else [out2first, *out1rest, *out2rest]
+  - For `Sequence` output, the first element is used for chaining.
+  - For all other output, the entire output is used for chaining.
 
   Args:
-    m1: A Keras model for concatenation.
-    m2: A Keras model for concatenation.
-    first_output_only: Whether to nest the outputs of `m1` and `m2`: if True,
-      only the first output of `m2` is used.
+    *args: Keras model(s) for chaining.
 
   Returns:
-    A new concatenated Keras model.
+    A new chained Keras model.
   """
-  x, y = _if_nested(m1(m1.input), lambda o: (o[0], o[1:]), lambda o: (o, []))
-  output = _if_nested(m2(x), lambda o: [o[0], *y, *o[1:]], lambda o: [o, *y])
-  return Model(m1.input, not first_output_only and output or output[0])
+  if not args:
+    raise ValueError("At least one `tf.keras.Model` is requirred")
+  first, *rest = args
+  output = functools.reduce(_chain_first_output, rest, first(first.input))
+  return tf.keras.Model(first.input, output)

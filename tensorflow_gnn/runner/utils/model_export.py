@@ -64,7 +64,7 @@ class KerasModelExporter:
       export_dir: A destination directory for the model.
     """
     if preprocess_model is not None:
-      model = model_utils.chain_first_output(preprocess_model, model)
+      model = model_utils.chain(preprocess_model, model)
     if self._output_names is not None:
       output = _rename_output(model.output, self._output_names)
       model = tf.keras.Model(model.input, output)

@@ -1,18 +1,17 @@
 """Tests for orchestraion."""
 import os
-from typing import Sequence
+from typing import Mapping, Sequence, Union
 
 from absl.testing import parameterized
 import tensorflow as tf
-import tensorflow.__internal__.distribute as tfdistribute
-import tensorflow.__internal__.test as tftest
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models import vanilla_mpnn
 from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.tasks import classification
+from tensorflow_gnn.runner.tasks import dgi
 from tensorflow_gnn.runner.trainers import keras_fit
+from tensorflow_gnn.runner.utils import model_export
 from tensorflow_gnn.runner.utils import model_templates
-from tensorflow_gnn.runner.utils import padding
 
 SCHEMA = """
   context {
@@ -41,31 +40,10 @@ SCHEMA = """
       source: "node"
       target: "node"
     }
-  }"""
+  }
+"""
 
-
-def _all_eager_strategy_combinations():
-  strategies = [
-      # default
-      tfdistribute.combinations.default_strategy,
-      # MirroredStrategy
-      tfdistribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-      tfdistribute.combinations.mirrored_strategy_with_one_cpu,
-      tfdistribute.combinations.mirrored_strategy_with_one_gpu,
-      # MultiWorkerMirroredStrategy
-      tfdistribute.combinations.multi_worker_mirrored_2x1_cpu,
-      tfdistribute.combinations.multi_worker_mirrored_2x1_gpu,
-      # TPUStrategy
-      tfdistribute.combinations.tpu_strategy,
-      tfdistribute.combinations.tpu_strategy_one_core,
-      tfdistribute.combinations.tpu_strategy_packed_var,
-      # ParameterServerStrategy
-      tfdistribute.combinations.parameter_server_strategy_3worker_2ps_cpu,
-      tfdistribute.combinations.parameter_server_strategy_3worker_2ps_1gpu,
-      tfdistribute.combinations.parameter_server_strategy_1worker_2ps_cpu,
-      tfdistribute.combinations.parameter_server_strategy_1worker_2ps_1gpu,
-  ]
-  return tftest.combinations.combine(distribution=strategies)
+Task = orchestration.Task
 
 
 class DatasetProvider:
@@ -79,8 +57,86 @@ class DatasetProvider:
 
 class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
 
-  @tfdistribute.combinations.generate(_all_eager_strategy_combinations())
-  def test_run(self, distribution: tf.distribute.Strategy):
+  @parameterized.named_parameters([
+      dict(
+          testcase_name="Task",
+          task=dgi.DeepGraphInfomax(node_set_name="node"),
+          task_weights=None,
+          output_names="o1",
+          output_shapes={
+              "o1": (2,)  # Positive and negative logits
+          }),
+      dict(
+          testcase_name="SequenceTask",
+          task=[
+              dgi.DeepGraphInfomax(node_set_name="node"),
+              classification.RootNodeMulticlassClassification(
+                  node_set_name="node",
+                  num_classes=10)  # Ten classes
+          ],
+          task_weights=None,
+          output_names=["o1", "o2"],
+          output_shapes={
+              "o1": (2,),  # Positive and negative logits
+              "o2": (10,)  # Ten classes
+          }),
+      dict(
+          testcase_name="MappingTask",
+          task={
+              "dgi": dgi.DeepGraphInfomax(node_set_name="node"),
+              "multiclass": classification.RootNodeMulticlassClassification(
+                  node_set_name="node",
+                  num_classes=10)  # Ten classes
+          },
+          task_weights=None,
+          output_names={"dgi": "o1", "multiclass": "o2"},
+          output_shapes={
+              "o1": (2,),  # Positive and negative logits
+              "o2": (10,)  # Ten classes
+          }),
+      dict(
+          testcase_name="TaskWithWeights",
+          task=dgi.DeepGraphInfomax(node_set_name="node"),
+          task_weights=4.,
+          output_names="o1",
+          output_shapes={
+              "o1": (2,)  # Positive and negative logits
+          }),
+      dict(
+          testcase_name="SequenceTaskWithWeights",
+          task=[
+              dgi.DeepGraphInfomax(node_set_name="node"),
+              classification.RootNodeMulticlassClassification(
+                  node_set_name="node",
+                  num_classes=10)  # Ten classes
+          ],
+          task_weights=[1., .5],
+          output_names=["o1", "o2"],
+          output_shapes={
+              "o1": (2,),  # Positive and negative logits
+              "o2": (10,)  # Ten classes
+          }),
+      dict(
+          testcase_name="MappingTaskWithWeights",
+          task={
+              "dgi": dgi.DeepGraphInfomax(node_set_name="node"),
+              "multiclass": classification.RootNodeMulticlassClassification(
+                  node_set_name="node",
+                  num_classes=10)  # Ten classes
+          },
+          task_weights={"multiclass": .5, "dgi": 1.},
+          output_names={"dgi": "o1", "multiclass": "o2"},
+          output_shapes={
+              "o1": (2,),  # Positive and negative logits
+              "o2": (10,)  # Ten classes
+          }),
+  ])
+  def test_multitask(
+      self,
+      task: Union[Task, Sequence[Task], Mapping[str, Task]],
+      task_weights: Union[Sequence[float], Mapping[str, float]],
+      output_names: Mapping[str, str],
+      output_shapes: Mapping[str, Sequence[int]]):
     schema = tfgnn.parse_schema(SCHEMA)
     gtspec = tfgnn.create_graph_spec_from_schema_pb(schema)
     example = tfgnn.write_example(tfgnn.random_graph_tensor(gtspec))
@@ -102,54 +158,44 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
             l2_regularization=5e-4,
             dropout_rate=0.1)])
 
-    task = classification.RootNodeMulticlassClassification(
-        node_set_name="node",
-        num_classes=10)  # Ten classes (like above)
-
     model_dir = self.create_tempdir()
 
     trainer = keras_fit.KerasTrainer(
-        strategy=distribution,
+        strategy=tf.distribute.get_strategy(),
         model_dir=model_dir,
         steps_per_epoch=1,
         validation_steps=1,
         restore_best_weights=False)
 
-    if isinstance(distribution, tf.distribute.TPUStrategy):
-      train_padding = padding.FitOrSkipPadding(gtspec, ds_provider)
-      valid_padding = padding.TightPadding(gtspec, ds_provider)
-    else:
-      train_padding = None
-      valid_padding = None
-
     orchestration.run(
         train_ds_provider=ds_provider,
-        train_padding=train_padding,
         model_fn=model_fn,
         optimizer_fn=tf.keras.optimizers.Adam,
         epochs=1,
         trainer=trainer,
         task=task,
+        task_weights=task_weights,
         gtspec=gtspec,
         drop_remainder=False,
         global_batch_size=4,
         feature_processors=[extract_labels],
-        valid_ds_provider=ds_provider,
-        valid_padding=valid_padding)
+        model_exporters=[model_export.KerasModelExporter(output_names)],
+        valid_ds_provider=ds_provider)
 
     dataset = ds_provider.get_dataset(tf.distribute.InputContext())
     kwargs = {"examples": next(iter(dataset.batch(2)))}
 
     saved_model = tf.saved_model.load(os.path.join(model_dir, "export"))
     output = saved_model.signatures["serving_default"](**kwargs)
-    actual = next(iter(output.values()))
 
-    # The model has one output
-    self.assertLen(output, 1)
+    self.assertLen(output, len(output_shapes))
 
-    # The expected shape is (batch size, num classes) or (2, 10)
-    self.assertShapeEqual(actual, tf.random.uniform((2, 10)))
+    for k, v in output_shapes.items():
+      self.assertShapeEqual(
+          output[k],
+          tf.random.uniform([2, *v]),  # Prepend the batch dim (above: 2)
+          f"assertOutputShape({k})")
 
 
 if __name__ == "__main__":
-  tfdistribute.multi_process_runner.test_main()
+  tf.test.main()

@@ -1,6 +1,4 @@
 """Tests for dgi."""
-import functools
-
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
@@ -95,7 +93,7 @@ class DeepGraphInfomaxTest(tf.test.TestCase):
   def test_preprocessors(self):
     gt = tfgnn.random_graph_tensor(self.gtspec)
     ds = tf.data.Dataset.from_tensors(gt).repeat(8)
-    ds = functools.reduce(lambda acc, x: x(acc), self.task.preprocessors(), ds)
+    ds = ds.map(self.task.preprocessor)
 
     for x, y in ds:
       self.assertAllEqual(

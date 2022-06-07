@@ -1,5 +1,5 @@
 """An implementation of Deep Graph Infomax: https://arxiv.org/abs/1809.10341."""
-from typing import Callable, Optional, Sequence
+from typing import Callable, Optional, Sequence, Tuple
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -30,10 +30,12 @@ class DeepGraphInfomax:
                node_set_name: str,
                *,
                state_name: str = tfgnn.HIDDEN_STATE,
-               seed: Optional[int] = None):
+               seed: Optional[int] = None,
+               name: Optional[str] = None):
     self._state_name = state_name
     self._node_set_name = node_set_name
     self._seed = seed
+    self._name = "deep_graph_infomax" if name is None else name
 
   def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
     """Adapt a `tf.keras.Model` for Deep Graph Infomax.
@@ -82,31 +84,28 @@ class DeepGraphInfomax:
     nlogits = tf.matmul(nactivations, bilinear(summary), transpose_b=True)
 
     # Combined logits
-    logits = tf.keras.layers.Concatenate(name="logits")((plogits, nlogits))
+    concat = tf.keras.layers.Concatenate(name=f"{self._name}/logits")
+    logits = concat((plogits, nlogits))
 
     return tf.keras.Model(model.input, logits)
 
-  def preprocessors(self) -> Sequence[Callable[..., tf.data.Dataset]]:
+  def preprocessor(
+      self,
+      gt: tfgnn.GraphTensor) -> Tuple[tfgnn.GraphTensor, tfgnn.Field]:
     """Create labels--i.e., (positive, negative)--for Deep Graph Infomax.
 
     The Deep Graph Infomax implementation here groups postives and negatives
     across the inner dim (vs. the batch dim): pseudo-label generation takes the
     same form.
 
+    Args:
+      gt: A `GraphTensor` to preprocess.
     Returns:
-      A `Callable` that takes an input `tf.data.Dataset` and returns the same
-      but with pseudo-labels zipped.
+      A `GraphTensor` with pseudo-labels zipped.
     """
-    def pseudolabels(gt):
-      num_components = gt.num_components
-      y = tf.tile(tf.constant([[1, 0]], dtype=tf.int32), [num_components, 1])
-      return gt, y
-    def fn(ds):
-      return ds.map(
-          pseudolabels,
-          deterministic=False,
-          num_parallel_calls=tf.data.experimental.AUTOTUNE)
-    return (fn,)
+    num_components = gt.num_components
+    y = tf.tile(tf.constant([[1, 0]], dtype=tf.int32), [num_components, 1])
+    return gt, y
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     """Sparse categorical crossentropy loss."""

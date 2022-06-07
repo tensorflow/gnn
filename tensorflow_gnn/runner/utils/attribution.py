@@ -325,7 +325,7 @@ class IntegratedGradientsExporter:
     if preprocess_model is None:
       raise ValueError("Integrated gradients requires a `preprocess_model.`")
 
-    model_for_export = model_utils.chain_first_output(preprocess_model, model)
+    model_for_export = model_utils.chain(preprocess_model, model)
 
     ig = integrated_gradients(
         preprocess_model,

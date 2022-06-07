@@ -1,11 +1,15 @@
 """Regression tasks."""
 import abc
+import re
 from typing import Callable, Optional, Sequence
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
 AUTO = tf.keras.losses.Reduction.AUTO
+
+
+_to_snake_case = lambda name: re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
 
 class _Regression(abc.ABC):
@@ -15,8 +19,9 @@ class _Regression(abc.ABC):
   by inheriting from the below mix ins.
   """
 
-  def __init__(self, units: int):
+  def __init__(self, units: int, name: Optional[str] = None):
     self._units = units
+    self._name = _to_snake_case(type(self).__name__) if name is None else name
 
   @abc.abstractmethod
   def gather_activations(self, gt: tfgnn.GraphTensor) -> tf.Tensor:
@@ -37,11 +42,11 @@ class _Regression(abc.ABC):
     activations = self.gather_activations(model.output)
     logits = tf.keras.layers.Dense(
         self._units,
-        name="logits")(activations)  # Name seen in SignatureDef.
+        name=f"{self._name}/logits")(activations)  # Name seen in SignatureDef.
     return tf.keras.Model(model.inputs, logits)
 
-  def preprocessors(self) -> Sequence[Callable[..., tf.data.Dataset]]:
-    return tuple()
+  def preprocessor(self, gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
+    return gt
 
   @abc.abstractmethod
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
