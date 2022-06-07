@@ -239,19 +239,6 @@ def sample_graph(
                | "JoinInitial" >> beam.CoGroupByKey()
                | beam.FlatMap(join_initial))
 
-  # Sample new nodes from the boundary of each subgraph and join them into
-  # existing subgraphs.
-  def node_combiner(sg: Subgraph, boundary: Iterable[Node]):
-    """Combines sampled nodes from boundary with current subgraph."""
-    sg = copy.copy(sg)
-    # Clear old boundary.
-    sg.ClearField("boundary")
-    for node in boundary:
-      sg.nodes.add().CopyFrom(node)
-      # Update boundary.
-      sg.boundary.add().CopyFrom(node)
-    return sg
-
   # Keep track of the subgraphs generated after each operation.
   # Note that the execution graph has already been validated previously.
   op_to_subgraph: Dict[str, PCollection[Tuple[SampleId, Subgraph]]] = {
@@ -265,7 +252,8 @@ def sample_graph(
     subgraphs = sample_from_subgraphs(
         input_subgraphs, nodes_map,
         functools.partial(sample, sampling_op, get_weight_feature),
-        node_combiner, f"Sample_{sampling_op.op_name}")
+        f"Sample_{sampling_op.op_name}")
+
     op_to_subgraph[sampling_op.op_name] = subgraphs
 
   subgraphs = op_to_subgraph | "CombineSubgraphs" >> CombineSubgraphs()
@@ -341,33 +329,27 @@ def join_initial(
   sg = copy.copy(subgraphs[0])
   new_node = sg.nodes.add()
   new_node.CopyFrom(nodes[0])
-  new_node = sg.boundary.add()
-  new_node.CopyFrom(nodes[0])
   yield sg.sample_id, sg
 
 
-def sample_from_subgraphs(input_subgraphs: PCollection[Tuple[SampleId,
-                                                             Subgraph]],
+# TODO(tfgnn): Encapsulate in a beam.PTransform for better display in
+# GCP UI (better for debugging and performance analysis).
+def sample_from_subgraphs(sampling_frontier: PCollection[Tuple[SampleId,
+                                                               Subgraph]],
                           adjacency_list: PCollection[Tuple[NodeId, Node]],
                           sampler_fn: Callable[[Subgraph], Iterable[NodeId]],
-                          combiner_fn: Callable[[Subgraph, Iterable[Node]],
-                                                Subgraph],
                           name: str) -> PCollection[Tuple[SampleId, Subgraph]]:
   """Generates a set of samples from subgraphs (as new subgraphs).
 
   Args:
-    input_subgraphs: PCollection of SampleId-Subgraph pairs representing the
-      boundary of a previous sampling operation.
+    sampling_frontier: PCollection of SampleId-Subgraph pairs representing the
+      sampling frontier (output) of a previous sampling operation.
     adjacency_list: PCollection of NodeId-Node pairs for all node ids.
-    sampler_fn: A function that can generate samples from a subgraph.
-    combiner_fn: A function that accepts a Subgraph and a list of NodeIds and
-      generates a new subgraph that is a copy of the input Subgraph updated with
-      the new NodeIds.
+    sampler_fn: A function that can generate NodeId samples from a subgraph.
     name: A unique prefix string for the name of the stage.
 
   Returns:
-    A collection with the same type as `left_table`, where the values have
-    been processed by `combiner_fn`.
+    A new set of node samples represented as a Subgraph object.
   """
 
   # Functor generating sampled (Node) IDs mapped to the original Subgraph ID.
@@ -388,7 +370,7 @@ def sample_from_subgraphs(input_subgraphs: PCollection[Tuple[SampleId,
       yield (node_id, sample_id)
 
   sampled_node_ids: PCollection[Tuple[NodeId, SampleId]] = (
-      input_subgraphs | f"{name}_Enumerate" >> beam.FlatMap(sample_node_ids))
+      sampling_frontier | f"{name}_Enumerate" >> beam.FlatMap(sample_node_ids))
 
   def sampled_ids_to_nodes(
       join_result: Tuple[bytes, Dict[str,
@@ -428,38 +410,24 @@ def sample_from_subgraphs(input_subgraphs: PCollection[Tuple[SampleId,
 
   # Generate new subgraphs from the sampled Nodes
   def sampled_nodes_to_subgraphs(
-      join_result: Tuple[SampleId, Dict[str, Any]]
-  ) -> Iterable[Tuple[SampleId, Subgraph]]:
+      sample_id: SampleId, nodes: Iterable[Node]) -> Tuple[SampleId, Subgraph]:
     """Generate new subgraphs from sampled nodes.
 
     Args:
-      join_result: Tuple[bytes, Dict[str,Any]] where the dictionary will contain
-        {"input_subgraphs": Iterable[SampleId, Subgraph], "node_samples":
-        Iterable[SampleId, Node]}
+      sample_id: The original SampleId from which the `nodes` were generated.
+      nodes: List of sampled Nodes to combine into a Subgraph object.
 
-    Yields:
-      Tuple[SampleId, Subgraph]
+    Returns:
     """
-    (sample_id, join_dict) = join_result
+    sg = Subgraph()
+    sg.nodes.extend(nodes)
+    return sample_id, sg
 
-    subgraphs = join_dict["input_subgraphs"]
-    nodes = join_dict["sampled_nodes"]
-    for sg in subgraphs:
-
-      new_subgraph = combiner_fn(sg, nodes)
-      yield sample_id, new_subgraph  # [SampleId, Subgraph]
-
-  # TODO(tfgnn): This seems like a bug, we don't need to aggregate subgraphs
-  # since they will be combined, just need to create the new frontier? We
-  # probably only CombinePerKey on PCol[SampleId, Node] ->
-  # PCol[SampleID, Subgraph]
   result: PCollection[Tuple[SampleId, Subgraph]] = (
-      {
-          "input_subgraphs": input_subgraphs,  # [SampleId, Subgraph]
-          "sampled_nodes": sample_id_to_node  # [SampleId, Node]
-      }
-      | f"{name}_GroupLeftByKey" >> beam.CoGroupByKey()
-      | f"{name}_JoinLeftNodes" >> beam.FlatMap(sampled_nodes_to_subgraphs))
+      sample_id_to_node
+      | f"{name}_GroupSampledNodes" >> beam.GroupByKey()
+      | f"{name}_GenerateFrontierSubgraph" >>
+      beam.MapTuple(sampled_nodes_to_subgraphs))
 
   return result
 
@@ -477,14 +445,15 @@ def get_weight_feature(edge: Edge) -> float:
 
 
 def sample(sampling_op: sampling_spec_pb2.SamplingOp,
-           weight_func: Optional[WeightFunc], sg: Subgraph) -> Iterable[NodeId]:
-  """Samples nodes from the boundary of a subgraph.
+           weight_func: Optional[WeightFunc],
+           frontier: Subgraph) -> Iterable[NodeId]:
+  """Samples new nodes from a sampling boundary.
 
   Args:
     sampling_op: The specification for this sample.
     weight_func: A function that produces the weight. If 'None' is provided,
       weights are all 1.0.
-    sg: A Subgraph instance.
+    frontier: An instance of a subgraph representing a sampling frontier.
 
   Yields:
     Selected (sampled) node-id ids at the boundary of the subgraph.
@@ -493,11 +462,11 @@ def sample(sampling_op: sampling_spec_pb2.SamplingOp,
   if weight_func is None:
     weight_func = lambda _: 1.0
 
-  new_boundary = set()
+  new_frontier = set()
 
   # TODO(tfgnn):  Pre-group edges by edgeset in order to speed this up.
   if sampling_op.strategy == sampling_spec_pb2.RANDOM_UNIFORM:
-    for node in sg.boundary:
+    for node in frontier.nodes:
       edges_to_sample = set()
       for edge in node.outgoing_edges:
         if edge.edge_set_name == sampling_op.edge_set_name:
@@ -507,11 +476,11 @@ def sample(sampling_op: sampling_spec_pb2.SamplingOp,
         if edges_to_sample:
           e = random.choice(tuple(edges_to_sample))
           edges_to_sample.remove(e)
-          new_boundary.add(e)
+          new_frontier.add(e)
         else:
           break
   elif sampling_op.strategy == sampling_spec_pb2.TOP_K:
-    for node in sg.boundary:
+    for node in frontier.nodes:
       weights = collections.defaultdict(float)
       for edge in node.outgoing_edges:
         if edge.edge_set_name == sampling_op.edge_set_name:
@@ -519,13 +488,13 @@ def sample(sampling_op: sampling_spec_pb2.SamplingOp,
 
       sorted_weights = sorted(
           weights.items(), key=lambda item: item[1], reverse=True)
-      new_boundary.update(sorted_weights[:sampling_op.sample_size])
+      new_frontier.update(sorted_weights[:sampling_op.sample_size])
   else:
     raise NotImplementedError(
         "Sampling strategy not supported for: " +
         sampling_spec_pb2.SamplingStrategy.Name(sampling_op.strategy))
 
-  for node_id, _ in new_boundary:
+  for node_id, _ in new_frontier:
     yield node_id
 
 
