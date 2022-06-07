@@ -258,7 +258,15 @@ def run(*,
       `tfgnn.Field`) where the `tfgnn.Field` is used for training labels.
     valid_ds_provider: A `DatasetProvider` for validation. The `tf.data.Dataset`
       is not batched and contains scalar `GraphTensor` values.
-    tf_data_service_address: Address for tf.data service.
+    tf_data_service_address: Address for tf.data service. tf.data service is
+      run with `processing_mode="parallel_epochs".` Parallel epochs corresponds
+      to the `ShardingPolicy.OFF` mode and it is important for users to shuffle
+      any filenames in this case, see: go/tf-data-service#processing-modes.
+      Note, `parallel_epochs` differs greatly in its data visitation promises
+      and notion of epochs from `SimpleDatasetProvider` and
+      `SimpleSampleDatasetsProvider.` These providers, without tf.data service,
+      shard by filenames (corresponding to the tf.data service processing mode
+      of `ShardingPolicy.FILE`).
   """
   preprocess_model = make_preprocess_model(gtspec, feature_processors or ())
 

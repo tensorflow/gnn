@@ -1,4 +1,5 @@
 """Tests for datasets."""
+import os
 from typing import Optional, Sequence
 
 from absl.testing import parameterized
@@ -9,24 +10,25 @@ from tensorflow_gnn.runner.input import datasets
 
 class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
 
-  def get_testdata_from_file(
+  def get_testdata(
       self,
       contents: Sequence[str],
-      sharded_filename_prefix: Optional[str] = "/tmp/file") -> str:
-    shard = 0
-    for content in contents:
-      self.create_tempfile(
-          f"{sharded_filename_prefix}-0000{shard}-of-0000{len(contents)}",
-          content=content)
-      shard += 1
-    return f"{sharded_filename_prefix}-*"
+      filename_prefix: Optional[str] = "file") -> str:
+    tempdir = self.create_tempdir()
+    for shard, content in enumerate(contents):
+      filename = os.path.join(
+          tempdir,
+          f"{filename_prefix}-{shard:05}-of-{len(contents):05}")
+      with open(filename, "w") as fd:
+        fd.write(content)
+    return f"{os.path.join(tempdir, filename_prefix + '*')}"
 
   @parameterized.named_parameters([
       dict(
           testcase_name="num_input_pipelines=1",
           num_input_pipelines=1,
           input_pipeline_id=0,
-          contents=[b"8191", b"8192"],
+          contents=["8191", "8192"],
           expected_len=2,
           expected_values=[b"8191", b"8192"],
       ),
@@ -34,7 +36,7 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
           testcase_name="input_pipeline_id=0",
           num_input_pipelines=2,
           input_pipeline_id=0,
-          contents=[b"8191", b"8192"],
+          contents=["8191", "8192"],
           expected_len=1,
           expected_values=[b"8191"],
       ),
@@ -42,15 +44,19 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
           testcase_name="input_pipeline_id=1",
           num_input_pipelines=2,
           input_pipeline_id=1,
-          contents=[b"8191", b"8192"],
+          contents=["8191", "8192"],
           expected_len=1,
           expected_values=[b"8192"],
       ),
   ])
-  def test_get_dataset(self, num_input_pipelines: int, input_pipeline_id: int,
-                       contents: Sequence[str], expected_len: int,
-                       expected_values: Sequence[int]):
-    actual_dataset_pattern = self.get_testdata_from_file(contents)
+  def test_get_dataset(
+      self,
+      num_input_pipelines: int,
+      input_pipeline_id: int,
+      contents: Sequence[str],
+      expected_len: int,
+      expected_values: Sequence[int]):
+    actual_dataset_pattern = self.get_testdata(contents)
     ds = datasets._get_dataset(
         actual_dataset_pattern,
         num_shards=num_input_pipelines,
@@ -103,16 +109,18 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
       ),
   ])
   def test_get_sampled_dataset(
-      self, extra_file_contents: Sequence[Sequence[str]],
-      extra_weights: Optional[Sequence[float]], fixed_cardinality: bool,
-      principal_file_content: str, principal_cardinality: Optional[int],
-      principal_weight: Optional[float], expected_cardinality: Optional[int]):
+      self,
+      extra_file_contents: Sequence[Sequence[str]],
+      extra_weights: Optional[Sequence[float]],
+      fixed_cardinality: bool,
+      principal_file_content: str,
+      principal_cardinality: Optional[int],
+      principal_weight: Optional[float],
+      expected_cardinality: Optional[int]):
     extra_file_patterns = [
-        self.get_testdata_from_file(contents=content)
-        for content in extra_file_contents
+        self.get_testdata(content) for content in extra_file_contents
     ]
-    principal_file_pattern = self.get_testdata_from_file(
-        contents=principal_file_content)
+    principal_file_pattern = self.get_testdata(principal_file_content)
     ds = datasets._get_sampled_dataset(
         principal_file_pattern,
         extra_file_patterns,
@@ -159,17 +167,18 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
       ),
   ])
   def test_get_sampled_dataset_error(
-      self, extra_file_contents: Sequence[Sequence[str]],
+      self,
+      extra_file_contents: Sequence[Sequence[str]],
       extra_weights: Optional[Sequence[float]],
-      fixed_cardinality: Optional[bool], principal_file_content: str,
-      principal_cardinality: Optional[int], principal_weight: Optional[float],
+      fixed_cardinality: Optional[bool],
+      principal_file_content: str,
+      principal_cardinality: Optional[int],
+      principal_weight: Optional[float],
       expected_error: str):
     extra_file_patterns = [
-        self.get_testdata_from_file(contents=content)
-        for content in extra_file_contents
+        self.get_testdata(content) for content in extra_file_contents
     ]
-    principal_file_pattern = self.get_testdata_from_file(
-        contents=principal_file_content)
+    principal_file_pattern = self.get_testdata(principal_file_content)
     with self.assertRaisesRegex(ValueError, expected_error):
       _ = datasets._get_sampled_dataset(
           principal_file_pattern,
