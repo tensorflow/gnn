@@ -3,10 +3,12 @@
 This file implements the fundamental transformation which can be wrapped in
 NodeSetUpdate and EdgeSetUpdate.
 """
-from typing import Optional
+from typing import Optional, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
+
+_RegularizerType = Union[tf.keras.regularizers.Regularizer, str]
 
 
 @tf.keras.utils.register_keras_serializable(package='GNN>models>gcn')
@@ -80,6 +82,7 @@ class GCNConv(tf.keras.layers.Layer):
                normalize: bool = True,
                kernel_initializer: bool = None,
                node_feature: Optional[str] = tfgnn.HIDDEN_STATE,
+               kernel_regularizer: Optional[_RegularizerType] = None,
                **kwargs):
 
     super().__init__(**kwargs)
@@ -87,6 +90,7 @@ class GCNConv(tf.keras.layers.Layer):
         units=units,
         activation=activation,
         use_bias=use_bias,
+        kernel_regularizer=kernel_regularizer,
         kernel_initializer=kernel_initializer)
     self._add_self_loops = add_self_loops
     self._normalize = normalize
