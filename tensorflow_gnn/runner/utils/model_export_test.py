@@ -36,11 +36,10 @@ def _layer_submodule(ninputs: int, noutputs: int, name: str) -> tf.keras.Model:
 def _model_submodule(ninputs: int, noutputs: int, name: str) -> tf.keras.Model:
   submodel = _no_submodule(ninputs, noutputs, name)
   if noutputs > 1:
-    outputs = tf.math.add_n(submodel.output) + 8191
+    output = tf.math.add_n(submodel(submodel.input)) + 8191
   else:
-    outputs = submodel.output + 8191
-  model = tf.keras.Model(submodel.inputs, outputs)
-  model.submodel = submodel
+    output = submodel(submodel.input) + 8191
+  model = tf.keras.Model(submodel.input, output)
   return model
 
 
