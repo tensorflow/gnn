@@ -242,11 +242,11 @@ class AttributionTest(tf.test.TestCase):
     # should see no integrated gradients.
     self.assertAllClose(
         gt.node_sets["node"].features["h"],
-        tf.constant((4.33988571, -1.33460819, 0), dtype=tf.float32))
+        tf.constant((2.6460934, 4.4251842, 0), dtype=tf.float32))
 
     self.assertAllClose(
         gt.edge_sets["edge"].features["weight"],
-        tf.constant((1.43548858, 0), dtype=tf.float32))
+        tf.constant((1.7112691, 0), dtype=tf.float32))
 
   def test_protocol(self):
     self.assertIsInstance(attribution.IntegratedGradients, orchestration.Task)

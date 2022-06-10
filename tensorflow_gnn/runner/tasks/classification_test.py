@@ -42,8 +42,8 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
           schema=SCHEMA,
           task=classification.GraphBinaryClassification(node_set_name="nodes"),
           y_true=[[1]],
-          expected_y_pred=[[0.18999854]],
-          expected_loss=[0.60265356]),
+          expected_y_pred=[[-0.4159315]],
+          expected_loss=[0.9225837]),
       dict(
           testcase_name="GraphMulticlassClassification",
           schema=SCHEMA,
@@ -51,16 +51,16 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
               4,
               node_set_name="nodes"),
           y_true=[3],
-          expected_y_pred=[[-0.01853734, -0.39117143, -0.09590857, -0.3163327]],
-          expected_loss=[1.5088181]),
+          expected_y_pred=[[0.35868323, -0.4112632, -0.23154753, 0.20909603]],
+          expected_loss=[1.2067872]),
       dict(
           testcase_name="RootNodeBinaryClassification",
           schema=SCHEMA,
           task=classification.RootNodeBinaryClassification(
               node_set_name="nodes"),
           y_true=[[1]],
-          expected_y_pred=[[0.22054878]],
-          expected_loss=[0.58894074]),
+          expected_y_pred=[[-0.3450081]],
+          expected_loss=[0.8804569]),
       dict(
           testcase_name="RootNodeMulticlassClassification",
           schema=SCHEMA,
@@ -68,8 +68,8 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
               3,
               node_set_name="nodes"),
           y_true=[2],
-          expected_y_pred=[[0.34209982, -0.24192944, 0.46150845]],
-          expected_loss=[0.8680774]),
+          expected_y_pred=[[-0.4718209, 0.04619305, -0.5249821]],
+          expected_loss=[1.3415444]),
   ])
   def test_adapt(self,
                  schema: str,
