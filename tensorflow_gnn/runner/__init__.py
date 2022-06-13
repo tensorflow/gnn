@@ -23,6 +23,7 @@ incrementing_model_dir = model_dir.incrementing_model_dir
 # Model export
 KerasModelExporter = model_export.KerasModelExporter
 SubmoduleExporter = model_export.SubmoduleExporter
+ModelExporter = orchestration.ModelExporter
 
 # Orchestration
 DatasetProvider = orchestration.DatasetProvider
