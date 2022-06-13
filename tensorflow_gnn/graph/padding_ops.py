@@ -24,7 +24,7 @@ def pad_to_total_sizes(
   Padding is done by inserting "fake" graph components at the end of the input
   graph tensor until target total sizes are exactly matched. If that is not
   possible (e.g. input already has more nodes than allowed by the constraints)
-  function raises tf.errors.InvalidArgumentError.
+  function raises `tf.errors.InvalidArgumentError`.
 
   If size_constraints.min_nodes_per_component is specified for a node set,
   the inserted graph components satisfy that constraint (e.g., such that there
@@ -49,7 +49,7 @@ def pad_to_total_sizes(
       against this constraint.
     padding_values: optional mapping from a context, node set or edge set
       feature name to a scalar tensor to use for padding. If no value is
-      specified for some feature, its type 'zero' is used (as in tf.zeros(...)).
+      specified for some feature, its type 'zero' is used (as in `tf.zeros()`).
     validate: If true, then use assertions to check that the input graph tensor
       could be padded. NOTE: while these assertions provide more readable error
       messages, they incur a runtime cost, since assertions must be checked for
@@ -58,8 +58,8 @@ def pad_to_total_sizes(
   Returns:
     Tuple of padded graph tensor and padding mask. The mask is a rank-1 dense
     boolean tensor wth size equal to the number of graph compoents is the result
-    containing True for real graph components and False - for fake one used for
-    padding.
+    containing `True` for real graph components and `False` - for fake one used
+    for padding.
 
   Raises:
     ValueError: if input parameters are invalid.
@@ -176,8 +176,8 @@ def satisfies_size_constraints(
     total_sizes: target total sizes for each graph piece.
 
   Returns:
-    A scalar boolean tensor equal to True if the `graph_tensor` statisifies
-    `total_sizes`, and False if not.
+    A scalar boolean tensor equal to `True` if the `graph_tensor` statisifies
+    `total_sizes`, and `False` if not.
   """
 
   def check_fn(cond: tf.Tensor, message: str):
@@ -200,15 +200,16 @@ def assert_satisfies_size_constraints(
 
   This function can be used as follows:
 
-  ```
-    with tf.control_dependencies([
-      assert_satisfies_size_constraints(graph_tensor, size_constraints)]):
-      # Use graph_tensor after sizes have been checked.
+  ```python
+  with tf.control_dependencies([
+    assert_satisfies_size_constraints(graph_tensor, size_constraints)]):
+    # Use graph_tensor after sizes have been checked.
   ```
 
   Conceptually, that means this function is like standard tensorflow assertions,
-  like tf.debugging.Assert(satisfies_size_constraints(...)), but with the
+  like `tf.debugging.Assert(satisfies_size_constraints(...))`, but with the
   following important advantages:
+
   - This functions logs a detailed message which size constraint is violated.
   - This function works around a TensorFlow issue to make sure the assertion is
     executed before the ops it guards, even in the presence of conflicting
@@ -219,7 +220,7 @@ def assert_satisfies_size_constraints(
     size_constraints: target total sizes for each graph piece.
 
   Returns:
-    Validation operations to execute within a tf.control_dependencies.
+    Validation operations to execute within a `tf.control_dependencies`.
 
   Raises:
     tf.errors.InvalidArgumentError: if input graph tensor could not be padded to
@@ -466,7 +467,7 @@ def _satisfies_size_constraints_internal(
     check_fn: Callable[[tf.Tensor, str], Any]) -> List[Any]:
   """Checks that the graph tensor could fit in the target sizes.
 
-  This operation tests multiple conditions that all must be True for the input
+  This operation tests multiple conditions that all must be `True` for the input
   `graph_tensor` to satisfy the `total_sizes`. The evaluated conditions along
   with a description string are passed to the caller using `check_fn` callbacks.
 
@@ -480,7 +481,7 @@ def _satisfies_size_constraints_internal(
     total_sizes: total sizes constraints for each graph piece.
     check_fn: callable with two arguments. The first argument is an evaluation
       result for one of required conditions. It is a boolean scalar tensor where
-      `True` means condition is satisfied. If all conditions result int True,
+      `True` means condition is satisfied. If all conditions result in `True`,
       the `graph_tensor` satisfies `total_sizes`. The second argument is a
       string description of the condition. All values returned by the `check_fn`
       are accumulated and returned.

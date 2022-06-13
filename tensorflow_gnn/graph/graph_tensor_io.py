@@ -2,19 +2,22 @@
 
 Example1. Parsing of multiple serialized examples.
 
-    ds = tf.data.TFRecordDataset(data_path)
-    ds = ds.batch(batch_size, True)
-    ds = ds.map(functools.partial(tfgnn.parse_example, graph_tensor_spec))
+```python
+ds = tf.data.TFRecordDataset(data_path)
+ds = ds.batch(batch_size, True)
+ds = ds.map(functools.partial(tfgnn.parse_example, graph_tensor_spec))
+```
 
 Example2. Parsing of a single serialized example. The resulting dataset is
 identical to Example1 (but this approach could be less efficient because it
 does not leverage parsing batches of graphs at once).
 
-    ds = tf.data.TFRecordDataset(data_path)
-    ds = ds.map(functools.partial(tfgnn.parse_single_example,
-                                  graph_tensor_spec))
-    ds = ds.batch(batch_size, True)
-
+```python
+ds = tf.data.TFRecordDataset(data_path)
+ds = ds.map(functools.partial(tfgnn.parse_single_example,
+                              graph_tensor_spec))
+ds = ds.batch(batch_size, True)
+```
 """
 import functools
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -63,7 +66,7 @@ def parse_example(spec: gt.GraphTensorSpec,
     prefix: An optional prefix string over all the features. You may use
       this if you are encoding other data in the same protocol buffer.
     validate: A boolean indicating whether or not to validate that the input
-      values form a valid GraphTensor. Defaults to True.
+      values form a valid GraphTensor. Defaults to `True`.
 
   Returns:
     A graph tensor object with `spec.batch(serialized.shape[0])` type spec.
@@ -89,8 +92,8 @@ def parse_single_example(spec: gt.GraphTensorSpec,
                          validate: bool = True) -> gt.GraphTensor:
   """Parses a single serialized Example proto into a single `GraphTensor`.
 
-  Like `parse_example()`, but for a single graph tensor. See
-  `tensorflow_gnn.parse_example()` for reference.
+  Like `parse_example()`, but for a single graph tensor.
+  See `tfgnn.parse_example()` for reference.
 
   Args:
     spec: A graph tensor type specification.
@@ -99,7 +102,7 @@ def parse_single_example(spec: gt.GraphTensorSpec,
     prefix: An optional prefix string over all the features. You may use
       this if you are encoding other data in the same protocol buffer.
     validate: A boolean indicating whether or not to validate that the input
-      fields form a valid `GraphTensor`. Defaults to True.
+      fields form a valid `GraphTensor`. Defaults to `True`.
 
   Returns:
     A graph tensor object with a matching type spec.
@@ -133,7 +136,7 @@ def get_io_spec(spec: gt.GraphTensorSpec,
     prefix: An optional prefix string over all the features. You may use
       this if you are encoding other data in the same protocol buffer.
     validate: A boolean indicating whether or not to validate that the input
-      fields form a valid `GraphTensor`. Defaults to True.
+      fields form a valid `GraphTensor`. Defaults to `True`.
 
   Returns:
     A dict of `tf.train.Feature` name to feature configuration object, to be

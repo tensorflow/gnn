@@ -37,7 +37,10 @@ def row_lengths_to_row_ids(
   statically (compile-time) known result size.
 
   Example:
-    row_lengths_to_row_ids([2, 1, 0, 2], 5) -> [0, 0, 1, 3, 3]
+
+  ```python
+  row_lengths_to_row_ids([2, 1, 0, 2], 5)  # returns [0, 0, 1, 3, 3].
+  ```
 
   Args:
     row_lengths: rank-1 integer tensor with ragged row lengths.
@@ -65,10 +68,13 @@ def flatten_indices(indices: tf.Tensor, indices_row_lengths: tf.Tensor,
   """Changes ragged values indices from row-local to global.
 
   Example:
-    flatten_indices([1, 0, 1, 0], [3, 1], [2, 1]) -> [1, 0, 1, 2 + 1]
-    Here there are 2 rows with 2 values in the first row and 1 in the second.
-    [1, 0, 1] are values indices in the first row; [0] - in the second.
-    [1, 0, 1, 2 + 1] are global value indices.
+
+  ```python
+  flatten_indices([1, 0, 1, 0], [3, 1], [2, 1])  # returns [1, 0, 1, 2 + 1].
+  # Here there are 2 rows with 2 values in the first row and 1 in the second.
+  # [1, 0, 1] are values indices in the first row; [0] - in the second.
+  # [1, 0, 1, 2 + 1] are global value indices.
+  ```
 
   Args:
     indices: rank-1 integer tensor with row-local values' indices.
@@ -110,16 +116,19 @@ def repeat(value: Value,
            repeats_sum_hint: Optional[int] = None) -> Value:
   """Repeats value (ragged or dense) along its first dimension.
 
-  Each value[i, ...] is repeated repeats[i] times.
+  Each `value[i, ...]` is repeated `repeats[i]` times.
 
   For XLA compatibility `repeats_sum_hint` has to be provided to guarantee
   statically (compile-time) known result size.
 
   Example:
-    repeat(['a', 'b'], [2, 1], 3) -> ['a', 'a', 'b']
+
+  ```python
+  repeat(['a', 'b'], [2, 1], 3)  # returns ['a', 'a', 'b'].
+  ```
 
   Args:
-    value: ragged or dense tensor with rank > 0.
+    value: ragged or dense tensor with `rank > 0`.
     repeats: rank-1 integer tensor, where `repeats[i]` is the number of times
       `value[i, ...]` must be repeated. Must have the same first dimension as
       the `value`.
@@ -143,10 +152,13 @@ def static_repeat(value: Value, multiplier: int) -> Value:
   The function is XLA compatible, if the `value` is a dense tensor.
 
   Example:
-    repeat(['a', 'b'], 3) -> ['a', 'a', 'a', 'b', 'b', 'b']
+
+  ```python
+    repeat(['a', 'b'], 3)  # returns ['a', 'a', 'a', 'b', 'b', 'b'].
+  ```
 
   Args:
-    value: ragged or dense tensor with rank > 0.
+    value: ragged or dense tensor with `rank > 0`.
     multiplier: number of times each `value[i, ...]` must be repeated.
 
   Returns:
@@ -167,7 +179,7 @@ def ones_like_leading_dims(value: Value, rank: int,
                            dtype: tf.dtypes.DType) -> Value:
   """Creates a tensor of all ones for first `rank` dimensions."""
   if rank == 0:
-    raise ValueError(f'Expected rank > 0, got {rank}')
+    raise ValueError(f'Expected `rank > 0`, got {rank}')
   if rank > value.shape.rank:
     raise ValueError('`rank` is greater then `value` rank,'
                      f' got rank={rank},'
@@ -206,14 +218,15 @@ def ensure_static_nrows(value: Value, nrows: int) -> Value:
   that update.
 
   Args:
-    value: dense tensor (rank > 0) or ragged tensor that allows static `nrows`.
+    value: dense tensor (`rank > 0`) or ragged tensor that allows static
+      `nrows`.
     nrows: static number of rows.
 
   Returns:
     Tensor that is equal to the input tensor but with static number of rows.
   """
   if value.shape.rank == 0:
-    raise ValueError(f'Expected rank > 0 tensor, got {value.shape.rank}')
+    raise ValueError(f'Expected `rank > 0` tensor, got {value.shape.rank}')
 
   if is_dense_tensor(value):
     return tf.ensure_shape(value, tf.TensorShape([nrows, *value.shape[1:]]))
@@ -316,7 +329,7 @@ def pad_to_nrows(value: Value,
   """Pads `value` to the target number of rows with scalar `padding_value`.
 
   Args:
-    value: tensor of rank > 0 or ragged tensor to pad.
+    value: tensor of `rank > 0` or ragged tensor to pad.
     target_nrows: number of rows in the result tensor. For a dense tensor, this
       is the outermost dimension size. For a ragged tensor, this is the number
       of rows in the outermost split (`tf.RaggedTensor.nrows`).

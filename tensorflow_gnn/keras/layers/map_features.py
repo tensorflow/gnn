@@ -21,7 +21,7 @@ class MapFeatures(tf.keras.layers.Layer):
 
   Examples:
 
-  ```
+  ```python
   # Hashes edge features called "id", leaves others unchanged:
   def edge_sets_fn(edge_set, *, edge_set_name):
     features = edge_set.get_features_dict()
@@ -33,7 +33,7 @@ class MapFeatures(tf.keras.layers.Layer):
   graph = tfgnn.keras.layers.MapFeatures(edge_sets_fn=edge_sets_fn)(graph)
   ```
 
-  ```
+  ```python
   # A simplistic way to map node features to an initial state.
   def node_sets_fn(node_set, *, node_set_name):
     state_dims_by_node_set = {"author": 32, "paper": 64}  # ...and so on.
@@ -48,7 +48,7 @@ class MapFeatures(tf.keras.layers.Layer):
   graph = tfgnn.keras.layers.MapFeatures(node_sets_fn=node_sets_fn)(graph)
   ```
 
-  ```
+  ```python
   # Doubles all feature values, with one callback used for all graph pieces.
   def fn(inputs, **unused_kwargs):
     return {k: tf.add(v, v) for k, v in inputs.features.items()}
@@ -61,6 +61,7 @@ class MapFeatures(tf.keras.layers.Layer):
   The very first call to this layer triggers building the models. Subsequent
   calls to this layer do not use the callbacks again, but check that their
   input does not have more graph pieces or features than seen by the callbacks:
+
     * It is an error to call with a node set or edge set that was not present
       in the first call. (After the first call, it is too late to initialize
       another model for it and find out what the callback would have done.)
@@ -75,6 +76,7 @@ class MapFeatures(tf.keras.layers.Layer):
   The model-building callbacks are passed as arguments when initializing this
   layer (see "Init args" below). Each callback is invoked as
   `fn(graph_piece, **kwargs)` where
+
     * `graph_piece` is a KerasTensor for the EdgeSet, NodeSet or Context
       that is being transformed. It provides access to the input features.
     * the keyword argument (if any) is
@@ -83,6 +85,7 @@ class MapFeatures(tf.keras.layers.Layer):
         * absent when transforming the features of the Context.
 
   The output of the callbacks can take one of the following forms:
+
     * A returned dict of feature values is used as the new feature map of
       the respective graph piece in this layer's output. Returning the
       empty dict `{}` is allowed and results in an empty feature map.
@@ -94,10 +97,12 @@ class MapFeatures(tf.keras.layers.Layer):
       features.
 
   The output values are required to
+
     * have the correct shape for a feature on the respective piece of the
       GraphTensor;
     * depend on the input, so that the Keras functional API can use them
       as Model outputs.
+
   This happens naturally for outputs of transformed input features.
   Outputs created from scratch still need to depend on the input for its size.
   In case of scalar GraphTensors, users are recommended to call

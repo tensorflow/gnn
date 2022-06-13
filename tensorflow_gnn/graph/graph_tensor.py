@@ -45,9 +45,9 @@ class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
     """The number of items in each graph component.
 
     Returns:
-      A potentially ragged int tensor of shape [*graph_shape, num_components]
-      where the graph_shape is the graph piece shape and its containing
-      GraphTensor, num_components is the number of graph components contained
+      A potentially ragged int tensor of shape `[*graph_shape, num_components]`
+      where the `graph_shape` is the graph piece shape and its containing
+      GraphTensor, `num_components` is the number of graph components contained
       in each graph (could be ragged).
     """
     return self._data[_GraphPieceWithFeatures._DATAKEY_SIZES]  # pylint: disable=protected-access
@@ -58,7 +58,7 @@ class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
 
     Returns:
       A scalar integer tensor equal to `tf.math.reduce_sum(sizes)`. If result is
-      statically known (spec.total_size is not None), the output is a constant
+      statically known (`spec.total_size is not None`), the output is a constant
       tensor (suitable for environments in which constant shapes are required,
       like TPU).
     """
@@ -98,7 +98,7 @@ class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
 
     Returns:
       A scalar integer tensor equal to `tf.math.reduce_sum(num_components)`. If
-      result is statically known (spec.total_num_components is not None), the
+      result is statically known (`spec.total_num_components is not None`), the
       output is a constant Tensor (suitable for environments in which constant
       shapes are required, like TPU).
     """
@@ -199,8 +199,8 @@ class Context(_GraphPieceWithFeatures):
   node set are the nodes and the items of an edge set are the edges). The
   `Context` is a composite tensor. It stores features that belong to a graph
   component as a whole, not any particular node or edge. Each context feature
-  has a shape [*graph_shape, num_components, ...], where num_components is the
-  number of graph components in a graph (could be ragged).
+  has a shape `[*graph_shape, num_components, ...]`, where `num_components` is
+  the number of graph components in a graph (could be ragged).
   """
 
   @classmethod
@@ -213,21 +213,25 @@ class Context(_GraphPieceWithFeatures):
     """Constructs a new instance from context fields.
 
     Example:
-        tfgnn.Context.from_fields(features={'country_code': ['CH']})
+
+    ```python
+    tfgnn.Context.from_fields(features={'country_code': ['CH']})
+    ```
 
     Args:
       features: A mapping from feature name to feature Tensor or RaggedTensor.
-        All feature tensors must have shape [*graph_shape, num_components,
-        *feature_shape], where num_components is the number of graph components
-        (could be ragged); feature_shape are feature-specific inner dimensions.
-      sizes: A Tensor of 1's with shape [*graph_shape, num_components], where
-        num_components is the number of graph components (could be ragged).
+        All feature tensors must have shape `[*graph_shape, num_components,
+        *feature_shape]`, where `num_components` is the number of graph
+        components (could be ragged); `feature_shape` are feature-specific inner
+        dimensions.
+      sizes: A Tensor of 1's with shape `[*graph_shape, num_components]`, where
+        `num_components` is the number of graph components (could be ragged).
         For symmetry with `sizes` in NodeSet and EdgeSet, this counts the items
         per graph component, but since the items of Context are the components
         themselves, each value is 1. Must be compatible with `shape`, if that
         is specified.
       shape: The shape of this tensor and a GraphTensor containing it, also
-        known as the graph_shape. If not specified, the shape is inferred from
+        known as the `graph_shape`. If not specified, the shape is inferred from
         `sizes` or set to `[]` if the `sizes` is not specified.
       indices_dtype: An `indices_dtype` of a GraphTensor containing this
         object, used as `row_splits_dtype` when batching potentially ragged
@@ -253,7 +257,7 @@ class Context(_GraphPieceWithFeatures):
 
     if shape is not None and sizes is not None:
       if sizes.shape.rank != shape.rank + 1:
-        raise ValueError('The `sizes` rank != shape.rank + 1: '
+        raise ValueError('The `sizes` `rank != shape.rank + 1`: '
                          f' shape={shape}'
                          f' sizes.shape={sizes.shape}')
 
@@ -375,18 +379,17 @@ class NodeSet(_NodeOrEdgeSet):
   The items of the node set are subset of graph nodes.
 
   All nodes in a node set have the same features, identified by a string key.
-  Each feature is stored as one tensor and has shape [*graph_shape, num_nodes,
-  *feature_shape]. The num_nodes is the number of nodes in a graph (could be
-  ragged). The feature_shape is the shape of the feature value for each node.
+  Each feature is stored as one tensor and has shape `[*graph_shape, num_nodes,
+  *feature_shape]`. The `num_nodes` is the number of nodes in a graph (could be
+  ragged). The `feature_shape` is the shape of the feature value for each node.
   NodeSet supports both fixed-size and variable-size features. The fixed-size
   features must have fully defined feature_shape. They are stored as `tf.Tensor`
-  if num_nodes is fixed-size or graph_shape.rank = 0. Variable-size node
+  if `num_nodes` is fixed-size or `graph_shape.rank = 0`. Variable-size node
   features are always stored as `tf.RaggedTensor`.
 
   Note that node set features are indexed without regard to graph components.
   The information which node belong to which graph component is contained in
-  the `NodeSet.sizes()` tensor which defines the number of nodes in each
-  graph component.
+  the `.sizes` tensor which defines the number of nodes in each graph component.
   """
 
   @classmethod
@@ -397,26 +400,29 @@ class NodeSet(_NodeOrEdgeSet):
     """Constructs a new instance from node set fields.
 
     Example:
-        tfgnn.NodeSet.from_fields(
-            sizes=tf.constant([3]),
-            features={
-                "tokenized_title": tf.ragged.constant(
-                    [["Anisotropic", "approximation"],
-                     ["Better", "bipartite", "bijection", "bounds"],
-                     ["Convolutional", "convergence", "criteria"]]),
-                "embedding": tf.zeros([3, 128]),
-                "year": tf.constant([2018, 2019, 2020]),
-            })
+
+    ```python
+    tfgnn.NodeSet.from_fields(
+        sizes=tf.constant([3]),
+        features={
+            "tokenized_title": tf.ragged.constant(
+                [["Anisotropic", "approximation"],
+                 ["Better", "bipartite", "bijection", "bounds"],
+                 ["Convolutional", "convergence", "criteria"]]),
+            "embedding": tf.zeros([3, 128]),
+            "year": tf.constant([2018, 2019, 2020]),
+        })
+    ```
 
     Args:
       features: A mapping from feature name to feature Tensors or RaggedTensors.
-        All feature tensors must have shape [*graph_shape, num_nodes,
-        *feature_shape], where num_nodes is the number of nodes in the node
+        All feature tensors must have shape `[*graph_shape, num_nodes,
+        *feature_shape]`, where `num_nodes` is the number of nodes in the node
         set (could be ragged) and feature_shape is a shape of the feature value
         for each node.
-      sizes: A number of nodes in each graph component. Has shape [*graph_shape,
-        num_components], where num_components is the number of graph components
-        (could be ragged).
+      sizes: A number of nodes in each graph component. Has shape
+        `[*graph_shape, num_components]`, where `num_components` is the number
+        of graph components (could be ragged).
 
     Returns:
       A `NodeSet` composite tensor.
@@ -464,18 +470,17 @@ class EdgeSet(_NodeOrEdgeSet):
   the `EdgeSet.adjacency` composite tensor (see adjacency.py).
 
   All edges in a edge set have the same features, identified by a string key.
-  Each feature is stored as one tensor and has shape [*graph_shape, num_edges,
-  *feature_shape]. The num_edges is a number of edges in a graph (could be
-  ragged). The feature_shape is a shape of the feature value for each edge.
+  Each feature is stored as one tensor and has shape `[*graph_shape, num_edges,
+  *feature_shape]`. The `num_edges` is a number of edges in a graph (could be
+  ragged). The `feature_shape` is a shape of the feature value for each edge.
   EdgeSet supports both fixed-size and variable-size features. The fixed-size
   features must have fully defined feature_shape. They are stored as `tf.Tensor`
-  if num_edges is fixed-size or graph_shape.rank = 0. Variable-size edge
+  if `num_edges` is fixed-size or `graph_shape.rank = 0`. Variable-size edge
   features are always stored as `tf.RaggedTensor`.
 
   Note that edge set features are indexed without regard to graph components.
   The information which edge belong to which graph component is contained in
-  the `EdgeSet.sizes` tensor which defines the number of edges in each
-  graph component.
+  the `.sizes` tensor which defines the number of edges in each graph component.
   """
 
   _DATAKEY_ADJACENCY = 'adjacency'  # An Adjacency GraphPiece.
@@ -489,28 +494,34 @@ class EdgeSet(_NodeOrEdgeSet):
     """Constructs a new instance from edge set fields.
 
     Example 1:
-        tfgnn.EdgeSet.from_fields(
-            sizes=tf.constant([3]),
-            adjacency=tfgnn.Adjacency.from_indices(
-                 source=("paper", [1, 2, 2]),
-                 target=("paper", [0, 0, 1])))
+
+    ```python
+    tfgnn.EdgeSet.from_fields(
+        sizes=tf.constant([3]),
+        adjacency=tfgnn.Adjacency.from_indices(
+             source=("paper", [1, 2, 2]),
+             target=("paper", [0, 0, 1])))
+    ```
 
     Example 2:
-         tfgnn.EdgeSet.from_fields(
-             sizes=tf.constant([4]),
-             adjacency=tfgnn.Adjacency.from_indices(
-                 source=("paper", [1, 1, 1, 2]),
-                 target=("author", [0, 1, 1, 3])))
+
+    ```python
+     tfgnn.EdgeSet.from_fields(
+         sizes=tf.constant([4]),
+         adjacency=tfgnn.Adjacency.from_indices(
+             source=("paper", [1, 1, 1, 2]),
+             target=("author", [0, 1, 1, 3])))
+    ```
 
     Args:
-      features: A mapping from feature name to feature Tensors or RaggedTensor.
-        All feature tensors must have shape [*graph_shape, num_edges,
-        *feature_shape], where num_edge is the number of edges in the edge
+      features: A mapping from feature name to feature Tensor or RaggedTensor.
+        All feature tensors must have shape `[*graph_shape, num_edges,
+        *feature_shape]`, where num_edge is the number of edges in the edge
         set (could be ragged) and feature_shape is a shape of the feature value
         for each edge.
       sizes: The number of edges in each graph component.
-        Has shape [*graph_shape, num_components], where num_components is the
-        number of graph components (could be ragged).
+        Has shape `[*graph_shape, num_components]`, where `num_components` is
+        the number of graph components (could be ragged).
       adjacency: One of the supported adjacency types (see adjacency.py).
 
     Returns:
@@ -602,25 +613,27 @@ class GraphTensor(gp.GraphPieceBase):
   component each to a batch of input graphs and on to one merged graph with
   multiple components for use in GNN model).
 
-  Example 1: A homogeneous scalar graph tensor with 1 graph component, 10 nodes
-    and 3 edges. Edges connect nodes 0 and 3, 5 and 7, 9 and 1. There are no
-    features.
+  Example 1:
 
-      tfgnn.GraphTensor.from_pieces(
-          node_sets = {
-            'node': tfgnn.NodeSet.from_fields(sizes=[10], features={})},
-          edge_sets = {
-            'edge': tfgnn.EdgeSet.from_fields(
-               sizes=[3],
-               features={},
-               adjacency=tfgnn.Adjacency.from_indices(
-                 source=('node', [0, 5, 9]),
-                 target=('node', [3, 7, 1])))})
+  ```python
+  # A homogeneous scalar graph tensor with 1 graph component, 10 nodes and 3
+  # edges. Edges connect nodes 0 and 3, 5 and 7, 9 and 1. There are no features.
+  tfgnn.GraphTensor.from_pieces(
+      node_sets = {
+        'node': tfgnn.NodeSet.from_fields(sizes=[10], features={})},
+      edge_sets = {
+        'edge': tfgnn.EdgeSet.from_fields(
+           sizes=[3],
+           features={},
+           adjacency=tfgnn.Adjacency.from_indices(
+             source=('node', [0, 5, 9]),
+             target=('node', [3, 7, 1])))})
+  ```
 
   All graph pieces provide a mapping interface to access their features by name
   as `graph_piece[feature_name]`. Each graph piece feature has the shape
-  `[*graph_shape, num_items, *feature_shape]`, where graph_shape is the shape of
-  the GraphTensor, num_items is the number of items in a piece (number of
+  `[*graph_shape, num_items, *feature_shape]`, where `graph_shape` is the shape
+  of the GraphTensor, `num_items` is the number of items in a piece (number of
   graph components, number of nodes in a node set or edges in an edge set). The
   `feature_shape` is the shape of the feature value for each item.
 
@@ -635,42 +648,46 @@ class GraphTensor(gp.GraphPieceBase):
   In particular this rule implies that if a feature has `tf.Tensor` type its
   `feature_shape` must by fully defined.
 
-  Example 2: A scalar graph tensor with edges between authors, papers and
-    their venues (journals or conferences). Each venue belongs to one
-    graph component. The 1st venue (1980519) has 2 authors and 3 papers. The 2nd
-    venue (9756463) has 2 authors and 1 paper. The paper 0 is written by authors
-    0 and 2; paper 1 - by authors 0 and 1; paper 2 - by author 2; paper 3 - by
-    author 3.
+  Example 2:
 
-      venues = tfgnn.GraphTensor.from_pieces(
-          context=tfgnn.Context.from_fields(
-              features={'venue': [1980519, 9756463]}),
-          node_sets={
-              'author': tfgnn.NodeSet.from_fields(sizes=[2, 2], features={}),
-              'paper': tfgnn.NodeSet.from_fields(
-                  sizes=[3, 1], features={'year': [2018, 2017, 2017, 2022]})},
-          edge_sets={
-              'is_writen': tfgnn.EdgeSet.from_fields(
-                  sizes=[4, 2],
-                  features={},
-                  adjacency=tfgnn.Adjacency.from_indices(
-                      source=('paper', [0, 1, 1, 0, 2, 3]),
-                      target=('author', [0, 0, 1, 2, 3, 3])))})
+  ```python
+  # A scalar graph tensor with edges between authors, papers and their venues
+  # (journals or conferences). Each venue belongs to one graph component. The
+  # 1st venue (1980519) has 2 authors and 3 papers.
+  # The 2nd venue (9756463) has 2 authors and 1 paper.
+  # The paper 0 is written by authors 0 and 2; paper 1 - by authors 0 and 1;
+  # paper 2 - by author 2; paper 3 - by author 3.
+  venues = tfgnn.GraphTensor.from_pieces(
+      context=tfgnn.Context.from_fields(
+          features={'venue': [1980519, 9756463]}),
+      node_sets={
+          'author': tfgnn.NodeSet.from_fields(sizes=[2, 2], features={}),
+          'paper': tfgnn.NodeSet.from_fields(
+              sizes=[3, 1], features={'year': [2018, 2017, 2017, 2022]})},
+      edge_sets={
+          'is_writen': tfgnn.EdgeSet.from_fields(
+              sizes=[4, 2],
+              features={},
+              adjacency=tfgnn.Adjacency.from_indices(
+                  source=('paper', [0, 1, 1, 0, 2, 3]),
+                  target=('author', [0, 0, 1, 2, 3, 3])))})
+  ```
 
   The assignment of an item to its graph components is stored as the `sizes`
   attribute of the graph piece. Its shape is `[*graph_shape, num_components]`
   (the same for all pieces). The stored values are number of items in each graph
-  component (so the `Context.sizes` has all 1s as its values).
+  component (so the `.sizes` has all 1s as its values).
 
-  Example 3: The year of publication of the first article in each venue from
-    the previous example:
+  Example 3:
 
-      papers = venues.node_sets['paper']
-      years_by_venue = tf.RaggedTensor.from_row_lengths(papers['year'],
-                                                        papers.sizes)
-      first_paper_year = tf.reduce_min(years_by_venue, -1)  # [2017, 2022]
-
-
+  ```python
+  # The year of publication of the first article in each venue from the
+  # previous example.
+  papers = venues.node_sets['paper']
+  years_by_venue = tf.RaggedTensor.from_row_lengths(papers['year'],
+                                                    papers.sizes)
+  first_paper_year = tf.reduce_min(years_by_venue, -1)  # [2017, 2022]
+  ```
 
   The GraphTensor, as a composite tensor, can be used directly in a
   tf.data.Dataset, as an input or output of a Keras Layer or a tf.function,
@@ -687,12 +704,12 @@ class GraphTensor(gp.GraphPieceBase):
 
   RULE: Batching followed by unbatching results in a dataset with equal
   GraphTensors as before, except for the last incomplete batch (if batching
-  used drop_remainder=True).
+  used `drop_remainder=True`).
 
-  For now, GraphTensor requires that GraphTensor.shape does not contain None,
-  except maybe as the outermost dimension. That means repeated calls to .batch()
-  must set drop_remainder=True in all but the last one. Future versions of
-  GraphTensor may lift that requirement.
+  For now, GraphTensor requires that GraphTensor.shape does not contain `None`,
+  except maybe as the outermost dimension. That means repeated calls to
+  `.batch()` must set `drop_remainder=True` in all but the last one. Future
+  versions of GraphTensor may lift that requirement.
 
   All pieces and its fields are batched together with their GraphTensor so that
   shapes of a graph tensor, its pieces and features are all in sync.
@@ -745,55 +762,59 @@ class GraphTensor(gp.GraphPieceBase):
 
     On a batched GraphTensor, one can call this method merge all graphs of the
     batch into one, contiguously indexed graph. The resulting GraphTensor has
-    shape [] (i.e., is scalar) and its features have the shape [total_num_items,
-    *feature_shape] where total_num_items is the sum of the previous num_items
-    per batch element. Most TF-GNN models expect scalar GraphTensors. There is
-    no function to reverse this method.
+    shape [] (i.e., is scalar) and its features have the shape
+    `[total_num_items, *feature_shape]` where `total_num_items` is the sum of
+    the previous `num_items` per batch element. Most TF-GNN models expect scalar
+    GraphTensors. There is no function to reverse this method.
 
 
     Example: Flattening of
 
-        tfgnn.GraphTensor.from_pieces(
-            node_sets={
-                'node': tfgnn.NodeSet.from_fields(
-                    # Three graphs:
-                    #   - 1st graph has two components with 2 and 1 nodes;
-                    #   - 2nd graph has 1 component with 1 node;
-                    #   - 3rd graph has 1 component with 1 node;
-                    sizes=tf.ragged.constant([[2, 1], [1], [1]]),
-                    features={
-                       'id': tf.ragged.constant([['a11', 'a12', 'a21'],
-                                                 ['b11'],
-                                                 ['c11']])})},
-            edge_sets={
-                'edge': tfgnn.EdgeSet.from_fields(
-                    sizes=tf.ragged.constant([[3, 1], [1], [1]]),
-                    features={},
-                    adjacency=tfgnn.Adjacency.from_indices(
-                        source=('node', tf.ragged.constant([[0, 1, 1, 2],
-                                                            [0],
-                                                            [0]])),
-                        target=('node', tf.ragged.constant([[0, 0, 1, 2],
-                                                            [0],
-                                                            [0]]))))})
+    ```python
+    tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            'node': tfgnn.NodeSet.from_fields(
+                # Three graphs:
+                #   - 1st graph has two components with 2 and 1 nodes;
+                #   - 2nd graph has 1 component with 1 node;
+                #   - 3rd graph has 1 component with 1 node;
+                sizes=tf.ragged.constant([[2, 1], [1], [1]]),
+                features={
+                   'id': tf.ragged.constant([['a11', 'a12', 'a21'],
+                                             ['b11'],
+                                             ['c11']])})},
+        edge_sets={
+            'edge': tfgnn.EdgeSet.from_fields(
+                sizes=tf.ragged.constant([[3, 1], [1], [1]]),
+                features={},
+                adjacency=tfgnn.Adjacency.from_indices(
+                    source=('node', tf.ragged.constant([[0, 1, 1, 2],
+                                                        [0],
+                                                        [0]])),
+                    target=('node', tf.ragged.constant([[0, 0, 1, 2],
+                                                        [0],
+                                                        [0]]))))})
+    ```
 
     results in the equivalent graph of
 
-        tfgnn.GraphTensor.from_pieces(
-            node_sets={
-                'node': tfgnn.NodeSet.from_fields(
-                    # One graph with 4 components with 2, 1, 1, 1 nodes.
-                    sizes=[2, 1, 1, 1],
-                    features={'id': ['a11', 'a12', 'a21', 'b11', 'c11']})},
-            edge_sets={
-                'edge': tfgnn.EdgeSet.from_fields(
-                    sizes=[3, 2, 1, 1],
-                    features={},
-                    # Note how node indices have changes to reference nodes
-                    # withing the same graph ignoring its components.
-                    adjacency=tfgnn.Adjacency.from_indices(
-                        source=('node', [0, 1, 1, 2, 3 + 0, 3 + 1 + 0]),
-                        target=('node', [0, 0, 1, 2, 3 + 0, 3 + 1 + 0])))})
+    ```python
+    tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            'node': tfgnn.NodeSet.from_fields(
+                # One graph with 4 components with 2, 1, 1, 1 nodes.
+                sizes=[2, 1, 1, 1],
+                features={'id': ['a11', 'a12', 'a21', 'b11', 'c11']})},
+        edge_sets={
+            'edge': tfgnn.EdgeSet.from_fields(
+                sizes=[3, 2, 1, 1],
+                features={},
+                # Note how node indices have changes to reference nodes
+                # withing the same graph ignoring its components.
+                adjacency=tfgnn.Adjacency.from_indices(
+                    source=('node', [0, 1, 1, 2, 3 + 0, 3 + 1 + 0]),
+                    target=('node', [0, 0, 1, 2, 3 + 0, 3 + 1 + 0])))})
+    ```
 
     Returns:
       A scalar (rank 0) graph tensor.
@@ -855,7 +876,7 @@ class GraphTensor(gp.GraphPieceBase):
 
     Returns:
       A scalar integer tensor equal to `tf.math.reduce_sum(num_components)`. If
-      result is statically known (spec.total_num_components is not None), the
+      result is statically known (`spec.total_num_components is not None`), the
       output is a constant Tensor (suitable for environments in which constant
       shapes are required, like TPU).
     """
@@ -873,43 +894,47 @@ class GraphTensor(gp.GraphPieceBase):
 
     Example 1. Replaces all features for node set 'node.a' but not 'node.b'.
 
-        graph = tfgnn.GraphTensor.from_pieces(
-            context=tfgnn.Context.from_fields(
-                features={'label': tf.ragged.constant([['A'], ['B']])}),
-            node_sets={
-                'node.a': tfgnn.NodeSet.from_fields(
-                    features={'id': ['a1', 'a3']},
-                    sizes=[2]),
-                'node.b': tfgnn.NodeSet.from_fields(
-                    features={'id': ['b4', 'b1']},
-                    sizes=[2])})
-        result = graph.replace_features(
-            node_sets={
-                'node.a': {
-                    'h': tf.ragged.constant([[1., 0.], [3., 0.]])
-                 }
-            })
+    ```python
+    graph = tfgnn.GraphTensor.from_pieces(
+        context=tfgnn.Context.from_fields(
+            features={'label': tf.ragged.constant([['A'], ['B']])}),
+        node_sets={
+            'node.a': tfgnn.NodeSet.from_fields(
+                features={'id': ['a1', 'a3']},
+                sizes=[2]),
+            'node.b': tfgnn.NodeSet.from_fields(
+                features={'id': ['b4', 'b1']},
+                sizes=[2])})
+    result = graph.replace_features(
+        node_sets={
+            'node.a': {
+                'h': tf.ragged.constant([[1., 0.], [3., 0.]])
+             }
+        })
+    ```
 
     Result:
 
-        tfgnn.GraphTensor.from_pieces(
-            context=tfgnn.Context.from_fields(
-                features={'label': tf.ragged.constant([['A'], ['B']])}),
-            node_sets={
-                'node.a': tfgnn.NodeSet.from_fields(
-                    features={
-                        'h': tf.ragged.constant([[1., 0.], [3., 0.]])
-                    },
-                    sizes=[2]),
-                'node.b': tfgnn.NodeSet.from_fields(
-                    features={
-                        'id': ['b4', 'b1']
-                    },
-                    sizes=[2])
-            })
+    ```python
+    tfgnn.GraphTensor.from_pieces(
+        context=tfgnn.Context.from_fields(
+            features={'label': tf.ragged.constant([['A'], ['B']])}),
+        node_sets={
+            'node.a': tfgnn.NodeSet.from_fields(
+                features={
+                    'h': tf.ragged.constant([[1., 0.], [3., 0.]])
+                },
+                sizes=[2]),
+            'node.b': tfgnn.NodeSet.from_fields(
+                features={
+                    'id': ['b4', 'b1']
+                },
+                sizes=[2])
+        })
+    ```
 
     Args:
-      context: A substitute for the context features, or None (which keeps the
+      context: A substitute for the context features, or `None` (which keeps the
         prior features). Their tensor shapes must match the number of existing
         components, which remains unchanged.
       node_sets: Substitutes for the features of the specified node sets. Their
@@ -972,29 +997,33 @@ class GraphTensor(gp.GraphPieceBase):
 
     Example 1. Removes the id feature from node set 'node.a'.
 
-        graph = tfgnn.GraphTensor.from_pieces(
-            node_sets={
-                'node.a': tfgnn.NodeSet.from_fields(
-                    features={'id': ['a1', 'a3']},
-                    sizes=[2]),
-                'node.b': tfgnn.NodeSet.from_fields(
-                    features={'id': ['b4', 'b1']},
-                    sizes=[2])})
-        result = graph.remove_features(node_sets={'node.a': ['id']})
+    ```python
+    graph = tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            'node.a': tfgnn.NodeSet.from_fields(
+                features={'id': ['a1', 'a3']},
+                sizes=[2]),
+            'node.b': tfgnn.NodeSet.from_fields(
+                features={'id': ['b4', 'b1']},
+                sizes=[2])})
+    result = graph.remove_features(node_sets={'node.a': ['id']})
+    ```
 
     Result:
 
-        tfgnn.GraphTensor.from_pieces(
-            node_sets={
-                'node.a': tfgnn.NodeSet.from_fields(
-                    features={},
-                    sizes=[2]),
-                'node.b': tfgnn.NodeSet.from_fields(
-                    features={'id': ['b4', 'b1']},
-                    sizes=[2])})
+    ```python
+    tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            'node.a': tfgnn.NodeSet.from_fields(
+                features={},
+                sizes=[2]),
+            'node.b': tfgnn.NodeSet.from_fields(
+                features={'id': ['b4', 'b1']},
+                sizes=[2])})
+    ```
 
     Args:
-      context: A list of feature names to remove from the context, or None.
+      context: A list of feature names to remove from the context, or `None`.
       node_sets: A mapping from node set names to lists of feature names to be
         removed from the respective node sets.
       edge_sets: A mapping from edge set names to lists of feature names to be
@@ -1242,7 +1271,7 @@ def check_scalar_graph_tensor(graph: Union[GraphTensor, GraphTensorSpec],
   if graph.rank != 0:
     raise ValueError(
         (f'{name} requires a scalar GraphTensor, that is,'
-         f' with GraphTensor.rank=0, but got rank={graph.rank}.'
+         f' with `GraphTensor.rank=0`, but got `rank={graph.rank}`.'
          ' Use GraphTensor.merge_batch_to_components() to merge all contained'
          ' graphs into one contiguously indexed graph of the scalar'
          ' GraphTensor.'))

@@ -8,6 +8,7 @@ import uuid
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
+from tensorflow_gnn.runner.utils import model_export
 
 # pylint:disable=g-import-not-at-top
 if sys.version_info >= (3, 8):
@@ -41,6 +42,8 @@ class _WrappedDatasetProvider:
     self._drop_remainder = drop_remainder
     self._global_batch_size = global_batch_size
     self._tf_data_service_address = tf_data_service_address
+    # TODO(b/196880966): The tf.data service name should be unique per dataset
+    # (and not unique per TensorFlow worker).
     self._tf_data_service_job_name = uuid.uuid4().hex
 
   def get_dataset(self, context: tf.distribute.InputContext) -> tf.data.Dataset:
@@ -152,6 +155,23 @@ class GraphTensorProcessorFn(Protocol):
     raise NotImplementedError()
 
 
+@runtime_checkable
+class ModelExporter(Protocol):
+  """Saves a Keras model."""
+
+  def save(self, model: tf.keras.Model, export_dir: str):
+    """Saves a Keras model.
+
+    All persistence decisions are left to the implementation: e.g., a Keras
+    model with full API or a simple `tf.train.Checkpoint` may be saved.
+
+    Args:
+      model: A `tf.keras.Model` to save.
+      export_dir: A destination directory for the model.
+    """
+    raise NotImplementedError()
+
+
 def make_preprocess_model(
     gtspec: tfgnn.GraphTensorSpec,
     preprocessors: Sequence[GraphTensorProcessorFn]) -> tf.keras.Model:
@@ -202,6 +222,7 @@ def run(*,
         epochs: int = 1,
         drop_remainder: bool = True,
         export_dirs: Optional[Sequence[str]] = None,
+        model_exporters: Optional[Sequence[ModelExporter]] = None,
         feature_processors: Optional[Sequence[GraphTensorProcessorFn]] = None,
         valid_ds_provider: Optional[DatasetProvider] = None,
         tf_data_service_address: Optional[str] = None):
@@ -226,6 +247,8 @@ def run(*,
     drop_remainder: Whether to drop a `tf.data.Dataset` remainder at batching.
     export_dirs: Optional directories for exports (SavedModels); if unset,
       default behavior is `os.path.join(model_dir, "export").`
+    model_exporters: Zero or more `ModelExporter` for exporting (SavedModels) to
+      `export_dirs.` If unset, default behavior is `[KerasModelExporter(...)].`
     feature_processors: `tfgnn.GraphTensor` functions for feature processing:
       These may change some `tfgnn.GraphTensorSpec.` Functions are composed in
       order using `functools.reduce`; each function should accept a scalar
@@ -235,7 +258,15 @@ def run(*,
       `tfgnn.Field`) where the `tfgnn.Field` is used for training labels.
     valid_ds_provider: A `DatasetProvider` for validation. The `tf.data.Dataset`
       is not batched and contains scalar `GraphTensor` values.
-    tf_data_service_address: Address for tf.data service.
+    tf_data_service_address: Address for tf.data service. tf.data service is
+      run with `processing_mode="parallel_epochs".` Parallel epochs corresponds
+      to the `ShardingPolicy.OFF` mode and it is important for users to shuffle
+      any filenames in this case, see: go/tf-data-service#processing-modes.
+      Note, `parallel_epochs` differs greatly in its data visitation promises
+      and notion of epochs from `SimpleDatasetProvider` and
+      `SimpleSampleDatasetsProvider.` These providers, without tf.data service,
+      shard by filenames (corresponding to the tf.data service processing mode
+      of `ShardingPolicy.FILE`).
   """
   preprocess_model = make_preprocess_model(gtspec, feature_processors or ())
 
@@ -280,5 +311,9 @@ def run(*,
   x = outputs[0] if isinstance(outputs, (list, tuple)) else outputs
   model_for_export = tf.keras.Model(inputs, model(x))
 
+  if model_exporters is None:
+    model_exporters = [model_export.KerasModelExporter()]
+
   for export_dir in export_dirs or [os.path.join(trainer.model_dir, "export")]:
-    model_for_export.save(export_dir)
+    for exporter in model_exporters:
+      exporter.save(model_for_export, export_dir)

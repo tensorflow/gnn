@@ -9,8 +9,9 @@ from tensorflow_gnn.graph import graph_tensor as gt
 class GraphPieceKerasTensor(kt.KerasTensor):
   """Base class for graph pieces Keras tensors.
 
-  Each graph piece (e.g. Context, NodeSet, etc.) must define corresponding Keras
-  tensor and register them with the `register_keras_tensor_specialization`.
+  Each graph piece (e.g. `tfgnn.Context`, `tfgnn.NodeSet`, etc.) must define
+  corresponding Keras tensor and register them with the
+  `register_keras_tensor_specialization`.
 
   Keras tensors specialization is done according to the rules:
   1. Graph piece methods and properties that return static values (e.g. python

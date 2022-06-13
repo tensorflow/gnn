@@ -1,1 +1,3 @@
 mock
+tensorflow  # For imports in .proto files.
+wheel

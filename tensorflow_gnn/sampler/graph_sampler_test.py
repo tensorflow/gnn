@@ -23,6 +23,7 @@ from google.protobuf import text_format
 
 Example = tf.train.Example
 Node = subgraph_pb2.Node
+Subgraph = subgraph_pb2.Subgraph
 PCollection = beam.PCollection
 
 
@@ -106,6 +107,109 @@ def _make_random_graph_tables(
       parent | "Features" >> beam.Create(
           [(node.id, _make_example({"letter": node.id[0]})) for node in nodes]))
   return schema, nodes_coll, features_coll
+
+
+class TestCombineSubgraphs(tf.test.TestCase):
+
+  def test_combine_subgraphs(self):
+    with beam.Pipeline() as p:
+      seeds = p | "CreateSeedOp" >> beam.Create([(b"sid0",
+                                                  text_format.Parse(
+                                                      """
+                sample_id: 'sid0'
+                seed_node_id: 'a'
+                nodes {
+                  id: 'a'
+                  outgoing_edges {
+                    neighbor_id: 'b'
+                  }
+                }
+              """, Subgraph()))])
+
+      op1 = p | "CreateOp1" >> beam.Create([(b"sid0",
+                                             text_format.Parse(
+                                                 """
+              sample_id: 'sid0'
+              seed_node_id: 'a'
+              nodes {
+                id: 'd'
+                outgoing_edges {
+                  neighbor_id: 'z'
+                }
+              }
+            """, Subgraph()))])
+
+      op2 = p | "CreateOp2" >> beam.Create([(b"sid1",
+                                             text_format.Parse(
+                                                 """
+              sample_id: 'sid1'
+              seed_node_id: 'a'
+              nodes {
+                id: 'd'
+                outgoing_edges {
+                  neighbor_id: 'z'
+                }
+              }
+            """, Subgraph()))])
+
+      fake_op_to_subgraph = {"seed": seeds, "op1": op1, "op2": op2}
+
+      combined_subgraphs = fake_op_to_subgraph | sampler.CombineSubgraphs()
+
+      def _assert_fn(pcol):
+        expected = {
+            b"sid0":
+                text_format.Parse(
+                    """
+                sample_id: 'sid0'
+                seed_node_id: "a"
+                nodes {
+                  id: "a"
+                  outgoing_edges {
+                    neighbor_id: "b"
+                  }
+                }
+                nodes {
+                  id: "d"
+                  outgoing_edges {
+                    neighbor_id: "z"
+                  }
+                }""", Subgraph()),
+            b"sid1":
+                text_format.Parse(
+                    """
+              sample_id: 'sid1'
+              seed_node_id: "a"
+              nodes {
+                id: "d"
+                outgoing_edges {
+                  neighbor_id: "z"
+                }
+              }
+            """, Subgraph())
+        }
+        self.assertEqual(len(expected), len(pcol))
+
+        key_counts = {b"sid0": 0, b"sid1": 0}
+        for key, sg in pcol:
+          # Raises exception if key not in key_counts
+          key_counts[key] += 1
+
+          # To ignore repeated field ordering.
+          expected_node_map = {}
+          for node in expected[key].nodes:
+            expected_node_map[node.id] = node
+          for node in sg.nodes:
+            # Raises exception if key DNE.
+            expected_node = expected_node_map[node.id]
+            # All outgoing edges in this example have one element so
+            # ProtoEquals should be OK.
+            self.assertProtoEquals(node, expected_node)
+
+        self.assertEqual(key_counts[b"sid0"], 1)
+        self.assertEqual(key_counts[b"sid1"], 1)
+
+      util.assert_that(combined_subgraphs, _assert_fn)
 
 
 class TestSampleGraph(tf.test.TestCase):
@@ -625,6 +729,48 @@ def _extract_value(feature: tf.train.Feature) -> List[Any]:
   if feature.int64_list.value:
     return feature.int64_list.value
   return []
+
+
+# TODO(tfgnn): Add test for edge based sampling when implemented.
+class EdgeAggregationMethod(tf.test.TestCase):
+
+  def test_node_subgraph_sampling(self):
+
+    with open(test_utils.get_resource("testdata/node_vs_edge/spec.pbtxt")) as f:
+      spec = text_format.ParseLines(f, sampling_spec_pb2.SamplingSpec())
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+      graph_tensor_filename = path.join(tmpdir, "graph_tensors.tfrecords")
+
+      input_schema_file = test_utils.get_resource(
+          "testdata/node_vs_edge/schema.pbtxt")
+      sampler.run_sample_graph_pipeline(input_schema_file, spec,
+                                        graph_tensor_filename)
+
+      output_schema_filename = path.join(tmpdir, "schema.pbtxt")
+      output_schema = tfgnn.read_schema(output_schema_filename)
+
+      examples = read_tfrecords_of_examples(graph_tensor_filename)
+
+    self.assertLen(examples, 1)
+    example = examples[0]
+
+    graph_tensor = tfgnn.parse_single_example(
+        tfgnn.create_graph_spec_from_schema_pb(
+            output_schema), example.SerializeToString(), validate=False)
+
+    # Check root node id of subgraph
+    self.assertAllEqual(graph_tensor.context.features["seed_id"],
+                        tf.constant("a", shape=(1,), dtype=tf.dtypes.string))
+
+    # Test the edge aggregation method included the edge from b->c
+    self.assertAllEqual(graph_tensor.node_sets["node_set_two"].features["#id"],
+                        tf.constant(("b", "c"), dtype=tf.dtypes.string))
+
+    self.assertAllEqual(graph_tensor.edge_sets["two_to_two"].adjacency.source,
+                        tf.constant(0, shape=(1,), dtype=tf.dtypes.int64))
+    self.assertAllEqual(graph_tensor.edge_sets["two_to_two"].adjacency.target,
+                        tf.constant(1, shape=(1,), dtype=tf.dtypes.int64))
 
 
 if __name__ == "__main__":

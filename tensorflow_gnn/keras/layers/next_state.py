@@ -29,7 +29,7 @@ from the other related graph pieces. The exact format varies between edge sets,
 node sets and context (see below). For each related graph piece, there is
 either a single feature or a dict of features.
 
-```
+```python
 class NextStateForEdgeSet(tf.keras.layers.Layer):
   def call(self, inputs: Tuple[
       FieldOrFields, # From the edges themselves.
@@ -63,7 +63,7 @@ graph piece and all others, but not whether the updated graph piece is
 an EdgeSet, a NodeSet or the Context, can conform to all three prototypes
 as follows:
 
-```
+```python
 class NextState(NextStateForEdgeSet, NextStateForNodeSet, NextStateForContext):
   def call(self, inputs: Tuple[
       FieldOrFields,  # From the updated graph piece.

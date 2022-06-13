@@ -68,6 +68,7 @@ class EdgesToNodePoolingLayer(Protocol):
   """A Keras layer for input from an EdgeSet into a NodeSetUpdate.
 
   Typical implementations of this protocol are:
+
     * Convolutions, which propagate state from adjacent nodes along the edge set
       and pool it for the receiver node. They may use edge features,
       but do not update them (that is, the edge set has no evolving state).
@@ -77,7 +78,7 @@ class EdgesToNodePoolingLayer(Protocol):
       in the same GraphUpdate.
 
   A typical implementation accepts an initializer argument with an
-  IncidentNodeTag (like tfgnn.SOURCE or tfgnn.TARGET) to select which
+  IncidentNodeTag (like `tfgnn.SOURCE` or `tfgnn.TARGET`) to select which
   incident node of each edge is the receiver. The conventional terms
   source and target distinguish between the endpoints of the edge,
   but the data can flow in either direction.
@@ -346,10 +347,11 @@ class NodeSetUpdate(tf.keras.layers.Layer):
       `edge_set_input(graph, edge_set_name=edge_set_name)`.
     next_state: A Keras layer to compute the new node state from a tuple of
       inputs that contains, in this order:
+
         - the `node_input_feature` (see there),
         - a dict `{edge_set_name: input}` with the results of `edge_set_inputs`,
           in which each result is a tensor or dict of tensors,
-        - if context_input_feature is not None, those feature(s).
+        - if context_input_feature is not `None`, those feature(s).
     node_input_feature: The feature name(s) of inputs from the node set to
       `next_state`, defaults to `tfgnn.HIDDEN_STATE`.
       If set to a single feature name, a single tensor is passed.
@@ -441,6 +443,7 @@ class ContextUpdate(tf.keras.layers.Layer):
       as `edge_set_input(graph, edge_set_name=edge_set_name)`.
     next_state: A Keras layer to compute the new node state from a tuple of
       inputs that contains, in this order:
+
         - the `context_input_feature` (see there),
         - a dict `{node_set_name: input}` with the results of `node_set_inputs`,
           in which each result is a tensor or dict of tensors,

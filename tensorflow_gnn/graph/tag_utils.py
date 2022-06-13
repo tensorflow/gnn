@@ -12,4 +12,4 @@ def reverse_tag(tag):
   else:
     raise ValueError(
         f"Expected tag tfgnn.SOURCE ({const.SOURCE}) "
-        f"or tfgnn.TARGET ({const.SOURCE}), got: {tag}")
+        f"or tfgnn.TARGET ({const.TARGET}), got: {tag}")

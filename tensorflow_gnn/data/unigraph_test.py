@@ -45,7 +45,6 @@ class TestReadGraph(tf.test.TestCase):
         "creditcard.csv", "customer.csv", "graph.pbtxt", "owns_card.csv",
         "paid_with.csv", "transactions.csv", "month.csv",
         "invalid_customer.csv",
-        "sampler_golden.ascii",
         "two_customers.csv", "one_customer.csv"}.issubset(
             set(os.listdir(self.resource_dir))))
     pipeline = test_pipeline.TestPipeline()

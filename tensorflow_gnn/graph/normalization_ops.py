@@ -20,21 +20,23 @@ def softmax(
   """Computes softmax over a many-to-one relationship in a GraphTensor.
 
   This function can be used to compute a softmax normalization...
+
     * of edge values, across the edges with a common incident node at `per_tag`
       (e.g., SOURCE or TARGET);
     * of node values, across all the nodes in the same graph component;
     * of edge values, across all the edges in the same graph component.
-   For non-scalar values, the softmax function is applied element-wise.
+
+  For non-scalar values, the softmax function is applied element-wise.
 
   Args:
     graph_tensor: A scalar GraphTensor.
     per_tag: tfgnn.CONTEXT for normalization per graph component, or an incident
-      node tag (e.g., tfgnn.SOURCE or tfgnn.TARGET) for normalization per
+      node tag (e.g., `tfgnn.SOURCE` or `tfgnn.TARGET`) for normalization per
       common incident node.
     edge_set_name: The name of the edge set on which values are normalized
       Exactly one of edge_set_name and node_set_name must be set.
     node_set_name: The name of the node set on which values are normalized,
-      allowed only if per_tag is CONTEXT. See also edge_set_name.
+      allowed only if per_tag is `tfgnn.CONTEXT`. See also edge_set_name.
     feature_value: A ragged or dense tensor with the value; cf. feature_name.
     feature_name: The name of the feature to be used as input value.
       Exactly one of feature_value or feature_name must be set.
@@ -82,7 +84,7 @@ def softmax_edges_per_node(
     *,
     feature_value: Optional[gt.Field] = None,
     feature_name: Optional[gt.FieldName] = None) -> gt.Field:
-  """Returns softmax() of edge values per common SOURCE or TARGET node."""
+  """Returns softmax() of edge values per common `node_tag` node."""
   return softmax(graph_tensor, node_tag, edge_set_name=edge_set_name,
                  feature_value=feature_value, feature_name=feature_name)
 

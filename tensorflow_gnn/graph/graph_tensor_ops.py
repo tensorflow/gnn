@@ -54,7 +54,7 @@ def broadcast_node_to_edges(graph_tensor: GraphTensor,
 
   Given a particular edge set (identified by `edge_set_name` name), this
   operation collects node features from the specific incident node of each edge
-  (as indicated by `node_tag`). For example, setting `node_tag=SOURCE` and
+  (as indicated by `node_tag`). For example, setting `node_tag=tfgnn.SOURCE` and
   `reduce_type='sum'` gathers the source node features over each edge. (See the
   corresponding `pool_edges_to_node()` mirror operation).
 
@@ -68,16 +68,18 @@ def broadcast_node_to_edges(graph_tensor: GraphTensor,
     graph_tensor: A scalar GraphTensor.
     edge_set_name: The name of the edge set to which values are broadcast.
     node_tag: The incident side of each edge from which values are broadcast,
-      specified by its tag in the edge set (e.g. `gt.SOURCE`, `gt.TARGET`).
+      specified by its tag in the edge set (e.g. `tfgnn.SOURCE`,
+      `tfgnn.TARGET`).
     feature_value: A ragged or dense source node feature values. Has a shape
-      `[n, f1..fk]`, where `n` index source nodes; `f1..fk` features inner
-      dimensions.
+      `[num_nodes, *feature_shape]`, where `num_nodes` is the number of nodes in
+      the incident node set and feature_shape is the shape of the feature value
+      for each node.
     feature_name: A source node feature name.
 
   Returns:
-    Source node value broadcast to corresponding edges, with shape `[e,
-    f1..fk]`, where `e` indexes edges; the inner `f1..fk` feature dimensions are
-    not affected.
+    Source node value broadcast to corresponding edges. Has a shape `[num_edges,
+    *feature_shape]`, where `num_edges` is the number of edges in the
+    `edge_set_name` edge set and `feature_shape` is not affected.
   """
   gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.broadcast_node_to_edges()')
   adjacency = graph_tensor.edge_sets[edge_set_name].adjacency
@@ -100,7 +102,7 @@ def pool_edges_to_node(graph_tensor: GraphTensor,
 
   Given a particular edge set (identified by `edge_set_name` name), this
   operation reduces edge features at the specific incident node of each edge (as
-  indicated by `node_tag`). For example, setting `node_tag=TARGET` and
+  indicated by `node_tag`). For example, setting `node_tag=tfgnn.TARGET` and
   `reduce_type='sum'` computes the sum over the incoming edge features at each
   node. (See the corresponding `broadcast_node_to_edges()` mirror operation).
 
@@ -121,13 +123,17 @@ def pool_edges_to_node(graph_tensor: GraphTensor,
       identified by its tag in the edge set.
     reduce_type: A pooling operation name, like 'sum', 'mean' or 'max'. For the
       list of supported values use `get_registered_reduce_operation_names()`.
-      You may use `register_reduce_operation(..)` to register new ops.
-    feature_value: A ragged or dense edge feature value.
+      You may use `register_reduce_operation()` to register new ops.
+    feature_value: A ragged or dense edge feature value. Has a shape
+      `[num_edges, *feature_shape]`, where `num_edges` is the number of edges in
+      the `edge_set_name` edge set and `feature_shape` is the shape of the
+      feature value for each edge.
     feature_name: An edge feature name.
 
   Returns:
-    The edge values pooled to each incident node. The first dimension size
-    represents the number of nodes; the further dimensions do not change.
+    The edge values pooled to each incident node. Has a shape `[num_nodes,
+    *feature_shape]`, where `num_nodes` is the number of nodes in the incident
+    node set and `feature_shape` is not affected.
   """
   gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.pool_edges_to_node()')
   unsorted_reduce_op = _resolve_reduce_op(reduce_type)
@@ -166,12 +172,16 @@ def broadcast_context_to_nodes(
   Args:
     graph_tensor: A scalar GraphTensor.
     node_set_name: A node set name.
-    feature_value: A ragged or dense graph context feature value.
+    feature_value: A ragged or dense graph context feature value. Has a shape
+      `[num_components, *feature_shape]`, where `num_components` is the number
+      of components in a graph and `feature_shape` is the shape of the feature
+      value for each component.
     feature_name: A context feature name.
 
   Returns:
-    Graph context value broadcast to the `node_set` nodes. The first dimension
-    size equals to the number of nodes, the higher dimensions do not change.
+    Graph context value broadcast to the `node_set` nodes. Has a shape
+    `[num_nodes, *feature_shape]`, where `num_nodes` is the number of nodes in
+    the `node_set_name` node set and `feature_shape` is not affected.
   """
   return _broadcast_context(
       graph_tensor,
@@ -201,12 +211,16 @@ def broadcast_context_to_edges(
   Args:
     graph_tensor: A scalar GraphTensor.
     edge_set_name: An edge set name.
-    feature_value: A ragged or dense graph context feature value.
+    feature_value: A ragged or dense graph context feature value. Has a shape
+      `[num_components, *feature_shape]`, where `num_components` is the number
+      of components in a graph and `feature_shape` is the shape of the feature
+      value for each component.
     feature_name: A context feature name.
 
   Returns:
-    Graph context value broadcast to the `edge_set` edges. The first dimension
-    size equals to the number of nodes, the higher dimensions do not change.
+    Graph context value broadcast to the `edge_set` edges. Has a shape
+    `[num_edges, *feature_shape]`, where `num_edges` is the number of edges in
+    the `edge_set_name` edge set and `feature_shape` is not affected.
   """
   return _broadcast_context(
       graph_tensor,
@@ -239,14 +253,17 @@ def pool_nodes_to_context(graph_tensor: GraphTensor,
     node_set_name: A node set name.
     reduce_type: A pooling operation name, like 'sum', 'mean' or 'max'. For the
       list of supported values use `get_registered_reduce_operation_names()`.
-      You may `register_reduce_operation(..)` to register new ops.
-    feature_value: A ragged or dense node feature value.
+      You may `register_reduce_operation()` to register new ops.
+    feature_value: A ragged or dense node feature value. Has a shape
+      `[num_nodes, *feature_shape]`, where `num_nodes` is the number of nodes in
+      the `node_set_name` node set and `feature_shape` is the shape of the
+      feature value for each node.
     feature_name: A node feature name.
 
   Returns:
-    Node value pooled to graph context. The first dimension size equals to the
-    first context dimension (number of graph components), the higher dimensions
-    do not change.
+    Node value pooled to graph context. Has a shape `[num_components,
+    *feature_shape]`, where `num_components` is the number of components in a
+    graph and `feature_shape` is not affected.
   """
   return _pool_to_context(
       graph_tensor,
@@ -284,14 +301,17 @@ def pool_edges_to_context(graph_tensor: GraphTensor,
     edge_set_name: An edge set name.
     reduce_type: A pooling operation name, like 'sum', 'mean' or 'max'. For the
       list of supported values use `get_registered_reduce_operation_names()`.
-      You may `register_reduce_operation(..)` to register new ops.
-    feature_value: A ragged or dense edge feature value.
+      You may `register_reduce_operation()` to register new ops.
+    feature_value: A ragged or dense edge feature value. Has a shape
+      `[num_edges, *feature_shape]`, where `num_edges` is the number of edges in
+      the `edge_set_name` edge set and `feature_shape` is the shape of the
+      feature value for each edge.
     feature_name: An edge feature name.
 
   Returns:
-    A node value pooled to graph context. The first dimension size equals to the
-    first context dimension (number of graph components), the higher dimensions
-    do not change.
+    A node value pooled to graph context. Has a shape `[num_components,
+    *feature_shape]`, where `num_components` is the number of components in a
+    graph and `feature_shape` is not affected.
   """
   return _pool_to_context(
       graph_tensor,
@@ -314,8 +334,8 @@ def broadcast(graph_tensor: GraphTensor,
   broadcasts from incident nodes to edges if `from_tag` is an ordinary node tag
   like `tfgnn.SOURCE` or `tfgnn.TARGET`. Most user code will not need this
   flexibility and can directly call one of the underlying functions
-  broadcast_node_to_edges, broadcast_context_to_nodes, or
-  broadcast_context_to_edges.
+  `broadcast_node_to_edges()`, `broadcast_context_to_nodes()`, or
+  `broadcast_context_to_edges()`.
 
   Args:
     graph_tensor: A scalar GraphTensor.
@@ -439,12 +459,17 @@ def gather_first_node(graph_tensor: GraphTensor,
   Args:
     graph_tensor: A scalar GraphTensor.
     node_set_name: A seed node set name.
-    feature_value: A ragged or dense node feature value.
+    feature_value: A ragged or dense node feature value. Has a shape
+      `[num_nodes, *feature_shape]`, where `num_nodes` is the number of nodes in
+      the `node_set_name` node set and `feature_shape` is the shape of the
+      feature value for each node.
     feature_name: A node feature name.
 
   Returns:
     A tensor of gathered feature values, one for each graph component, like a
-    context feature.
+    context feature. Has a shape `[num_components, *feature_shape]`, where
+    `num_components` is the number of components in a graph and `feature_shape`
+    is not affected.
   """
   gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.gather_first_node()')
   node_set = graph_tensor.node_sets[node_set_name]
@@ -642,6 +667,7 @@ def combine_values(inputs: List[Field], combine_type: str) -> Field:
       compatible for the selected combine_type.
     combine_type: one of the following string values, to select the method for
       combining the inputs:
+
         * "sum": The input tensors are added. Their dtypes and shapes must
           match.
         * "concat": The input tensors are concatenated along the last axis.

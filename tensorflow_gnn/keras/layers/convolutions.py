@@ -29,7 +29,7 @@ class SimpleConvolution(convolution_base.AnyToAnyConvolutionBase):
   next-state layer, which concatenates the old node state and applies another
   single-layer network.)
 
-  ```
+  ```python
   dense = tf.keras.layers.Dense  # ...or some fancier feed-forward network.
   graph = tfgnn.keras.layers.GraphUpdate(
       node_sets={"paper": tfgnn.keras.layers.NodeSetUpdate(
