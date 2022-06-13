@@ -1,0 +1,48 @@
+node_sets {
+  key: "node_set_one"
+  value {
+    metadata {
+      filename: "node_set_one.csv"
+    }
+    features {
+      key: "#id"
+      value {
+        dtype: DT_STRING
+      }
+    }
+  }
+}
+node_sets {
+  key: "node_set_two"
+  value {
+    metadata {
+      filename: "node_set_two.csv"
+    }
+    features {
+      key: "#id"
+      value {
+        dtype: DT_STRING
+      }
+    }
+  }
+}
+edge_sets {
+  key: "one_to_two"
+  value {
+    source: "node_set_one"
+    target: "node_set_two"
+    metadata {
+      filename: "edge_set_one_to_two.csv"
+    }
+  }
+}
+edge_sets {
+  key: "two_to_two"
+  value {
+    source: "node_set_two"
+    target: "node_set_two"
+    metadata {
+      filename: "edge_set_two_to_two.csv"
+    }
+  }
+}

@@ -731,5 +731,47 @@ def _extract_value(feature: tf.train.Feature) -> List[Any]:
   return []
 
 
+# TODO(tfgnn): Add test for edge based sampling when implemented.
+class EdgeAggregationMethod(tf.test.TestCase):
+
+  def test_node_subgraph_sampling(self):
+
+    with open(test_utils.get_resource("testdata/node_vs_edge/spec.pbtxt")) as f:
+      spec = text_format.ParseLines(f, sampling_spec_pb2.SamplingSpec())
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+      graph_tensor_filename = path.join(tmpdir, "graph_tensors.tfrecords")
+
+      input_schema_file = test_utils.get_resource(
+          "testdata/node_vs_edge/schema.pbtxt")
+      sampler.run_sample_graph_pipeline(input_schema_file, spec,
+                                        graph_tensor_filename)
+
+      output_schema_filename = path.join(tmpdir, "schema.pbtxt")
+      output_schema = tfgnn.read_schema(output_schema_filename)
+
+      examples = read_tfrecords_of_examples(graph_tensor_filename)
+
+    self.assertLen(examples, 1)
+    example = examples[0]
+
+    graph_tensor = tfgnn.parse_single_example(
+        tfgnn.create_graph_spec_from_schema_pb(
+            output_schema), example.SerializeToString(), validate=False)
+
+    # Check root node id of subgraph
+    self.assertAllEqual(graph_tensor.context.features["seed_id"],
+                        tf.constant("a", shape=(1,), dtype=tf.dtypes.string))
+
+    # Test the edge aggregation method included the edge from b->c
+    self.assertAllEqual(graph_tensor.node_sets["node_set_two"].features["#id"],
+                        tf.constant(("b", "c"), dtype=tf.dtypes.string))
+
+    self.assertAllEqual(graph_tensor.edge_sets["two_to_two"].adjacency.source,
+                        tf.constant(0, shape=(1,), dtype=tf.dtypes.int64))
+    self.assertAllEqual(graph_tensor.edge_sets["two_to_two"].adjacency.target,
+                        tf.constant(1, shape=(1,), dtype=tf.dtypes.int64))
+
+
 if __name__ == "__main__":
   tf.test.main()

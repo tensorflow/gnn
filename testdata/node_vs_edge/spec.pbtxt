@@ -1,0 +1,11 @@
+seed_op {
+  op_name: "seed"
+  node_set_name: "node_set_one"
+}
+sampling_ops {
+  op_name: "hop1"
+  input_op_names: ["seed"]
+  strategy: TOP_K
+  sample_size: 2
+  edge_set_name: "one_to_two"
+}

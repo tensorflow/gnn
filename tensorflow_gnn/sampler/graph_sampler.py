@@ -640,7 +640,19 @@ def run_sample_graph_pipeline(
     runner_name: Optional[str] = None,
     pipeline_options: Optional[PipelineOptions] = None,
     batching: bool = False):
-  """Runs the pipeline on a graph, which may be homogeneous or heterogeneous."""
+  """Runs the pipeline on a graph, which may be homogeneous or heterogeneous.
+
+  Args:
+    schema_filename: Path specification to a GraphSchema proto message.
+    sampling_spec: A SamplingSpec protobuf message.
+    output_pattern: File specification for the output graph samples and schema.
+    seeds_filename: An optional path specification to list of seed nodes.
+    runner_name: An optional string specifying a beam pipeline runner. Only
+      DirectRunner or DataflowRunner are currently supported.
+    pipeline_options: Additional beam pipeline options that will be passed to
+      the runner.
+    batching: Write outputs in batches (should typically be False).
+  """
 
   # Read the schema and validate it.
   filename = unigraph.find_schema_filename(schema_filename)
@@ -701,11 +713,9 @@ def run_sample_graph_pipeline(
                                 sampled_schema)
     graph_tensors = (subgraphs | "Encode" >> beam.Map(encoder))
 
-    done = None
-
     if batching:
       # Use IterableCoder if batching.
-      done = (
+      _ = (
           graph_tensors
           | "Batching" >> beam.transforms.util.BatchElements(
               min_batch_size=10, max_batch_size=100)
@@ -714,7 +724,7 @@ def run_sample_graph_pipeline(
               coder=beam.coders.IterableCoder(beam.coders.ProtoCoder(Example))))
     else:
       # Write out the results in a file.
-      done = (
+      _ = (
           graph_tensors
           | "WriteGraphTensors" >> unigraph.WriteTable(output_pattern))
 
@@ -724,13 +734,14 @@ def run_sample_graph_pipeline(
         | beam.combiners.Count.Globally()
         | beam.Map(lambda size: logging.info("Produced %s subgraphs.", size)))
 
-  logging.info("Pipeline complete, writing output...")
   # Produce output schema of the tensors.
   output_schema_filename = f"{path.dirname(output_pattern)}/schema.pbtxt"
+  logging.info("Pipeline complete, writing output graph schema to: %s",
+               output_schema_filename)
+
   tfgnn.write_schema(sampled_schema, output_schema_filename)
 
   logging.info("Sampling complete.")
-  return done
 
 
 def define_flags():
