@@ -5,6 +5,7 @@ from os import path
 from typing import Any
 
 from google.protobuf import text_format
+# Google-internal import(s).
 
 
 def get_proto_resource(filename: str, message: Any) -> Any:
@@ -27,11 +28,8 @@ def get_resource(filename: str) -> str:
   Raises:
     OSError: If the resource filename does not exist.
   """
-  # pylint: disable=unreachable
-  filename = path.join(filename)
-  if not path.exists(filename):
-    raise OSError("Resource {} does not exist.".format(filename))
-  return filename
+  return filename  # copybara:comment(Retrieves data deps in Bazel/OSS only)
+  # Placeholder for Google-internal file fetch
 
 
 def get_resource_dir(dirname: str) -> str:
@@ -48,21 +46,5 @@ def get_resource_dir(dirname: str) -> str:
   Raises:
     OSError: If the resource filename does not exist.
   """
-  # pylint: disable=unreachable
-  res_dirname = path.join(find_root(dirname), dirname)
-  if not path.isdir(res_dirname):
-    raise OSError(
-        "Resource path {} does not exist or is not a directory".format(
-            res_dirname))
-  return res_dirname
-
-
-def find_root(start_filename: str) -> str:
-  """Return root directory of repository."""
-  dirname = start_filename
-  while not path.exists(path.join(dirname, "LICENSE")):
-    prevname = dirname
-    dirname = path.dirname(dirname)
-    if dirname == prevname:
-      raise ValueError(f"Could not find root at {start_filename}")
-  return dirname
+  return dirname  # copybara:comment(Retrieves data deps in Bazel/OSS only)
+  # Placeholder for Google-internal directory fetch
