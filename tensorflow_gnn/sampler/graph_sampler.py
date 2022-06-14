@@ -11,6 +11,7 @@ inferred from the filename fields in the schema (e.g. "TFRecord").
 
 import collections
 import copy
+import enum
 import functools
 import hashlib
 from os import path
@@ -46,6 +47,38 @@ Subgraph = subgraph_pb2.Subgraph
 ID_FEATURE_NAME = "#id"
 _DIRECT_RUNNER = "DirectRunner"
 _DATAFLOW_RUNNER = "DataflowRunner"
+
+
+@enum.unique
+class EdgeAggregationMethod(enum.Enum):
+  """Subgraph generation method.
+
+  NODE: node-centric edge aggregation method. Accumulate all edges in subgraphs
+    from sampled nodes regardless if the edges was traversed during sampling.
+    This is called `node` based edge aggregation because the adjacency list
+    of each node of the subgraph is filtered on nodes included in the subgraph
+    sample and all remaining edges are added to the subgraph sample, regardless
+    of the sampling traversal path.
+
+  EDGE: For each subgraph sample, only include edges that have been traversed
+    while sampling.
+
+
+  **NOTE** Currently, only `node` based sampling is supported. `edge` based
+  sampling will be added shortly.
+
+  Clarifying Example:
+
+  Assume the simple graph with nodes N = {A, B, C} and edges
+  E = {A -> B, A -> C, B -> C}. If we sampled by exploring edges
+  S = {A -> B, A -> C}; `node` subgraph generation **would** include the
+  edge  B->C in the output S_n = {A -> B, A -> C, B -> C}. If `edge` node
+  subgraph generation is used, B -> C **would not** be included in the output:
+  S_e = {A -> B, A -> C}. 'edge' vs. 'node' subgraph generation trades off
+  time and space complexity for local topology representation.
+  """
+  EDGE = "edge"
+  NODE = "node"
 
 
 def create_adjacency_list(
@@ -785,6 +818,15 @@ def define_flags():
   flags.mark_flags_as_required(
       ["graph_schema", "sampling_spec", "output_samples"])
 
+  flags.DEFINE_enum(
+      "edge_aggregation_method", "node", EdgeAggregationMethod,
+      "Given a subgraph sampling, specifies a method for retaining edges "
+      "between nodes in the subgraph. `node` sampling includes all edges "
+      "between the nodes in the sampled subgraph in the output.  `edge` "
+      "aggregation only includes edges in the subgraph if the edge was "
+      "traversed during sampling. NOTE: Currently, only `node` is supported."
+  )
+
 
 def app_main(argv):
   """Main sampler entrypoint.
@@ -801,6 +843,9 @@ def app_main(argv):
   # namespace.
   if FLAGS.runner == _DATAFLOW_RUNNER:
     pipeline_options.view_as(SetupOptions).save_main_session = True
+
+  if FLAGS.edge_aggregation_method != EdgeAggregationMethod.NODE:
+    raise ValueError("Only `node` subgraph generation is currently supported.")
 
   with tf.io.gfile.GFile(FLAGS.sampling_spec) as spec_file:
     spec = text_format.Parse(spec_file.read(), sampling_spec_pb2.SamplingSpec())
