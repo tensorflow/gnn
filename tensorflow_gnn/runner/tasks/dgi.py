@@ -55,9 +55,17 @@ class DeepGraphInfomax:
       raise ValueError(f"Expected a GraphTensor, received {model.output}")
 
     # Positive activations: readout
-    pactivations = tfgnn.keras.layers.ReadoutFirstNode(
+    readout = tfgnn.keras.layers.ReadoutFirstNode(
         node_set_name=self._node_set_name,
-        feature_name=self._state_name)(model.output)
+        feature_name=self._state_name,
+        name="embeddings")(model.output)
+
+    # A submodel with DeepGraphInfomax embeddings only as output
+    submodel = tf.keras.Model(
+        model.input,
+        readout,
+        name="DeepGraphInfomaxEmbeddings")
+    pactivations = submodel(submodel.input)
 
     # Negative activations: shuffling, model application and readout
     shuffled = tfgnn.shuffle_scalar_components(model.input)
@@ -74,7 +82,7 @@ class DeepGraphInfomax:
     nlogits = tf.matmul(nactivations, bilinear(summary), transpose_b=True)
 
     # Combined logits
-    logits = tf.keras.layers.Concatenate()((plogits, nlogits))
+    logits = tf.keras.layers.Concatenate(name="logits")((plogits, nlogits))
 
     return tf.keras.Model(model.input, logits)
 

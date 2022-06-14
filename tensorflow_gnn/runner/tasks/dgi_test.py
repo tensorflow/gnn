@@ -83,6 +83,15 @@ class DeepGraphInfomaxTest(tf.test.TestCase):
     model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=True))
     model.fit(ds)
 
+  def test_embeddings_submodule(self):
+    model = self.task.adapt(self.build_model())
+    dgi_embeddings_model = [
+        m for m in model.submodules if m.name == "DeepGraphInfomaxEmbeddings"
+    ]
+    self.assertLen(dgi_embeddings_model, 1)
+    embeddings = dgi_embeddings_model[0](tfgnn.random_graph_tensor(self.gtspec))
+    self.assertAllEqual(embeddings.shape, (1, 8))
+
   def test_preprocessors(self):
     gt = tfgnn.random_graph_tensor(self.gtspec)
     ds = tf.data.Dataset.from_tensors(gt).repeat(8)
