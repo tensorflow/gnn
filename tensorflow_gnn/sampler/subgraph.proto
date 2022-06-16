@@ -24,6 +24,10 @@ message Node {
 
     // The edge set this Edge belongs to (used for heterogeneous graphs).
     optional string edge_set_name = 4;
+
+    // Unique within the same edge set outgoing edge index. This allows to
+    // have multiple edges connecting the same nodes.
+    optional int64 edge_index = 5;
   }
   repeated Edge outgoing_edges = 3;
 }
