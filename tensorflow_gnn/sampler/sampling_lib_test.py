@@ -432,5 +432,152 @@ class TestEdgeSampling(EdgeSamplingTestBase):
             label=edge_set_name)
 
 
+def _test_example(value: bytes) -> tf.train.Example:
+  result = tf.train.Example()
+  result.features.feature["s"].bytes_list.value.append(value)
+  return result
+
+
+class TestAdjacencyLists(tf.test.TestCase, parameterized.TestCase):
+
+  def _nodes_matcher(self, expected: Iterable[Node]):
+    key_fn = lambda node: node.id
+    sorted_expected = sorted(expected, key=key_fn)
+
+    def _equal(actual):
+      sorted_actual = sorted(actual, key=key_fn)
+      msg = f"Failed assert: {sorted_expected} == {sorted_actual}"
+      self.assertEqual(len(sorted_expected), len(sorted_actual), msg=msg)
+
+      for l_node, r_node in zip(sorted_expected, sorted_actual):
+        self.assertProtoEquals(l_node, r_node, msg=msg)
+
+    return _equal
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="empty", edges={}, sort_edges=False,
+          expected_result={}),
+      dict(
+          testcase_name="single_edge",
+          edges={
+              "edge": [(b"1", b"2", tf.train.Example())],
+          },
+          sort_edges=False,
+          expected_result={
+              "edge": [
+                  """
+                  id: '1'
+                  outgoing_edges { neighbor_id: '2' edge_index: 0 }
+                  """,
+              ],
+          }),
+      dict(
+          testcase_name="homogeneous",
+          edges={
+              "edge": [(b"1", b"2", _test_example(b"12")),
+                       (b"1", b"3", _test_example(b"13")),
+                       (b"2", b"1", _test_example(b"21"))]
+          },
+          sort_edges=True,
+          expected_result={
+              "edge": [
+                  """
+                  id: '1'
+                  outgoing_edges {
+                    neighbor_id: '2'
+                    edge_index: 0
+                    features {
+                      feature {
+                        key: 's'
+                        value { bytes_list { value : ['12'] } }
+                      }
+                    }
+                  }
+                  outgoing_edges {
+                    neighbor_id: '3'
+                    edge_index: 1
+                    features {
+                      feature {
+                        key: 's'
+                        value { bytes_list { value : ['13'] } }
+                      }
+                    }
+                  }
+                  """,
+                  """
+                  id: '2'
+                  outgoing_edges {
+                    neighbor_id: '1'
+                    edge_index: 0
+                    features {
+                      feature {
+                        key: 's'
+                        value { bytes_list { value : ['21'] } }
+                      }
+                    }
+                  }
+                  """,
+              ]
+          }),
+      dict(
+          testcase_name="heterogeneous",
+          edges={
+              "a->b": [(b"1", b"2", tf.train.Example()),
+                       (b"1", b"3", tf.train.Example()),
+                       (b"1", b"1", tf.train.Example())],
+              "a->c": [
+                  (b"2", b"3", tf.train.Example()),
+                  (b"3", b"1", tf.train.Example()),
+                  (b"2", b"1", tf.train.Example()),
+                  (b"3", b"2", tf.train.Example()),
+              ]
+          },
+          sort_edges=True,
+          expected_result={
+              "a->b": [
+                  """
+                  id: '1'
+                  outgoing_edges { neighbor_id: '1' edge_index: 0 }
+                  outgoing_edges { neighbor_id: '2' edge_index: 1 }
+                  outgoing_edges { neighbor_id: '3' edge_index: 2 }
+                  """,
+              ],
+              "a->c": [
+                  """
+                  id: '2'
+                  outgoing_edges { neighbor_id: '1' edge_index: 0 }
+                  outgoing_edges { neighbor_id: '3' edge_index: 1 }
+                  """,
+                  """
+                  id: '3'
+                  outgoing_edges { neighbor_id: '1' edge_index: 0 }
+                  outgoing_edges { neighbor_id: '2' edge_index: 1 }
+                  """,
+              ]
+          }),
+  )
+  def test_logic(self, edges: Mapping[tfgnn.EdgeSetName,
+                                      Iterable[Tuple[NodeId, NodeId, str]]],
+                 sort_edges: bool, expected_result: Mapping[tfgnn.EdgeSetName,
+                                                            Iterable[str]]):
+    expected_result = tf.nest.map_structure(
+        lambda v: text_format.Parse(v, Node()), expected_result)
+
+    with beam.Pipeline() as root:
+      edges = {
+          edge_set_name: root | f"Create/{edge_set_name}" >> beam.Create(values)
+          for edge_set_name, values in edges.items()
+      }
+      actual_result = lib.create_adjacency_lists({"edges": edges},
+                                                 sort_edges=sort_edges)
+      self.assertCountEqual(actual_result.keys(), expected_result.keys())
+      for edge_set_name in expected_result:
+        util.assert_that(
+            actual_result[edge_set_name],
+            self._nodes_matcher(expected_result[edge_set_name]),
+            label=edge_set_name)
+
+
 if __name__ == "__main__":
   tf.test.main()

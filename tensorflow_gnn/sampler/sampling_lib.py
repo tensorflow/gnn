@@ -3,7 +3,7 @@
 import collections
 import math
 import random
-from typing import Callable, DefaultDict, Dict, List, Tuple
+from typing import Callable, DefaultDict, Dict, Iterable, List, Tuple
 
 import apache_beam as beam
 import tensorflow as tf
@@ -287,4 +287,61 @@ def sample_edges(
       edge_set_name:
       (result_pieces | f"FlattenSampledEdges/{edge_set_name}" >> beam.Flatten())
       for edge_set_name, result_pieces in edge_set_to_sampled_edges.items()
+  }
+
+
+def create_adjacency_lists(
+    graph_dict: Dict[str, Dict[str, PCollection]],
+    sort_edges: bool = False
+) -> Dict[tfgnn.EdgeSetName, PCollection[Node]]:
+  """Creates adjacency lists for each edge set from the `graph_dict`.
+
+  NOTE: it is assumed that the outgoing degrees of nodes are small, so that
+  outgoing edges of any node can fit into a worker's memory. If it is not the
+  case, the current recommended approach is to prune edges such that these
+  constraints are met.
+
+  Args:
+    graph_dict: The map returned from a `unigraph` graph reading.
+    sort_edges: If `True`, outgoing edges are sorted by `neighbor_id`.
+
+  Returns:
+    A mapping from edge set name to the collection of edges from that edge set
+    grouped by their source node ids as Node messages.
+  """
+
+  def create_nodes(source_id: NodeId,
+                   edges: Iterable[Tuple[NodeId, Example]]) -> Node:
+    node = Node()
+    node.id = source_id
+    if sort_edges:
+      edges = sorted(edges, key=lambda item: item[0])
+
+    for edge_index, (target_id, features) in enumerate(edges):
+      edge = node.outgoing_edges.add()
+      edge.neighbor_id = target_id
+      edge.edge_index = edge_index
+      if features.feature:
+        edge.features.CopyFrom(features)
+    return node
+
+  def key_by_source_id(
+      source_id: NodeId, target_id: NodeId,
+      edge_example: Example) -> Tuple[NodeId, Tuple[NodeId, Features]]:
+    return source_id, (target_id, edge_example.features)
+
+  def create_adjacency_list(
+      edge_set_name: tfgnn.EdgeSetName,
+      edge_set: PCollection[Tuple[NodeId, NodeId, Example]]
+  ) -> PCollection[Tuple[NodeId, Node]]:
+    stage_name = lambda prefix: f"CreateAdjLists/{prefix}/{edge_set_name}"
+
+    return (edge_set
+            | stage_name("KeyBySourceId") >> beam.MapTuple(key_by_source_id)
+            | stage_name("GroupByKey") >> beam.GroupByKey()
+            | stage_name("CreateNodes") >> beam.MapTuple(create_nodes))
+
+  return {
+      edge_set_name: create_adjacency_list(edge_set_name, edge_set)
+      for edge_set_name, edge_set in graph_dict["edges"].items()
   }
