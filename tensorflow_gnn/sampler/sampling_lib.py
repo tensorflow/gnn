@@ -3,7 +3,7 @@
 import collections
 import math
 import random
-from typing import Callable, DefaultDict, Dict, Iterable, List, Tuple
+from typing import Any, Callable, DefaultDict, Dict, List, Iterable, Iterator, Set, Tuple
 
 import apache_beam as beam
 import tensorflow as tf
@@ -124,9 +124,9 @@ class ResevoirEdgeSamplingFn(beam.DoFn):
     """Samples edges for each input and computes new sampling frontier.
 
     Args:
-      element: A tuple containing a sample id mapping to a tuple containing
-      an integer count of the total number of sampling paths that lead to a
-      given node.
+      element: A tuple containing a sample id mapping to a tuple containing an
+        integer count of the total number of sampling paths that lead to a given
+        node.
 
     Yields:
       Tuple of sample id and sampled edged as the main output and new sampling
@@ -345,3 +345,122 @@ def create_adjacency_lists(
       edge_set_name: create_adjacency_list(edge_set_name, edge_set)
       for edge_set_name, edge_set in graph_dict["edges"].items()
   }
+
+
+def find_connecting_edges(
+    schema: tfgnn.GraphSchema,
+    incident_nodes: Dict[tfgnn.NodeSetName, UniqueNodeIds],
+    adj_lists: Dict[tfgnn.EdgeSetName, PCollection[Node]]
+) -> Dict[tfgnn.EdgeSetName, SampledEdges]:
+  """Filters edges that connect given subset of incident nodes.
+
+  Args:
+    schema: The graph schema.
+    incident_nodes: Allowed incident nodes grouped by node sets and sample ids.
+    adj_lists: A mapping from edge set names to adjacency lists. An adjacency
+      list is a pair of a source node id and all outgoing edges for that source
+      node (as Node message).
+
+  Returns:
+    Filtered edges grouped by their edge sets and sample ids.
+  """
+  result = {}
+  for edge_set_name, adj_list in adj_lists.items():
+    source = schema.edge_sets[edge_set_name].source
+    target = schema.edge_sets[edge_set_name].target
+    source_ids = incident_nodes.get(source, None)
+    target_ids = incident_nodes.get(target, None)
+    if source_ids is None or target_ids is None:
+      continue
+
+    if source == target:
+      source_to_targets = _create_homogeneous_edge_filter(
+          edge_set_name, source_ids)
+    else:
+      source_to_targets = _create_heterogeneous_edge_filter(
+          edge_set_name, source_ids, target_ids)
+
+    result[edge_set_name] = _filter_edges_by_source_and_set_of_targets(
+        edge_set_name, source_to_targets, adj_list)
+
+  return result
+
+
+def _filter_edges_by_source_and_set_of_targets(
+    edge_set_name: tfgnn.EdgeSetName,
+    incident_nodes: PCollection[Tuple[NodeId, Tuple[SampleId, List[NodeId]]]],
+    adj_list: PCollection[Node]) -> PCollection[Tuple[NodeId, Node]]:
+  """Filters edges that connect a source node to any of the target nodes."""
+
+  def stage_name(suffix: str):
+    return f"FilterEdgesBySourceAndSetOfTargets/{edge_set_name}/{suffix}"
+
+  def filter_edges(edge_filter: Tuple[SampleId, List[NodeId]],
+                   node: Node) -> Iterator[Tuple[NodeId, Node]]:
+    sample_id, targets = edge_filter
+    allowed_targets: Set[NodeId] = set(targets)
+    filtered_edges = [
+        edge for edge in node.outgoing_edges
+        if edge.neighbor_id in allowed_targets
+    ]
+    if not filtered_edges:
+      return
+
+    fitlered_node = Node()
+    fitlered_node.CopyFrom(node)
+    fitlered_node.ClearField("outgoing_edges")
+    fitlered_node.outgoing_edges.extend(filtered_edges)
+    yield sample_id, fitlered_node
+
+  def key_by_node_id(node: Node) -> Tuple[NodeId, Node]:
+    return node.id, node
+
+  return (inner_lookup_join(
+      stage_name("JoinFilterWithEdges"),
+      queries=incident_nodes,
+      lookup_table=(adj_list
+                    | stage_name("KeyBySourceId") >> beam.Map(key_by_node_id)))
+          | stage_name("DropKey") >> beam.Values()
+          | stage_name("FilterEdges") >> beam.FlatMapTuple(filter_edges))
+
+
+def _create_homogeneous_edge_filter(
+    edge_set_name: tfgnn.EdgeSetName, source_or_target_ids: UniqueNodeIds
+) -> PCollection[Tuple[NodeId, Tuple[SampleId, List[NodeId]]]]:
+  """Creates filter for edges that connect the same node set."""
+  stage_name = lambda suffix: f"EdgeFilterAA/{edge_set_name}/{suffix}"
+
+  def create_filter(
+      sample_id: SampleId, ids: List[NodeId]
+  ) -> Iterator[Tuple[NodeId, Tuple[SampleId, List[NodeId]]]]:
+    for source_id in ids:
+      yield source_id, (sample_id, ids)
+
+  return (source_or_target_ids
+          | stage_name("CreateFilter") >> beam.FlatMapTuple(create_filter))
+
+
+def _create_heterogeneous_edge_filter(
+    edge_set_name: tfgnn.EdgeSetName, source_ids: UniqueNodeIds,
+    target_ids: UniqueNodeIds
+) -> PCollection[Tuple[NodeId, Tuple[SampleId, List[NodeId]]]]:
+  """Creates filter for edges that connect two distinct node sets."""
+  stage_name = lambda suffix: f"EdgeFilterAB/{edge_set_name}/{suffix}"
+
+  def create_filter(
+      sample_id: SampleId, group: Dict[str, Any]
+  ) -> Iterator[Tuple[NodeId, Tuple[SampleId, List[NodeId]]]]:
+    source_ids: List[List[NodeId]] = list(group["source_ids"])
+    target_ids: List[List[NodeId]] = list(group["target_ids"])
+    if not source_ids or not target_ids:
+      return
+    assert len(source_ids) == 1, f"Not unique key {sample_id} for source nodes."
+    assert len(target_ids) == 1, f"Not unique key {sample_id} for target nodes."
+    for source_id in source_ids[0]:
+      yield source_id, (sample_id, target_ids[0])
+
+  return ({
+      "source_ids": source_ids,
+      "target_ids": target_ids
+  } | stage_name("GroupBySampeIds") >> beam.CoGroupByKey()
+          | stage_name("CreateFilter") >> beam.FlatMapTuple(create_filter))

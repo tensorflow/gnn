@@ -579,5 +579,109 @@ class TestAdjacencyLists(tf.test.TestCase, parameterized.TestCase):
             label=edge_set_name)
 
 
+class TestFindConnectingNodes(EdgeSamplingTestBase):
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="homogeneous",
+          schema="""
+            node_sets {
+              key: "node"
+            }
+            edge_sets {
+              key: "edge"
+              value { source: "node" target: "node" }
+            }
+          """,
+          incident_nodes={
+              "node": [(b"s.1", [b"1", b"2", b"4"]), (b"s.2", [b"1", b"3"]),
+                       (b"s.3", [b"x", b"y"])]
+          },
+          adj_lists={
+              "edge": [
+                  _create_test_node(1, [1, 2, 3]),
+                  _create_test_node(2, [1, 4, 3, 2]),
+                  _create_test_node(3, [1]),
+                  _create_test_node(4, [1, 4])
+              ]
+          },
+          expected_result={
+              "edge": [
+                  (b"s.1", _create_test_node(1, [1, 2])),
+                  (b"s.1", _create_test_node(2, [1, 4, 2])),
+                  (b"s.1", _create_test_node(4, [1, 4])),
+                  (b"s.2", _create_test_node(1, [1, 3])),
+                  (b"s.2", _create_test_node(3, [1])),
+              ]
+          }),
+      dict(
+          testcase_name="heterogeneous",
+          schema="""
+            node_sets { key: "a" }
+            node_sets { key: "b" }
+            node_sets { key: "c" }
+            edge_sets {
+              key: "a->b"
+              value { source: "a" target: "b" }
+            }
+            edge_sets {
+              key: "b->c"
+              value { source: "b" target: "c" }
+            }
+            edge_sets {
+              key: "c->a"
+              value { source: "c" target: "a" }
+            }
+          """,
+          incident_nodes={
+              "a": [(b"s.1", [b"1"]),],
+              "b": [(b"s.1", [b"2"]),],
+              "c": [(b"s.1", [b"3"]),],
+          },
+          adj_lists={
+              "a->b": [
+                  _create_test_node(1, [2, 3, 4]),
+                  _create_test_node(2, [1]),
+              ],
+              "b->c": [
+                  _create_test_node(1, [2, 3, 4]),
+                  _create_test_node(2, [3, 1]),
+              ],
+              "c->a": [_create_test_node(3, [3, 1]),],
+          },
+          expected_result={
+              "a->b": [(b"s.1", _create_test_node(1, [2])),],
+              "b->c": [(b"s.1", _create_test_node(2, [3])),],
+              "c->a": [(b"s.1", _create_test_node(3, [1])),],
+          }),
+  )
+  def test_logic(self, schema: str,
+                 incident_nodes: Mapping[tfgnn.NodeSetName,
+                                         Iterable[Tuple[SampleId,
+                                                        List[NodeId]]]],
+                 adj_lists: Mapping[tfgnn.EdgeSetName, Iterable[Node]],
+                 expected_result: Mapping[tfgnn.EdgeSetName,
+                                          Iterable[Tuple[SampleId, Node]]]):
+    schema = text_format.Parse(schema, tfgnn.GraphSchema())
+
+    with beam.Pipeline() as root:
+      incident_nodes = {
+          set_name: root | f"Nodes/{set_name}" >> beam.Create(values)
+          for set_name, values in incident_nodes.items()
+      }
+      adj_lists = {
+          set_name: root | f"AdjLists/{set_name}" >> beam.Create(values)
+          for set_name, values in adj_lists.items()
+      }
+      actual_result = lib.find_connecting_edges(schema, incident_nodes,
+                                                adj_lists)
+      self.assertCountEqual(actual_result.keys(), expected_result.keys())
+      for edge_set_name in expected_result:
+        util.assert_that(
+            actual_result[edge_set_name],
+            self.sampled_edges_matcher(expected_result[edge_set_name]),
+            label=edge_set_name)
+
+
 if __name__ == "__main__":
   tf.test.main()
