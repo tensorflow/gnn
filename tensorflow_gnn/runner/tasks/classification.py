@@ -89,7 +89,8 @@ class _BinaryClassification(_Classification):
   def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     return (_Precision(from_logits=True),
             _Recall(from_logits=True),
-            tf.keras.metrics.AUC(from_logits=True),
+            tf.keras.metrics.AUC(from_logits=True, name="auc_roc"),
+            tf.keras.metrics.AUC(curve="PR", from_logits=True, name="auc_pr"),
             tf.keras.metrics.BinaryAccuracy(),
             tf.keras.losses.BinaryCrossentropy(from_logits=True))
 
