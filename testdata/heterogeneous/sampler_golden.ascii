@@ -1,4 +1,4 @@
-# proto-file: third_party/py/tensorflow_gnn/testdata/examples.proto
+# proto-file: third_party/py/tensorflow_gnn/proto/examples.proto
 # proto-message: ExampleList
 examples {
   features {
@@ -6,7 +6,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "9c38c5c64281d719"
+          value: "1876448"
         }
       }
     }
@@ -15,14 +15,6 @@ examples {
       value {
         bytes_list {
           value: "1876448"
-        }
-      }
-    }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
         }
       }
     }
@@ -122,7 +114,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "2ef522021e705074"
+          value: "1372437"
         }
       }
     }
@@ -131,14 +123,6 @@ examples {
       value {
         bytes_list {
           value: "1372437"
-        }
-      }
-    }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
         }
       }
     }
@@ -238,7 +222,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "ed536f6e4feb487f"
+          value: "1368305"
         }
       }
     }
@@ -250,14 +234,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "edges/owns_card.#size"
       value {
@@ -354,7 +331,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "2af7ad1902197000"
+          value: "1974494"
         }
       }
     }
@@ -366,14 +343,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "edges/owns_card.#size"
       value {
@@ -470,7 +440,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "fed4cb4e5d84da88"
+          value: "1257724"
         }
       }
     }
@@ -482,14 +452,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "edges/owns_card.#size"
       value {
@@ -586,7 +549,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "72b08ccaf230f75b"
+          value: "1758057"
         }
       }
     }
@@ -598,14 +561,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "edges/owns_card.#size"
       value {
@@ -702,7 +658,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "0a6d9afe928bf5fe"
+          value: "1531660"
         }
       }
     }
@@ -714,14 +670,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "edges/owns_card.#size"
       value {
@@ -818,7 +767,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "c347a294301563fe"
+          value: "1489311"
         }
       }
     }
@@ -830,14 +779,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "nodes/customer.#size"
       value {
@@ -887,7 +829,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "a4e0eea7c62afac3"
+          value: "1407706"
         }
       }
     }
@@ -899,14 +841,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "edges/owns_card.#size"
       value {
@@ -1004,7 +939,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "0abe23ce6bc1c485"
+          value: "196838"
         }
       }
     }
@@ -1016,14 +951,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "edges/owns_card.#size"
       value {
@@ -1121,7 +1049,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "c7dfa55bb9801a87"
+          value: "1195675"
         }
       }
     }
@@ -1133,14 +1061,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "nodes/customer.#size"
       value {
@@ -1190,7 +1111,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "89a6cc8d13a699db"
+          value: "1659366"
         }
       }
     }
@@ -1202,14 +1123,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "edges/owns_card.#size"
       value {
@@ -1307,7 +1221,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "c0bd66775b75582a"
+          value: "1499004"
         }
       }
     }
@@ -1319,14 +1233,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "edges/owns_card.#size"
       value {
@@ -1424,7 +1331,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "54318f58408b12a6"
+          value: "1344333"
         }
       }
     }
@@ -1436,14 +1343,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "edges/owns_card.#size"
       value {
@@ -1541,7 +1441,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "e1f81934a92eff28"
+          value: "1443888"
         }
       }
     }
@@ -1553,14 +1453,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "nodes/customer.#size"
       value {
@@ -1610,7 +1503,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "4f46c6fcf21a3c05"
+          value: "1108778"
         }
       }
     }
@@ -1622,14 +1515,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "edges/owns_card.#size"
       value {
@@ -1727,7 +1613,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "dd3b1a313bd3f5ab"
+          value: "175583"
         }
       }
     }
@@ -1739,14 +1625,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "edges/owns_card.#size"
       value {
@@ -1844,7 +1723,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "4d3c5d2d1bce0b87"
+          value: "1251872"
         }
       }
     }
@@ -1856,14 +1735,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "edges/owns_card.#size"
       value {
@@ -1961,7 +1833,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "58652a542adf6ce7"
+          value: "1493851"
         }
       }
     }
@@ -1973,14 +1845,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "nodes/customer.#size"
       value {
@@ -2029,7 +1894,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "8fc0ca423c245473"
+          value: "1599418"
         }
       }
     }
@@ -2041,14 +1906,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "nodes/customer.#size"
       value {
@@ -2098,7 +1956,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "a0cc25561f2fef46"
+          value: "1768701"
         }
       }
     }
@@ -2110,14 +1968,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "edges/owns_card.#size"
       value {
@@ -2215,7 +2066,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "b088c365bac05678"
+          value: "1549489"
         }
       }
     }
@@ -2227,14 +2078,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "nodes/customer.#size"
       value {
@@ -2284,7 +2128,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "7af14a70f816c4e1"
+          value: "1879799"
         }
       }
     }
@@ -2296,14 +2140,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "edges/owns_card.#size"
       value {
@@ -2401,7 +2238,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "9b7686a222d6add6"
+          value: "125454"
         }
       }
     }
@@ -2413,14 +2250,7 @@ examples {
         }
       }
     }
-    feature {
-      key: "context/month"
-      value {
-        bytes_list {
-          value: "2020-03"
-        }
-      }
-    }
+
     feature {
       key: "edges/owns_card.#size"
       value {

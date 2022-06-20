@@ -1,4 +1,4 @@
-# proto-file: third_party/py/tensorflow_gnn/testdata/examples.proto
+# proto-file: third_party/py/tensorflow_gnn/proto/examples.proto
 # proto-message: ExampleList
 examples {
   features {
@@ -6,7 +6,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "2fef12af6f8bdb35"
+          value: "amanatsu"
         }
       }
     }
@@ -79,7 +79,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "25a14f2cc0db0227"
+          value: "daidai"
         }
       }
     }
@@ -115,7 +115,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "e16150a083c529a8"
+          value: "hassaku"
         }
       }
     }
@@ -151,7 +151,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "7bca686ce748c5e4"
+          value: "kiyomi"
         }
       }
     }
@@ -220,7 +220,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "05e59c5d4bc2aec2"
+          value: "komikan"
         }
       }
     }
@@ -256,7 +256,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "6ba769de05147cf1"
+          value: "lumia"
         }
       }
     }
@@ -292,7 +292,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "daa6003167b86315"
+          value: "mandora"
         }
       }
     }
@@ -365,7 +365,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "08b68a62facd39a2"
+          value: "reikou"
         }
       }
     }
@@ -401,7 +401,7 @@ examples {
       key: "context/sample_id"
       value {
         bytes_list {
-          value: "bc3083284a452078"
+          value: "tangelo"
         }
       }
     }

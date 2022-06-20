@@ -1,17 +1,6 @@
+# proto-file: third_party/py/tensorflow_gnn/proto/graph_schema.proto
+# proto-message: GraphSchema
 # Example graph of transactions, credit cards, customer.
-
-context {
-  metadata {
-    filename: "month.csv"
-  }
-  features {
-    key: "month"
-    value: {
-      description: "Month of training data"
-      dtype: DT_STRING
-    }
-  }
-}
 
 node_sets {
   key: "transaction"

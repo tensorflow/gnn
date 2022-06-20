@@ -43,8 +43,7 @@ class TestReadGraph(tf.test.TestCase):
   def test_read_graph_and_schema(self):
     self.assertTrue({
         "creditcard.csv", "customer.csv", "graph.pbtxt", "owns_card.csv",
-        "paid_with.csv", "transactions.csv", "month.csv",
-        "invalid_customer.csv",
+        "paid_with.csv", "transactions.csv", "invalid_customer.csv",
         "two_customers.csv", "one_customer.csv"}.issubset(
             set(os.listdir(self.resource_dir))))
     pipeline = test_pipeline.TestPipeline()
