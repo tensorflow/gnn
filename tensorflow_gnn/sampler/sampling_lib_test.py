@@ -683,5 +683,223 @@ class TestFindConnectingNodes(EdgeSamplingTestBase):
             label=edge_set_name)
 
 
+class TestCreateUniqueNodeIds(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="seeds_only",
+          schema="""
+            node_sets {
+              key: "node"
+            }
+            edge_sets {
+              key: "edge"
+              value { source: "node" target: "node" }
+            }
+          """,
+          seeds={"node": [
+              (b"s.1", b"1"),
+              (b"s.2", b"1"),
+          ]},
+          edges={"edge": []},
+          expected_result={"node": [
+              (b"s.1", [b"1"]),
+              (b"s.2", [b"1"]),
+          ]}),
+      dict(
+          testcase_name="homogeneous",
+          schema="""
+            node_sets {
+              key: "node"
+            }
+            edge_sets {
+              key: "edge"
+              value { source: "node" target: "node" }
+            }
+          """,
+          seeds={"node": [
+              (b"s.1", b"1"),
+              (b"s.2", b"2"),
+          ]},
+          edges={
+              "edge": [
+                  (b"s.1", _create_test_node(1, [2])),
+                  (b"s.1", _create_test_node(2, [1])),
+                  (b"s.2", _create_test_node(2, [1, 3])),
+                  (b"s.2", _create_test_node(3, [1])),
+              ]
+          },
+          expected_result={
+              "node": [
+                  (b"s.1", [b"1", b"2"]),
+                  (b"s.2", [b"1", b"2", b"3"]),
+              ]
+          }),
+      dict(
+          testcase_name="heterogeneous",
+          schema="""
+            node_sets { key: "A" }
+            node_sets { key: "B" }
+            edge_sets { key: "A->B" value { source: "A" target: "B" } }
+            edge_sets { key: "B->A" value { source: "B" target: "A" } }
+          """,
+          seeds={"A": [
+              (b"s.1", b"1"),
+              (b"s.2", b"2"),
+          ]},
+          edges={
+              "A->B": [
+                  (b"s.1", _create_test_node(1, [1])),
+                  (b"s.2", _create_test_node(2, [1])),
+              ],
+              "B->A": [
+                  (b"s.1", _create_test_node(1, [1])),
+                  (b"s.2", _create_test_node(1, [3])),
+              ]
+          },
+          expected_result={
+              "A": [
+                  (b"s.1", [b"1"]),
+                  (b"s.2", [b"2", b"3"]),
+              ],
+              "B": [
+                  (b"s.1", [b"1"]),
+                  (b"s.2", [b"1"]),
+              ]
+          }),
+  )
+  def test_logic(self, schema: str, seeds: Mapping[tfgnn.NodeSetName,
+                                                   Iterable[Tuple[SampleId,
+                                                                  NodeId]]],
+                 edges: Mapping[tfgnn.EdgeSetName, Iterable[Tuple[SampleId,
+                                                                  Node]]],
+                 expected_result: Mapping[tfgnn.NodeSetName,
+                                          List[Tuple[SampleId, List[bytes]]]]):
+
+    def ids_matcher(expected):
+
+      def _sorted(values):
+        result = [(k, sorted(v)) for k, v in values]
+        return sorted(result, key=lambda item: item[0])
+
+      sorted_expected = _sorted(expected)
+
+      def _equal(actual):
+        sorted_actual = _sorted(actual)
+        if sorted_expected != sorted_actual:
+          raise util.BeamAssertException("Failed assert: %r == %r" %
+                                         (sorted_expected, sorted_actual))
+
+      return _equal
+
+    schema = text_format.Parse(schema, tfgnn.GraphSchema())
+
+    with beam.Pipeline() as root:
+      seeds = {
+          set_name: root | f"Seeds/{set_name}" >> beam.Create(values)
+          for set_name, values in seeds.items()
+      }
+      edges = {
+          set_name: root | f"Edges/{set_name}" >> beam.Create(values)
+          for set_name, values in edges.items()
+      }
+      actual_result = lib.create_unique_node_ids(schema, seeds, edges)
+      self.assertCountEqual(actual_result.keys(), expected_result.keys())
+      for node_set_name in expected_result:
+        util.assert_that(
+            actual_result[node_set_name],
+            ids_matcher(expected_result[node_set_name]),
+            label=node_set_name)
+
+
+class TestLookupNodeFeatures(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name="homogeneous",
+          node_ids={
+              "node": [
+                  (b"s.1", [b"1", b"2", b"3"]),
+                  (b"s.2", [b"1"]),
+                  (b"s.3", [b"x"]),
+              ]
+          },
+          node_features={"node": {
+              b"1": b"foo",
+              b"3": b"bar",
+          }},
+          expected_result={
+              "node": [
+                  (b"s.1", (b"1", b"foo")),
+                  (b"s.1", (b"3", b"bar")),
+                  (b"s.2", (b"1", b"foo")),
+              ]
+          }),
+      dict(
+          testcase_name="heterogeneous",
+          node_ids={
+              "a": [
+                  (b"s.1", [b"1", b"2", b"3"]),
+                  (b"s.2", [b"3"]),
+              ],
+              "b": [(b"s.1", [b"1", b"2"]),]
+          },
+          node_features={
+              "a": {
+                  b"1": b"f.a1",
+                  b"3": b"f.a3",
+              },
+              "b": {
+                  b"2": b"f.b2",
+              }
+          },
+          expected_result={
+              "a": [
+                  (b"s.1", (b"1", b"f.a1")),
+                  (b"s.1", (b"3", b"f.a3")),
+                  (b"s.2", (b"3", b"f.a3")),
+              ],
+              "b": [(b"s.1", (b"2", b"f.b2")),]
+          }),
+  )
+  def test_logic(self, node_ids: Mapping[tfgnn.NodeSetName,
+                                         List[Tuple[SampleId, List[bytes]]]],
+                 node_features: Mapping[tfgnn.NodeSetName, Mapping[NodeId,
+                                                                   bytes]],
+                 expected_result: Mapping[tfgnn.NodeSetName,
+                                          List[Tuple[SampleId, bytes]]]):
+
+    def as_example(value: bytes) -> tf.train.Example:
+      result = tf.train.Example()
+      result.features.feature["s"].bytes_list.value.append(value)
+      return result
+
+    def extract_feature(
+        sample_id: SampleId, values: Tuple[NodeId, tf.train.Features]
+    ) -> Tuple[SampleId, Tuple[NodeId, bytes]]:
+      node_id, features = values
+      return sample_id, (node_id, features.feature["s"].bytes_list.value[0])
+
+    with beam.Pipeline() as root:
+      node_ids = {
+          set_name: root | f"NodeIds/{set_name}" >> beam.Create(ids)
+          for set_name, ids in node_ids.items()
+      }
+
+      node_examples = tf.nest.map_structure(as_example, node_features)
+      node_examples = {
+          set_name: root | f"Features/{set_name}" >> beam.Create(value.items())
+          for set_name, value in node_examples.items()
+      }
+      actual_result = lib.lookup_node_features(node_ids, node_examples)
+      self.assertCountEqual(actual_result.keys(), expected_result.keys())
+      for node_set_name in expected_result:
+        util.assert_that(
+            actual_result[node_set_name]
+            | f"ParseResult/{node_set_name}" >> beam.MapTuple(extract_feature),
+            util.equal_to(expected_result[node_set_name]),
+            label=node_set_name)
+
+
 if __name__ == "__main__":
   tf.test.main()

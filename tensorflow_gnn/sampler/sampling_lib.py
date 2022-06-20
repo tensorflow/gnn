@@ -20,6 +20,7 @@ Features = tf.train.Features
 Node = subgraph_pb2.Node
 Edge = subgraph_pb2.Node.Edge
 SampledEdges = PCollection[Tuple[SampleId, Node]]
+NodeFeatures = PCollection[Tuple[SampleId, Tuple[NodeId, Features]]]
 
 WeightFunc = Callable[[Edge], float]
 
@@ -383,6 +384,114 @@ def find_connecting_edges(
     result[edge_set_name] = _filter_edges_by_source_and_set_of_targets(
         edge_set_name, source_to_targets, adj_list)
 
+  return result
+
+
+def create_unique_node_ids(
+    schema: tfgnn.GraphSchema,
+    seeds: Dict[tfgnn.NodeSetName, Tuple[SampleId, NodeId]],
+    edges: Dict[tfgnn.EdgeSetName, SampledEdges]
+) -> Dict[tfgnn.NodeSetName, UniqueNodeIds]:
+  """Aggregates unique node ids for each sampled subgraph.
+
+  Args:
+    schema: The graph schema.
+    seeds: A mapping from node set name to (sample id, seed node id) pairs.
+    edges: A mapping from edge set name to (sample id, node) pairs.
+
+  Returns:
+    A mapping from node set name to (sample id, list of unique node ids) pairs.
+  """
+
+  stage_name = lambda set_name, label: f"UniqueNodeIds/{set_name}/{label}"
+
+  node_set_to_ids = collections.defaultdict(list)
+
+  def to_list(sample_id: SampleId,
+              seed_node_id: NodeId) -> Tuple[SampleId, List[NodeId]]:
+    return sample_id, [seed_node_id]
+
+  for node_set_name, seed_ids in seeds.items():
+    ids: UniqueNodeIds = (
+        seed_ids
+        | stage_name(node_set_name, "MoveSeedToList") >> beam.MapTuple(to_list))
+    node_set_to_ids[node_set_name].append(ids)
+
+  def filter_edge_sources(sample_id: SampleId,
+                          node: Node) -> Tuple[SampleId, List[NodeId]]:
+    assert node.id
+    return sample_id, [node.id]
+
+  def filter_edge_targets(sample_id: SampleId,
+                          node: Node) -> Tuple[SampleId, List[NodeId]]:
+
+    return sample_id, [edge.neighbor_id for edge in node.outgoing_edges]
+
+  for edge_set_name, edge_set_edges in edges.items():
+    node_set_to_ids[schema.edge_sets[edge_set_name].source].append(
+        edge_set_edges
+        | stage_name(edge_set_name, "GetSourceIds") >> beam.MapTuple(
+            filter_edge_sources))
+    node_set_to_ids[schema.edge_sets[edge_set_name].target].append(
+        edge_set_edges
+        | stage_name(edge_set_name, "GetTargetIds") >> beam.MapTuple(
+            filter_edge_targets))
+
+  result = {}
+  for node_set_name, ids in node_set_to_ids.items():
+    result[node_set_name] = (
+        ids
+        | stage_name(node_set_name, "Flatten") >> beam.Flatten()
+        | stage_name(node_set_name, "Dedup") >> beam.CombinePerKey(
+            utils.unique_values_combiner))
+  return result
+
+
+def lookup_node_features(
+    node_ids: Dict[tfgnn.NodeSetName, UniqueNodeIds],
+    node_examples: Dict[tfgnn.NodeSetName, PCollection[Tuple[NodeId, Example]]]
+) -> Dict[tfgnn.NodeSetName, NodeFeatures]:
+  """Extracts node features using node ids.
+
+  Args:
+    node_ids: A mapping from node set name to (sample id, list of unique node
+      ids) pairs.
+    node_examples: A mapping from node set name to (node id, node example)
+      pairs.
+
+  Returns:
+    A mapping from node set name to (node id, (sample id, node features)) for
+    subset of nodes from node_ids that have examples.
+  """
+
+  def extract_features(
+      node_id: NodeId, join_result: Tuple[SampleId, Example]
+  ) -> Tuple[SampleId, Tuple[NodeId, Features]]:
+    sample_id, example = join_result
+    return (sample_id, (node_id, example.features))
+
+  def unflatten_node_ids(
+      sample_id: SampleId,
+      node_ids: List[NodeId]) -> Iterator[Tuple[NodeId, SampleId]]:
+    for node_id in node_ids:
+      yield node_id, sample_id
+
+  def lookup_features(
+      node_set_name: tfgnn.NodeSetName, node_ids: UniqueNodeIds,
+      examples: PCollection[Tuple[NodeId, Example]]) -> NodeFeatures:
+    stage_prefix: str = f"LookupNodeFeatures/{node_set_name}"
+    return (
+        inner_lookup_join(
+            stage_prefix,
+            queries=(node_ids | f"{stage_prefix}/UnflattenIds" >>
+                     beam.FlatMapTuple(unflatten_node_ids)),
+            lookup_table=examples)
+        | f"{stage_prefix}/ExtractFeatures" >> beam.MapTuple(extract_features))
+
+  result = {}
+  for node_set_name, node_set_node_ids in node_ids.items():
+    result[node_set_name] = lookup_features(node_set_name, node_set_node_ids,
+                                            node_examples[node_set_name])
   return result
 
 
