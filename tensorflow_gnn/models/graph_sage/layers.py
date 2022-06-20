@@ -13,18 +13,18 @@ class GraphSAGEAggregatorConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
   """GraphSAGE: element-wise aggregation of neighbors and their linear transformation.
 
   For a complete GraphSAGE update on a node set, use this class in a
-  NodeSetUpdate together with the `GraphSAGENextState` layer to handle the
-  node state (see there for details).
+  NodeSetUpdate together with the `graph_sage.GraphSAGENextState` layer
+  to handle the node state (see there for details).
 
-  GraphSAGE and the mean aggregation method are from 'Inductive Representation
-  Learning on Graphs',
-  [Hamilton et al.,2017](https://arxiv.org/abs/1706.02216).
+  GraphSAGE and the mean aggregation method are from
+  Hamilton et al.: ["Inductive Representation Learning
+  on Large Graphs"](https://arxiv.org/abs/1706.02216), 2017.
   Following the authors' implementation, dropout is applied to the inputs
   of neighbor nodes (separately for each node-neighbor pair).
 
   This class supports the element-wise aggregations with different operator
   types besides "mean", see the reduce_type=... argument. For stateful
-  transformation with a hidden layer, see class `GraphSAGEPoolingConv`.
+  transformation with a hidden layer, see `graph_sage.GraphSAGEPoolingConv`.
   """
 
   def __init__(
@@ -99,7 +99,7 @@ class GraphSAGEAggregatorConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
                broadcast_from_receiver: Callable[[tf.Tensor], tf.Tensor],
                pool_to_receiver: Callable[..., tf.Tensor],
                training: bool) -> tf.Tensor:
-    """Returns convolution result."""
+    """Overridden internal method of the base class."""
     assert sender_node_input is not None, "sender_node_input can't be None."
     result = broadcast_from_sender_node(sender_node_input)
     result = self._dropout(result, training=training)
@@ -113,22 +113,22 @@ class GraphSAGEPoolingConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
   """GraphSAGE: pooling aggregator transform of neighbors followed by linear transformation.
 
   For a complete GraphSAGE update on a node set, use a this class in a
-  NodeSetUpdate together with the `GraphSAGENextState` layer to update the final
-  node state (see there for details).
+  NodeSetUpdate together with the `graph_sage.GraphSAGENextState` layer
+  to update the final node state (see there for details).
 
-  GraphSAGE and the pooling aggregation are from 'Inductive Representation
-  Learning on Graphs', [Hamilton et al., 2017]
-  (https://arxiv.org/abs/1706.02216), Eq (3). Similar to
-  `GraphSAGEAggregatorConv`, dropout is applied to the inputs of neighbor nodes
-  (separately for each node-neighbor pair). Then, they are passed through a
-  fully connected layer and aggregated by an element-wise maximum (or whichever
-  reduce_type is specified), see Eq. (3) in paper. Finally, the result is
-  multiplied with the final weights mapping it to output space of units
-  dimension.
+  GraphSAGE and the pooling aggregation are from
+  Hamilton et al.: ["Inductive Representation Learning
+  on Large Graphs"](https://arxiv.org/abs/1706.02216), 2017.
+  Similar to `graph_sage.GraphSAGEAggregatorConv`, dropout is applied to the
+  inputs of neighbor nodes (separately for each node-neighbor pair). Then,
+  they are passed through a fully connected layer and aggregated by an
+  element-wise maximum (or whichever reduce_type is specified), see Eq. (3)
+  in paper. Finally, the result is multiplied with the final weights mapping
+  it to output space of units dimension.
 
   The name of this class reflects the terminology of the paper, where "pooling"
-  involves the aforementioned hidden layer. For element-wise aggregation
-  (as in `tfgnn.pool_edges_to_node()`), see class `GraphSAGEAggregatorConv`.
+  involves the aforementioned hidden layer. For element-wise aggregation (as in
+  `tfgnn.pool_edges_to_node()`), see `graph_sage.GraphSAGEAggregatorConv`.
   """
 
   def __init__(
@@ -157,8 +157,8 @@ class GraphSAGEPoolingConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
         from the layer.
       hidden_units: Number of output units for the linear transformation applied
         to the sender node features.This specifies the output dimensions of the
-        W_pool from Eq (3) in [Hamilton et al., 2017]
-          (https://arxiv.org/abs/1706.02216).
+        W_pool from Eq. (3) in
+        [Hamilton et al., 2017](https://arxiv.org/abs/1706.02216).
       reduce_type: An aggregation operation name. Supported list of aggregation
         operators can be found at
         `tfgnn.get_registered_reduce_operation_names()`.
@@ -225,7 +225,7 @@ class GraphSAGEPoolingConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
                broadcast_from_receiver: Callable[[tf.Tensor], tf.Tensor],
                pool_to_receiver: Callable[..., tf.Tensor],
                training: bool) -> tf.Tensor:
-    """Returns convolution result."""
+    """Overridden internal method of the base class."""
     assert sender_node_input is not None, "sender_node_input can't be None."
     result = broadcast_from_sender_node(sender_node_input)
     result = self._dropout(result, training=training)
@@ -238,28 +238,27 @@ class GraphSAGEPoolingConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
 
 @tf.keras.utils.register_keras_serializable(package="GraphSAGE")
 class GCNGraphSAGENodeSetUpdate(tf.keras.layers.Layer):
-  """GCNGraphSAGENodeSetUpdate is an extension of the mean aggregator operator (Eqn-2) from the GraphSAGE paper.
+  r"""GCNGraphSAGENodeSetUpdate is an extension of the mean aggregator operator.
 
   For a complete GraphSAGE update on a node set, use this layer in a
   `GraphUpdate` call as a `NodeSetUpdate` layer. An example update would look
   as below:
 
-  ```
+  ```python
   import tensorflow_gnn as tfgnn
   graph = tfgnn.keras.layers.GraphUpdate(
       node_sets={
           "paper":
-              tfgnn.GCNGraphSAGENodeSetUpdate(
+              graph_sage.GCNGraphSAGENodeSetUpdate(
                   edge_set_names=["cites", "writes"],
                   receiver_tag=tfgnn.TARGET,
                   units=32)
       })(graph)
   ```
 
-  `GCNGraphSAGENodeSetUpdate` node set update method extends the Eqn (2) from
-  the 'Inductive Representation Learning on Graphs' paper
-  [Hamilton&Ying&Leskovec, 2017] (https://arxiv.org/abs/1706.02216) to apply for
-  heterogeneous edges. For each node state pooled from the configured edge list
+  This class extends Eq. (2) from
+  [Hamilton et al., 2017](https://arxiv.org/abs/1706.02216) to multiple edge
+  sets. For each node state pooled from the configured edge list
   and the self node states there's a separate weight vector learned which is
   mapping each to the same output dimensions. Also if specified a random dropout
   operation with given probability will be applied to all the node states. If
@@ -269,11 +268,12 @@ class GCNGraphSAGENodeSetUpdate(tf.keras.layers.Layer):
   to have the same dimension. Below is the simplified summary of the applied
   transformations to generate new node states:
 
-  h_v = activation(reduce_type(
-                               {W_E * D_p[h_{N(v)}] for all edge-sets E}
-                               U {W_self * D_p[h_v]}
-                              ) + b) for all nodes v
-
+  ```
+  h_v = activation(
+            reduce(  {W_E * D_p[h_{N(v)}] for all edge sets E}
+                   U {W_self * D_p[h_v]})
+            + b)
+  ```
 
   N(v) denotes the neighbors of node v, D_p denotes dropout with probability p
   which is applied independenly to self and sender node states, W_E and W_self
@@ -473,7 +473,7 @@ def GraphSAGEGraphUpdate(*,
                          **kwargs):
   """Returns a GraphSAGE GraphUpdater layer for nodes in node_set_names.
 
-  For more information on GraphSAGE algorithm please refer to the paper:
+  For more information on GraphSAGE algorithm please refer to
   [Hamilton et al., 2017](https://arxiv.org/abs/1706.02216).
   Returned layer applies only one step of GraphSAGE convolution over the
   incident nodes of the edge_set_name_list for the specified node_set_name node.
@@ -481,18 +481,14 @@ def GraphSAGEGraphUpdate(*,
   Example: GraphSAGE aggregation on heterogenous incoming edges would look as
   below:
 
-  ```
+  ```python
   graph = tfgnn.keras.layers.GraphUpdate(
       node_sets={"paper": tfgnn.keras.layers.NodeSetUpdate(
-          { "cites": tfgnn.models.graphsage.GraphSAGEPoolingConv(
-                      receiver_tag=tfgnn.TARGET,
-                      units=32),
-            "writes": tfgnn.models.graphsage.GraphSAGEPoolingConv(
-                      receiver_tag=tfgnn.TARGET,
-                      units=32,
-                      hidden_units=16)},
-          tfgnn.models.graphsage.GraphSAGENextState(units=32,
-                                                    dropout_rate=0.05))}
+          {"cites": graph_sage.GraphSAGEPoolingConv(
+               receiver_tag=tfgnn.TARGET, units=32),
+            "writes": graph_sage.GraphSAGEPoolingConv(
+               receiver_tag=tfgnn.TARGET, units=32, hidden_units=16)},
+          graph_sage.GraphSAGENextState(units=32, dropout_rate=0.05))}
   )(graph)
   ```
 
@@ -506,8 +502,9 @@ def GraphSAGEGraphUpdate(*,
       results at the specified endpoint of the edges.
     reduce_type: An aggregation operation name. Supported list of aggregation
       operators can be found at `tfgnn.get_registered_reduce_operation_names()`.
-    use_pooling: If enabled  `GraghSAGEPoolingConv` will be used otherwise
-      `GraphSAGEAggregatorConv` will be executed for the provided edges.
+    use_pooling: If enabled, `graph_sage.GraphSAGEPoolingConv` will be used,
+      otherwise `graph_sage.GraphSAGEAggregatorConv` will be executed for the
+      provided edges.
     use_bias: If true a bias term will be added to the linear transformations
       for the incident node features as well as for the self node feature.
     dropout_rate: Can be set to a dropout rate that will be applied to both
@@ -528,8 +525,9 @@ def GraphSAGEGraphUpdate(*,
     feature_name: The feature name of node states; defaults to
       `tfgnn.HIDDEN_STATE`.
     name: Optionally, a name for the layer returned.
-    **kwargs: Any optional arguments to `GraphSAGEPoolingConv`,
-      `GraphSAGEAggregatorConv` or `GraphSAGENextState`, see there.
+    **kwargs: Any optional arguments to `graph_sage.GraphSAGEPoolingConv`,
+      `graph_sage.GraphSAGEAggregatorConv` or `graph_sage.GraphSAGENextState`,
+      see there.
   """
 
   # graph_update_callback is deferred until we get the graph spec.
@@ -584,14 +582,16 @@ def GraphSAGEGraphUpdate(*,
 
 @tf.keras.utils.register_keras_serializable(package="GraphSAGE")
 class GraphSAGENextState(tf.keras.layers.Layer):
-  """GraphSAGENextState: compute new node states with GraphSAGE algorithm.
+  r"""GraphSAGENextState: compute new node states with GraphSAGE algorithm.
 
   This layer lets you compute a GraphSAGE update of node states from the
-  outputs of a `GraphSAGEAggregatorConv` and/or a `GraphSAGEPoolingConv` on
-  each of the specified end-point of edge sets.
+  outputs of a `graph_sage.GraphSAGEAggregatorConv` and/or a
+  `graph_sage.GraphSAGEPoolingConv` on each of the specified end-point
+  of edge sets.
 
   Usage example (with strangely mixed aggregations for demonstration):
-  ```
+
+  ```python
   import tensorflow_gnn as tfgnn
   from tensorflow_gnn.models import graph_sage
   graph = tfgnn.keras.layers.GraphUpdate(node_sets={
@@ -605,36 +605,37 @@ class GraphSAGENextState(tf.keras.layers.Layer):
   })(graph)
   ```
 
-  The units=... parameter of the next-state layer and all convolutions must be
-  equal, unless combine_type="concat" is set.
+  The `units=...` parameter of the next-state layer and all convolutions must be
+  equal, unless `combine_type="concat"`is set.
 
-  GraphSAGE is from 'Inductive Representation Learning on Graphs',
-  [Hamilton et al., 2017](https://arxiv.org/abs/1706.02216), Algorithm 1.
+  GraphSAGE is Algorithm 1 in Hamilton et al.: ["Inductive Representation
+  Learning on Large Graphs"](https://arxiv.org/abs/1706.02216), 2017.
+  It computes the new hidden state h_v for each node v from a concatenation of
+  the previous hiddden state with an aggregation of the neighbor states as
 
-  The update of a node state from its neighbors is
-  ```
-  h_v = sigma(W combine(h_v, h_{N(v)}))  for all nodes v
-  ```
-  after some aggregation h_{N(v)} of the neighbors of v, followed by a
-  combine operation (concat or sum), non-linear activation and L2 normalization.
+  $$h_v = \sigma(W \text{ concat}(h_v, h_{N(v)}))$$
 
-  Mathematically, if combine_type="sum", the product with the weight matrix W
-  is equal to the sum
-  ```
-  W_{self} h_v  +  W_{neigh} h_{N(v)}.
-  ```
-  of products with its left and right pieces. The GraphSAGE*Conv classes are
-  in charge of computing W_{neigh} h_{N(v)} (for one edge set each, typically
-  with separate weights). This class is in charge of computing W_{self} h_v
-  from the old node state h_v, combining it with the results for each edge set
-  and computing the new node state.
+  ...followed by L2 normalization. This implementation uses the mathematically
+  equivalent formulation
+
+  $$h_v = \sigma(W_{\text{self}} h_v + W_{\text{neigh}} h_{N(v)}),$$
+
+  which transforms both inputs separately and then combines them by summation
+  (assuming the default `combine_type="sum"`; see there for more).
+
+  The GraphSAGE*Conv classes are in charge of computing the right-hand term
+  W_{neigh} h_{N(v)} (for one edge set each, typically with separate weights).
+  This class is in charge of computing the left-hand term W_{self} h_v from the
+  old node state h_v, combining it with the results for each edge set and
+  computing the new node state h_v from it.
 
   Beyond the original GraphSAGE, this class supports:
-   - dropout, applied to the input h_v, analogous to the dropout provided
-     by GraphSAGE*Conv for their inputs;
-   - a bias term added just before the final nonlinearity;
-   - a configurable combine_type (originally "sum");
-   - additional options to influence normalization, activation, etc.
+
+    * dropout, applied to the input h_v, analogous to the dropout provided
+      by GraphSAGE*Conv for their inputs;
+    * a bias term added just before the final nonlinearity;
+    * a configurable combine_type (originally "sum");
+    * additional options to influence normalization, activation, etc.
   """
 
   def __init__(self,
@@ -660,9 +661,11 @@ class GraphSAGENextState(tf.keras.layers.Layer):
         `tfgnn.HIDDEN_STATE`.
       l2_normalize: If enabled l2 normalization will be applied to node state
         vectors.
-      combine_type: Can be set to "sum" or "concat". If it's specified as concat
-        node state will be concatenated with the sender node features, otherwise
-        node state will be added with the sender node features.
+      combine_type: Can be set to "sum" or "concat". The default "sum" recovers
+        the original behavior of GraphSAGE (as reformulated above): the results
+        of transforming the old state and the neighborhood state are added.
+        Setting this to "concat" concatenates the results of the transformations
+        (not described in the paper).
       activation: The nonlinearity applied to the concatenated or added node
         state and aggregated sender node features. This can be specified as a
         Keras layer, a tf.keras.activations.* function, or a string understood

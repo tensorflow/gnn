@@ -44,31 +44,31 @@ class GCNConv(tf.keras.layers.Layer):
   Example:
 
   This example shows how to apply GCNConv to a graph with 2 discrete components.
-  This graph has one edge set, named tfgnn.EDGES
+  This graph has one edge set, named `tfgnn.EDGES`.
   This returns a tf.Tensor of shape (4,3).
   In order to return a GraphTensor this should be wrapped in NodeSetUpdate/
   EdgeSetUpdate.
-  ```
-  >>> import tensorflow as tf
-  >>> import tensorflow_gnn as tfgnn
-  >>> from tensorflow_gnn.models.gcn import gcn_conv
-  >>> graph = tfgnn.GraphTensor.from_pieces(
-  ...    node_sets={
-  ...        tfgnn.NODES: tfgnn.NodeSet.from_fields(
-  ...            sizes=[2, 2],
-  ...            features={tfgnn.HIDDEN_STATE: tf.constant(
-  ...                          [[1., 0, 0], [0, 1, 0]]*2)})},
-  ...    edge_sets={
-  ...        tfgnn.EDGES: tfgnn.EdgeSet.from_fields(
-  ...            sizes=[2, 2],
-  ...            adjacency=tfgnn.Adjacency.from_indices(
-  ...                source=(tfgnn.NODES, tf.constant([0, 1, 2, 3],
-  ...                                                 dtype=tf.int64)),
-  ...                target=(tfgnn.NODES, tf.constant([1, 0, 3, 2],
-  ...                                                 dtype=tf.int64))))})
-  >>> gcnconv = gcn_conv.GCNConv(3)
-  >>> gcnconv(graph, edge_set_name=tfgnn.EDGES)
-  <... shape=(4, 3) dtype=...>
+
+  ```python
+  import tensorflow as tf
+  import tensorflow_gnn as tfgnn
+  from tensorflow_gnn.models.gcn import gcn_conv
+  graph = tfgnn.GraphTensor.from_pieces(
+     node_sets={
+         tfgnn.NODES: tfgnn.NodeSet.from_fields(
+             sizes=[2, 2],
+             features={tfgnn.HIDDEN_STATE: tf.constant(
+                           [[1., 0, 0], [0, 1, 0]]*2)})},
+     edge_sets={
+         tfgnn.EDGES: tfgnn.EdgeSet.from_fields(
+             sizes=[2, 2],
+             adjacency=tfgnn.Adjacency.from_indices(
+                 source=(tfgnn.NODES, tf.constant([0, 1, 2, 3],
+                                                  dtype=tf.int64)),
+                 target=(tfgnn.NODES, tf.constant([1, 0, 3, 2],
+                                                  dtype=tf.int64))))})
+  gcnconv = gcn_conv.GCNConv(3)
+  gcnconv(graph, edge_set_name=tfgnn.EDGES)   # Has shape=(4, 3).
   ```
   """
 
@@ -200,7 +200,7 @@ def GCNConvGraphUpdate(*,  # To be called like a class initializer.  pylint: dis
       the incident nodes of a directed edge, data flow in a GNN may happen
       in either direction.)
     feature_name: The feature name of node states; defaults to
-      tfgnn.HIDDEN_STATE.
+      `tfgnn.HIDDEN_STATE`.
     name: Optionally, a name for the layer returned.
     **kwargs: Any optional arguments to GCNConv, see there.
   """

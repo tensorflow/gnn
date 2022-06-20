@@ -1,21 +1,16 @@
-# GraphSAGE Network implementation and respective convolution layers.
+# GraphSAGE
 
 ## Overview
 
-This code implements GraphSAGE Networks, originally published by
+This code implements the GraphSAGE model, originally published by
+
   * William L. Hamilton, Rex Ying, Jure Leskovec:
     ["Inductive Representation Learning
-    on Large Graphs"] (https://arxiv.org/abs/1706.02216), 2017.
+    on Large Graphs"](https://arxiv.org/abs/1706.02216), 2017.
 
-TensorFlow programs can import it as
-```python
-from tensorflow_gnn.models import graph_sage
-```
-to reuse the following components:
-  * `GraphSAGEPoolingConv` for use with the node updates of a
-     a `tfgnn.keras.layers.GraphUpdate`.
-  * `GraphSAGENextState` for one round of GraphSAGE on a `GraphTensor` with one
-    node set and edge set.
+TensorFlow programs can import and use it as described in its
+[API docs](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/docs/api_docs/python/models/graph_sage.md).
+
 
 ## Maintenance and stability
 

@@ -4,20 +4,12 @@
 
 This code implements Graph Convolutional Networks, originally published by
 
-  * Thomas N. Kipf & Max Welling (2016):
+  * Thomas N. Kipf and Max Welling:
     ["Semi-Supervised Classification with Graph Convolutional
     Networks"](https://arxiv.org/abs/1609.02907), 2016.
 
-TensorFlow programs can import it as
-
-```python
-from tensorflow_gnn.models import gcn
-```
-
-to reuse the following components:
-
-  * `GCNConv` for use with the node
-    updates of a `tfgnn.keras.layers.GraphUpdate`.
+TensorFlow programs can import and use it as described in its
+[API docs](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/docs/api_docs/python/models/gcn.md).
 
 ## Maintenance and stability
 

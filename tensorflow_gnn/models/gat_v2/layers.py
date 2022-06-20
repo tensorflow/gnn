@@ -18,7 +18,8 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
   Example: GATv2-style attention on incoming edges whose result is
   concatenated with the old node state and passed through a Dense layer
   to compute the new node state.
-  ```
+
+  ```python
   dense = tf.keras.layers.Dense
   graph = tfgnn.keras.layers.GraphUpdate(
       node_sets={"paper": tfgnn.keras.layers.NodeSetUpdate(
@@ -30,6 +31,7 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
 
   This layer implements the multi-head attention of GATv2 with the following
   generalizations:
+
     * This implementation of GATv2 attends only to edges that are explicitly
       stored in the input GraphTensor. Attention of a node to itself is
       enabled or disabled by storing or not storing an explicit loop in the
@@ -52,8 +54,8 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
 
   Like the Keras Dense layer, if the input features have rank greater than 2,
   this layer computes a point-wise attention along the last axis of the inputs.
-  For example, if the input features have shape [num_nodes, 2, 4, 1], then it
-  will perform an identical computation on each of the num_nodes * 2 * 4 input
+  For example, if the input features have shape `[num_nodes, 2, 4, 1]`, then it
+  will perform an identical computation on each of the `num_nodes * 2 * 4` input
   values.
 
   Init args:
@@ -90,11 +92,11 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       This can be specified as a Keras layer, a tf.keras.activations.*
       function, or a string understood by tf.keras.layers.Activation().
       Defaults to "leaky_relu", which in turn defaults to a negative slope
-      of alpha=0.2.
+      of `alpha=0.2`.
     activation: The nonlinearity applied to the final result of attention,
       specified in the same ways as attention_activation.
     kernel_initializer: Can be set to a `kerner_initializer` as understood
-      by tf.keras.layers.Dense etc.
+      by `tf.keras.layers.Dense` etc.
   """
 
   def __init__(self,
@@ -211,7 +213,7 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
                extra_receiver_ops: Optional[
                    Mapping[str, Callable[..., Any]]] = None,
                **kwargs) -> tf.Tensor:
-
+    """Overridden internal method of the base class."""
     # Form the attention query for each head.
     # [num_items, *extra_dims, num_heads, channels_per_head]
     assert receiver_input is not None, "__init__() should have checked this."
@@ -305,7 +307,7 @@ def GATv2EdgePool(*,  # To be called like a class initializer.  pylint: disable=
   When initialized with receiver_tag CONTEXT, the returned layer can be called
   on an edge set to do the analogous pooling of edge states to context.
 
-  NOTE: This layer cannot pool node states. For that, use GATv2Conv.
+  NOTE: This layer cannot pool node states. For that, use `gat_v2.GATv2Conv`.
 
   Args:
     num_heads: The number of attention heads.
@@ -368,7 +370,7 @@ def GATv2GraphUpdate(*,  # To be called like a class initializer.  pylint: disab
     edge_set_name: A GATv2 update happens on this edge set and its incident
       node set(s) of the input GraphTensor.
     feature_name: The feature name of node states; defaults to
-      tfgnn.HIDDEN_STATE.
+      `tfgnn.HIDDEN_STATE`.
     name: Optionally, a name for the layer returned.
     **kwargs: Any optional arguments to GATv2Conv, see there.
   """
