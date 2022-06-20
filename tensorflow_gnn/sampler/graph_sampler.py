@@ -351,8 +351,9 @@ def define_flags():
       "a required input and to some extent may mirror some of the schema's "
       "structure. See `sampling_spec.proto` for details on the configuration.")
 
-  flags.DEFINE_enum(
-      "edge_aggregation_method", "edge", EdgeAggregationMethod,
+  flags.DEFINE_enum_class(
+      "edge_aggregation_method", EdgeAggregationMethod.EDGE,
+      EdgeAggregationMethod,
       "Given a subgraph sampling, specifies a method for retaining edges "
       "between nodes in the subgraph. `node` sampling includes all edges "
       "between the nodes in the sampled subgraph in the output.  `edge` "
