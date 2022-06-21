@@ -1,0 +1,203 @@
+description: GraphSAGE: pooling aggregator transform of neighbors followed by
+linear transformation.
+
+<div itemscope itemtype="http://developers.google.com/ReferenceObject">
+<meta itemprop="name" content="graph_sage.GraphSAGEPoolingConv" />
+<meta itemprop="path" content="Stable" />
+<meta itemprop="property" content="__init__"/>
+<meta itemprop="property" content="__new__"/>
+<meta itemprop="property" content="convolve"/>
+</div>
+
+# graph_sage.GraphSAGEPoolingConv
+
+<!-- Insert buttons and diff -->
+
+<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
+<td>
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L111-L236">
+    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
+    View source on GitHub
+  </a>
+</td>
+</table>
+
+GraphSAGE: pooling aggregator transform of neighbors followed by linear
+transformation.
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>graph_sage.GraphSAGEPoolingConv(
+    *,
+    receiver_tag: tfgnn.IncidentNodeTag,
+    sender_node_feature: Optional[tfgnn.FieldName] = tfgnn.HIDDEN_STATE,
+    units: int,
+    hidden_units: int,
+    reduce_type: str = &#x27;max_no_inf&#x27;,
+    use_bias: bool = True,
+    dropout_rate: float = 0.0,
+    activation: Union[str, Callable[..., Any]] = &#x27;relu&#x27;,
+    **kwargs
+)
+</code></pre>
+
+<!-- Placeholder for "Used in" -->
+
+For a complete GraphSAGE update on a node set, use a this class in a
+NodeSetUpdate together with the
+<a href="../graph_sage/GraphSAGENextState.md"><code>graph_sage.GraphSAGENextState</code></a>
+layer to update the final node state (see there for details).
+
+GraphSAGE and the pooling aggregation are from Hamilton et al.:
+["Inductive Representation Learning on Large Graphs"](https://arxiv.org/abs/1706.02216),
+2017. Similar to
+<a href="../graph_sage/GraphSAGEAggregatorConv.md"><code>graph_sage.GraphSAGEAggregatorConv</code></a>,
+dropout is applied to the inputs of neighbor nodes (separately for each
+node-neighbor pair). Then, they are passed through a fully connected layer and
+aggregated by an element-wise maximum (or whichever reduce_type is specified),
+see Eq. (3) in paper. Finally, the result is multiplied with the final weights
+mapping it to output space of units dimension.
+
+The name of this class reflects the terminology of the paper, where "pooling"
+involves the aforementioned hidden layer. For element-wise aggregation (as in
+`tfgnn.pool_edges_to_node()`), see
+<a href="../graph_sage/GraphSAGEAggregatorConv.md"><code>graph_sage.GraphSAGEAggregatorConv</code></a>.
+
+<!-- Tabular view -->
+
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
+
+<tr>
+<td>
+`receiver_tag`
+</td>
+<td>
+Either one of `tfgnn.SOURCE` or `tfgnn.TARGET`. The results
+of GraphSAGE are aggregated for this graph piece. If set to
+`tfgnn.SOURCE` or `tfgnn.TARGET`, the layer will be called for an edge
+set and will aggregate results at the specified endpoint of the edges.
+</td>
+</tr><tr>
+<td>
+`sender_node_feature`
+</td>
+<td>
+Can be set to specify the feature name for use as the
+input feature from sender nodes to GraphSAGE aggregation, defaults to
+`tfgnn.HIDDEN_STATE`.
+</td>
+</tr><tr>
+<td>
+`units`
+</td>
+<td>
+Number of output units for the final dimensionality of the output
+from the layer.
+</td>
+</tr><tr>
+<td>
+`hidden_units`
+</td>
+<td>
+Number of output units for the linear transformation applied
+to the sender node features.This specifies the output dimensions of the
+W_pool from Eq. (3) in
+[Hamilton et al., 2017](https://arxiv.org/abs/1706.02216).
+</td>
+</tr><tr>
+<td>
+`reduce_type`
+</td>
+<td>
+An aggregation operation name. Supported list of aggregation
+operators can be found at
+`tfgnn.get_registered_reduce_operation_names()`.
+</td>
+</tr><tr>
+<td>
+`use_bias`
+</td>
+<td>
+If true a bias term will be added to the linear transformations
+for the sender node features.
+</td>
+</tr><tr>
+<td>
+`dropout_rate`
+</td>
+<td>
+Can be set to a dropout rate that will be applied to sender
+node features (independently on each edge).
+</td>
+</tr><tr>
+<td>
+`activation`
+</td>
+<td>
+The nonlinearity applied to the concatenated or added node
+state and aggregated sender node features. This can be specified as a
+Keras layer, a tf.keras.activations.* function, or a string understood
+by `tf.keras.layers.Activation()`. Defaults to relu.
+</td>
+</tr><tr>
+<td>
+`**kwargs`
+</td>
+<td>
+Additional arguments for the Layer.
+</td>
+</tr>
+</table>
+
+<!-- Tabular view -->
+
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>
+
+<tr>
+<td>
+`takes_receiver_input`
+</td>
+<td>
+If `False`, all calls to convolve() will get `receiver_input=None`.
+</td>
+</tr><tr>
+<td>
+`takes_sender_edge_input`
+</td>
+<td>
+If `False`, all calls to convolve() will get `sender_edge_input=None`.
+</td>
+</tr><tr>
+<td>
+`takes_sender_node_input`
+</td>
+<td>
+If `False`, all calls to convolve() will get `sender_node_input=None`.
+</td>
+</tr>
+</table>
+
+## Methods
+
+<h3 id="convolve"><code>convolve</code></h3>
+
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L221-L236">View
+source</a>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>convolve(
+    *,
+    sender_node_input: Optional[tf.Tensor],
+    sender_edge_input: Optional[tf.Tensor],
+    receiver_input: Optional[tf.Tensor],
+    broadcast_from_sender_node: Callable[[tf.Tensor], tf.Tensor],
+    broadcast_from_receiver: Callable[[tf.Tensor], tf.Tensor],
+    pool_to_receiver: Callable[..., tf.Tensor],
+    training: bool
+) -> tf.Tensor
+</code></pre>
+
+Overridden internal method of the base class.
