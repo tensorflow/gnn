@@ -292,8 +292,8 @@ def run_sample_graph_pipeline(
     seeds: Dict[tfgnn.NodeSetName, PCollection[Tuple[SampleId, NodeId]]] = {
         sampling_spec.seed_op.node_set_name:
             (seed_nodes | beam.Keys()
-             | "CountUniqueSeedNodes" >> beam.combiners.Count.PerElement()
-             | "CreateSampleId" >> beam.FlatMapTuple(create_sample_id))
+             | "Seeds/CountUnique" >> beam.combiners.Count.PerElement()
+             | "Seeds/CreateSampleId" >> beam.FlatMapTuple(create_sample_id))
     }
 
     adj_lists = sampling_lib.create_adjacency_lists(
@@ -316,8 +316,8 @@ def run_sample_graph_pipeline(
 
     done = (
         graph_tensors
-        | "ReshuffleResults" >> beam.Reshuffle()
-        | "WriteGraphTensors" >> unigraph.WriteTable(output_pattern))
+        | "GraphTensors/Reshuffle" >> beam.Reshuffle()
+        | "GraphTensors/Write" >> unigraph.WriteTable(output_pattern))
 
   logging.info("Pipeline complete, writing output...")
   # Produce output schema of the tensors.

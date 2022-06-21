@@ -207,7 +207,8 @@ def sample_edges(
     return node.id, node
 
   adj_lists = {
-      set_name: nodes | f"KeyByNodeId/{set_name}" >> beam.Map(key_by_id)
+      set_name:
+      (nodes | f"SampleEdges/KeyByNodeId/{set_name}" >> beam.Map(key_by_id))
       for set_name, nodes in adj_lists.items()
   }
   op_to_frontier: Dict[str, Frontier] = {}
@@ -217,9 +218,9 @@ def sample_edges(
       raise ValueError(
           f"No seeds provided for '{seed_op.node_set_name}' from {seed_op}.")
 
+    label = f"SampleEdges/CreateFrontier/{node_set_name}"
     op_to_frontier[seed_op.op_name] = (
-        seeds[node_set_name]
-        | f"CreateFrontier/{node_set_name}" >> beam.Map(lambda item: (item, 1)))
+        seeds[node_set_name] | label >> beam.Map(lambda item: (item, 1)))
 
   edge_set_to_sampled_edges: DefaultDict[
       tfgnn.EdgeSetName, List[SampledEdges]] = collections.defaultdict(list)
@@ -231,7 +232,7 @@ def sample_edges(
           f" '{sampling_op.op_name}' sampling op "
           " is not defined in the graph schema."))
 
-    stage_name = lambda suffix: f"{sampling_op.op_name}/{suffix}"
+    stage_name = lambda suffix: f"SampleEdges/{sampling_op.op_name}/{suffix}"
 
     op_inputs = []
     for input_op_name in sampling_op.input_op_names:
@@ -403,7 +404,7 @@ def create_unique_node_ids(
     A mapping from node set name to (sample id, list of unique node ids) pairs.
   """
 
-  stage_name = lambda set_name, label: f"UniqueNodeIds/{set_name}/{label}"
+  stage_name = lambda set_name, label: f"CreateUniqueNodeIds/{set_name}/{label}"
 
   node_set_to_ids = collections.defaultdict(list)
 
@@ -537,7 +538,7 @@ def _create_homogeneous_edge_filter(
     edge_set_name: tfgnn.EdgeSetName, source_or_target_ids: UniqueNodeIds
 ) -> PCollection[Tuple[NodeId, Tuple[SampleId, List[NodeId]]]]:
   """Creates filter for edges that connect the same node set."""
-  stage_name = lambda suffix: f"EdgeFilterAA/{edge_set_name}/{suffix}"
+  stage_name = lambda suffix: f"CreateEdgeFilter/XX/{edge_set_name}/{suffix}"
 
   def create_filter(
       sample_id: SampleId, ids: List[NodeId]
@@ -554,7 +555,7 @@ def _create_heterogeneous_edge_filter(
     target_ids: UniqueNodeIds
 ) -> PCollection[Tuple[NodeId, Tuple[SampleId, List[NodeId]]]]:
   """Creates filter for edges that connect two distinct node sets."""
-  stage_name = lambda suffix: f"EdgeFilterAB/{edge_set_name}/{suffix}"
+  stage_name = lambda suffix: f"CreateEdgeFilter/XY/{edge_set_name}/{suffix}"
 
   def create_filter(
       sample_id: SampleId, group: Dict[str, Any]
