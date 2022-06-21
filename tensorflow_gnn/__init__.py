@@ -132,6 +132,8 @@ broadcast_context_to_nodes = graph_tensor_ops.broadcast_context_to_nodes
 broadcast_context_to_edges = graph_tensor_ops.broadcast_context_to_edges
 pool_nodes_to_context = graph_tensor_ops.pool_nodes_to_context
 pool_edges_to_context = graph_tensor_ops.pool_edges_to_context
+broadcast = graph_tensor_ops.broadcast
+pool = graph_tensor_ops.pool
 gather_first_node = graph_tensor_ops.gather_first_node
 get_registered_reduce_operation_names = (
     graph_tensor_ops.get_registered_reduce_operation_names)
