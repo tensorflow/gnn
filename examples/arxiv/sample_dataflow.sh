@@ -58,6 +58,8 @@ GCP_VPC_NAME="[FILL-ME-IN]"
 
 JOB_NAME="tensorflow-gnn-arxiv-sampling"
 
+# Placeholder for Google-internal script config
+
 docker run -v ~/.config/gcloud:/root/.config/gcloud \
   -e "GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}" \
   -e "GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json" \
