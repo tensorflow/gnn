@@ -8,6 +8,7 @@ format into a Beam pipeline. See go/universal-graph-format for details.
 Supported file formats include:
 - 'csv': A CSV file with rows of features for each node or edge.
 - 'tfrecord': A binary container of tf.Example protocol buffer instances.
+# Placeholder for Google-internal file support docstring
 """
 
 import csv
@@ -18,6 +19,9 @@ from typing import Any, Callable, Dict, List, Optional, Text, Tuple
 import apache_beam as beam
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
+
+# Placeholder for Google-internal record file format import
+# Placeholder for Google-internal sorted string file format import
 
 
 # Special constant column names required to be present in the node and edge
@@ -45,6 +49,7 @@ def guess_file_format(filename: str) -> str:
     return "tfrecord"
   elif re.search(r"[_.-]csv\b", filename):
     return "csv"
+  # Placeholder for guessing Google-internal file extensions
   else:
     raise ValueError("Could not guess file format for: {}".format(filename))
 
@@ -290,6 +295,7 @@ class ReadTable(beam.PTransform):
     if self.file_format == "tfrecord":
       return (pcoll
               | beam.io.tfrecordio.ReadFromTFRecord(glob_pattern, coder=coder))
+    # Placeholder for Google-internal file reads
     elif self.file_format == "csv":
       # We have to sniff out the schema of those files in order to create a
       # converter. Unfortunately we do this imperatively here.
@@ -346,6 +352,7 @@ class WriteTable(beam.PTransform):
     if self.file_format == "tfrecord":
       return (pcoll
               | beam.io.tfrecordio.WriteToTFRecord(coder=self.coder, **kwargs))
+  # Placeholder for Google-internal file writes
     else:
       raise NotImplementedError(
           "Format not supported: {}".format(self.file_format))

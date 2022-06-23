@@ -13,6 +13,9 @@ from absl import flags
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
+# Placeholder for Google-internal record file format import
+# Placeholder for Google-internal sorted string file format utils
+
 
 FLAGS = flags.FLAGS
 
@@ -47,6 +50,8 @@ def write_stream(generator: Iterator[str],
     with tf.io.TFRecordWriter(filename) as writer:
       for example in generator:
         writer.write(example)
+
+  # Placeholder for Google-internal writers
 
   else:
     raise ValueError(f"File format '{file_format}' not supported")

@@ -49,6 +49,7 @@ def get_dataset(pattern: str, file_format: str) -> tf.data.Dataset:
   fn_dataset = tf.data.Dataset.list_files(pattern)
   if file_format == 'tfrecord':
     dataset = fn_dataset.interleave(tf.data.TFRecordDataset)
+  # Placeholder for Google-internal file format datasets
   return dataset
 
 

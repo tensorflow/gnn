@@ -120,6 +120,8 @@ message SamplingSpec {
   // List of connected sampling operations.
   repeated SamplingOp sampling_ops = 2;
 
+  // repeated EdgeSamplingOp edge_sampling_ops = 3;
+  // string context_fetcher_impl = 4;
   reserved 3 to 4;
 }
 
@@ -131,6 +133,10 @@ message SeedOp {
   // The seed nodes set name.
   optional string node_set_name = 2;
 
+  // oneof sample_ids {
+  //   Random random = 3;
+  //   Hash hash = 4;
+  // }
   reserved 3 to 4;
 }
 
@@ -158,6 +164,7 @@ message SamplingOp {
   // The sampling strategy to use.
   optional SamplingStrategy strategy = 5;
 
+  // string edge_filter_impl = 6;
   reserved 6;
 }
 

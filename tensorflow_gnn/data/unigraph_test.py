@@ -24,6 +24,7 @@ class TestUnigraph(tf.test.TestCase):
     def assertFormat(expected_format, filename):
       self.assertEqual(expected_format, unigraph.guess_file_format(filename))
 
+    # Placeholder for Google-internal output formats
     assertFormat("tfrecord", "/path/to/file.tfr")
     assertFormat("tfrecord", "/path/to/file.tfr@10")
     assertFormat("tfrecord", "/path/to/file.tfr-?????-of-00010")

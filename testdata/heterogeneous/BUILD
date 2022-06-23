@@ -9,7 +9,6 @@ filegroup(
         ":customer.csv",
         ":graph.pbtxt",
         ":invalid_customer.csv",
-        ":month.csv",
         ":one_customer.csv",
         ":owns_card.csv",
         ":paid_with.csv",

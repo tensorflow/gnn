@@ -15,6 +15,9 @@ import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.tools import sampled_stats_pb2 as sspb
 
+# Placeholder for Google-internal runner import
+# Placeholder for Google-internal sorted string file format import
+
 
 def define_flags():
   """Define commandline flags."""
@@ -41,6 +44,7 @@ def define_flags():
       "Stats output text file.")
 
   runner_choices = ["direct"]
+  # Placeholder for Google-internal pipeline runner
   flags.DEFINE_enum(
       "runner", None, runner_choices,
       "The underlying runner; if not specified, use the default runner.")
@@ -75,6 +79,7 @@ def create_beam_runner(
   """Create appropriate runner."""
   if runner_name == "direct":
     runner = direct_runner.DirectRunner()
+  # Placeholder for creating Google-internal pipeline runner
   else:
     runner = None
   return runner

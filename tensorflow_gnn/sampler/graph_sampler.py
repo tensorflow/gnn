@@ -28,6 +28,7 @@ from tensorflow_gnn.sampler import sampling_spec_pb2
 from tensorflow_gnn.sampler import subgraph
 
 from google.protobuf import text_format
+# Placeholder for Google-internal runner import
 
 _DIRECT_RUNNER = "DirectRunner"
 _DATAFLOW_RUNNER = "DataflowRunner"
@@ -116,6 +117,7 @@ def create_beam_runner(
     runner = beam.runners.DirectRunner()
   elif runner_name == _DATAFLOW_RUNNER:
     runner = beam.runners.DataflowRunner()
+  # Placeholder for creating Google-internal pipeline runner
   else:
     runner = None
   return runner
@@ -368,6 +370,7 @@ def define_flags():
                     "Use the direct runner that will only work locally.")
 
   runner_choices = [_DIRECT_RUNNER, _DATAFLOW_RUNNER]
+  # Placeholder for Google-internal pipeline runner
   flags.DEFINE_enum(
       "runner", None, runner_choices,
       "The underlying runner; if not specified, use the default runner.")
