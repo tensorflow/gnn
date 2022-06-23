@@ -54,7 +54,7 @@ The following docs go deeper into particular topics.
     models and a toolbox for writing your own. Users of the TF-GNN Runner
     are encouraged to consult this page to define custom models in the Runner.
 
-
+<!-- Placeholder for Google-internal notebook links -->
 
 ## Talks
 

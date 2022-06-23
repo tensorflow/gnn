@@ -3,12 +3,10 @@
 The Unigraph format can be consumed by various other TF-GNN tools. For example,
 the TF-GNN graph sampler can sample the Unigraph format.
 """
-
 import math
 from os import path
 import re
-import struct
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from absl import app
 from absl import flags
@@ -17,16 +15,15 @@ import numpy
 import ogb.graphproppred
 import ogb.linkproppred
 import ogb.nodeproppred
-import pyarrow as pa
-import pyarrow.parquet as pq
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
+from tensorflow_gnn.converters.ogb.ogb_lib import write_parquet
+from tensorflow_gnn.converters.ogb.ogb_lib import write_tfrecords
 
-# pylint: disable=g-import-not-at-top,g-inline-comment-too-close
+# Placeholder for Google-internal OGB outputs
 
 
 FLAGS = flags.FLAGS
-Example = tf.train.Example
 Array = numpy.ndarray
 
 DataTable = List[Tuple[str, Array]]
@@ -91,160 +88,6 @@ def extract_features_dict(graph: Dict[str, Dict[str, Array]],
     feature_name = match.group(1)
     features.append((feature_name, array))
   return features
-
-
-def generate_examples(features: DataTable,
-                      indices: Tuple[int, int]) -> Iterator[Example]:
-  """Zip a set of featrues and yield example protos from it."""
-  start_index, end_index = indices
-  for i in range(start_index, end_index):
-    example = Example()
-    for name, array in features:
-      feat = example.features.feature[name]
-      if array.dtype in (numpy.int64, numpy.int32, int):
-        value = feat.int64_list.value
-      elif array.dtype in (numpy.float32, numpy.float64):
-        value = feat.float_list.value
-      elif array.dtype.type in (numpy.bytes_,):
-        value = feat.bytes_list.value
-      elif array.dtype.type in (numpy.string_, numpy.str_):
-        value = [word.encode("utf-8") for word in feat.bytes_list.value]
-      else:
-        raise NotImplementedError(
-            "Invalid type for {}: {}".format(name, array.dtype))
-      feature = array[i]
-      if feature.shape == ():  # pylint: disable=g-explicit-bool-comparison
-        value.append(feature)
-      else:
-        value.extend(feature.flat)
-    yield example
-
-
-def write_sstable(filenames: List[str], features: DataTable, num_items: int):
-  """Fill up tf.train.Example proto files with each node feature and output to an sstable."""
-  examples = iter(generate_examples(features, (0, num_items)))
-  if len(filenames) > 1:
-    # Write to multiple shards.
-    sharder = sstable_sharder.SSTable_SharderFactory.New(
-        "SSTable_KeyFingerprintSharder")
-    with sharded_builder.SortingShardedBuilder(filenames, sharder) as builder:
-      for index, example in enumerate(examples):
-        key = struct.pack(">Q", index)
-        value = example.SerializeToString()
-        builder.Add(key, value)
-  else:
-    # Write to a single shard.
-    assert len(filenames) == 1
-    with sstable.Builder(filenames[0]) as builder:
-      for index, example in enumerate(examples):
-        key = struct.pack(">Q", index)
-        value = example.SerializeToString()
-        builder.Add(key, value)
-
-
-def write_record_io(filenames: List[str],
-                    features: DataTable,
-                    num_items: int):
-  """Fill up Example protos with each node feature and output to an sstable."""
-  examples = iter(generate_examples(features, (0, num_items)))
-  if len(filenames) > 1:
-    # Write to multiple shards.
-    per_file = int(math.ceil(num_items / len(filenames)))
-    for filename in filenames:
-      with recordio.RecordWriter(filename, "a") as output_file:
-        for _ in range(per_file):
-          try:
-            example = next(examples)
-            output_file.WriteRecord(example.SerializeToString())
-          except StopIteration:
-            break
-  else:
-    # Write to a single shard.
-    assert len(filenames) == 1
-    with recordio.RecordWriter(filenames[0], "a") as output_file:
-      for example in examples:
-        output_file.WriteRecord(example.SerializeToString())
-
-
-def write_tfrecords(filenames: List[str],
-                    features: DataTable,
-                    num_items: int):
-  """Fill up Example protos with each node feature and output to an sstable."""
-
-  examples = iter(generate_examples(features, (0, num_items)))
-  if len(filenames) > 1:
-    # Write to multiple shards.
-    per_file = int(math.ceil(num_items / len(filenames)))
-    for filename in filenames:
-      with tf.io.TFRecordWriter(filename) as file_writer:
-        for _ in range(per_file):
-          try:
-            example = next(examples)
-            file_writer.write(example.SerializeToString())
-          except StopIteration:
-            break
-  else:
-    # Write to a single shard.
-    assert len(filenames) == 1
-    with tf.io.TFRecordWriter(filenames[0]) as file_writer:
-      for example in examples:
-        file_writer.write(example.SerializeToString())
-
-
-def write_parquet(filenames: List[str],
-                  features: DataTable,
-                  unused_num_items: int):
-  """Fill up Example protos with each node feature and output to an sstable."""
-  assert len(filenames) == 1
-  feature_names = [name for name, _ in features]
-  feature_arrays = [array for _, array in features]
-  # Convert arrays to Arrow tensors if needed.
-  feature_arrays = [
-      pa.Tensor.from_numpy(array) if isinstance(array[0], Array) else array
-      for array in feature_arrays]
-  table = pa.Table.from_arrays(feature_arrays, names=feature_names)
-  pq.write_table(table, filenames[0])
-
-
-def write_table(output_dir: str,
-                basename: str,
-                features: DataTable,
-                num_items: int) -> str:
-  """Fill up Example protos with each node feature and output to an sstable."""
-  output_format = FLAGS.format
-  if output_format == "sstable":
-    filename = "{}.sst".format(basename)
-    writer = write_sstable
-  elif output_format == "recordio":
-    filename = "{}.rio".format(basename)
-    writer = write_record_io
-  elif output_format == "tfrecords":
-    filename = "{}.tfrecords".format(basename)
-    writer = write_tfrecords
-  elif output_format == "parquet":
-    filename = "{}.pq".format(basename)
-    writer = write_parquet
-  else:
-    raise ValueError("Invalid format: {}".format(output_format))
-
-  # Compute number of shards and shard filenames.
-  total_bytes = sum(array.nbytes
-                    for _, array in features
-                    if array is not None)
-  if total_bytes > FLAGS.target_shard_size:
-    num_shards = int(math.ceil(total_bytes / FLAGS.target_shard_size))
-    pattern = "{}@{}".format(filename, num_shards)
-    filenames = [
-        path.join(output_dir,
-                  "{}-{:05d}-of-{:05d}".format(filename, shard, num_shards))
-        for shard in range(num_shards)]
-  else:
-    pattern = filename
-    filenames = [path.join(output_dir, filename)]
-
-  # Write out the file and return the relative filename.
-  writer(filenames, features, num_items)
-  return pattern
 
 
 def create_schema(
@@ -312,6 +155,42 @@ def remove_empty_dicts(obj: Any) -> Any:
             if not ((value is None) or isinstance(value, dict) and not value)}
   else:
     return obj
+
+
+def write_table(output_dir: str,
+                basename: str,
+                features: DataTable,
+                num_items: int) -> str:
+  """Fill up Example protos with each node feature and output to a table."""
+  output_format = FLAGS.format
+  if output_format == "tfrecords":
+    filename = "{}.tfrecords".format(basename)
+    writer = write_tfrecords
+  elif output_format == "parquet":
+    filename = "{}.pq".format(basename)
+    writer = write_parquet
+  # Placeholder for Google-internal output formats
+  else:
+    raise ValueError("Invalid format: {}".format(output_format))
+
+  # Compute number of shards and shard filenames.
+  total_bytes = sum(array.nbytes
+                    for _, array in features
+                    if array is not None)
+  if total_bytes > FLAGS.target_shard_size:
+    num_shards = int(math.ceil(total_bytes / FLAGS.target_shard_size))
+    pattern = "{}@{}".format(filename, num_shards)
+    filenames = [
+        path.join(output_dir,
+                  "{}-{:05d}-of-{:05d}".format(filename, shard, num_shards))
+        for shard in range(num_shards)]
+  else:
+    pattern = filename
+    filenames = [path.join(output_dir, filename)]
+
+  # Write out the file and return the relative filename.
+  writer(filenames, features, num_items)
+  return pattern
 
 
 def convert_homogeneous_graph(graph: Dict[str, Any],
