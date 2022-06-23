@@ -28,6 +28,7 @@ SimpleConvolution = convolutions.SimpleConvolution
 
 NextStateFromConcat = next_state.NextStateFromConcat
 ResidualNextState = next_state.ResidualNextState
+SingleInputNextState = next_state.SingleInputNextState
 
 EdgeSetUpdate = graph_update.EdgeSetUpdate
 NodeSetUpdate = graph_update.NodeSetUpdate

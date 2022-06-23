@@ -212,3 +212,34 @@ class ResidualNextState(tf.keras.layers.Layer):
     net = tf.add(net, skip_connection_feature)
     net = self._activation(net)
     return net
+
+
+@tf.keras.utils.register_keras_serializable(package="GNN")
+class SingleInputNextState(tf.keras.layers.Layer):
+  """Replaces a state from a single input.
+
+  In a NodeSetUpdate, it replaces the node state with a single edge set input.
+  For an EdgeSetUpdate, it replaces the edge_state with the incident node set's
+  input. For a ContextUpdate, it replaces the context state with a single node
+  set input.
+
+  Call returns:
+    A tensor to use as the new state.
+  """
+
+  def call(self, inputs):
+    unused_first_input, second_input, unused_third_input = inputs
+    if tf.nest.flatten(unused_third_input):
+      raise ValueError(
+          "GraphPieceUpdate should only pass 2 inputs to SingleInputNextState"
+          )
+
+    try:
+      single_input, = second_input.values()
+    except ValueError as e:
+      raise ValueError(
+          "Second input to SingleInputNextState had multiple values."
+          " This layer should take only a single input."
+      ) from e
+    return single_input
+

@@ -50,5 +50,34 @@ class ResidualNextStateTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual([[64. + 15.]], actual)
 
 
+class SingleInputNextStateTest(tf.test.TestCase, parameterized.TestCase):
+
+  def test_single_input(self):
+    next_state = next_state_lib.SingleInputNextState()
+    input_triple = (tf.constant([[1.]]),
+                    {"edge": tf.constant([[2.]])},
+                    {})
+    self.assertAllEqual([[2.]], next_state(input_triple))
+
+  def test_error_with_multiple_inputs(self):
+    next_state = next_state_lib.SingleInputNextState()
+    input_triple = (tf.constant([[1.]]),
+                    {const.SOURCE: tf.constant([[2.]]),
+                     const.TARGET: tf.constant([[4.]])},
+                    {})
+    self.assertRaisesRegex(ValueError,
+                           ("This layer should take only a single input"),
+                           lambda: next_state(input_triple))
+
+  def test_three_passed_in(self):
+    next_state = next_state_lib.SingleInputNextState()
+    input_triple = (tf.constant([[1.]]),
+                    {"edge": tf.constant([[2.]])},
+                    tf.constant([[1.]]))
+    self.assertRaisesRegex(ValueError,
+                           ("GraphPieceUpdate should only pass 2 inputs "
+                            "to SingleInputNextState"),
+                           lambda: next_state(input_triple))
+
 if __name__ == "__main__":
   tf.test.main()

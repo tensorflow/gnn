@@ -222,18 +222,8 @@ def GCNConvGraphUpdate(*,  # To be called like a class initializer.  pylint: dis
                 receiver_tag=receiver_tag,
                 node_feature=feature_name,
                 **kwargs)},
-            next_state=NextStateForNodeSetFromSingleEdgeSetInput(),
+            next_state=tfgnn.keras.layers.SingleInputNextState(),
             node_input_feature=feature_name)}
     return dict(node_sets=node_set_updates)
   return tfgnn.keras.layers.GraphUpdate(
       deferred_init_callback=deferred_init_callback, name=name)
-
-
-# For use by GCNConvGraphUpdate().
-@tf.keras.utils.register_keras_serializable(package='GNN>models>gcn')
-class NextStateForNodeSetFromSingleEdgeSetInput(tf.keras.layers.Layer):
-
-  def call(self, inputs):
-    unused_node_input, edge_inputs, unused_context_input = inputs
-    single_edge_set_input, = edge_inputs.values()  # Unpack.
-    return single_edge_set_input
