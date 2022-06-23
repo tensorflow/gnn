@@ -12,6 +12,7 @@ filegroup(
         ":one_customer.csv",
         ":owns_card.csv",
         ":paid_with.csv",
+        ":sampler_golden.ascii",
         ":transactions.csv",
         ":two_customers.csv",
     ],

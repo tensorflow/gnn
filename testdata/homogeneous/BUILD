@@ -8,6 +8,7 @@ filegroup(
         ":citrus.pbtxt",
         ":fruits.csv",
         ":one_seed.csv",
+        ":sampler_golden.ascii",
         ":tastelike.csv",
         ":two_seeds.csv",
     ],
