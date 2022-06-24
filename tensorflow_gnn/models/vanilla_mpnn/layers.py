@@ -82,7 +82,7 @@ def VanillaMPNNGraphUpdate(  # To be called like a class initializer.  pylint: d
 
   # pylint: disable=g-long-lambda
   gnn_builder = tfgnn.keras.ConvGNNBuilder(
-      lambda edge_set_name, receiver_tag: tfgnn.keras.layers.SimpleConvolution(
+      lambda edge_set_name, receiver_tag: tfgnn.keras.layers.SimpleConv(
           dense(message_dim), reduce_type, receiver_tag=receiver_tag,
           sender_edge_feature=edge_feature),
       lambda node_set_name: tfgnn.keras.layers.NextStateFromConcat(

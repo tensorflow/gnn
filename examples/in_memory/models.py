@@ -72,14 +72,14 @@ def make_simple_model(
 
     layer = tfgnn.keras.layers.NodeSetUpdate(
         {
-            'edges': tfgnn.keras.layers.SimpleConvolution(
+            'edges': tfgnn.keras.layers.SimpleConv(
                 tf.keras.Sequential([
                     tf.keras.layers.Dropout(rate=0.5),
                     tf.keras.layers.Dense(
                         hidden_units, 'relu',
                         kernel_regularizer=kernel_regularizer),
                 ]), 'mean', receiver_tag=tfgnn.SOURCE),
-            'rev_edges': tfgnn.keras.layers.SimpleConvolution(
+            'rev_edges': tfgnn.keras.layers.SimpleConv(
                 tf.keras.Sequential([
                     tf.keras.layers.Dropout(rate=0.5),
                     tf.keras.layers.Dense(

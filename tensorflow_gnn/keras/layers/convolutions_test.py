@@ -19,7 +19,7 @@ class ReloadModel(int, enum.Enum):
   KERAS = 2
 
 
-class SimpleConvolutionTest(tf.test.TestCase, parameterized.TestCase):
+class SimpleConvTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
       ("Forward", False, False, ReloadModel.SKIP),
@@ -42,7 +42,7 @@ class SimpleConvolutionTest(tf.test.TestCase, parameterized.TestCase):
     else:
       input_kwargs["receiver_feature"] = None
 
-    conv = convolutions.SimpleConvolution(
+    conv = convolutions.SimpleConv(
         message_fn, combine_type="sum", **input_kwargs,
         receiver_tag=const.SOURCE if reverse else const.TARGET)
 
@@ -96,7 +96,7 @@ class SimpleConvolutionTest(tf.test.TestCase, parameterized.TestCase):
       combine_type_kwarg = dict()  # Expected as the default.
     else:
       combine_type_kwarg = dict(combine_type=combine_type)
-    conv = convolutions.SimpleConvolution(
+    conv = convolutions.SimpleConv(
         message_fn, receiver_tag=const.SOURCE, **combine_type_kwarg)
 
     actual = conv(input_graph, edge_set_name="edges")

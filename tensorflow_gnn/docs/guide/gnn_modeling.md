@@ -312,10 +312,10 @@ For example:
 
 ```python
 tfgnn.keras.layers.NodeSetUpdate(  # For node set "author".
-    {"writes": tfgnn.keras.layers.SimpleConvolution(
+    {"writes": tfgnn.keras.layers.SimpleConv(
          tf.keras.layers.Dense(128, "relu"), "mean",
          receiver_tag=tfgnn.SOURCE),
-     "affiliated_with": tfgnn.keras.layers.SimpleConvolution(
+     "affiliated_with": tfgnn.keras.layers.SimpleConv(
          tf.keras.layers.Dense(64, "relu"), "sum",
          receiver_tag=tfgnn.SOURCE)},
     tfgnn.keras.layers.NextStateFromConcat(tf.keras.layers.Dense(128)))
@@ -338,7 +338,7 @@ By contrast, "**receiver**" and "**sender**" talk about the direction of
 dataflow in one particular place of a GNN model: either one of source and target
 can be picked as the **receiver**, the other one is the **sender**.
 
-The `SimpleConvolution` used above applies the passed-in transformation
+The `SimpleConv` used above applies the passed-in transformation
 `Dense(..., "relu")` on the concatenated source and target node states of each
 edge and then pools the result for each receiver node, with a user-specified
 pooling method like `"sum"` or `"mean"`.
@@ -396,7 +396,7 @@ In principle, next-state layers can be shared between parts of the model to
 reuse weights, but care must be taken to align the order of str-keyed inputs if
 it matters.
 
-**Design note:** Observe how the library-supplied `SimpleConvolution` and
+**Design note:** Observe how the library-supplied `SimpleConv` and
 `NextStateFromConcat` delegate the actual computations to passed-in Keras layers
 with plain Tensor inputs and outputs. This leverages the standard tf.keras
 package as domain-specific language to express the small feed-forward networks
@@ -439,7 +439,7 @@ To do so, return a singleton dict `{"my_feature": tensor}` instead of the plain
 `tensor`.
 
 Edge features can be used as side inputs to convolutions. For example,
-`tfgnn.keras.layers.SimpleConvolution` used above has an init argument
+`tfgnn.keras.layers.SimpleConv` used above has an init argument
 `sender_edge_feature=...`that can be set to the name of an edge feature, which
 then gets included in the concatenation of inputs to the user-supplied
 transformation.

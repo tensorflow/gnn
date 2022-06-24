@@ -10,7 +10,7 @@ from tensorflow_gnn.keras.layers import convolution_base
 
 
 @tf.keras.utils.register_keras_serializable(package="GNN")
-class SimpleConvolution(convolution_base.AnyToAnyConvolutionBase):
+class SimpleConv(convolution_base.AnyToAnyConvolutionBase):
   """A convolution layer that applies a passed-in message_fn.
 
   This layer can compute a convolution over an edge set by applying the
@@ -23,7 +23,7 @@ class SimpleConvolution(convolution_base.AnyToAnyConvolutionBase):
   context, with the calling conventions described in the docstring for
   tfgnn.keras.layers.AnyToAnyConvolutionBase.
 
-  Example: Using a SimpleConvolution in an MPNN-style graph update with a
+  Example: Using a SimpleConv in an MPNN-style graph update with a
   single-layer network to compute "sum"-pooled message on each edge from
   concatenated source and target states. (The result is then fed into the
   next-state layer, which concatenates the old node state and applies another
@@ -33,7 +33,7 @@ class SimpleConvolution(convolution_base.AnyToAnyConvolutionBase):
   dense = tf.keras.layers.Dense  # ...or some fancier feed-forward network.
   graph = tfgnn.keras.layers.GraphUpdate(
       node_sets={"paper": tfgnn.keras.layers.NodeSetUpdate(
-          {"cites": tfgnn.keras.layers.SimpleConvolution(
+          {"cites": tfgnn.keras.layers.SimpleConv(
                dense(message_dim, "relu"), "sum", receiver_tag=tfgnn.TARGET)},
           tfgnn.keras.layers.NextStateFromConcat(dense(state_dim, "relu")))}
   )(graph)

@@ -306,7 +306,7 @@ protocol. An example `model_fn` built using the *TF-GNN* Keras API:
 def model_fn(gtspec: tfgnn.GraphTensorSpec):
   """Builds a simple GNN with `ConvGNNBuilder`."""
   convolver = tfgnn.keras.ConvGNNBuilder(
-      lambda edge_set_name, receiver_tag: tfgnn.keras.layers.SimpleConvolution(
+      lambda edge_set_name, receiver_tag: tfgnn.keras.layers.SimpleConv(
           lambda: tf.keras.layers.Dense(32, activation="relu"),
           "sum",
           receiver_tag=receiver_tag,

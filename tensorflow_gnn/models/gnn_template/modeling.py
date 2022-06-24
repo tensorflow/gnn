@@ -237,7 +237,7 @@ def _pass_messages_with_node_updates(
     node_set_updates = {}
     for node_set_name in sorted(incoming_edge_sets.keys()):
       node_set_updates[node_set_name] = tfgnn.keras.layers.NodeSetUpdate(
-          {edge_set_name: tfgnn.keras.layers.SimpleConvolution(
+          {edge_set_name: tfgnn.keras.layers.SimpleConv(
               dense(message_dim), "sum", receiver_tag=receiver_tag)
            for edge_set_name in incoming_edge_sets[node_set_name]},
           tfgnn.keras.layers.NextStateFromConcat(dense(h_next_dim)))
@@ -258,7 +258,7 @@ def _pass_messages_with_gnn_builder(
   """Performs message passing, built with tfgnn.keras.ConvGNNBuilder."""
   # pylint: disable=g-long-lambda
   gnn_builder = tfgnn.keras.ConvGNNBuilder(
-      lambda edge_set_name, receiver_tag: tfgnn.keras.layers.SimpleConvolution(
+      lambda edge_set_name, receiver_tag: tfgnn.keras.layers.SimpleConv(
           dense(message_dim), "sum", receiver_tag=receiver_tag),
       lambda node_set_name: tfgnn.keras.layers.NextStateFromConcat(
           dense(h_next_dim)),

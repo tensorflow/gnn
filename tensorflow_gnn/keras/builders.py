@@ -33,7 +33,7 @@ class ConvGNNBuilder:
 
   # ConvGNNBuilder initialization:
   gnn = tfgnn.keras.ConvGNNBuilder(
-    lambda edge_set_name, receiver_tag: tfgnn.keras.layers.SimpleConvolution(
+    lambda edge_set_name, receiver_tag: tfgnn.keras.layers.SimpleConv(
         tf.keras.layers.Dense(m_dims[edge_set_name]),
         receiver_tag=receiver_tag),
     lambda node_set_name: tfgnn.keras.layers.NextStateFromConcat(

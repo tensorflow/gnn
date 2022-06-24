@@ -22,7 +22,7 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
     input_graph = _make_test_graph_with_singleton_node_sets(
         [("node", [1.])], [("node", "node", [100.])])
     gnn_builder = builders.ConvGNNBuilder(
-        lambda _: convolutions.SimpleConvolution(IdentityLayer()),
+        lambda _: convolutions.SimpleConv(IdentityLayer()),
         lambda _: next_state_lib.NextStateFromConcat(IdentityLayer()))
     graph = gnn_builder.Convolve()(input_graph)
     self.assertAllEqual([[1., 1., 1.]],
@@ -38,7 +38,7 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
     input_graph = _make_test_graph_with_singleton_node_sets(
         [("node", [1.])], [("node", "node", [100.])])
     gnn_builder = builders.ConvGNNBuilder(
-        lambda _: convolutions.SimpleConvolution(IdentityLayer()),
+        lambda _: convolutions.SimpleConv(IdentityLayer()),
         nodes_next_state_factory)
     graph = gnn_builder.Convolve(["node", "node", "node"])(input_graph)
     self.assertDictEqual({"node": 1}, calls_for_node_sets)
@@ -61,13 +61,13 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
     if receiver_tag_kwarg:
       # pylint: disable=g-long-lambda
       gnn_builder = builders.ConvGNNBuilder(
-          lambda _, *, receiver_tag: convolutions.SimpleConvolution(
+          lambda _, *, receiver_tag: convolutions.SimpleConv(
               IdentityLayer(), receiver_tag=receiver_tag),
           lambda _: next_state_lib.NextStateFromConcat(make_doubling_layer()),
           **receiver_tag_kwarg)
     else:
       gnn_builder = builders.ConvGNNBuilder(
-          lambda _: convolutions.SimpleConvolution(IdentityLayer()),
+          lambda _: convolutions.SimpleConv(IdentityLayer()),
           lambda _: next_state_lib.NextStateFromConcat(make_doubling_layer()))
     graph = gnn_builder.Convolve()(input_graph)
     self.assertAllEqual([expected_a],
@@ -80,7 +80,7 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
   def testModelSaving(self):
 
     def sum_sources_conv(_):
-      return convolutions.SimpleConvolution(
+      return convolutions.SimpleConv(
           message_fn=tf.keras.layers.Dense(
               1,
               use_bias=False,
@@ -127,12 +127,12 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
                                                   ("b", "c", [100.]),
                                                   ("c", "a", [100.]),
                                                   ("b", "a", [100.])])
-    conv_sum_sources = convolutions.SimpleConvolution(
+    conv_sum_sources = convolutions.SimpleConv(
         message_fn=tf.keras.layers.Dense(
             1, use_bias=False, kernel_initializer=tf.keras.initializers.Ones()),
         receiver_feature=None,
         reduce_type="sum")
-    conv_sum_endpoints = convolutions.SimpleConvolution(
+    conv_sum_endpoints = convolutions.SimpleConv(
         message_fn=tf.keras.layers.Dense(
             1, use_bias=False, kernel_initializer=tf.keras.initializers.Ones()),
         # receiver_feature=const.HIDDEN_STATE,  # The default.
