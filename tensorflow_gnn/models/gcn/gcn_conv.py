@@ -20,7 +20,8 @@ class GCNConv(tf.keras.layers.Layer):
   as a convolution on an edge set in a tfgnn.keras.layers.NodeSetUpdate.
 
   Init arguments:
-    units: The number of output features (input features are inferred).
+    units: Number of output units for this transformation applied to sender
+      node features.
     receiver_tag: This layer's result is obtained by pooling the per-edge
       results at this endpoint of each edge. The default is `tfgnn.TARGET`,
       but it is perfectly reasonable to do a convolution towards the
@@ -197,7 +198,7 @@ def GCNHomGraphUpdate(*,  # To be called like a class initializer.  pylint: disa
   > `add_self_loops=True`.
 
   Args:
-    units: The desired number of output node features.
+    units: The dimension of output hidden states for each node.
     receiver_tag: The default is `tfgnn.TARGET`,
       but it is perfectly reasonable to do a convolution towards the
       `tfgnn.SOURCE` instead. (Source and target are conventional names for
