@@ -2,7 +2,7 @@
 
 import collections
 import copy
-from typing import Any, Callable, Optional, Set, Union
+from typing import Any, Callable, Collection, Optional, Set, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -457,14 +457,15 @@ class GCNGraphSAGENodeSetUpdate(tf.keras.layers.Layer):
 
 @tf.keras.utils.register_keras_serializable(package="GraphSAGE")
 def GraphSAGEGraphUpdate(*,
-                         node_set_names: Set[str],
+                         units: int,
+                         hidden_units: Optional[int] = None,
                          receiver_tag: tfgnn.IncidentNodeTag,
+                         node_set_names: Optional[
+                             Collection[tfgnn.NodeSetName]] = None,
                          reduce_type: str = "mean",
                          use_pooling: bool = True,
                          use_bias: bool = True,
                          dropout_rate: float = 0.0,
-                         units: int,
-                         hidden_units: Optional[int] = None,
                          l2_normalize: bool = True,
                          combine_type: str = "sum",
                          activation: Union[str, Callable[..., Any]] = "relu",
@@ -478,28 +479,20 @@ def GraphSAGEGraphUpdate(*,
   Returned layer applies only one step of GraphSAGE convolution over the
   incident nodes of the edge_set_name_list for the specified node_set_name node.
 
-  Example: GraphSAGE aggregation on heterogenous incoming edges would look as
-  below:
-
-  ```python
-  graph = tfgnn.keras.layers.GraphUpdate(
-      node_sets={"paper": tfgnn.keras.layers.NodeSetUpdate(
-          {"cites": graph_sage.GraphSAGEPoolingConv(
-               receiver_tag=tfgnn.TARGET, units=32),
-            "writes": graph_sage.GraphSAGEPoolingConv(
-               receiver_tag=tfgnn.TARGET, units=32, hidden_units=16)},
-          graph_sage.GraphSAGENextState(units=32, dropout_rate=0.05))}
-  )(graph)
-  ```
-
   Args:
-    node_set_names: A set of node_set_names for which GraphSAGE graph update
-      happens over each of their incident edges, where node_set_name is
-      configured as the receiver_tag end.
+    units: Number of output units of the linear transformation applied to both
+      final aggregated sender node features as well as the self node feature.
+    hidden_units: Number of output units to be configure for GraphSAGE pooling
+      type convolution only.
     receiver_tag: Either one of `tfgnn.SOURCE` or `tfgnn.TARGET`. The results of
       GraphSAGE are aggregated for this graph piece. When set to `tfgnn.SOURCE`
       or `tfgnn.TARGET`, the layer is called for an edge set and will aggregate
       results at the specified endpoint of the edges.
+    node_set_names: A set (or convertible container) of node_set_names for which
+      the GraphSAGE graph update happens over each of their incident edges,
+      where node_set_name is configured as the receiver_tag end.
+      If unset, defaults to all node sets that receive from at least one edge
+      set.
     reduce_type: An aggregation operation name. Supported list of aggregation
       operators can be found at `tfgnn.get_registered_reduce_operation_names()`.
     use_pooling: If enabled, `graph_sage.GraphSAGEPoolingConv` will be used,
@@ -509,10 +502,6 @@ def GraphSAGEGraphUpdate(*,
       for the incident node features as well as for the self node feature.
     dropout_rate: Can be set to a dropout rate that will be applied to both
       incident node features as well as the self node feature.
-    units: Number of output units of the linear transformation applied to both
-      final aggregated sender node features as well as the self node feature.
-    hidden_units: Number of output units to be configure for GraphSAGE pooling
-      type convolution only.
     l2_normalize: If enabled l2 normalization will be applied to final node
       states.
     combine_type: Can be set to "sum" or "concat". If it's specified as concat
@@ -529,6 +518,8 @@ def GraphSAGEGraphUpdate(*,
       `graph_sage.GraphSAGEAggregatorConv` or `graph_sage.GraphSAGENextState`,
       see there.
   """
+  if node_set_names is not None:
+    node_set_names = set(node_set_names)
 
   # graph_update_callback is deferred until we get the graph spec.
   def GraphUpdateCallback(spec: tfgnn.GraphTensorSpec):
@@ -539,7 +530,7 @@ def GraphSAGEGraphUpdate(*,
     node_set_update_dict = collections.defaultdict(dict)
     for edge_set_name, edge_set_spec in spec.edge_sets_spec.items():
       node_set_name = edge_set_spec.adjacency_spec.node_set_name(receiver_tag)
-      if node_set_name in node_set_names:
+      if node_set_names is None or node_set_name in node_set_names:
         if use_pooling:
           node_set_update_dict[node_set_name][
               edge_set_name] = GraphSAGEPoolingConv(

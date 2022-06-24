@@ -1,13 +1,15 @@
 # TF-GNN Models
 
-This directory contains a selection of GNN models implemented with the
+## Introduction
+
+This directory contains a collection of GNN models implemented with the
 TF-GNN library. Some of them offer reusable pieces that can be imported
 _next to_ the core TF-GNN library, which effectively makes them little
-libraries of their own. Indeed, each model comes with a README file that
-lists its maintainers and the intended level of stability and maintenance;
-please check before depending on it or anything beyond one-off experimentation.
+libraries of their own.
 
-For example, if the hypothetical FancyNet model offered a convolution
+### Usage
+
+If, for example, the hypothetical FancyNet model offered a convolution
 layer compatible with the standard NodeSetUpdate, its use would look like
 
 ```python
@@ -20,3 +22,20 @@ _ = tfgnn.keras.layers.NodeSetUpdate(
 
 ...and require a separate dependency for `fancynet` in a BUILD file.
 
+### Maintenance and stability
+
+Each model comes with a README file that lists its maintainers and the intended
+level of stability and maintenance; please check before depending on it for
+anything beyond one-off experimentation. In particular, the API stability
+promises of TF-GNN releases do **not** extend to particular models, unless they
+say so in their README files.
+
+## List of Models
+
+  * [GATv2](gat_v2/README.md): Graph Attention Networks v2
+    (Brody&al, 2021).
+  * [GCN](gcn/README.md): Graph Convoutional Networks
+    (Kipf&Welling, 2016), for homogeneous graphs only.
+  * [GraphSAGE](graph_sage/README.md) (Hamilton&al., 2017).
+  * [VanillaMPNN](vanilla_mpnn/README.md): TF-GNN's frequently used baseline
+    model, based on (Gilmer&al., 2016).

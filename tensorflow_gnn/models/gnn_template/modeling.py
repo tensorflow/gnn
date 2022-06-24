@@ -8,6 +8,9 @@ import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
 
+###
+### DEPRECATED in favor of ModelFromInitAndUpdates
+###
 def vanilla_mpnn_model(
     graph_tensor_spec: tfgnn.GraphTensorSpec,
     *,
@@ -41,6 +44,9 @@ def vanilla_mpnn_model(
   return tf.keras.Model(inputs, outputs)
 
 
+###
+### DEPRECATED in favor of VanillaMPNNGraphUpdate
+###
 def pass_simple_messages(
     graph: tfgnn.GraphTensor,
     *,
@@ -263,6 +269,9 @@ def _pass_messages_with_gnn_builder(
   return graph
 
 
+###
+### TO BE DEPRECATED in favor of more flexible, config-based feature processing.
+###
 def init_states_by_embed_and_transform(
     graph: tfgnn.GraphTensor,
     *,

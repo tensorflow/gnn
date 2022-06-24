@@ -213,6 +213,25 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllClose(min_max(topic_node_vectors[0]), [0., 10.])
       self.assertAllClose(min_max(topic_node_vectors[1]), [0., 10.])
 
+  def testAllNodeSets(self):
+    graph = _get_test_graph()
+    layer = graph_sage.GraphSAGEGraphUpdate(
+        units=7, receiver_tag=tfgnn.TARGET, use_bias=False, use_pooling=False,
+        feature_name=_FEATURE_NAME)
+    _ = layer(graph)
+    expected_weight_shapes = [
+        # Node set "author":
+        [3, 7],  # Conv on "written" from "paper".
+        [4, 7],  # Conv on "affiliated_with" from "institution",
+        [2, 7],  # Transformation of old state.
+        # Node set "topic":
+        [30, 7],  # Conv on "correlates" from "topic".
+        [30, 7],  # Transformation of old state.
+        # Node sets "paper" and "institution" are not receiving from any edges.
+    ]
+    self.assertCountEqual(expected_weight_shapes,
+                          [v.shape.as_list() for v in layer.trainable_weights])
+
   @parameterized.named_parameters(
       ("E2ENormalizeNoConcatPooling", True, "sum", True, ReloadModel.SKIP),
       ("E2ENormalizeNoConcatAgg", True, "sum", False, ReloadModel.SKIP),

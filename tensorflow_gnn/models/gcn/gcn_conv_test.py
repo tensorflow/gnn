@@ -206,7 +206,7 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                                                          dtype=tf.int64)),
                     ))
         })
-    layer = gcn_conv.GCNConvGraphUpdate(units=3, edge_set_name='edges')
+    layer = gcn_conv.GCNHomGraphUpdate(units=3, add_self_loops=True)
     _ = layer(gt_input)  # Build weights.
     weights = {v.name: v for v in layer.trainable_weights}
     self.assertLen(weights, 2)
@@ -265,7 +265,7 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                     )),
         },
     )
-    layer = gcn_conv.GCNConvGraphUpdate(units=3, edge_set_name='written')
+    layer = gcn_conv.GCNHomGraphUpdate(units=3)
     self.assertRaises(ValueError, lambda: layer(graph))
 
 if __name__ == '__main__':

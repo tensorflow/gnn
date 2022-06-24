@@ -10,6 +10,6 @@ from tensorflow_gnn.models import gcn
 from tensorflow_gnn.models.gcn import gcn_conv
 
 GCNConv = gcn_conv.GCNConv
-GCNConvGraphUpdate = gcn_conv.GCNConvGraphUpdate
+GCNHomGraphUpdate = gcn_conv.GCNHomGraphUpdate
 
 del gcn_conv

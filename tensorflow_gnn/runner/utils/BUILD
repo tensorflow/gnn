@@ -44,3 +44,14 @@ py_strict_test(
         "//tensorflow_gnn/runner:orchestration",
     ],
 )
+
+pytype_strict_library(
+    name = "model_templates",
+    srcs = ["model_templates.py"],
+    srcs_version = "PY3",
+    visibility = ["//tensorflow_gnn/runner:__pkg__"],
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+    ],
+)

@@ -8,6 +8,7 @@ from tensorflow_gnn.runner.tasks import regression
 from tensorflow_gnn.runner.trainers import keras_fit
 from tensorflow_gnn.runner.utils import model_dir
 from tensorflow_gnn.runner.utils import model_export
+from tensorflow_gnn.runner.utils import model_templates
 from tensorflow_gnn.runner.utils import strategies
 
 # Input
@@ -59,6 +60,9 @@ RootNodeMeanSquaredLogScaledError = regression.RootNodeMeanSquaredLogScaledError
 KerasTrainer = keras_fit.KerasTrainer
 KerasOptions = keras_fit.KerasOptions
 
+# Model templates
+ModelFromInitAndUpdates = model_templates.ModelFromInitAndUpdates
+
 del orchestration
 del datasets
 del attribution
@@ -67,4 +71,5 @@ del dgi
 del regression
 del keras_fit
 del model_dir
+del model_templates
 del strategies

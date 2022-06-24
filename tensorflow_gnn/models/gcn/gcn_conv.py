@@ -31,7 +31,8 @@ class GCNConv(tf.keras.layers.Layer):
     use_bias: Whether to add bias in the final transformation. The original
       paper doesn't use a bias, but this defaults to True to be consistent
       with Keras and other implementations.
-    add_self_loops: Whether to compute the result with self-loops.
+    add_self_loops: Whether to compute the result as if a loop from each node
+      to itself had been added to the edge set.
     normalize: Whether to normalize the node features by in-degree.
     kernel_initializer: initializer of type tf.keras.initializers .
     node_feature: Name of the node feature to transform.
@@ -78,7 +79,7 @@ class GCNConv(tf.keras.layers.Layer):
                receiver_tag: tfgnn.IncidentNodeTag = tfgnn.TARGET,
                activation='relu',
                use_bias: bool = True,
-               add_self_loops: bool = True,
+               add_self_loops: bool = False,
                normalize: bool = True,
                kernel_initializer: bool = None,
                node_feature: Optional[str] = tfgnn.HIDDEN_STATE,
@@ -173,32 +174,37 @@ class GCNConv(tf.keras.layers.Layer):
     return self._filter(pooled)
 
 
-def GCNConvGraphUpdate(*,  # To be called like a class initializer.  pylint: disable=invalid-name
-                       units: int,
-                       edge_set_name: str,
-                       receiver_tag: tfgnn.IncidentNodeTag = tfgnn.TARGET,
-                       feature_name: str = tfgnn.HIDDEN_STATE,
-                       name: str = 'gcn',
-                       **kwargs):
+def GCNHomGraphUpdate(*,  # To be called like a class initializer.  pylint: disable=invalid-name
+                      units: int,
+                      receiver_tag: tfgnn.IncidentNodeTag = tfgnn.TARGET,
+                      add_self_loops: bool = False,
+                      feature_name: str = tfgnn.HIDDEN_STATE,
+                      name: str = 'gcn',
+                      **kwargs):
   """Returns a graph update layer for GCN convolution.
 
   The returned layer performs one update step of a Graph Convolutional Network
-  (GCN) from https://arxiv.org/abs/1609.02907 on an edge set of a GraphTensor.
-  It is best suited for graphs that have just that one edge set, which connects
-  one node set to itself.
+  (GCN) from https://arxiv.org/abs/1609.02907 on a GraphTensor that stores
+  a homogeneous graph.
   For heterogeneous graphs with multiple edge sets connecting a single node set,
   users are advised to consider a GraphUpdate with one or more GCNConv objects
   instead.
 
+  > IMPORTANT: By default, the graph convolution computed by this class takes
+  > inputs only along edges that are explicitly stored in the input GraphTensor.
+  > Including the old node state in the inputs for computing the new node state
+  > requires having an explicit loop in the edge set, or setting
+  > `add_self_loops=True`.
+
   Args:
     units: The desired number of output node features.
-    edge_set_name: A GCNConv update happens on this edge set and its incident
-      node set of the input GraphTensor.
     receiver_tag: The default is `tfgnn.TARGET`,
       but it is perfectly reasonable to do a convolution towards the
       `tfgnn.SOURCE` instead. (Source and target are conventional names for
       the incident nodes of a directed edge, data flow in a GNN may happen
       in either direction.)
+    add_self_loops: Whether to compute the result as if a loop from each node
+      to itself had been added to the edge set.
     feature_name: The feature name of node states; defaults to
       `tfgnn.HIDDEN_STATE`.
     name: Optionally, a name for the layer returned.
@@ -209,17 +215,16 @@ def GCNConvGraphUpdate(*,  # To be called like a class initializer.  pylint: dis
   # That needs to be deferred until we see a GraphTensorSpec that tells us
   # the node_set_name.
   def deferred_init_callback(spec: tfgnn.GraphTensorSpec):
+    tfgnn.check_homogeneous_graph_tensor(spec, 'GCNHomGraphUpdate')
+    edge_set_name, = spec.edge_sets_spec.keys()
     node_set_name = spec.edge_sets_spec[
-        edge_set_name].adjacency_spec.node_set_name(tfgnn.TARGET)
-    if spec.edge_sets_spec[edge_set_name].adjacency_spec.node_set_name(
-        tfgnn.SOURCE) != node_set_name:
-      raise ValueError('source and target node sets must be the same '
-                       f'for edge set {edge_set_name} ')
+        edge_set_name].adjacency_spec.node_set_name(receiver_tag)
     node_set_updates = {
         node_set_name: tfgnn.keras.layers.NodeSetUpdate(
             {edge_set_name: GCNConv(
                 units=units,
                 receiver_tag=receiver_tag,
+                add_self_loops=add_self_loops,
                 node_feature=feature_name,
                 **kwargs)},
             next_state=tfgnn.keras.layers.SingleInputNextState(),

@@ -1,7 +1,7 @@
 """Utility functions to simplify construction of GNN layers."""
 
 import collections
-from typing import Any, Callable, Mapping, Optional, Set
+from typing import Any, Callable, Collection, Mapping, Optional
 
 import tensorflow as tf
 
@@ -76,7 +76,7 @@ class ConvGNNBuilder:
 
   def Convolve(
       self,
-      node_sets: Optional[Set[const.NodeSetName]] = None
+      node_sets: Optional[Collection[const.NodeSetName]] = None
   ) -> tf.keras.layers.Layer:
     """Constructs GraphUpdate layer for the set of receiver node sets.
 
@@ -87,12 +87,15 @@ class ConvGNNBuilder:
 
     Args:
       node_sets: By default, the result updates all node sets that receive from
-        at least one edge set. Passing a set of node set names here overrides
-        this (possibly including node sets that receive from zero edge sets).
+        at least one edge set. Passing a set of node set names here (or a
+        Collection convertible to a set) overrides this (possibly including
+        node sets that receive from zero edge sets).
 
     Returns:
       A GraphUpdate layer, with building deferred to the first call.
     """
+    if node_sets is not None:
+      node_sets = set(node_sets)
 
     def _Init(graph_spec: gt.GraphTensorSpec) -> Mapping[str, Any]:
       if self._receiver_tag is None:

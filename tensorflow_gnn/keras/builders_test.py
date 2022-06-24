@@ -1,5 +1,6 @@
 """Tests for graph_update Keras layers."""
 
+import collections
 import os
 
 from absl.testing import parameterized
@@ -24,6 +25,23 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
         lambda _: convolutions.SimpleConvolution(IdentityLayer()),
         lambda _: next_state_lib.NextStateFromConcat(IdentityLayer()))
     graph = gnn_builder.Convolve()(input_graph)
+    self.assertAllEqual([[1., 1., 1.]],
+                        graph.node_sets["node"][const.HIDDEN_STATE])
+    self.assertAllEqual([[100.]],
+                        graph.edge_sets["node->node"][const.HIDDEN_STATE])
+
+  def testNoDuplicateNodeSets(self):
+    calls_for_node_sets = collections.defaultdict(lambda: 0)
+    def nodes_next_state_factory(node_set_name):
+      calls_for_node_sets[node_set_name] += 1
+      return next_state_lib.NextStateFromConcat(IdentityLayer())
+    input_graph = _make_test_graph_with_singleton_node_sets(
+        [("node", [1.])], [("node", "node", [100.])])
+    gnn_builder = builders.ConvGNNBuilder(
+        lambda _: convolutions.SimpleConvolution(IdentityLayer()),
+        nodes_next_state_factory)
+    graph = gnn_builder.Convolve(["node", "node", "node"])(input_graph)
+    self.assertDictEqual({"node": 1}, calls_for_node_sets)
     self.assertAllEqual([[1., 1., 1.]],
                         graph.node_sets["node"][const.HIDDEN_STATE])
     self.assertAllEqual([[100.]],

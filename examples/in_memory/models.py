@@ -103,8 +103,8 @@ def make_gcn_model(
   for i in range(depth):
     num_units = num_classes if i == depth - 1 else hidden_units
     activation = out_activation if i == depth - 1 else hidden_activation
-    layers.append(gcn.GCNConvGraphUpdate(
-        units=num_units, edge_set_name='edges', receiver_tag=tfgnn.SOURCE,
+    layers.append(gcn.GCNHomGraphUpdate(
+        units=num_units, receiver_tag=tfgnn.SOURCE, add_self_loops=True,
         name='gcn_layer_%i' % i, activation=activation,
         kernel_regularizer=kernel_regularizer))
   return tf.keras.Sequential(layers)

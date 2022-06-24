@@ -16,6 +16,7 @@ pytype_strict_library(
         "//tensorflow_gnn/runner/trainers:keras_fit",
         "//tensorflow_gnn/runner/utils:model_dir",
         "//tensorflow_gnn/runner/utils:model_export",
+        "//tensorflow_gnn/runner/utils:model_templates",
         "//tensorflow_gnn/runner/utils:strategies",
     ],
 )

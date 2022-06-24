@@ -7,10 +7,16 @@ package(
     default_visibility = [":__subpackages__"],
 )
 
-package_group(name = "users")
+package_group(
+    name = "users",
+    includes = [
+        "//tensorflow_gnn/models/vanilla_mpnn/google:experimental_users",
+        "//tensorflow_gnn/models/vanilla_mpnn/google:supported_users",
+    ],
+)
 
 pytype_strict_library(
-    name = "gat_v2",
+    name = "vanilla_mpnn",
     srcs = ["__init__.py"],
     srcs_version = "PY3",
     visibility = [
@@ -40,8 +46,7 @@ tf_py_test(
     python_version = "PY3",
     srcs_version = "PY3",
     deps = [
-        ":gat_v2",
-        "//:expect_absl_installed",
+        ":vanilla_mpnn",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
     ],

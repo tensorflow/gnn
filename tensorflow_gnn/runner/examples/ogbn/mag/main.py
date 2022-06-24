@@ -7,7 +7,7 @@ import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
 from tensorflow_gnn import runner
-from tensorflow_gnn.models import gnn_template
+from tensorflow_gnn.models import vanilla_mpnn
 
 FLAGS = flags.FLAGS
 
@@ -120,19 +120,18 @@ def main(_) -> None:
     raise KeyError(f"Unexpected node_set_name='{node_set_name}'")
 
   def model_fn(gtspec: tfgnn.GraphTensorSpec):
-    inputs = tf.keras.layers.Input(type_spec=gtspec)
-    embedded = tfgnn.keras.layers.MapFeatures(
-        node_sets_fn=set_initial_node_states)(inputs)
-
-    outputs = gnn_template.pass_simple_messages(
-        embedded,
-        num_message_passing=4,
-        receiver_tag=tfgnn.SOURCE,
-        message_dim=128,
-        h_next_dim=128,
-        l2_regularization=5e-4,
-        dropout_rate=0.1)
-    return tf.keras.Model(inputs, outputs)
+    graph = inputs = tf.keras.layers.Input(type_spec=gtspec)
+    graph = tfgnn.keras.layers.MapFeatures(
+        node_sets_fn=set_initial_node_states)(graph)
+    for _ in range(4):
+      graph = vanilla_mpnn.VanillaMPNNGraphUpdate(
+          units=128,
+          message_dim=128,
+          receiver_tag=tfgnn.SOURCE,
+          l2_regularization=5e-4,
+          dropout_rate=0.1,
+      )(graph)
+    return tf.keras.Model(inputs, graph)
 
   task = runner.RootNodeMulticlassClassification(
       node_set_name="paper",

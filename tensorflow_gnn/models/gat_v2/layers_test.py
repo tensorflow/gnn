@@ -161,7 +161,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
       ("Restored", ReloadModel.SAVED_MODEL),
       ("RestoredKeras", ReloadModel.KERAS))
   def testFullModel(self, reload_model):
-    """Tests GATv2GraphUpdate in a full Model (incl. saving) with edge input."""
+    """Tests GATv2HomGraphUpdate in Model (incl. saving) with edge input."""
     # The same example as in the testBasic above, but with extra inputs
     # from edges.
     gt_input = _get_test_bidi_cycle_graph(
@@ -181,10 +181,10 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
              [6.],  # Edge from node 2 (counterclockwise, favored).
              [4.]]))  # Edge from node 1 (counterclockwise, favored).
 
-    layer = gat_v2.GATv2GraphUpdate(
+    layer = gat_v2.GATv2HomGraphUpdate(
         num_heads=1,
         per_head_channels=5,
-        edge_set_name="edges",
+        receiver_tag=tfgnn.TARGET,
         sender_edge_feature=tfgnn.HIDDEN_STATE,  # Activate edge input.
         attention_activation="relu")
 
@@ -404,31 +404,29 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
 
     # This test graph has many source nodes feeding into one target node.
     # The node features are a one-hot encoding of node ids.
-    num_sources = 32
+    num_nodes = 32
+    target_node_id = 7
     gt_input = tfgnn.GraphTensor.from_pieces(
         node_sets={
-            "sources": tfgnn.NodeSet.from_fields(
-                sizes=[num_sources],
-                features={tfgnn.HIDDEN_STATE: tf.eye(num_sources)}),
-            "target": tfgnn.NodeSet.from_fields(
-                sizes=[1],
-                features={tfgnn.HIDDEN_STATE: tf.constant([[1.]])}),
+            "nodes": tfgnn.NodeSet.from_fields(
+                sizes=[num_nodes],
+                features={tfgnn.HIDDEN_STATE: tf.eye(num_nodes)}),
         },
         edge_sets={
             "edges": tfgnn.EdgeSet.from_fields(
-                sizes=[num_sources],
+                sizes=[num_nodes],
                 adjacency=tfgnn.Adjacency.from_indices(
-                    ("sources", tf.constant(list(range(num_sources)))),
-                    ("target", tf.constant([0] * num_sources))))
+                    ("nodes", tf.constant(list(range(num_nodes)))),
+                    ("nodes", tf.constant([target_node_id] * num_nodes))))
         })
 
     # On purpose, this test is not for GATv2Conv directly, but for its
     # common usage in a GraphUpdate, to make sure the training/inference mode
     # is propagated correctly.
-    layer = gat_v2.GATv2GraphUpdate(
+    layer = gat_v2.GATv2HomGraphUpdate(
         num_heads=1,
-        per_head_channels=num_sources,
-        edge_set_name="edges",
+        per_head_channels=num_nodes,
+        receiver_tag=tfgnn.TARGET,
         edge_dropout=1./3.,  # Note here.
         activation="linear",
         attention_activation="linear",
@@ -439,12 +437,12 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
     self.assertLen(weights, 3)
     # Set up equal attention to all inputs.
     weights["gat_v2/node_set_update/gat_v2_conv/query/kernel:0"].assign(
-        [[0.] * num_sources])
+        [[0.] * num_nodes] * num_nodes)
     weights["gat_v2/node_set_update/gat_v2_conv/attn_logits/kernel:0"].assign(
-        [[0.]] * num_sources)
+        [[0.]] * num_nodes)
     # Values are one-hot node ids, scaled up to undo the softmax normalization.
     weights["gat_v2/node_set_update/gat_v2_conv/value_node/kernel:0"].assign(
-        num_sources * tf.eye(num_sources))
+        num_nodes * tf.eye(num_nodes))
 
     # Build a Model around the Layer, possibly saved and restored.
     inputs = tf.keras.layers.Input(type_spec=gt_input.spec)
@@ -465,7 +463,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
     # expected value remains at (1-1/3) * 3/2 == 1), so min = 0 and max = 1.5.
     def min_max(**kwargs):
       got_gt = model(gt_input, **kwargs)
-      got = got_gt.node_sets["target"][tfgnn.HIDDEN_STATE]
+      got = got_gt.node_sets["nodes"][tfgnn.HIDDEN_STATE][target_node_id]
       return [tf.reduce_min(got), tf.reduce_max(got)]
     self.assertAllEqual(min_max(), [1., 1.])  # Inference is the default.
     self.assertAllEqual(min_max(training=False), [1., 1.])
@@ -488,6 +486,63 @@ def _get_test_bidi_cycle_graph(node_state, edge_state=None):
               features=(None if edge_state is None else
                         {tfgnn.HIDDEN_STATE: edge_state})),
       })
+
+
+# The components of GATv2MPNNGraphUpdate have been tested elsewhere.
+class GATv2MPNNGraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
+
+  def testBasic(self):
+    input_graph = _make_test_graph_abc()
+    message_dim = 6
+    layer = gat_v2.GATv2MPNNGraphUpdate(
+        units=1,
+        message_dim=message_dim,
+        num_heads=2,
+        receiver_tag=tfgnn.TARGET,
+        node_set_names=["b"],
+        edge_feature="fab",
+        kernel_initializer="ones")
+    graph = layer(input_graph)
+    # Nodes "a" and "c" are unchanged.
+    self.assertAllEqual([[1.]], graph.node_sets["a"][tfgnn.HIDDEN_STATE])
+    self.assertAllEqual([[8.]], graph.node_sets["c"][tfgnn.HIDDEN_STATE])
+    # Node "b" receives message of dimension 6 from sender node and edge
+    # in which all elements are 1+16=17. The hidden state is updated from
+    # 2 to 2 + 6*17.
+    self.assertAllEqual([[2. + message_dim*17]],
+                        graph.node_sets["b"][tfgnn.HIDDEN_STATE])
+
+  def testMessageUnitsNotDivisible(self):
+    with self.assertRaisesRegex(
+        ValueError, r"must be divisible by num_heads, got 5 and 2"):
+      _ = gat_v2.GATv2MPNNGraphUpdate(message_dim=5, num_heads=2,
+                                      units=12, receiver_tag=tfgnn.TARGET)
+
+
+def _make_test_graph_abc():
+  return tfgnn.GraphTensor.from_pieces(
+      node_sets={
+          "a": tfgnn.NodeSet.from_fields(
+              sizes=tf.constant([1]),
+              features={tfgnn.HIDDEN_STATE: tf.constant([[1.]])}),
+          "b": tfgnn.NodeSet.from_fields(
+              sizes=tf.constant([1]),
+              features={tfgnn.HIDDEN_STATE: tf.constant([[2.]])}),
+          "c": tfgnn.NodeSet.from_fields(
+              sizes=tf.constant([1]),
+              features={tfgnn.HIDDEN_STATE: tf.constant([[8.]])})},
+      edge_sets={
+          "a->b": tfgnn.EdgeSet.from_fields(
+              sizes=tf.constant([1]),
+              adjacency=tfgnn.Adjacency.from_indices(
+                  ("a", tf.constant([0])),
+                  ("b", tf.constant([0]))),
+              features={"fab": tf.constant([[16.]])}),
+          "c->c": tfgnn.EdgeSet.from_fields(
+              sizes=tf.constant([1]),
+              adjacency=tfgnn.Adjacency.from_indices(
+                  ("c", tf.constant([0])),
+                  ("c", tf.constant([0]))))})
 
 
 if __name__ == "__main__":

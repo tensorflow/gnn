@@ -12,7 +12,7 @@ pytype_strict_binary(
         "//third_party/py/absl/logging",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-        "//tensorflow_gnn/models/gnn_template",
+        "//tensorflow_gnn/models/vanilla_mpnn",
         "//tensorflow_gnn/runner",
     ],
 )

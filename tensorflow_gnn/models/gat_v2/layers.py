@@ -1,5 +1,5 @@
 """Contains a Graph Attention Network v2 and associated layers."""
-from typing import Any, Callable, Mapping, Optional, Union
+from typing import Any, Callable, Collection, Mapping, Optional, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -343,52 +343,51 @@ def GATv2EdgePool(*,  # To be called like a class initializer.  pylint: disable=
       **kwargs)
 
 
-def GATv2GraphUpdate(*,  # To be called like a class initializer.  pylint: disable=invalid-name
-                     num_heads: int,
-                     per_head_channels: int,
-                     edge_set_name: str,
-                     feature_name: str = tfgnn.HIDDEN_STATE,
-                     name: str = "gat_v2",
-                     **kwargs):
-  """Returns a GraphUpdater layer with a Graph Attention Network V2 (GATv2).
+# TODO(b/236941740): a systematic solution for adding loops.
+def GATv2HomGraphUpdate(
+    *,  # To be called like a class initializer.  pylint: disable=invalid-name
+    num_heads: int,
+    per_head_channels: int,
+    receiver_tag: tfgnn.IncidentNodeOrContextTag,
+    feature_name: str = tfgnn.HIDDEN_STATE,
+    name: str = "gat_v2",
+    **kwargs):
+  """Returns a GraphUpdate layer with a Graph Attention Network V2 (GATv2).
 
   The returned layer performs one update step of a Graph Attention Network v2
-  (GATv2) from https://arxiv.org/abs/2105.14491 on an edge set of a GraphTensor.
-  It is best suited for graphs that have just that one edge set.
+  (GATv2) from https://arxiv.org/abs/2105.14491 on a GraphTensor that stores
+  a homogeneous graph.
   For heterogeneous graphs with multiple node sets and edge sets, users are
   advised to consider a GraphUpdate with one or more GATv2Conv objects
-  instead.
+  instead, such as the GATv2MPNNGraphUpdate.
 
-  This implementation of GAT attends only to edges that are explicitly stored
-  in the input GraphTensor. Attention of a node to itself requires having an
-  explicit loop in the edge set.
+  > IMPORTANT: This implementation of GAT attends only to edges that are
+  > explicitly stored in the input GraphTensor. Attention of a node to itself
+  > requires having an explicit loop in the edge set.
 
   Args:
     num_heads: The number of attention heads.
     per_head_channels: The number of channels for each attention head. This
       means that the final output size will be per_head_channels * num_heads.
-    edge_set_name: A GATv2 update happens on this edge set and its incident
-      node set(s) of the input GraphTensor.
+    receiver_tag: one of `tfgnn.SOURCE` or `tfgnn.TARGET`.
     feature_name: The feature name of node states; defaults to
       `tfgnn.HIDDEN_STATE`.
     name: Optionally, a name for the layer returned.
     **kwargs: Any optional arguments to GATv2Conv, see there.
   """
-  # Compat logic, remove in late 2021.
-  if "output_feature_name" in kwargs:
-    raise TypeError("Argument 'output_feature_name' is no longer supported.")
-
   # Build a GraphUpdate for the target node set of the given edge_set_name.
   # That needs to be deferred until we see a GraphTensorSpec that tells us
   # the node_set_name.
   def deferred_init_callback(spec: tfgnn.GraphTensorSpec):
+    tfgnn.check_homogeneous_graph_tensor(spec, "GATv2HomGraphUpdate")
+    edge_set_name, = spec.edge_sets_spec.keys()
     node_set_name = spec.edge_sets_spec[
-        edge_set_name].adjacency_spec.node_set_name(tfgnn.TARGET)
+        edge_set_name].adjacency_spec.node_set_name(receiver_tag)
     node_set_updates = {
         node_set_name: tfgnn.keras.layers.NodeSetUpdate(
             {edge_set_name: GATv2Conv(
                 num_heads=num_heads, per_head_channels=per_head_channels,
-                receiver_tag=tfgnn.TARGET,
+                receiver_tag=receiver_tag,
                 sender_node_feature=feature_name, receiver_feature=feature_name,
                 **kwargs)},
             next_state=tfgnn.keras.layers.SingleInputNextState(),
@@ -396,3 +395,109 @@ def GATv2GraphUpdate(*,  # To be called like a class initializer.  pylint: disab
     return dict(node_sets=node_set_updates)
   return tfgnn.keras.layers.GraphUpdate(
       deferred_init_callback=deferred_init_callback, name=name)
+
+
+# DEPRECATED.
+def GATv2GraphUpdate(*,  # To be called like a class initializer.  pylint: disable=invalid-name
+                     num_heads: int,
+                     per_head_channels: int,
+                     edge_set_name: str,
+                     feature_name: str = tfgnn.HIDDEN_STATE,
+                     name: str = "gat_v2",
+                     **kwargs):
+  del edge_set_name  # Must be the only one anyways.
+  return GATv2HomGraphUpdate(
+      num_heads=num_heads, per_head_channels=per_head_channels,
+      receiver_tag=tfgnn.TARGET, feature_name=feature_name, name=name, **kwargs)
+
+
+def GATv2MPNNGraphUpdate(  # To be called like a class initializer.  pylint: disable=invalid-name
+    *,
+    units: int,
+    message_dim: int,
+    num_heads: int,
+    receiver_tag: tfgnn.IncidentNodeOrContextTag,
+    node_set_names: Optional[Collection[tfgnn.NodeSetName]] = None,
+    edge_feature: Optional[tfgnn.FieldName] = None,
+    l2_regularization: float = 0.0,
+    edge_dropout_rate: float = 0.0,
+    state_dropout_rate: float = 0.0,
+    attention_activation: Union[str, Callable[..., Any]] = "leaky_relu",
+    conv_activation: Union[str, Callable[..., Any]] = "relu",
+    activation: Union[str, Callable[..., Any]] = "relu",
+    kernel_initializer: Union[
+        None, str, tf.keras.initializers.Initializer] = "glorot_uniform",
+    ) -> tf.keras.layers.Layer:
+  """Returns a GraphUpdate layer for message passing with GATv2 pooling.
+
+  The returned layer performs one round of message passing between the nodes
+  of a heterogeneous GraphTensor, using `gat_v2.GATv2Conv` to compute the
+  messages and their pooling with attention, followed by a dense layer to
+  compute the new node states from a concatenation of the old node state and
+  all pooled messages.
+
+  Args:
+    units: The dimension of output hidden states for each node.
+    message_dim: The dimension of messages (attention values) computed on
+      each edge.  Must be divisible by `num_heads`.
+    num_heads: The number of attention heads used by GATv2. `message_dim`
+      must be divisible by this number.
+    receiver_tag: one of `tfgnn.TARGET` or `tfgnn.SOURCE`, to select the
+      incident node of each edge that receives the message.
+    node_set_names: The names of node sets to update. If unset, updates all
+      that are on the receiving end of any edge set.
+    edge_feature: Can be set to a feature name of the edge set to select
+      it as an input feature. By default, this set to `None`, which disables
+      this input.
+    l2_regularization: The coefficient of L2 regularization for weights and
+      biases.
+    edge_dropout_rate: The edge dropout rate applied during attention pooling
+      of edges.
+    state_dropout_rate: The dropout rate applied to the resulting node states.
+    attention_activation: The nonlinearity used on the transformed inputs
+      before multiplying with the trained weights of the attention layer.
+      This can be specified as a Keras layer, a tf.keras.activations.*
+      function, or a string understood by tf.keras.layers.Activation().
+      Defaults to "leaky_relu", which in turn defaults to a negative slope
+      of `alpha=0.2`.
+    conv_activation: The nonlinearity applied to the result of attention on one
+      edge set, specified in the same ways as attention_activation.
+    activation: The nonlinearity applied to the new node states computed by
+      this graph update.
+    kernel_initializer: Can be set to a `kerner_initializer` as understood
+      by `tf.keras.layers.Dense` etc.
+
+  Returns:
+    A GraphUpdate layer for use on a scalar GraphTensor with
+    `tfgnn.HIDDEN_STATE` features on the node sets.
+  """
+  if message_dim % num_heads:
+    raise ValueError("message_dim must be divisible by num_heads, "
+                     f"got {message_dim} and {num_heads}.")
+  per_head_channels = message_dim // num_heads
+
+  def dense(units):  # pylint: disable=invalid-name
+    regularizer = tf.keras.regularizers.l2(l2_regularization)
+    return tf.keras.Sequential([
+        tf.keras.layers.Dense(
+            units,
+            activation=activation,
+            use_bias=True,
+            kernel_initializer=kernel_initializer,
+            bias_initializer="zeros",
+            kernel_regularizer=regularizer,
+            bias_regularizer=regularizer),
+        tf.keras.layers.Dropout(state_dropout_rate)])
+
+  # pylint: disable=g-long-lambda
+  gnn_builder = tfgnn.keras.ConvGNNBuilder(
+      lambda edge_set_name, receiver_tag: GATv2Conv(
+          num_heads=num_heads, per_head_channels=per_head_channels,
+          edge_dropout=edge_dropout_rate, receiver_tag=receiver_tag,
+          sender_edge_feature=edge_feature,
+          attention_activation=attention_activation, activation=conv_activation,
+          kernel_initializer=kernel_initializer),
+      lambda node_set_name: tfgnn.keras.layers.NextStateFromConcat(
+          dense(units)),
+      receiver_tag=receiver_tag)
+  return gnn_builder.Convolve(node_set_names)
