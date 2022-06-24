@@ -1,12 +1,6 @@
-description: Default values for graph context, node sets and edge sets features.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.FeatureDefaultValues" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__new__"/>
-</div>
-
 # tfgnn.FeatureDefaultValues
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

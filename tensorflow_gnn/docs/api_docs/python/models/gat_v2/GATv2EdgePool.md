@@ -1,11 +1,6 @@
-description: Returns a layer for pooling edges with GATv2-style attention.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="gat_v2.GATv2EdgePool" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # gat_v2.GATv2EdgePool
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 
@@ -47,7 +42,6 @@ NOTE: This layer cannot pool node states. For that, use
 <a href="../gat_v2/GATv2Conv.md"><code>gat_v2.GATv2Conv</code></a>.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>

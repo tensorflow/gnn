@@ -1,13 +1,6 @@
-description: Applies tfgnn.pad_to_total_sizes() to a GraphTensor.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.keras.layers.PadToTotalSizes" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__new__"/>
-</div>
-
 # tfgnn.keras.layers.PadToTotalSizes
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

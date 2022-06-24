@@ -1,13 +1,6 @@
-description: Broadcasts a GraphTensor feature.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.keras.layers.Broadcast" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__new__"/>
-</div>
-
 # tfgnn.keras.layers.Broadcast
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

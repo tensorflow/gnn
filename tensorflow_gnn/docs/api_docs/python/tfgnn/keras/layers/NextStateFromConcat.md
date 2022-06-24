@@ -1,13 +1,6 @@
-description: Computes a new state by concatenating inputs and applying a Keras Layer.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.keras.layers.NextStateFromConcat" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__new__"/>
-</div>
-
 # tfgnn.keras.layers.NextStateFromConcat
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

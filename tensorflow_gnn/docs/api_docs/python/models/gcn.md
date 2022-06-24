@@ -1,11 +1,6 @@
-description: Graph Convolutional Networks.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="gcn" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # Module: gcn
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 
@@ -34,5 +29,5 @@ by Kipf&Welling (2016).
 
 ## Functions
 
-[`GCNConvGraphUpdate(...)`](./gcn/GCNConvGraphUpdate.md): Returns a graph update
+[`GCNHomGraphUpdate(...)`](./gcn/GCNHomGraphUpdate.md): Returns a graph update
 layer for GCN convolution.

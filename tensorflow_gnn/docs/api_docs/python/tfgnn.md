@@ -1,21 +1,6 @@
-description: Public interface for TensorFlow GNN package.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="CONTEXT"/>
-<meta itemprop="property" content="EDGES"/>
-<meta itemprop="property" content="HIDDEN_STATE"/>
-<meta itemprop="property" content="NODES"/>
-<meta itemprop="property" content="SIZE_NAME"/>
-<meta itemprop="property" content="SOURCE"/>
-<meta itemprop="property" content="SOURCE_NAME"/>
-<meta itemprop="property" content="TARGET"/>
-<meta itemprop="property" content="TARGET_NAME"/>
-<meta itemprop="property" content="__version__"/>
-</div>
-
 # Module: tfgnn
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 
@@ -91,11 +76,17 @@ similar to `tf.TensorSpec`. For example, a `FieldSpec` describes an instance of
 
 [`assert_satisfies_total_sizes(...)`](./tfgnn/assert_satisfies_size_constraints.md): Raises InvalidArgumentError if graph_tensor exceeds size_constraints.
 
+[`broadcast(...)`](./tfgnn/broadcast.md): Broadcasts values from nodes to edges,
+or from context to nodes or edges.
+
 [`broadcast_context_to_edges(...)`](./tfgnn/broadcast_context_to_edges.md): Broadcasts a context value to the `edge_set` edges.
 
 [`broadcast_context_to_nodes(...)`](./tfgnn/broadcast_context_to_nodes.md): Broadcasts a context value to the `node_set` nodes.
 
 [`broadcast_node_to_edges(...)`](./tfgnn/broadcast_node_to_edges.md): Broadcasts values from nodes to incident edges.
+
+[`check_homogeneous_graph_tensor(...)`](./tfgnn/check_homogeneous_graph_tensor.md):
+Raises ValueError unless there is exactly one node set and edge set.
 
 [`check_required_features(...)`](./tfgnn/check_required_features.md): Checks the requirements of a given schema against another.
 
@@ -132,6 +123,9 @@ similar to `tf.TensorSpec`. For example, a `FieldSpec` describes an instance of
 [`parse_schema(...)`](./tfgnn/parse_schema.md): Parse a schema from text-formatted protos.
 
 [`parse_single_example(...)`](./tfgnn/parse_single_example.md): Parses a single serialized Example proto into a single `GraphTensor`.
+
+[`pool(...)`](./tfgnn/pool.md): Pools values from edges to nodes, or from nodes
+or edges to context.
 
 [`pool_edges_to_context(...)`](./tfgnn/pool_edges_to_context.md): Aggregates (pools) edge values to graph context.
 

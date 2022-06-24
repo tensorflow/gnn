@@ -1,11 +1,6 @@
-description: Register a new reduction operation for pooling.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.register_reduce_operation" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.register_reduce_operation
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

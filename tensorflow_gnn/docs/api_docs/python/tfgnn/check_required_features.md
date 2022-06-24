@@ -1,11 +1,6 @@
-description: Checks the requirements of a given schema against another.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.check_required_features" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.check_required_features
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

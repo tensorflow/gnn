@@ -1,11 +1,6 @@
-description: Returns whether value is a GraphTensor (possibly wrapped for Keras).
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.is_graph_tensor" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.is_graph_tensor
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

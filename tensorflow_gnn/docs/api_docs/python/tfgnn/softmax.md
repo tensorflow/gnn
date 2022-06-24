@@ -1,11 +1,6 @@
-description: Computes softmax over a many-to-one relationship in a GraphTensor.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.softmax" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.softmax
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

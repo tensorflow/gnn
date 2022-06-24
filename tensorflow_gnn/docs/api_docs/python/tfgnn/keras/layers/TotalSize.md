@@ -1,13 +1,6 @@
-description: Returns the .total_size of a graph piece.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.keras.layers.TotalSize" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__new__"/>
-</div>
-
 # tfgnn.keras.layers.TotalSize
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

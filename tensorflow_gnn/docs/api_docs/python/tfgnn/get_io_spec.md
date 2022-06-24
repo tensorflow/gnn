@@ -1,11 +1,6 @@
-description: Returns tf.io parsing features for GraphTensorSpec type spec.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.get_io_spec" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.get_io_spec
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

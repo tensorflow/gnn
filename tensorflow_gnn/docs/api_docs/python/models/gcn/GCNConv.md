@@ -1,19 +1,12 @@
-description: Implements the Graph Convolutional Network by Kipf&Welling (2016).
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="gcn.GCNConv" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__new__"/>
-</div>
-
 # gcn.GCNConv
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gcn/gcn_conv.py#L14-L173">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gcn/gcn_conv.py#L14-L174">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -29,7 +22,7 @@ Implements the Graph Convolutional Network by Kipf&Welling (2016).
     receiver_tag: tfgnn.IncidentNodeTag = tfgnn.TARGET,
     activation=&#x27;relu&#x27;,
     use_bias: bool = True,
-    add_self_loops: bool = True,
+    add_self_loops: bool = False,
     normalize: bool = True,
     kernel_initializer: bool = None,
     node_feature: Optional[str] = tfgnn.HIDDEN_STATE,
@@ -58,7 +51,8 @@ convolution on an edge set in a tfgnn.keras.layers.NodeSetUpdate.
 *   <b>`use_bias`</b>: Whether to add bias in the final transformation. The
     original paper doesn't use a bias, but this defaults to True to be
     consistent with Keras and other implementations.
-*   <b>`add_self_loops`</b>: Whether to compute the result with self-loops.
+*   <b>`add_self_loops`</b>: Whether to compute the result as if a loop from
+    each node to itself had been added to the edge set.
 *   <b>`normalize`</b>: Whether to normalize the node features by in-degree.
 *   <b>`kernel_initializer`</b>: initializer of type tf.keras.initializers .
 *   <b>`node_feature`</b>: Name of the node feature to transform.

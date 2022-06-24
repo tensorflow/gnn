@@ -1,11 +1,6 @@
-description: Returns smallest possible size constraints that allow dataset padding.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.find_tight_size_constraints" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.find_tight_size_constraints
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

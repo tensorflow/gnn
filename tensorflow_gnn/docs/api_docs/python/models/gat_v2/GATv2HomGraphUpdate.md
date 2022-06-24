@@ -1,32 +1,26 @@
-description: Returns a GraphUpdater layer with a Graph Attention Network V2
-(GATv2).
+# gat_v2.GATv2HomGraphUpdate
 
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="gat_v2.GATv2GraphUpdate" />
-<meta itemprop="path" content="Stable" />
-</div>
-
-# gat_v2.GATv2GraphUpdate
+[TOC]
 
 <!-- Insert buttons and diff -->
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gat_v2/layers.py#L346-L398">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gat_v2/layers.py#L347-L397">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
 
-Returns a GraphUpdater layer with a Graph Attention Network V2 (GATv2).
+Returns a GraphUpdate layer with a Graph Attention Network V2 (GATv2).
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
-<code>gat_v2.GATv2GraphUpdate(
+<code>gat_v2.GATv2HomGraphUpdate(
     *,
     num_heads: int,
     per_head_channels: int,
-    edge_set_name: str,
+    receiver_tag: tfgnn.IncidentNodeOrContextTag,
     feature_name: str = tfgnn.HIDDEN_STATE,
     name: str = &#x27;gat_v2&#x27;,
     **kwargs
@@ -36,14 +30,14 @@ Returns a GraphUpdater layer with a Graph Attention Network V2 (GATv2).
 <!-- Placeholder for "Used in" -->
 
 The returned layer performs one update step of a Graph Attention Network v2
-(GATv2) from https://arxiv.org/abs/2105.14491 on an edge set of a GraphTensor.
-It is best suited for graphs that have just that one edge set. For heterogeneous
-graphs with multiple node sets and edge sets, users are advised to consider a
-GraphUpdate with one or more GATv2Conv objects instead.
+(GATv2) from https://arxiv.org/abs/2105.14491 on a GraphTensor that stores a
+homogeneous graph. For heterogeneous graphs with multiple node sets and edge
+sets, users are advised to consider a GraphUpdate with one or more GATv2Conv
+objects instead, such as the GATv2MPNNGraphUpdate.
 
-This implementation of GAT attends only to edges that are explicitly stored in
-the input GraphTensor. Attention of a node to itself requires having an explicit
-loop in the edge set.
+> IMPORTANT: This implementation of GAT attends only to edges that are
+> explicitly stored in the input GraphTensor. Attention of a node to itself
+> requires having an explicit loop in the edge set.
 
 <!-- Tabular view -->
 
@@ -68,11 +62,10 @@ means that the final output size will be per_head_channels * num_heads.
 </td>
 </tr><tr>
 <td>
-`edge_set_name`
+`receiver_tag`
 </td>
 <td>
-A GATv2 update happens on this edge set and its incident
-node set(s) of the input GraphTensor.
+one of `tfgnn.SOURCE` or `tfgnn.TARGET`.
 </td>
 </tr><tr>
 <td>

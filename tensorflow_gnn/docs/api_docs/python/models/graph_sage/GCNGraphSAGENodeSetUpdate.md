@@ -1,14 +1,6 @@
-description: GCNGraphSAGENodeSetUpdate is an extension of the mean aggregator
-operator.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="graph_sage.GCNGraphSAGENodeSetUpdate" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__new__"/>
-</div>
-
 # graph_sage.GCNGraphSAGENodeSetUpdate
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 
@@ -86,7 +78,6 @@ on the reduce_type specified. If share_weights is set to True, then single
 weight matrix will be used in place of W_E and W_self.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>

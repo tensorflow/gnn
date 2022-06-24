@@ -1,13 +1,6 @@
-description: A context update with input from node sets and/or edge sets.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.keras.layers.ContextUpdate" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__new__"/>
-</div>
-
 # tfgnn.keras.layers.ContextUpdate
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

@@ -1,11 +1,6 @@
-description: Aggregates (pools) node values to graph context.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.pool_nodes_to_context" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.pool_nodes_to_context
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

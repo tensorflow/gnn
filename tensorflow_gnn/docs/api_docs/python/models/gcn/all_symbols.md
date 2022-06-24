@@ -6,4 +6,4 @@
 
 *   <a href="../gcn.md"><code>gcn</code></a>
 *   <a href="../gcn/GCNConv.md"><code>gcn.GCNConv</code></a>
-*   <a href="../gcn/GCNConvGraphUpdate.md"><code>gcn.GCNConvGraphUpdate</code></a>
+*   <a href="../gcn/GCNHomGraphUpdate.md"><code>gcn.GCNHomGraphUpdate</code></a>

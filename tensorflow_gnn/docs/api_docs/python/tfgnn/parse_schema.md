@@ -1,11 +1,6 @@
-description: Parse a schema from text-formatted protos.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.parse_schema" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.parse_schema
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

@@ -1,11 +1,6 @@
-description: Flips tfgnn.SOURCE to tfgnn.TARGET and vice versa.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.reverse_tag" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.reverse_tag
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

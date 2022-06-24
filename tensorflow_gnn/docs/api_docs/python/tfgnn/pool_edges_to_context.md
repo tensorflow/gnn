@@ -1,11 +1,6 @@
-description: Aggregates (pools) edge values to graph context.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.pool_edges_to_context" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.pool_edges_to_context
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

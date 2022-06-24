@@ -1,21 +1,6 @@
-description: A type spec for <a href="../tfgnn/NodeSet.md"><code>tfgnn.NodeSet</code></a>.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.NodeSetSpec" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__eq__"/>
-<meta itemprop="property" content="__getitem__"/>
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__ne__"/>
-<meta itemprop="property" content="from_field_specs"/>
-<meta itemprop="property" content="from_value"/>
-<meta itemprop="property" content="is_compatible_with"/>
-<meta itemprop="property" content="is_subtype_of"/>
-<meta itemprop="property" content="most_specific_common_supertype"/>
-<meta itemprop="property" content="most_specific_compatible_type"/>
-</div>
-
 # tfgnn.NodeSetSpec
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

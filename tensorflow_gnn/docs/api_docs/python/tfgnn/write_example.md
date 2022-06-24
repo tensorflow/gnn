@@ -1,11 +1,6 @@
-description: Encode an eager GraphTensor to a tf.train.Example proto.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.write_example" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.write_example
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

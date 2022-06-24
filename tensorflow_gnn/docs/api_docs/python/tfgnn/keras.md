@@ -1,11 +1,6 @@
-description: The tfgnn.keras package.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.keras" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # Module: tfgnn.keras
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

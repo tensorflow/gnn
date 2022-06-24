@@ -1,11 +1,6 @@
-description: Utility function to iterate over the features of a graph schema.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.iter_features" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.iter_features
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

@@ -1,11 +1,6 @@
-description: Parses a batch of serialized Example protos into a single GraphTensor.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.parse_example" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.parse_example
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

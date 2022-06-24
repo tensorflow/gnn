@@ -1,11 +1,6 @@
-description: Gathers feature value from the first node of each graph component.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.gather_first_node" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.gather_first_node
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

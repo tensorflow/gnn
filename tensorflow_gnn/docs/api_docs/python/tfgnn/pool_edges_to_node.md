@@ -1,11 +1,6 @@
-description: Aggregates (pools) edge values to incident nodes.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.pool_edges_to_node" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.pool_edges_to_node
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

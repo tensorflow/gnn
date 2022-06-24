@@ -1,11 +1,6 @@
-description: Validates the correctness of a graph schema instance.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.validate_schema" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.validate_schema
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

@@ -1,11 +1,6 @@
-description: Broadcasts values from nodes to incident edges.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.broadcast_node_to_edges" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.broadcast_node_to_edges
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

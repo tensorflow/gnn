@@ -1,11 +1,6 @@
-description: Write a GraphSchema to a text-formatted proto file.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.write_schema" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.write_schema
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

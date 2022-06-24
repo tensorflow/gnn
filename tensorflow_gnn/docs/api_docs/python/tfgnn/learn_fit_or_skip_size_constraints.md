@@ -1,11 +1,6 @@
-description: Learns the optimal size constraints for the fixed size batching with retry.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.learn_fit_or_skip_size_constraints" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.learn_fit_or_skip_size_constraints
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

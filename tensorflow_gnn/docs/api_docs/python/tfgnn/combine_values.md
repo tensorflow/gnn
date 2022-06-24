@@ -1,11 +1,6 @@
-description: Combines a list of tensors into one (by concatenation or otherwise).
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.combine_values" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.combine_values
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

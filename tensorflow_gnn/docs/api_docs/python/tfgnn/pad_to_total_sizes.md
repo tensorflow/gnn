@@ -1,11 +1,6 @@
-description: Pads graph tensor to the total sizes by inserting fake graph components.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.pad_to_total_sizes" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.pad_to_total_sizes
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

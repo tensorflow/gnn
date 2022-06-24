@@ -1,11 +1,6 @@
-description: Returns whether the input graph_tensor satisfies total_sizes.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.satisfies_size_constraints" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.satisfies_size_constraints
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

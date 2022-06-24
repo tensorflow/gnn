@@ -1,11 +1,6 @@
-description: A schema definition for graphs.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.GraphSchema" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.GraphSchema
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

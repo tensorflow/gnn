@@ -1,11 +1,6 @@
-description: Utility function to iterate over all the sets present in a graph schema.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.iter_sets" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.iter_sets
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

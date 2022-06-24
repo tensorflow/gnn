@@ -1,11 +1,6 @@
-description: Returns softmax() of edge values per common node_tag node.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.softmax_edges_per_node" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.softmax_edges_per_node
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

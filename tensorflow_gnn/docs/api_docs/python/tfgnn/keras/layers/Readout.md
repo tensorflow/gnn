@@ -1,13 +1,6 @@
-description: Reads a feature out of a GraphTensor.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.keras.layers.Readout" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__new__"/>
-</div>
-
 # tfgnn.keras.layers.Readout
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

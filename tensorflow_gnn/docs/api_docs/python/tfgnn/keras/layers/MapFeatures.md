@@ -1,13 +1,6 @@
-description: Transforms features on a GraphTensor by user-defined callbacks.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.keras.layers.MapFeatures" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__new__"/>
-</div>
-
 # tfgnn.keras.layers.MapFeatures
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

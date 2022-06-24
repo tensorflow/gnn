@@ -1,11 +1,6 @@
-description: The tfgnn.keras.layers package.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.keras.layers" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # Module: tfgnn.keras.layers
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 
@@ -58,7 +53,11 @@ The tfgnn.keras.layers package.
 
 [`class ResidualNextState`](../../tfgnn/keras/layers/ResidualNextState.md): Updates a state with a residual block.
 
-[`class SimpleConvolution`](../../tfgnn/keras/layers/SimpleConvolution.md): A convolution layer that applies a passed-in message_fn.
+[`class SimpleConv`](../../tfgnn/keras/layers/SimpleConv.md): A convolution
+layer that applies a passed-in message_fn.
+
+[`class SingleInputNextState`](../../tfgnn/keras/layers/SingleInputNextState.md):
+Replaces a state from a single input.
 
 [`class TotalSize`](../../tfgnn/keras/layers/TotalSize.md): Returns the .total_size of a graph piece.
 

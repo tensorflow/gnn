@@ -1,11 +1,6 @@
-description: Broadcasts a context value to the node_set nodes.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.broadcast_context_to_nodes" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.broadcast_context_to_nodes
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

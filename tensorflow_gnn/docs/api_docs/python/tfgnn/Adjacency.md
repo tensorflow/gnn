@@ -1,17 +1,6 @@
-description: Stores how edges connect pairs of nodes from source and target node sets.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.Adjacency" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__getitem__"/>
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="from_indices"/>
-<meta itemprop="property" content="get_indices_dict"/>
-<meta itemprop="property" content="node_set_name"/>
-<meta itemprop="property" content="set_shape"/>
-</div>
-
 # tfgnn.Adjacency
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

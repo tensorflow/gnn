@@ -1,11 +1,6 @@
-description: Converts a graph schema proto message to a scalar GraphTensorSpec.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.create_graph_spec_from_schema_pb" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.create_graph_spec_from_schema_pb
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

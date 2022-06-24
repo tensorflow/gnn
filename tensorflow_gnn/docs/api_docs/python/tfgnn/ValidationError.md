@@ -1,13 +1,6 @@
-description: A schema validation error.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.ValidationError" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__new__"/>
-</div>
-
 # tfgnn.ValidationError
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

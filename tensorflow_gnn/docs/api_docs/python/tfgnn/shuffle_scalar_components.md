@@ -1,11 +1,6 @@
-description: Shuffles context, node set and edge set features across components.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.shuffle_scalar_components" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.shuffle_scalar_components
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

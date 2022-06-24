@@ -1,11 +1,6 @@
-description: Raises InvalidArgumentError if graph_tensor exceeds size_constraints.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.assert_satisfies_size_constraints" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.assert_satisfies_size_constraints
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

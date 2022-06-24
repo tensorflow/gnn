@@ -1,17 +1,12 @@
-description: Returns a graph update layer for GCN convolution.
+# gcn.GCNHomGraphUpdate
 
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="gcn.GCNConvGraphUpdate" />
-<meta itemprop="path" content="Stable" />
-</div>
-
-# gcn.GCNConvGraphUpdate
+[TOC]
 
 <!-- Insert buttons and diff -->
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gcn/gcn_conv.py#L176-L229">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gcn/gcn_conv.py#L177-L234">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -21,11 +16,11 @@ description: Returns a graph update layer for GCN convolution.
 Returns a graph update layer for GCN convolution.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
-<code>gcn.GCNConvGraphUpdate(
+<code>gcn.GCNHomGraphUpdate(
     *,
     units: int,
-    edge_set_name: str,
     receiver_tag: tfgnn.IncidentNodeTag = tfgnn.TARGET,
+    add_self_loops: bool = False,
     feature_name: str = tfgnn.HIDDEN_STATE,
     name: str = &#x27;gcn&#x27;,
     **kwargs
@@ -35,11 +30,16 @@ Returns a graph update layer for GCN convolution.
 <!-- Placeholder for "Used in" -->
 
 The returned layer performs one update step of a Graph Convolutional Network
-(GCN) from https://arxiv.org/abs/1609.02907 on an edge set of a GraphTensor. It
-is best suited for graphs that have just that one edge set, which connects one
-node set to itself. For heterogeneous graphs with multiple edge sets connecting
-a single node set, users are advised to consider a GraphUpdate with one or more
+(GCN) from https://arxiv.org/abs/1609.02907 on a GraphTensor that stores a
+homogeneous graph. For heterogeneous graphs with multiple edge sets connecting a
+single node set, users are advised to consider a GraphUpdate with one or more
 GCNConv objects instead.
+
+> IMPORTANT: By default, the graph convolution computed by this class takes
+> inputs only along edges that are explicitly stored in the input GraphTensor.
+> Including the old node state in the inputs for computing the new node state
+> requires having an explicit loop in the edge set, or setting
+> `add_self_loops=True`.
 
 <!-- Tabular view -->
 
@@ -56,14 +56,6 @@ The desired number of output node features.
 </td>
 </tr><tr>
 <td>
-`edge_set_name`
-</td>
-<td>
-A GCNConv update happens on this edge set and its incident
-node set of the input GraphTensor.
-</td>
-</tr><tr>
-<td>
 `receiver_tag`
 </td>
 <td>
@@ -72,6 +64,14 @@ but it is perfectly reasonable to do a convolution towards the
 `tfgnn.SOURCE` instead. (Source and target are conventional names for
 the incident nodes of a directed edge, data flow in a GNN may happen
 in either direction.)
+</td>
+</tr><tr>
+<td>
+`add_self_loops`
+</td>
+<td>
+Whether to compute the result as if a loop from each node
+to itself had been added to the edge set.
 </td>
 </tr><tr>
 <td>

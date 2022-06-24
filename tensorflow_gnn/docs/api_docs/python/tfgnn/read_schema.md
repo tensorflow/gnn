@@ -1,11 +1,6 @@
-description: Read a proto schema from a file with text-formatted contents.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.read_schema" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.read_schema
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

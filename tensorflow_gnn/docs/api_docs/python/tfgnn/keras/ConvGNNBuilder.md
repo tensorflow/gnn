@@ -1,26 +1,17 @@
-description: Factory of layers that do convolutions on a graph.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.keras.ConvGNNBuilder" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="Convolve"/>
-<meta itemprop="property" content="__init__"/>
-</div>
-
 # tfgnn.keras.ConvGNNBuilder
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/builders.py#L15-L125">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/builders.py#L15-L128">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Factory of layers that do convolutions on a graph.
 
@@ -48,8 +39,6 @@ Layers created by ConvGNNBuilder can be (re-)used in any order.
 
 #### Example:
 
-
-
 ```python
 # Model hyper-parameters:
 h_dims = {'a': 64, 'b': 32, 'c': 32}
@@ -57,7 +46,7 @@ m_dims = {'a->b': 64, 'b->c': 32, 'c->a': 32}
 
 # ConvGNNBuilder initialization:
 gnn = tfgnn.keras.ConvGNNBuilder(
-  lambda edge_set_name, receiver_tag: tfgnn.keras.layers.SimpleConvolution(
+  lambda edge_set_name, receiver_tag: tfgnn.keras.layers.SimpleConv(
       tf.keras.layers.Dense(m_dims[edge_set_name]),
       receiver_tag=receiver_tag),
   lambda node_set_name: tfgnn.keras.layers.NextStateFromConcat(
@@ -92,11 +81,12 @@ model = tf.keras.models.Sequential([
 
 <h3 id="Convolve"><code>Convolve</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/builders.py#L77-L125">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/builders.py#L77-L128">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>Convolve(
-    node_sets: Optional[Set[const.NodeSetName]] = None
+    node_sets: Optional[Collection[const.NodeSetName]] = None
 ) -> tf.keras.layers.Layer
 </code></pre>
 
@@ -118,13 +108,12 @@ as one GraphUpdate layer.
 </td>
 <td>
 By default, the result updates all node sets that receive from
-at least one edge set. Passing a set of node set names here overrides
-this (possibly including node sets that receive from zero edge sets).
+at least one edge set. Passing a set of node set names here (or a
+Collection convertible to a set) overrides this (possibly including
+node sets that receive from zero edge sets).
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

@@ -1,17 +1,6 @@
-description: A composite tensor for heterogeneous directed graphs with features.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.GraphTensor" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="from_pieces"/>
-<meta itemprop="property" content="merge_batch_to_components"/>
-<meta itemprop="property" content="remove_features"/>
-<meta itemprop="property" content="replace_features"/>
-<meta itemprop="property" content="set_shape"/>
-</div>
-
 # tfgnn.GraphTensor
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

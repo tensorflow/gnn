@@ -1,11 +1,6 @@
-description: Generate a graph tensor from a schema, with random features.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.random_graph_tensor" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.random_graph_tensor
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

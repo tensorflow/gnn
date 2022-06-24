@@ -1,20 +1,6 @@
-description: A type spec for <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.GraphTensorSpec" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__eq__"/>
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__ne__"/>
-<meta itemprop="property" content="from_piece_specs"/>
-<meta itemprop="property" content="from_value"/>
-<meta itemprop="property" content="is_compatible_with"/>
-<meta itemprop="property" content="is_subtype_of"/>
-<meta itemprop="property" content="most_specific_common_supertype"/>
-<meta itemprop="property" content="most_specific_compatible_type"/>
-</div>
-
 # tfgnn.GraphTensorSpec
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

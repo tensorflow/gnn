@@ -1,17 +1,12 @@
-description: Returns a GraphSAGE GraphUpdater layer for nodes in node_set_names.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="graph_sage.GraphSAGEGraphUpdate" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # graph_sage.GraphSAGEGraphUpdate
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L458-L580">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L458-L571">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -23,14 +18,14 @@ Returns a GraphSAGE GraphUpdater layer for nodes in node_set_names.
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>graph_sage.GraphSAGEGraphUpdate(
     *,
-    node_set_names: Set[str],
+    units: int,
+    hidden_units: Optional[int] = None,
     receiver_tag: tfgnn.IncidentNodeTag,
+    node_set_names: Optional[Collection[tfgnn.NodeSetName]] = None,
     reduce_type: str = &#x27;mean&#x27;,
     use_pooling: bool = True,
     use_bias: bool = True,
     dropout_rate: float = 0.0,
-    units: int,
-    hidden_units: Optional[int] = None,
     l2_normalize: bool = True,
     combine_type: str = &#x27;sum&#x27;,
     activation: Union[str, Callable[..., Any]] = &#x27;relu&#x27;,
@@ -47,34 +42,26 @@ For more information on GraphSAGE algorithm please refer to
 applies only one step of GraphSAGE convolution over the incident nodes of the
 edge_set_name_list for the specified node_set_name node.
 
-Example: GraphSAGE aggregation on heterogenous incoming edges would look as
-below:
-
-```python
-graph = tfgnn.keras.layers.GraphUpdate(
-    node_sets={"paper": tfgnn.keras.layers.NodeSetUpdate(
-        {"cites": graph_sage.GraphSAGEPoolingConv(
-             receiver_tag=tfgnn.TARGET, units=32),
-          "writes": graph_sage.GraphSAGEPoolingConv(
-             receiver_tag=tfgnn.TARGET, units=32, hidden_units=16)},
-        graph_sage.GraphSAGENextState(units=32, dropout_rate=0.05))}
-)(graph)
-```
-
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
 <tr>
 <td>
-`node_set_names`
+`units`
 </td>
 <td>
-A set of node_set_names for which GraphSAGE graph update
-happens over each of their incident edges, where node_set_name is
-configured as the receiver_tag end.
+Number of output units of the linear transformation applied to both
+final aggregated sender node features as well as the self node feature.
+</td>
+</tr><tr>
+<td>
+`hidden_units`
+</td>
+<td>
+Number of output units to be configure for GraphSAGE pooling
+type convolution only.
 </td>
 </tr><tr>
 <td>
@@ -85,6 +72,17 @@ Either one of `tfgnn.SOURCE` or `tfgnn.TARGET`. The results of
 GraphSAGE are aggregated for this graph piece. When set to `tfgnn.SOURCE`
 or `tfgnn.TARGET`, the layer is called for an edge set and will aggregate
 results at the specified endpoint of the edges.
+</td>
+</tr><tr>
+<td>
+`node_set_names`
+</td>
+<td>
+A set (or convertible container) of node_set_names for which
+the GraphSAGE graph update happens over each of their incident edges,
+where node_set_name is configured as the receiver_tag end.
+If unset, defaults to all node sets that receive from at least one edge
+set.
 </td>
 </tr><tr>
 <td>
@@ -118,22 +116,6 @@ for the incident node features as well as for the self node feature.
 <td>
 Can be set to a dropout rate that will be applied to both
 incident node features as well as the self node feature.
-</td>
-</tr><tr>
-<td>
-`units`
-</td>
-<td>
-Number of output units of the linear transformation applied to both
-final aggregated sender node features as well as the self node feature.
-</td>
-</tr><tr>
-<td>
-`hidden_units`
-</td>
-<td>
-Number of output units to be configure for GraphSAGE pooling
-type convolution only.
 </td>
 </tr><tr>
 <td>

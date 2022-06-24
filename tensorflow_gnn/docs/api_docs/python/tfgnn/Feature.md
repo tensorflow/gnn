@@ -1,11 +1,6 @@
-description: A schema for a single feature.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.Feature" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.Feature
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

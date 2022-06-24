@@ -1,13 +1,6 @@
-description: Applies one round of updates to EdgeSets, NodeSets and Context.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.keras.layers.GraphUpdate" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__new__"/>
-</div>
-
 # tfgnn.keras.layers.GraphUpdate
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

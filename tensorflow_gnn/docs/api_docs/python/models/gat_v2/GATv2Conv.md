@@ -1,14 +1,6 @@
-description: The multi-head attention from Graph Attention Networks v2 (GATv2).
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="gat_v2.GATv2Conv" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__new__"/>
-<meta itemprop="property" content="convolve"/>
-</div>
-
 # gat_v2.GATv2Conv
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 
@@ -131,7 +123,6 @@ values.
     understood by `tf.keras.layers.Dense` etc.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -187,7 +178,6 @@ Forwarded to the base class tf.keras.layers.Layer.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>

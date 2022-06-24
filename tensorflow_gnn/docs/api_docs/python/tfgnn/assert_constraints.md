@@ -1,11 +1,6 @@
-description: Validate the shape constaints of a graph's features at runtime.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.assert_constraints" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.assert_constraints
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

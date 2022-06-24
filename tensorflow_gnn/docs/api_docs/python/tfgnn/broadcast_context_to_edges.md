@@ -1,11 +1,6 @@
-description: Broadcasts a context value to the edge_set edges.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.broadcast_context_to_edges" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.broadcast_context_to_edges
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

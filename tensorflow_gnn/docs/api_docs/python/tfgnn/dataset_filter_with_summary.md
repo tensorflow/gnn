@@ -1,11 +1,6 @@
-description: Dataset filter with a summary for the fraction of dataset elements removed.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.dataset_filter_with_summary" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.dataset_filter_with_summary
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

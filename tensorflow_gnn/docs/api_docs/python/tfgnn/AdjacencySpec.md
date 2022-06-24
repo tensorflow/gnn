@@ -1,23 +1,6 @@
-description: A type spec for <a href="../tfgnn/Adjacency.md"><code>tfgnn.Adjacency</code></a>.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.AdjacencySpec" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__eq__"/>
-<meta itemprop="property" content="__getitem__"/>
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__ne__"/>
-<meta itemprop="property" content="from_incident_node_sets"/>
-<meta itemprop="property" content="from_value"/>
-<meta itemprop="property" content="get_index_specs_dict"/>
-<meta itemprop="property" content="is_compatible_with"/>
-<meta itemprop="property" content="is_subtype_of"/>
-<meta itemprop="property" content="most_specific_common_supertype"/>
-<meta itemprop="property" content="most_specific_compatible_type"/>
-<meta itemprop="property" content="node_set_name"/>
-</div>
-
 # tfgnn.AdjacencySpec
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

@@ -1,12 +1,6 @@
-description: Constraints on the number of entities in the graph.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.SizeConstraints" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__new__"/>
-</div>
-
 # tfgnn.SizeConstraints
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

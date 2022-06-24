@@ -1,14 +1,6 @@
-description: Convenience base class for convolutions to nodes or to context.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.keras.layers.AnyToAnyConvolutionBase" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__new__"/>
-<meta itemprop="property" content="convolve"/>
-</div>
-
 # tfgnn.keras.layers.AnyToAnyConvolutionBase
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 
@@ -221,8 +213,8 @@ wrapped_f(feature_value, ...)
 ```
 
 The first three arguments of `f` are set to the input GraphTensor of
-the layer and the tag/name pair required by `tfgnn.broadcast()` and
-`tfgnn.pool()` to move values between the receiver and the messages that
+the layer and the tag/name pair required by <a href="../../../tfgnn/broadcast.md"><code>tfgnn.broadcast()</code></a> and
+<a href="../../../tfgnn/pool.md"><code>tfgnn.pool()</code></a> to move values between the receiver and the messages that
 are computed inside the convolution. The sole positional argument of
 `wrapped_f()` is passed to `f()`  as `feature_value=`, and any keyword
 arguments are forwarded.
@@ -236,10 +228,6 @@ Forwarded to the base class tf.keras.layers.Layer.
 </td>
 </tr>
 </table>
-
-
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

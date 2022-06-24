@@ -1,15 +1,6 @@
-description: GraphSAGE: pooling aggregator transform of neighbors followed by
-linear transformation.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="graph_sage.GraphSAGEPoolingConv" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__new__"/>
-<meta itemprop="property" content="convolve"/>
-</div>
-
 # graph_sage.GraphSAGEPoolingConv
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 
@@ -63,7 +54,6 @@ involves the aforementioned hidden layer. For element-wise aggregation (as in
 <a href="../graph_sage/GraphSAGEAggregatorConv.md"><code>graph_sage.GraphSAGEAggregatorConv</code></a>.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -151,7 +141,6 @@ Additional arguments for the Layer.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>

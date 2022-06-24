@@ -1,13 +1,6 @@
-description: Returns an empty feature with a shape that fits the input graph piece.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.keras.layers.MakeEmptyFeature" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__new__"/>
-</div>
-
 # tfgnn.keras.layers.MakeEmptyFeature
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

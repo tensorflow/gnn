@@ -1,11 +1,6 @@
-description: GraphSAGE.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="graph_sage" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # Module: graph_sage
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

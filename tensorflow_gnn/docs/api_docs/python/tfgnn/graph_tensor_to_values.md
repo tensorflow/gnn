@@ -1,11 +1,6 @@
-description: Convert an eager GraphTensor to a mapping of mappings of PODTs.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.graph_tensor_to_values" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.graph_tensor_to_values
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

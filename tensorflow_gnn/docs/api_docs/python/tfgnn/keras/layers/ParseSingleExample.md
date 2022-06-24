@@ -1,13 +1,6 @@
-description: Applies tfgnn.parse_single_example(graph_tensor_spec, _).
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.keras.layers.ParseSingleExample" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="__new__"/>
-</div>
-
 # tfgnn.keras.layers.ParseSingleExample
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 

@@ -1,17 +1,6 @@
-description: A composite tensor for node set features plus size information.
-
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.NodeSet" />
-<meta itemprop="path" content="Stable" />
-<meta itemprop="property" content="__getitem__"/>
-<meta itemprop="property" content="__init__"/>
-<meta itemprop="property" content="from_fields"/>
-<meta itemprop="property" content="get_features_dict"/>
-<meta itemprop="property" content="replace_features"/>
-<meta itemprop="property" content="set_shape"/>
-</div>
-
 # tfgnn.NodeSet
+
+[TOC]
 
 <!-- Insert buttons and diff -->
 
