@@ -56,6 +56,16 @@ The following docs go deeper into particular topics.
 
 <!-- Placeholder for Google-internal notebook links -->
 
+## API Reference
+
+TF-GNN has reference documentation for the API, extracted from the source code.
+
+  * See [here](../api_docs/python/tfgnn.md) for the core library
+    (`import tensorflow_gnn`) .
+  * See
+    [this list](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/models/README.md)
+    for the bundled models (`from tensorflow_gnn.models import foo`).
+
 ## Talks
 
 You can find related talks at our NeurIPS 2020 Expo workshop:
