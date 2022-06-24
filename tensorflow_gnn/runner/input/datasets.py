@@ -82,6 +82,9 @@ def _get_sampled_dataset(
     *,
     num_shards: int = 1,
     index: int = 0,
+    # TODO(b/196880966): `principal_cardinality` should be adjusted in the
+    # presence of sharding (e.g., if `num_replicas` > 1 then
+    # `principal_cardinality_per_shard` < `principal_cardinality`).
     principal_cardinality: Optional[int] = None,
     fixed_cardinality: bool = False,
     shuffle_filenames: bool = False,
