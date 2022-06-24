@@ -31,18 +31,22 @@ records of serialized tf.Example protocol buffers, which are read into a
 shuffling and batching (covered by the tf.data documentation), parsing tensor
 values, and applying problem-specific feature transformations.
 
-A `tfgnn.GraphTensor` is a composite tensor (like `tf.SparseTensor` or
-`tf.RaggedTensor`), so it can be used as a value in a Dataset. Like any
-composite tensor, it comes with a subclass of `tf.TypeSpec`, called
-`tfgnn.GraphTensorSpec`, which defines its node sets and edge sets,
-and contains the type specs for all features attached to the graph.
+A [`tfgnn.GraphTensor`](../api_docs/python/tfgnn/GraphTensor.md) is
+a composite tensor (like `tf.SparseTensor` or `tf.RaggedTensor`),
+so it can be used as a value in a Dataset. Like any composite tensor,
+it comes with a subclass of `tf.TypeSpec`, called
+[`tfgnn.GraphTensorSpec`](../api_docs/python/tfgnn/GraphTensorSpec.md),
+which defines its node sets and edge sets, and contains the type specs
+for all features attached to the graph.
 
-The function `graph = tfgnn.parse_single_example(spec, serialized)` returns a
+The function `graph = tfgnn.parse_single_example(spec, serialized)`
+[[doc](../api_docs/python/tfgnn/parse_single_example.md)] returns a
 GraphTensor of shape `[]` that conforms to the given GraphTensorSpec and holds
 the values parsed from the tf.string Tensor `serialized` of shape `[]`.
 Likewise, for batched datasets, `graph = tfgnn.parse_example(spec, serialized)`
-parses a tf.string Tensor of shape `[n]` into a GraphTensor of shape `[n]`,
-such that each element `graph[i]` conforms to the given `spec`.
+[[doc](../api_docs/python/tfgnn/parse_example.md)] parses a tf.string Tensor
+of shape `[n]` into a GraphTensor of shape `[n]`, such that each element
+`graph[i]` conforms to the given `spec`.
 
 Notice that the GraphTensorSpec must be known up-front and passed into the
 parsing code. It cannot be inferred from the tf.Example data. Besides,
@@ -109,8 +113,9 @@ properly tracking any TensorFlow Resource objects needed for preprocessing
 
 The following code snippet shows the high-level outline of this approach, using
 Keras' Functional API to define the models by composing Keras layers, including
-`tfgnn.keras.layers.ParseExample`, which is a thin Keras wrapper around
-`tfgnn.parse_example()` discussed in the previous section.
+[`tfgnn.keras.layers.ParseExample`](../api_docs/python/tfgnn/keras/layers/ParseExample.md),
+which is a thin Keras wrapper around `tfgnn.parse_example()` discussed in the
+previous section.
 
 ```python
 # Read the dataset of tf.Example protos for training.
@@ -186,9 +191,10 @@ as its keys.
 Typically, feature preprocessing happens locally on nodes and edges, without
 regard for adjacencies in the graph. It can employ a variety of techniques for
 different types of data. TF-GNN strives to reuse standard Keras implementations
-for these. To that end, the `tfgnn.keras.layers.MapFeatures` layer lets you
-express feature transformations on the graph as a collection of feature
-transformations for the various graph pieces (node sets, edge sets, and
+for these. To that end, the
+[`tfgnn.keras.layers.MapFeatures`](../api_docs/python/tfgnn/keras/layers/MapFeatures.md)
+layer lets you express feature transformations on the graph as a collection of
+feature transformations for the various graph pieces (node sets, edge sets, and
 context), each constructed by a Python callback.
 
 As an example, here is how you can replace feature `"id"` with `"hashed_id"` on
@@ -413,8 +419,9 @@ statically known shapes.)
 
 Input graphs typically have variable sizes of node sets and edge sets, and so do
 the GraphTensor inputs to a model that are created by merging a batch of input
-graphs (see above). Users need to call `tfgnn.keras.layers.PadToTotalSizes` on
-it (or the underlying `tfgnn.pad_to_total_sizes()` function) to fill in nodes
+graphs (see above). Users need to call
+[`tfgnn.keras.layers.PadToTotalSizes`](../api_docs/python/tfgnn/keras/layers/PadToTotalSizes.md)
+on it (or the underlying `tfgnn.pad_to_total_sizes()` function) to fill in nodes
 etc. until all size constraints are met exactly. All padding items go into a
 separate graph component (or multiple ones, if one component is not enough to
 fill up the number of components).
@@ -468,13 +475,15 @@ component).
 
 This simple approach is implemented by
 `tfgnn.find_tight_size_constraints(dataset, target_batch_size=...,
-min_nodes_per_component=...)`, a utility function to be run on the dataset
-before actual training starts. This is necessary if you need to accommodate all
-examples of a dataset (say, for validation), irrespective of how they come
-together in batches (which may vary for Datasets that use a non-deterministic
-order for speed). It also works well if the maximum size of each tensor is
-"close enough" to the mean size. For a dataset of sampled subgraphs, it may be
-possible to tighten the sampler limits towards that.
+min_nodes_per_component=...)`
+[[doc](../api_docs/python/tfgnn/find_tight_size_constraints.md)],
+a utility function to be run on the dataset before actual training starts.
+This is necessary if you need to accommodate all examples of a dataset
+(say, for validation), irrespective of how they come together in batches
+(which may vary for Datasets that use a non-deterministic order for speed).
+It also works well if the maximum size of each tensor is "close enough" to
+the mean size. For a dataset of sampled subgraphs, it may be possible to
+tighten the sampler limits towards that.
 
 However, many practical applications have infrequent but important examples with
 large sizes, and allocating space for the rare coincidence of a whole batch of
@@ -535,7 +544,8 @@ def _make_dataset(input_context):
 This technique requires careful monitoring of the effects of filtering. Outdated
 or incorrect size\_constraints could silently discard important parts of the
 input data. To that end, the helper function
-`ds = tfgnn.dataset_filter_with_summary(ds, predicate)` returns
-`ds.filter(predicate)`, but with a side output of the removed fraction to
-TensorBoard. Even so, we primarily recommend this approach as a speed
+`ds = tfgnn.dataset_filter_with_summary(ds, predicate)`
+[[doc](../api_docs/python/tfgnn/dataset_filter_with_summary.md)]
+returns `ds.filter(predicate)`, but with a side output of the removed fraction
+to TensorBoard. Even so, we primarily recommend this approach as a speed
 improvement for training, not for testing.

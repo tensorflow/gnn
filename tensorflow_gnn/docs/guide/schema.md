@@ -34,7 +34,8 @@ Each of the features is defined by
 Note that the feature shape applies to one item (node, edge) and excludes the
 prefix dimensions `[*graph_shape, (num_items), ...]` that are present in the
 feature tensor held by the EdgeSet, NodeSet or Context piece of a
-`tfgnn.GraphTensor`. See the [intro to GraphTensor](graph_tensor.md) for more.
+[`tfgnn.GraphTensor`](../api_docs/python/tfgnn/GraphTensor.md)
+. See the [intro to GraphTensor](graph_tensor.md) for more.
 
 Within one node set or edge set, all items (nodes/edges) must agree in the
 properties declared by the schema. (Missing input features can be made to agree

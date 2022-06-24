@@ -2,7 +2,8 @@
 
 ## Overview
 
-The `tfgnn.GraphTensor` class is the cornerstone of the TF-GNN library.
+The [`tfgnn.GraphTensor`](../api_docs/python/tfgnn/GraphTensor.md)
+class is the cornerstone of the TF-GNN library.
 It is a composite tensor (like RaggedTensor or SparseTensor), so it can be used
 directly in a tf.data.Dataset, as an input or output of a Keras Layer or a
 tf.function, and so on. The GraphTensor class represents heterogeneous directed
@@ -126,7 +127,8 @@ shape, which typically are the same for all inputs (maybe except for some
 dimensions in the shape that are not statically known). This allows to translate
 or "trace" the model's Python code into TensorFlow ops once, and then execute
 them many times, say, for a training loop. As a composite tensor, the same is
-true for each `tfgnn.GraphTensor`: Its associated `tfgnn.GraphTensorSpec` object
+true for each `tfgnn.GraphTensor`: Its associated
+[`tfgnn.GraphTensorSpec`](../api_docs/python/tfgnn/GraphTensorSpec.md) object
 holds the `tf.TensorSpec` and `tf.RaggedTensorSpec` objects for all its fields,
 plus a bit of metadata, notably `adjacency.source_name` and `.target_name` for
 each edge set. Inside a TensorFlow program, users can mostly just work with the

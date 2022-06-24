@@ -49,9 +49,10 @@ The hidden states on nodes are created by mapping a dict of features (possibly
 already preprocessed by the input pipeline) to fixed-size hidden states for
 nodes. This happens separately for each node set, but batched for all nodes of
 the node set, so the result for each node set is a Tensor of shape
-`[num_nodes, state_size]`. The `tfgnn.keras.layers.MapFeatures` layer lets you
-specify such a transformation as a callback function that transforms feature
-dicts, with GraphTensor mechanics taken off your shoulders:
+`[num_nodes, state_size]`. The
+[`tfgnn.keras.layers.MapFeatures`](../api_docs/python/tfgnn/keras/layers/MapFeatures.md)
+layer lets you specify such a transformation as a callback function that
+transforms feature dicts, with GraphTensor mechanics taken off your shoulders:
 
 ```python
 def set_initial_node_state(node_set, node_set_name):
@@ -140,7 +141,8 @@ def gnn(graph):
 
 You can get `AGraphUpdate` from several sources:
 
-**Use predefined `tensorflow_gnn.models`** (missing doc).
+**Use predefined `tensorflow_gnn.models`**
+[[README](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/models/README.md)].
 This subdirectory collects implementations of several standard GNN
 architectures. Typically, they let you do something along the lines of
 
@@ -169,11 +171,11 @@ should be a GraphTensor, to fit in with the rest of TF-GNN.
 
 **Composing GraphUpdates from convolutions and next-state layers** is a middle
 ground between these two: it uses the highly configurable
-`tfgnn.keras.layers.GraphUpdate` layer to define custom GNNs for the
-heterogeneous graph at hand from standard building blocks without having to
-write low-level code. This approach turned out very useful in the initial
-practical applications of the TF-GNN library, and we will discuss it at length
-in its own section further down.
+[`tfgnn.keras.layers.GraphUpdate`](../api_docs/python/tfgnn/keras/layers/GraphUpdate.md)
+layer to define custom GNNs for the heterogeneous graph at hand from standard
+building blocks without having to write low-level code. This approach turned out
+very useful in the initial practical applications of the TF-GNN library, and we
+will discuss it at length in its own section further down.
 
 
 ### Reading out final states and making predictions
@@ -259,7 +261,9 @@ model.fit(train_ds, ...)
 
 Recall that we regard a **Graph Neural Network** on a heterogeneous graph as a
 sequence of GraphUpdates. In this section, we define them using the highly
-parametric `tfgnn.keras.layers.GraphUpdate` layer class.
+parametric
+[`tfgnn.keras.layers.GraphUpdate`](../api_docs/python/tfgnn/keras/layers/GraphUpdate.md)
+layer class.
 
 ```python
 def gnn(graph):
@@ -298,8 +302,9 @@ new_state = node_set_update(graph, node_set_name="...")
 ```
 
 and returns a new hidden state tensor for the specified node set. Users can use
-the library-provided `NodeSetUpdate` class as shown or implement their own Keras
-layer to do this.
+the library-provided
+[`tfgnn.keras.layers.NodeSetUpdate`](../api_docs/python/tfgnn/keras/layers/NodeSetUpdate.md)
+class as shown or implement their own Keras layer to do this.
 
 The library-provided `tfgnn.keras.layers.NodeSetUpdate` combines two kinds of
 pieces that do actual computations:
@@ -338,10 +343,12 @@ By contrast, "**receiver**" and "**sender**" talk about the direction of
 dataflow in one particular place of a GNN model: either one of source and target
 can be picked as the **receiver**, the other one is the **sender**.
 
-The `SimpleConv` used above applies the passed-in transformation
-`Dense(..., "relu")` on the concatenated source and target node states of each
-edge and then pools the result for each receiver node, with a user-specified
-pooling method like `"sum"` or `"mean"`.
+The
+[`tfgnn.keras.layers.SimpleConv`](../api_docs/python/tfgnn/keras/layers/SimpleConv.md)
+used above applies the passed-in transformation `Dense(..., "relu")`
+on the concatenated source and target node states of each edge and then
+pools the result for each receiver node, with a user-specified pooling method
+like `"sum"` or `"mean"`.
 
 Many other convolutions can be used in this place, from the TF-GNN library or
 defined in user code to match the calling convention above. See the separate
@@ -372,16 +379,22 @@ heterogeneous graphs: At each node, a convolution computes one result for each
 edge set (aggregated across the variable number of incident edges), but
 computing the new node state from the fixed number of edge sets is left to the
 next-state layer. The example above shows the library-provided
-`NextStateFromConcat`, which concatenates all inputs and sends them through a
-user-supplied projection for computing the new node state.
+[`NextStateFromConcat`](../api_docs/python/tfgnn/keras/layers/NextStateFromConcat.md),
+which concatenates all inputs and sends them through a user-supplied projection
+for computing the new node state.
 
-Users can supply their own next-state layers. For example, much of the research
-literature discusses homogeneous graphs in which the single convolution result
-is used directly as the new node state, which can be expressed in TF-GNN as
-follows:
+Much of the research literature discusses homogeneous graphs in which the single
+convolution result is used directly as the new node state (more true to the
+original meaning of "convolution"). To do so, and error out for multiple inputs,
+the library provides
+[`SingleInputNextState`](../api_docs/python/tfgnn/keras/layers/SingleInputNextState.md).
+
+Users can supply their own next-state layers. As a simple example, let's see
+a next-state layer that passes through a single edge input but simply ignores
+context input:
 
 ```python
-class NextNodeStateFromSingleEdgeSet(tf.keras.layers.Layer):
+class NextNodeStateFromSingleEdgeInput(tf.keras.layers.Layer):
 
   def call(self, inputs):
     unused_state, edge_inputs, unused_context_input = inputs  # Unpack.
@@ -571,10 +584,11 @@ and returns a new hidden state tensor for the specified edge set. Users can use
 the library-provided `EdgeSetUpdate` class as shown or implement their own Keras
 layer to do this.
 
-The library-provided `tfgnn.keras.layers.EdgeSetUpdate` selects input features
-from the edge and its incident nodes, then passes them through a next-state
-layer, similar to the `NodeSetUpdate` and `ContextUpdate` discussed above.
-Please see its docstring for details.
+The library-provided
+[`tfgnn.keras.layers.EdgeSetUpdate`](../api_docs/python/tfgnn/keras/layers/EdgeSetUpdate.md)
+selects input features from the edge and its incident nodes, then passes them
+through a next-state layer, similar to the `NodeSetUpdate` and `ContextUpdate`
+discussed above. Please see its documentation for details.
 
 A **node set update** in a model with edge states has the same syntax as in the
 node-centric case but does a different job. As before, it gets called like
@@ -594,7 +608,7 @@ edge sets (edge-to-node):
 
 ```python
 tfgnn.keras.layers.NodeSetUpdate(  # For node set "author".
-    {"writes": ​​tfgnn.keras.layers.Pool(tfgnn.SOURCE, "mean"),
+    {"writes": tfgnn.keras.layers.Pool(tfgnn.SOURCE, "mean"),
      ...},
     tfgnn.keras.layers.NextStateFromConcat(tf.keras.layers.Dense(128)))
 ```
@@ -657,7 +671,8 @@ class MyFirstConvolution(tf.keras.layers.Layer):
 ```
 
 The literature on GNNs abounds with definitions of convolutions. TF-GNN contains
-a growing collection of these under `tensorflow_gnn.models`.
+a growing collection of these under
+[`tensorflow_gnn.models`](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/models/README.md)].
 
 
 ### Convolutions to context

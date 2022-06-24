@@ -12,7 +12,7 @@ Apache Beam that we provide to sample from very large graphs.
 ## Writing Graph Tensors to Files
 
 If you use Python, the most straightforward method to produce streams of
-`GraphTensor` instances to files is to
+[`GraphTensor`](./graph_tensor.md) instances to files is to
 
 1.  Create eager instances of `GraphTensor`
 2.  Call `tensorflow_gnn.write_example()`
@@ -55,13 +55,13 @@ sampled data is encoded as a set of `tf.train.Feature` objects within a
 `tf.train.Example` protocol buffer (protocol buffer messages are efficient
 compact binary containers for your training data). For more information about
 these, see the
-[TensorFlow documentation](https://www.tensorflow.org/api_docs/python/tf/train/Example)
-.
+[TensorFlow documentation](https://www.tensorflow.org/api_docs/python/tf/train/Example).
 
 If the encoding is carried out in Python (e.g. from an Apache Beam job), you
 should be able to create an instance of an eager GraphTensor in memory (e.g.
 using the `GraphTensor.from_pieces()` method) and use the
-`tfgnn.write_example()` function to encode it to a `tf.train.Example`. However,
+[`tfgnn.write_example()`](../api_docs/python/tfgnn/write_example.md)
+function to encode it to a `tf.train.Example`. However,
 if this is not done in Python, you will have to write your own encoder.
 
 Fortunately, this is not difficult. This section describes in detail the
@@ -80,7 +80,7 @@ edges/<set_name>.<feature_name>
 ```
 
 `<set_name>` is the name of the node set or edge set. These should correspond
-directly to the features declared in the `GraphSchema` message.
+directly to the features declared in the [`GraphSchema`](./schema.md) message.
 
 ### Special Features
 
@@ -690,7 +690,7 @@ edge_sets {
 
 A TF-GNN modeler would craft a SamplingSpec proto configuration for a particular
 task. For the OGBN-MAG venue prediction challenge,
-[examples/max/sampling_spec.pbtxt](https://github.com/tensorflow/gnn/blob/main/examples/mag/sampling_spec.pbtxt)
+[examples/mag/sampling_spec.pbtxt](https://github.com/tensorflow/gnn/blob/main/examples/mag/sampling_spec.pbtxt)
 contains one such valid specification:
 
 ```
