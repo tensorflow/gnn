@@ -55,7 +55,6 @@ $$h_v := \text{ReLU}(
     W_{\text{state}} (h_v || m_{E_1} || m_{E_2} || \ldots)).$$
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -137,7 +136,6 @@ by `tf.keras.layers.Dense` etc.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>

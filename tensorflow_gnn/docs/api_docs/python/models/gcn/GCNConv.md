@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gcn/gcn_conv.py#L14-L174">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gcn/gcn_conv.py#L14-L175">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -39,7 +39,8 @@ convolution on an edge set in a tfgnn.keras.layers.NodeSetUpdate.
 
 #### Init arguments:
 
-*   <b>`units`</b>: The number of output features (input features are inferred).
+*   <b>`units`</b>: Number of output units for this transformation applied to
+    sender node features.
 *   <b>`receiver_tag`</b>: This layer's result is obtained by pooling the
     per-edge results at this endpoint of each edge. The default is
     `tfgnn.TARGET`, but it is perfectly reasonable to do a convolution towards
