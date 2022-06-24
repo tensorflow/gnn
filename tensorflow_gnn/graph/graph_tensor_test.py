@@ -1015,5 +1015,45 @@ class CheckScalarGraphTensorTest(tf.test.TestCase):
       gt.check_scalar_graph_tensor(graph_tensor, 'My test code')
 
 
+class CheckHomogeneousGraphTensorTest(tf.test.TestCase, parameterized.TestCase):
+
+  def testSuccess(self):
+    graph = _make_test_graph_from_num_pieces(1, 1)
+    gt.check_homogeneous_graph_tensor(graph)  # Doesn't raise.
+    gt.check_homogeneous_graph_tensor(graph.spec)  # Doesn't raise.
+
+  @parameterized.named_parameters(
+      ('ZeroNodeSets', 0, 0),
+      ('ThreeNodeSets', 3, 1),
+      ('ZeroEdgeSets', 1, 0),
+      ('SevenEdgeSets', 1, 7),
+      ('ManyPieces', 4, 5))
+  def testFailure(self, num_node_sets, num_edge_sets):
+    graph = _make_test_graph_from_num_pieces(num_node_sets, num_edge_sets)
+    with self.assertRaisesRegex(ValueError,
+                                r'a graph with 1 node set and 1 edge set'):
+      gt.check_homogeneous_graph_tensor(graph)
+    with self.assertRaisesRegex(ValueError,
+                                r'a graph with 1 node set and 1 edge set'):
+      gt.check_homogeneous_graph_tensor(graph.spec)
+
+
+def _make_test_graph_from_num_pieces(num_node_sets, num_edge_sets):
+  # pylint: disable=g-complex-comprehension
+  return gt.GraphTensor.from_pieces(
+      node_sets={
+          f'atoms_{i}': gt.NodeSet.from_fields(
+              sizes=[2, 1],
+              features={'f': [[1.], [2.], [3.]]})
+          for i in range(num_node_sets)},
+      edge_sets={
+          f'bonds_{j}': gt.EdgeSet.from_fields(
+              sizes=as_tensor([2, 0]),
+              adjacency=adj.Adjacency.from_indices(
+                  source=('atoms_1', as_ragged([[0, 1], []])),
+                  target=('atoms_1', as_ragged([[1, 2], []]))))
+          for j in range(num_edge_sets)})
+
+
 if __name__ == '__main__':
   tf.test.main()

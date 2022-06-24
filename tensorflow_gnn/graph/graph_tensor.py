@@ -1275,3 +1275,16 @@ def check_scalar_graph_tensor(graph: Union[GraphTensor, GraphTensorSpec],
          ' Use GraphTensor.merge_batch_to_components() to merge all contained'
          ' graphs into one contiguously indexed graph of the scalar'
          ' GraphTensor.'))
+
+
+def check_homogeneous_graph_tensor(graph: Union[GraphTensor, GraphTensorSpec],
+                                   name='This operation') -> None:
+  """Raises ValueError unless there is exactly one node set and edge set."""
+  if isinstance(graph, GraphTensorSpec):
+    spec = graph
+  else:
+    spec = graph.spec
+  if len(spec.node_sets_spec) != 1 or len(spec.edge_sets_spec) != 1:
+    raise ValueError(
+        f'{name} requires a graph with 1 node set and 1 edge set '
+        f'but got {len(spec.node_sets_spec)} and {len(spec.edge_sets_spec)}')
