@@ -7,13 +7,7 @@ package(
     default_visibility = [":__subpackages__"],
 )
 
-package_group(
-    name = "users",
-    includes = [
-        "//tensorflow_gnn/models/vanilla_mpnn/google:experimental_users",
-        "//tensorflow_gnn/models/vanilla_mpnn/google:supported_users",
-    ],
-)
+package_group(name = "users")
 
 pytype_strict_library(
     name = "vanilla_mpnn",

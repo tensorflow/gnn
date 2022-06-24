@@ -20,8 +20,8 @@ import apache_beam as beam
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
-# Placeholder for Google-internal record file format import
-# Placeholder for Google-internal sorted string file format import
+# Placeholder for Google-internal record file format pipeline import
+# Placeholder for Google-internal sorted string file format pipeline import
 
 
 # Special constant column names required to be present in the node and edge
