@@ -196,10 +196,7 @@ setup(
     long_description=_LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
     keywords='tensorflow gnn graph',
-    # TODO(b/231478710): Associate a public URL for the project, e.g.,
-    # url=https://www.tensorflow.org/gnn.
-    # TODO(b/231478710): Associate a public download URL for the project, e.g.,
-    # https://github.com/tensorflow/gnn/tags.
+    url='https://github.com/tensorflow/gnn',
     download_url='https://github.com/tensorflow/gnn.git',
     requires=[],
     cmdclass={
