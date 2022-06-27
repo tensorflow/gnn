@@ -27,4 +27,4 @@ with the version string syntax of [PEP 440](https://peps.python.org/pep-0440/):
 # IMPORANT: Right after branching rX.Y, bump the main branch to X.(Y+1).0.dev1.
 # (Submit a change to the Source of Truth, get it out on the main branch asap.)
 
-__version__ = "0.3.0.dev1"
+__version__ = "0.2.0rc0"
