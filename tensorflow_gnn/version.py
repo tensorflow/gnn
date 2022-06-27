@@ -17,7 +17,7 @@ with the version string syntax of [PEP 440](https://peps.python.org/pep-0440/):
 # On the main branch, leave this at X.Y.0.dev1 ( = dev version of next release).
 #
 # To cut release X.Y.0, make a branch rX.Y and make commits on that branch
-# to set "X.Y.0.rc0", "X.Y.0.rc1", ... (= release candidates) and eventually
+# to set "X.Y.0rc0", "X.Y.0rc1", ... (= release candidates) and eventually
 # "X.Y.0" (= the release) as appropriate. We do not expect to do alpha/beta
 # versions for an ordinary release.
 #
@@ -27,4 +27,4 @@ with the version string syntax of [PEP 440](https://peps.python.org/pep-0440/):
 # IMPORANT: Right after branching rX.Y, bump the main branch to X.(Y+1).0.dev1.
 # (Submit a change to the Source of Truth, get it out on the main branch asap.)
 
-__version__ = "0.2.0.dev1"
+__version__ = "0.3.0.dev1"
