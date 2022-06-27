@@ -748,19 +748,22 @@ graph exploration (traversal) in plate notation:
   <img style="width:50%" src="images/ogbn_mag_sampling_spec.svg">
 </p>
 
-Which specifies the following sampling proceedure:
+Which specifies the following sampling procedure:
 
-*   Select all nodes from "paper" node set as "seeds".
-*   Sample 32 more "paper" nodes via the "cites" edge set.
-*   Sample 8 "author" nodes from each node in the seed "paper" and "paper"
-    samples drawn from the "cites" relation in the previous step.
-*   Sample 16 more "paper" nodes for every "author" node through the "writes"
-    relation.
-*   For every "author" sample 16 associated institutions through the
-    "affiliated_with" edge set.
-*   For every paper sample 16 "Field of Study" nodes using the "has_topic" edge
-    set.
+1.   Select all nodes from "paper" node set as "seeds".
+2.   Sample up to 32 "cites" edges outgoing from seeds.
+3.   Sample up to 8 "written" edges from each node in the seed "paper" and
+     "paper" nodes drawn on the step 2.
+4.   Sample up to 16 more "writes" edges for every "author" node from the
+     step 3.
+5.   For every "author" sample up to 16 "affiliated_with" edges.
+6.   For every paper sample up to 16 "has_topic" edges.
 
+NOTE: By default the Graph Sampler samples **edges** from the graph. This allows
+to better control complexity even for dense graphs with large-degree nodes.
+For some applications it is desired to include all edges from the original graph
+that connect sampled nodes by setting
+`--edge_aggregation_method=node`.
 
 ##### Apache Beam and Google Cloud Dataflow
 
@@ -830,7 +833,7 @@ project and start Dataflow jobs. Default application credentials are
 sufficient for a small isolated project and running batch sampling jobs but
 production environments will probably want to create custom service accounts.
 
-Default application credentials can be aquired by running:
+Default application credentials can be acquired by running:
 
 ```shell
 gcloud auth application-default login
@@ -840,10 +843,10 @@ After following the instructions to complete authentication, a JSON file will be
 created and placed (typically) at
 `~/.config/gcloud/application_default_credentials.json`.
 
-Addtionally, Docker should be installed on the host machine. Users could
+Additionally, Docker should be installed on the host machine. Users could
 potentially install python and TFGNN locally but it is easiest to use the Docker
 container to instantiate the Dataflow job especially as the python version of
-the job starting the Dataflow job and the version of python runing the workers
+the job starting the Dataflow job and the version of python running the workers
 must match (a Dataflow constraint). Using docker locally to start (or even to
 develop) ensures the execution environment of the host exactly matches the
 environment of the Dataflow worker machines.
@@ -892,7 +895,6 @@ the sampling job on Dataflow. However, it is worth discussing the details of the
 shell script.
 
 ```shell
-MACHINE_TYPE="n1-standard-1"
 MAX_NUM_WORKERS=1000
 
 SAMPLING_SPEC="/app/examples/mag/sampling_spec.pbtxt"
@@ -915,6 +917,7 @@ docker run -v ~/.config/gcloud:/root/.config/gcloud \
   --sampling_spec="${SAMPLING_SPEC}" \
   --output_samples="${OUTPUT_SAMPLES}" \
   --runner=DataflowRunner \
+  --dataflow_service_options=enable_prime \
   --project=${GOOGLE_CLOUD_PROJECT} \
   --region=${REGION} \
   --max_num_workers="${MAX_NUM_WORKERS}" \
@@ -922,7 +925,7 @@ docker run -v ~/.config/gcloud:/root/.config/gcloud \
   --job_name="${JOB_NAME}" \
   --no_use_public_ips \
   --network="${GCP_VPC_NAME}" \
-  --worker_machine_type="${MACHINE_TYPE}" \
+  --experiments=shuffle_mode=service \
   --experiments=use_monitoring_state_manager \
   --experiments=enable_execution_details_collection \
   --experiment=use_runner_v2 \
@@ -942,18 +945,18 @@ The remaining arguments specify the location of the graph schema, sampling
 specification and the target output files.
 
 A tricky part of the command is the `--network=${GCP_VPC_NAME}`. Dataflow
-workers by default allocate machines that aquire IP addresses with external
+workers by default allocate machines that acquire IP addresses with external
 internet access. This makes sense as some users of Dataflow will want to `pip
 install` additional libraries or use other mechanisms to download content to
 workers. However, IPs with external internet access count against the project's
-global quota which may require special permission to increase. We can defina a
+global quota which may require special permission to increase. We can define a
 named [Virtual Private Cloud (VPC)](https://cloud.google.com/vpc) to allocate a
 dedicated IP range that can scale to the maximum number of Dataflow workers
 without counting against (or allocating) the global external IP quota. These
 steps and flag are optional but are recommended.
 
 The Graph Sampler is not limited to running on Google Cloud infrastructure, but
-instructions for aquiring and injecting credentials as well as cloud-specific
+instructions for acquiring and injecting credentials as well as cloud-specific
 command line arguments will differ from platform to platform.
 
 ### Sampling Homogeneous Graphs
@@ -971,5 +974,5 @@ citation network used for benchmarking but only consists of a single entity and
 edge type describing the links between "papers". An example of running sampling
 on the OGBN-ARXIV dataset is given in
 [examples/arxiv](https://github.com/tensorflow/gnn/tree/main/examples/arxiv)
-which can be run following the same proceedures described in the OGBN-MAG
+which can be run following the same procedures described in the OGBN-MAG
 example.
