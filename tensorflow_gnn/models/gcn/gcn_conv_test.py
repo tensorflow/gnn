@@ -261,7 +261,7 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                     sizes=tf.constant([2, 1]),
                     adjacency=tfgnn.Adjacency.from_indices(
                         ('paper', tf.constant([0, 0, 1])),
-                        ('author', tf.constant([1, 0, 3])),
+                        ('author', tf.constant([1, 0, 2])),
                     )),
         },
     )
