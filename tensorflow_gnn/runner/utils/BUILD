@@ -61,6 +61,9 @@ py_strict_test(
     name = "attribution_test",
     srcs = ["attribution_test.py"],
     srcs_version = "PY3",
+    tags = [
+        "no_oss",  # TODO(b/237419537) remove on tf 2.10 release
+    ],
     deps = [
         ":attribution",
         "//:expect_tensorflow_installed",
