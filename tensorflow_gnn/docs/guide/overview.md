@@ -54,7 +54,30 @@ The following docs go deeper into particular topics.
     models and a toolbox for writing your own. Users of the TF-GNN Runner
     are encouraged to consult this page to define custom models in the Runner.
 
-<!-- Placeholder for Google-internal notebook links -->
+## Colab Tutorials
+
+These Colab notebooks run complete examples of building and training a TF-GNN
+model on a Google server from within your browser.
+
+  * [Molecular Graph
+    Classification](https://colab.research.google.com/github/tensorflow/gnn/blob/master/examples/notebooks/intro_mutag_example.ipynb)
+    trains a model for the MUTAG dataset (from the
+    [TUDatasets](https://chrsmrrs.github.io/datasets/) collection) that consists
+    of 188 small, homogeneous graphs representing molecules. This is a good
+    first read to get acquainted with GNNs.
+  * [Solving OGBN-MAG
+    end-to-end](https://colab.research.google.com/github/tensorflow/gnn/blob/master/examples/notebooks/ogbn_mag_e2e.ipynb#scrollTo=udvGTpefWRE_)
+    trains a model on heterogeneous sampled subgraphs from the
+    [OGBN-MAG](https://ogb.stanford.edu/docs/nodeprop/#ogbn-mag) dataset (from
+    Stanford's Open Graph Benchmark) that contains 1 million research papers,
+    their authors, and other relations. This is a more advanced example that
+    introduces node classification from sampled subgraphs as well as the nuts
+    and bolts of training in parallel on multiple accelerators (GPU, TPU).
+  * [Learning shortest paths with
+    GraphNetworks](https://colab.research.google.com/github/tensorflow/gnn/blob/master/examples/notebooks/graph_network_shortest_path.ipynb)
+    demonstrates an Encoder/Process/Decoder architecture for predicting the
+    edges of a shortest path, using an Graph Network with edge states.
+    Take a look if you are interested in advanced modeling.
 
 ## API Reference
 
