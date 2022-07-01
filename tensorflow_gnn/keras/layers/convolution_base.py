@@ -308,7 +308,7 @@ class AnyToAnyConvolutionBase(tf.keras.layers.Layer, abc.ABC):
     if None not in [edge_set, self._sender_edge_feature]:
       sender_edge_input = edge_set[self._sender_edge_feature]
 
-    return self.convolve(
+    return self.convolve(  # pytype: disable=bad-return-type  # dynamic-method-lookup
         sender_node_input=sender_node_input,
         sender_edge_input=sender_edge_input,
         receiver_input=receiver_input,
