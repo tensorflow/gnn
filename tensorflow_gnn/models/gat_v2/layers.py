@@ -180,7 +180,7 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       self._w_sender_edge = None
 
     if self._w_sender_node is None and self._w_sender_edge is None:
-      raise ValueError("GATv2Attention initialized with no inputs.")
+      raise ValueError("GATv2Conv initialized with no inputs.")
 
     # Create attention logits layers, one for each head. Note that we can't
     # use a single Dense layer that outputs `num_heads` units because we need
@@ -272,7 +272,7 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     extra_dims = tensor.shape[1:-1]  # Possibly empty.
     if not extra_dims.is_fully_defined():
       raise ValueError(
-          "GATv2Attention requires non-ragged Tensors as inputs, "
+          "GATv2Conv requires non-ragged Tensors as inputs, "
           "and GraphTensor requires these to have statically known "
           f"dimensions except the first, but got {tensor.shape}")
     new_shape = (-1, *extra_dims, self._num_heads, self._per_head_channels)
