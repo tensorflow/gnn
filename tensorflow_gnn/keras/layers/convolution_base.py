@@ -236,7 +236,7 @@ class AnyToAnyConvolutionBase(tf.keras.layers.Layer, abc.ABC):
            edge_set_name: Optional[gt.EdgeSetName] = None,
            node_set_name: Optional[gt.NodeSetName] = None,
            receiver_tag: Optional[const.IncidentNodeOrContextTag] = None,
-           training: Optional[bool] = False) -> gt.GraphTensor:
+           training: Optional[bool] = False) -> tf.Tensor:
     # pylint: disable=g-long-lambda
 
     # Normalize inputs.
@@ -308,7 +308,7 @@ class AnyToAnyConvolutionBase(tf.keras.layers.Layer, abc.ABC):
     if None not in [edge_set, self._sender_edge_feature]:
       sender_edge_input = edge_set[self._sender_edge_feature]
 
-    return self.convolve(  # pytype: disable=bad-return-type  # dynamic-method-lookup
+    return self.convolve(
         sender_node_input=sender_node_input,
         sender_edge_input=sender_edge_input,
         receiver_input=receiver_input,
