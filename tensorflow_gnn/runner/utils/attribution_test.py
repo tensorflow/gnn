@@ -1,11 +1,12 @@
 """Tests for attribution."""
-import itertools
-
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
 from tensorflow_gnn.runner import orchestration
-from tensorflow_gnn.runner.tasks import attribution
+from tensorflow_gnn.runner.utils import attribution
+
+IntegratedGradientsExporter = attribution.IntegratedGradientsExporter
+ModelExporter = orchestration.ModelExporter
 
 
 class AttributionTest(tf.test.TestCase):
@@ -28,14 +29,11 @@ class AttributionTest(tf.test.TestCase):
               tfgnn.EdgeSet.from_fields(
                   features={"weight": tf.constant((153, 9), dtype=tf.float32)},
                   sizes=tf.constant((2,), dtype=tf.int32),
-                  adjacency=tfgnn.HyperAdjacency.from_indices({
-                      0: ("node", tf.constant((0, 1), dtype=tf.int32)),
-                      1: ("node", tf.constant((1, 2), dtype=tf.int32))
-                  }),
+                  adjacency=tfgnn.Adjacency.from_indices(
+                      source=("node", (0, 1)), target=("node", (1, 2))),
               ),
       },
   )
-  task = attribution.IntegratedGradients()
 
   def test_counterfactual_random(self):
     counterfactual = attribution.counterfactual(self.gt, random=True, seed=8191)
@@ -185,8 +183,15 @@ class AttributionTest(tf.test.TestCase):
         summation.node_sets["node"].features["h"],
         tf.constant((8191 * 4, 9474 * 4, 1634 * 4), dtype=tf.float32))
 
-  def test_integrated_gradients(self):
-    inputs = tf.keras.layers.Input(type_spec=self.gt.spec)
+  def test_integrated_gradients_exporter(self):
+    examples = tf.keras.Input(shape=(), dtype=tf.string, name="examples")
+    parsed = tfgnn.keras.layers.ParseExample(self.gt.spec)(examples)
+    parsed = parsed.merge_batch_to_components()
+    labels = parsed.context["h"][0]
+
+    preprocess_model = tf.keras.Model(examples, (parsed, labels))
+
+    inputs = tf.keras.Input(type_spec=self.gt.spec)
     graph = inputs.merge_batch_to_components()
 
     values = tfgnn.broadcast_node_to_edges(
@@ -196,7 +201,7 @@ class AttributionTest(tf.test.TestCase):
         feature_name="h")[:, None]
     weights = graph.edge_sets["edge"].features["weight"][:, None]
 
-    messages = tf.keras.layers.concatenate((values, weights), axis=-1)
+    messages = tf.keras.layers.Concatenate()((values, weights))
     messages = tf.keras.layers.Dense(16)(messages)
 
     pooled = tfgnn.pool_edges_to_node(
@@ -205,34 +210,31 @@ class AttributionTest(tf.test.TestCase):
         tfgnn.SOURCE,
         reduce_type="sum",
         feature_value=messages)
+
     h_old = graph.node_sets["node"].features["h"][:, None]
-
-    h_next = tf.keras.layers.concatenate((pooled, h_old), axis=-1)
+    h_next = tf.keras.layers.Concatenate()((pooled, h_old))
     h_next = tf.keras.layers.Dense(1)(h_next)
-
     graph = graph.replace_features(node_sets={"node": {"h": h_next}})
 
-    sizes = graph.node_sets["node"].sizes
-    values = graph.node_sets["node"].features["h"]
-    components_starts = tf.math.cumsum(sizes, exclusive=True)
+    activations = tfgnn.keras.layers.ReadoutFirstNode(
+        node_set_name="node",
+        feature_name="h")(graph)
 
-    activations = tf.gather(values, components_starts)
-
-    model = tf.keras.Model(inputs=[inputs], outputs=[activations])
-    model = attribution.ModelWithIntegratedGradients(model)
+    model = tf.keras.Model(inputs, activations)
     model.compile("adam", "mae")
 
-    def gen():
-      return (self.gt for _ in itertools.count(1))
+    export_dir = self.create_tempdir()
+    exporter = attribution.IntegratedGradientsExporter("output", steps=3)
+    exporter.save(preprocess_model, model, export_dir)
 
-    ds = tf.data.Dataset.from_generator(gen, output_signature=self.gt.spec)
-    ds = ds.map(lambda gt: (gt, 1.))  # Add some labels.
+    saved_model = tf.saved_model.load(export_dir)
 
-    gt = model.integrated_gradients(
-        next(iter(ds)),
-        random_counterfactual=True,
-        steps=8,
-        seed=8191)
+    example = tfgnn.write_example(self.gt)
+    kwargs = {
+        "examples": tf.constant((example.SerializeToString(),))
+    }
+    outputs = saved_model.signatures["integrated_gradients"](**kwargs)
+    gt = outputs["output"]
 
     # The above GNN passes a single message over the only edge type before
     # collecting a seed node for activations. The above graph is a line:
@@ -242,14 +244,14 @@ class AttributionTest(tf.test.TestCase):
     # should see no integrated gradients.
     self.assertAllClose(
         gt.node_sets["node"].features["h"],
-        tf.constant((2.6460934, 4.4251842, 0), dtype=tf.float32))
+        tf.constant((0.992285, 1.659444, 0.), dtype=tf.float32))
 
     self.assertAllClose(
         gt.edge_sets["edge"].features["weight"],
-        tf.constant((1.7112691, 0), dtype=tf.float32))
+        tf.constant((0.641726, 0.), dtype=tf.float32))
 
   def test_protocol(self):
-    self.assertIsInstance(attribution.IntegratedGradients, orchestration.Task)
+    self.assertIsInstance(IntegratedGradientsExporter, ModelExporter)
 
 
 if __name__ == "__main__":

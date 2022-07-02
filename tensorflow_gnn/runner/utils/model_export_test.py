@@ -93,7 +93,7 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
       output_names: Any):
     export_dir = self.create_tempdir()
     exporter = model_export.KerasModelExporter(output_names)
-    exporter.save(model, export_dir)
+    exporter.save(None, model, export_dir)
 
     saved_model = tf.saved_model.load(export_dir)
 
@@ -194,7 +194,7 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
         submodule_name,
         output_names=output_names,
         subdirectory=subdirectory)
-    exporter.save(model, export_dir)
+    exporter.save(None, model, export_dir)
 
     submodule = next(m for m in model.submodules if submodule_name == m.name)
 
@@ -242,7 +242,7 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
           testcase_name="TFModuleAsSubmodule",
           model=_tf_module_as_submodule("abc123"),
           submodule_name="abc123",
-          expected_error=r"Submodule \(\[.*\]\) is neither a `tf.keras.Model` nor a `tf.keras.layers.Layer`",
+          expected_error=r"Submodule \(.*\) is neither a Keras Model nor Layer",
       ),
   ])
   def test_submodule_exporter_fails(
@@ -252,7 +252,7 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
       expected_error: str):
     exporter = model_export.SubmoduleExporter(submodule_name)
     with self.assertRaisesRegex(ValueError, expected_error):
-      exporter.save(model, self.create_tempdir())
+      exporter.save(None, model, self.create_tempdir())
 
   @parameterized.named_parameters([
       dict(

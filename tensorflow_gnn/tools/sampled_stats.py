@@ -66,10 +66,7 @@ class ReadExamples(beam.PTransform):
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
     if self.input_format in {"tfrecord", "tfrecords"}:
       return pcoll | beam.io.tfrecordio.ReadFromTFRecord(self.input_pattern)
-    elif self.input_format == "sstable":
-      return (pcoll
-              | sstableio.ReadFromSSTable(self.input_pattern)
-              | beam.Values())
+    # Placeholder for Google-internal input file formats
     else:
       raise NotImplementedError("Format: {}".format(self.input_format))
 

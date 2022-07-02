@@ -1,5 +1,6 @@
 include ./WORKSPACE
 include ./package/move_generated_files.sh
 include ./package/tfdep.bzl
+include ./tensorflow_gnn/tensorflow_gnn.bzl
 global-include *.proto
 global-include BUILD

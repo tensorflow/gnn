@@ -34,13 +34,13 @@ TEST_ROOT=$(pwd)/${PIP_TEST_PREFIX}
 rm -rf "$TEST_ROOT"
 mkdir -p "$TEST_ROOT"
 ln -s "$(pwd)"/tensorflow_gnn "$TEST_ROOT"/tensorflow_gnn
+tag_filters="-no_oss"
 
 bazel clean
-pip install -r requirements-dev.txt
+pip install -r requirements-dev.txt --progress-bar off
+pip install tf-nightly --progress-bar off --upgrade
 python3 setup.py bdist_wheel
 pip uninstall -y tensorflow_gnn
-pip install dist/tensorflow_gnn-0.2.0.dev1-py3-none-any.whl
+pip install dist/tensorflow_gnn-*.whl
 
-bazel test --test_output=errors --verbose_failures=true --build_tests_only --define=no_tfgnn_py_deps=true --keep_going --experimental_repo_remote_exec //bazel_pip/tensorflow_gnn/...
-
-
+bazel test --build_tag_filters="${tag_filters}" --test_tag_filters="${tag_filters}" --test_output=errors --verbose_failures=true --build_tests_only --define=no_tfgnn_py_deps=true --keep_going --experimental_repo_remote_exec //bazel_pip/tensorflow_gnn/...
