@@ -236,7 +236,7 @@ class AnyToAnyConvolutionBase(tf.keras.layers.Layer, abc.ABC):
            edge_set_name: Optional[gt.EdgeSetName] = None,
            node_set_name: Optional[gt.NodeSetName] = None,
            receiver_tag: Optional[const.IncidentNodeOrContextTag] = None,
-           training: Optional[bool] = False) -> tf.Tensor:
+           training: Optional[bool] = False) -> gt.GraphTensor:
     # pylint: disable=g-long-lambda
 
     # Normalize inputs.

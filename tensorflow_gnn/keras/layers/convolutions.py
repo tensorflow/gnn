@@ -54,12 +54,12 @@ class SimpleConv(convolution_base.AnyToAnyConvolutionBase):
       If set to `tfgnn.CONTEXT`, the layer can be called for an edge set or node
       set and will pool results for the context (i.e., per graph component).
       If left unset for init, the tag must be passed at call time.
-    receiver_feature: Can be set to override `tfgnn.HIDDEN_STATE` for use as
-      the input feature from the receiver. Passing `None` disables input from
-      the receiver.
-    sender_node_feature: Can be set to override `tfgnn.HIDDEN_STATE` for use as
-      the input feature from sender nodes. Passing `None` disables input from
-      the sender node.
+    receiver_feature: Can be set to override `tfgnn.DEFAULT_FEATURE_NAME`
+      for use as the input feature from the receiver. Passing `None` disables
+      input from the receiver.
+    sender_node_feature: Can be set to override `tfgnn.DEFAULT_FEATURE_NAME`
+      for use as the input feature from sender nodes. Passing `None` disables
+      input from the sender node.
       IMPORANT: Must be set to `None` for use with `receiver_tag=tfgnn.CONTEXT`
       on an edge set, or for pooling from edges without sender node states.
     sender_edge_feature: Can be set to a feature name of the edge set to select

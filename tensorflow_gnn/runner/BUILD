@@ -9,12 +9,11 @@ pytype_strict_library(
     deps = [
         ":orchestration",
         "//tensorflow_gnn/runner/input:datasets",
+        "//tensorflow_gnn/runner/tasks:attribution",
         "//tensorflow_gnn/runner/tasks:classification",
         "//tensorflow_gnn/runner/tasks:dgi",
         "//tensorflow_gnn/runner/tasks:regression",
         "//tensorflow_gnn/runner/trainers:keras_fit",
-        "//tensorflow_gnn/runner/utils:attribution",
-        "//tensorflow_gnn/runner/utils:model",
         "//tensorflow_gnn/runner/utils:model_dir",
         "//tensorflow_gnn/runner/utils:model_export",
         "//tensorflow_gnn/runner/utils:model_templates",

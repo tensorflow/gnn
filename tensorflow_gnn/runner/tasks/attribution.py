@@ -7,13 +7,11 @@ gradients by Riemann sum approximation.
 The task implements the method as described in:
 https://papers.nips.cc/paper/2020/hash/417fbbf2e9d5a28a855a11894b2e795a-Abstract.html.
 """
-import operator
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Optional, Sequence, Tuple
 
 import numpy as np
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
-from tensorflow_gnn.runner.utils import model as model_utils
 
 
 def reduce_graph_sequence(
@@ -198,50 +196,43 @@ def sum_graph_features(
       node_set_fn=tf.math.add_n)
 
 
-TypeSpec = Union[tfgnn.GraphTensorSpec, tf.TensorSpec, tf.RaggedTensorSpec]
+# TODO(b/196880966): Link a colab to visualize any integrated gradients.
+class ModelWithIntegratedGradients(tf.keras.Model):
+  """`tf.keras.Model` wrapper that provides integrated gradients."""
 
+  def __init__(self, model: tf.keras.Model):
+    super(ModelWithIntegratedGradients, self).__init__(
+        inputs=model.inputs,
+        outputs=model.outputs)
 
-def _input_signature(model: tf.keras.Model) -> Sequence[TypeSpec]:
-  if tf.nest.is_nested(model.input):
-    return tf.nest.map_structure(operator.attrgetter("type_spec"), model.input)
-  return (model.input.type_spec,)
+  @tf.function
+  def integrated_gradients(
+      self,
+      inputs: Tuple[tfgnn.GraphTensor, tfgnn.Field],
+      *,
+      random_counterfactual: bool = True,
+      steps: int = 32,
+      seed: Optional[int] = None) -> tfgnn.GraphTensor:
+    """Integrated gradients.
 
+    This `tf.function` computes integrated gradients over a `tfgnn.GraphTensor.`
+    The `tf.function` will be persisted in the ultimate saved model for
+    subsequent attribution.
 
-def integrated_gradients(
-    preprocess_model: tf.keras.Model,
-    model: tf.keras.Model,
-    *,
-    output_name: Optional[str] = None,
-    random_counterfactual: bool,
-    steps: int,
-    seed: Optional[int] = None) -> tf.types.experimental.ConcreteFunction:
-  """Integrated gradients.
+    Args:
+      inputs: Model inputs: a `tfgnn.GraphTensor` and labels.
+      random_counterfactual: Whether to use a random uniform counterfactual.
+      steps: The number of interpolations of the Riemann sum approximation.
+      seed: An option random seed.
 
-  This `tf.function` computes integrated gradients over a `tfgnn.GraphTensor.`
-  The `tf.function` will be persisted in the ultimate saved model for
-  subsequent attribution.
+    Returns:
+      A `tfgnn.GraphTensor` with a the integreated gradients.
+    """
+    graph, labels = inputs
 
-  Args:
-    preprocess_model: A `tf.keras.Model` for preprocessing.
-    model: A `tf.keras.Model` for integrated gradients.
-    output_name: The output `Tensor` name. If unset, the tensor will be named
-      by Keras defaults.
-    random_counterfactual: Whether to use a random uniform counterfactual.
-    steps: The number of interpolations of the Riemann sum approximation.
-    seed: An option random seed.
-
-  Returns:
-    A `tfgnn.GraphTensor` with the integrated gradients.
-  """
-  @tf.function(input_signature=_input_signature(preprocess_model))
-  def fn(inputs):
-    try:
-      graph, labels = preprocess_model(inputs)
-    except ValueError as error:
-      msg = "Integrated gradients requires both examples and labels"
-      raise ValueError(msg) from error
-    else:
-      tfgnn.check_scalar_graph_tensor(graph, name="integrated_gradients")
+    if graph.rank != 0:
+      raise ValueError(
+          f"Expected a scalar (rank=0) GraphTensor, received rank={graph.rank}")
 
     baseline = counterfactual(graph, random=random_counterfactual, seed=seed)
     interpolations = interpolate_graph_features(graph, baseline, steps=steps)
@@ -250,11 +241,11 @@ def integrated_gradients(
     for interpolation in interpolations:
       with tf.GradientTape(persistent=True) as tape:
         tape.watch(interpolation)
-        logits = model(interpolation)
-        loss = model.compiled_loss(
+        logits = self(interpolation)
+        loss = self.compiled_loss(
             logits,
             labels,
-            regularization_losses=model.losses)
+            regularization_losses=self.losses)
 
       def fn(inputs):
         return tape.gradient(  # pylint: disable=cell-var-from-loop
@@ -270,80 +261,24 @@ def integrated_gradients(
               node_set_fn=fn)
       ]
 
-    gradients = sum_graph_features(gradients)
-    return {output_name: gradients} if output_name is not None else gradients
-
-  return fn
+    return sum_graph_features(gradients)
 
 
-class IntegratedGradientsExporter:
-  """Exports a Keras model with an additional integrated gradients signature."""
+class IntegratedGradients():
+  """Integrated gradients task.
 
-  # TODO(b/196880966): Support specifying IG and serving default output names.
-  def __init__(self,
-               integrated_gradients_output_name: Optional[str] = None,
-               random_counterfactual: bool = True,
-               steps: int = 32,
-               seed: Optional[int] = None):
-    """Captures the args shared across `save(...)` calls.
+  This task wraps any `tfgnn.GraphTensor` model in another `tf.keras.Model` that
+  provides a `tf.function` for computing integrated gradients.
+  """
 
-    Args:
-      integrated_gradients_output_name: The name for the integrated gradients
-        output tensor. If unset, the tensor will be named by Keras defaults.
-      random_counterfactual: Whether to use a random uniform counterfactual.
-      steps: The number of interpolations of the Riemann sum approximation.
-      seed: An option random seed.
-    """
-    self._integrated_gradients_output_name = integrated_gradients_output_name
-    self._random_counterfactual = random_counterfactual
-    self._steps = steps
-    self._seed = seed
+  def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
+    return ModelWithIntegratedGradients(model)
 
-  def save(self,
-           preprocess_model: Optional[tf.keras.Model],
-           model: tf.keras.Model,
-           export_dir: str):
-    """Exports a Keras model with an additional integrated gradients signature.
+  def preprocessors(self) -> Sequence[Callable[..., tf.data.Dataset]]:
+    return ()
 
-    Importantly: the `preprocess_model` is required and is concatenated with
-    `model` before any export. Concatenation involves the chaining of the
-    first output of `preprocess_model` to the only input of `model.` The result
-    is a model with the input of `preprocess_model` and the output of `model.`
+  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+    return ()
 
-    Two serving signatures are exported:
-
-    'serving_default') The default serving signature (i.e., the
-      `preprocess_model` input signature),
-    'integrated_gradients') The integrated gradients signature (i.e., the
-      `preprocess_model` input signature).
-
-    Args:
-      preprocess_model: A `tf.keras.Model` for preprocessing.
-      model: A `tf.keras.Model` to save.
-      export_dir: A destination directory for the model.
-    """
-    if preprocess_model is None:
-      raise ValueError("Integrated gradients requires a `preprocess_model.`")
-
-    model_for_export = model_utils.chain_first_output(preprocess_model, model)
-
-    ig = integrated_gradients(
-        preprocess_model,
-        model,
-        output_name=self._integrated_gradients_output_name,
-        random_counterfactual=self._random_counterfactual,
-        steps=self._steps,
-        seed=self._seed)
-    serving_default = tf.function(
-        model_for_export,
-        input_signature=_input_signature(model_for_export))
-
-    signatures = {
-        "integrated_gradients": ig,
-        "serving_default": serving_default,
-    }
-
-    tf.keras.models.save_model(
-        model_for_export,
-        export_dir,
-        signatures=signatures)
+  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+    return ()

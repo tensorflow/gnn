@@ -42,7 +42,7 @@ class GraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
       conv_sum_endpoints = convolutions.SimpleConv(
           message_fn=tf.keras.layers.Dense(
               1, use_bias=False, kernel_initializer="ones"),
-          # receiver_feature=const.HIDDEN_STATE,  # The default.
+          # receiver_feature=const.DEFAULT_FEATURE_NAME,  # The default.
           reduce_type="sum")
       state_add_edges = next_state_lib.NextStateFromConcat(
           tf.keras.layers.Dense(

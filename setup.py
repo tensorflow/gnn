@@ -187,9 +187,7 @@ setup(
         'tensorflow>=2.7.0',
     ],
     python_requires='>=3.7,<4',
-    packages=find_namespace_packages(
-        exclude=['examples*', 'package*', 'testdata*'],
-    ),
+    packages=find_namespace_packages(),
     include_package_data=True,
     package_data={'': ['*.proto']},
     zip_safe=False,

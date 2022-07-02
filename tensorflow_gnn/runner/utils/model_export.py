@@ -3,12 +3,10 @@ import os
 from typing import Any, Optional, Union
 
 import tensorflow as tf
-from tensorflow_gnn.runner.utils import model as model_utils
 
 Field = Union[tf.Tensor, tf.RaggedTensor]
 
 
-# TODO(b/196880966) Move to `model.py` and add unit tests.
 def _rename_output(output: Any, names: Any) -> Any:
   """Renames atoms of `output` with `names` for two matching structures."""
   tf.nest.assert_same_structure(output, names, check_types=False)
@@ -47,24 +45,7 @@ class KerasModelExporter:
     """
     self._output_names = output_names
 
-  def save(self,
-           preprocess_model: Optional[tf.keras.Model],
-           model: tf.keras.Model,
-           export_dir: str):
-    """Exports a Keras model (with Keras API) via tf.keras.models.save_model.
-
-    Importantly: the `preprocess_model`, if provided, and `model` are
-    concatenated before any export. Concatenation involves the chaining of the
-    first output of `preprocess_model` to the only input of `model.` The result
-    is a model with the input of `preprocess_model` and the output of `model.`
-
-    Args:
-      preprocess_model: An optional `tf.keras.Model` for preprocessing.
-      model: A `tf.keras.Model` to save.
-      export_dir: A destination directory for the model.
-    """
-    if preprocess_model is not None:
-      model = model_utils.chain_first_output(preprocess_model, model)
+  def save(self, model: tf.keras.Model, export_dir: str):
     if self._output_names is not None:
       output = _rename_output(model.output, self._output_names)
       model = tf.keras.Model(model.input, output)
@@ -83,7 +64,8 @@ class SubmoduleExporter:
 
     Args:
       submodule_name: The name of the submodule to export.
-      output_names: The names for output Tensor(s), see: `KerasModelExporter.`
+      output_names: The names for any output Tensor(s), see:
+        `KerasModelExporter.`
       subdirectory: An optional subdirectory, if set: submodules are exported
         to `os.path.join(export_dir, subdirectory).`
     """
@@ -91,20 +73,8 @@ class SubmoduleExporter:
     self._subdirectory = subdirectory
     self._submodule_name = submodule_name
 
-  def save(self,
-           preprocess_model: tf.keras.Model,
-           model: tf.keras.Model,
-           export_dir: str):
-    """Saves a Keras model submodule.
-
-    Importantly: the `preprocess_model`, if provided, and `model` are
-    concatenated before any export.
-
-    Args:
-      preprocess_model: An optional `tf.keras.Model` for preprocessing.
-      model: A `tf.keras.Model` to save.
-      export_dir: A destination directory for the model.
-    """
+  def save(self, model: tf.keras.Model, export_dir: str):
+    """Saves a Keras model submodule."""
     submodules = [m for m in model.submodules if self._submodule_name == m.name]
 
     if not submodules:
@@ -117,12 +87,10 @@ class SubmoduleExporter:
       [sublayer] = submodules
       submodel = tf.keras.Model(sublayer.input, sublayer.output)
     else:
-      [submodel] = submodules
-      raise ValueError(
-          f"Submodule ({submodel}) is neither a Keras Model nor Layer`")
+      raise ValueError(f"Submodule ({submodules}) is neither a `tf.keras.Model`"
+                       " nor a `tf.keras.layers.Layer`")
 
     if self._subdirectory:
       export_dir = os.path.join(export_dir, self._subdirectory)
 
-    exporter = KerasModelExporter(self._output_names)
-    exporter.save(preprocess_model, submodel, export_dir)
+    KerasModelExporter(self._output_names).save(submodel, export_dir)
