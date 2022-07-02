@@ -4,6 +4,30 @@ load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "py_strict_test")
 licenses(["notice"])
 
 pytype_strict_library(
+    name = "attribution",
+    srcs = ["attribution.py"],
+    srcs_version = "PY3",
+    visibility = ["//tensorflow_gnn/runner:__pkg__"],
+    deps = [
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+    ],
+)
+
+py_strict_test(
+    name = "attribution_test",
+    srcs = ["attribution_test.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":attribution",
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+        "//tensorflow_gnn/runner:orchestration",
+    ],
+)
+
+pytype_strict_library(
     name = "classification",
     srcs = ["classification.py"],
     srcs_version = "PY3",
@@ -18,9 +42,6 @@ py_strict_test(
     name = "classification_test",
     srcs = ["classification_test.py"],
     srcs_version = "PY3",
-    tags = [
-        "no_oss",  # TODO(b/237419537) remove on tf 2.10 release
-    ],
     deps = [
         ":classification",
         "//:expect_absl_installed",
@@ -67,9 +88,6 @@ py_strict_test(
     name = "regression_test",
     srcs = ["regression_test.py"],
     srcs_version = "PY3",
-    tags = [
-        "no_oss",  # TODO(b/237419537) remove on tf 2.10 release
-    ],
     deps = [
         ":regression",
         "//:expect_absl_installed",

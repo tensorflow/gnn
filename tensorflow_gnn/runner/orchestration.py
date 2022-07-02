@@ -159,18 +159,13 @@ class GraphTensorProcessorFn(Protocol):
 class ModelExporter(Protocol):
   """Saves a Keras model."""
 
-  def save(
-      self,
-      preprocess_model: Optional[tf.keras.Model],
-      model: tf.keras.Model,
-      export_dir: str):
+  def save(self, model: tf.keras.Model, export_dir: str):
     """Saves a Keras model.
 
     All persistence decisions are left to the implementation: e.g., a Keras
     model with full API or a simple `tf.train.Checkpoint` may be saved.
 
     Args:
-      preprocess_model: An optional `tf.keras.Model` for preprocessing.
       model: A `tf.keras.Model` to save.
       export_dir: A destination directory for the model.
     """
@@ -310,9 +305,15 @@ def run(*,
       epochs=epochs,
       valid_ds_provider=valid_ds_provider)
 
+  inputs = preprocess_model.inputs
+  outputs = preprocess_model(inputs)
+  # Ignore other ouputs.
+  x = outputs[0] if isinstance(outputs, (list, tuple)) else outputs
+  model_for_export = tf.keras.Model(inputs, model(x))
+
   if model_exporters is None:
     model_exporters = [model_export.KerasModelExporter()]
 
   for export_dir in export_dirs or [os.path.join(trainer.model_dir, "export")]:
     for exporter in model_exporters:
-      exporter.save(preprocess_model, model, export_dir)
+      exporter.save(model_for_export, export_dir)

@@ -50,7 +50,7 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
   This layer can also be configured to do attention pooling from edges to
   context or to receiver nodes (without regard for source nodes) by setting
   `sender_node_feature=None` and setting `sender_edge_feature=...` to the
-  applicable edge feature name (e.g., `tfgnn.HIDDEN_STATE`).
+  applicable edge feature name (e.g., `tfgnn.DEFAULT_FEATURE_NAME`).
 
   Like the Keras Dense layer, if the input features have rank greater than 2,
   this layer computes a point-wise attention along the last axis of the inputs.
@@ -70,11 +70,11 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       If set to `tfgnn.CONTEXT`, the layer can be called for an edge set or
       node set.
       If left unset for init, the tag must be passed at call time.
-    receiver_feature: Can be set to override `tfgnn.HIDDEN_STATE` for use as
-      the receiver's input feature to attention. (The attention key is derived
-      from this input.)
-    sender_node_feature: Can be set to override `tfgnn.HIDDEN_STATE` for use as
-      the input feature from sender nodes to attention.
+    receiver_feature: Can be set to override `tfgnn.DEFAULT_FEATURE_NAME`
+      for use as the receiver's input feature to attention. (The attention key
+      is derived from this input.)
+    sender_node_feature: Can be set to override `tfgnn.DEFAULT_FEATURE_NAME`
+      for use as the input feature from sender nodes to attention.
       IMPORANT: Must be set to `None` for use with `receiver_tag=tfgnn.CONTEXT`
       on an edge set, or for pooling from edges without sender node states.
     sender_edge_feature: Can be set to a feature name of the edge set to select
@@ -180,7 +180,7 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       self._w_sender_edge = None
 
     if self._w_sender_node is None and self._w_sender_edge is None:
-      raise ValueError("GATv2Conv initialized with no inputs.")
+      raise ValueError("GATv2Attention initialized with no inputs.")
 
     # Create attention logits layers, one for each head. Note that we can't
     # use a single Dense layer that outputs `num_heads` units because we need
@@ -272,7 +272,7 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     extra_dims = tensor.shape[1:-1]  # Possibly empty.
     if not extra_dims.is_fully_defined():
       raise ValueError(
-          "GATv2Conv requires non-ragged Tensors as inputs, "
+          "GATv2Attention requires non-ragged Tensors as inputs, "
           "and GraphTensor requires these to have statically known "
           f"dimensions except the first, but got {tensor.shape}")
     new_shape = (-1, *extra_dims, self._num_heads, self._per_head_channels)
