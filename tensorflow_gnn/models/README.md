@@ -39,3 +39,5 @@ say so in their README files.
   * [GraphSAGE](graph_sage/README.md) (Hamilton&al., 2017).
   * [VanillaMPNN](vanilla_mpnn/README.md): TF-GNN's frequently used baseline
     model, based on (Gilmer&al., 2016).
+  * [MultiHeadAttention](multi_head_attention/README.md): Transformer-style
+    multi-head attention on graph (Dwivedi&Bresson, 2021)
