@@ -8,7 +8,7 @@ import tensorflow as tf
 
 from tensorflow_gnn.runner import orchestration
 
-BackupAndRestore = tf.keras.callbacks.experimental.BackupAndRestore
+BackupAndRestore = tf.keras.callbacks.BackupAndRestore
 DatasetProvider = orchestration.DatasetProvider
 
 
