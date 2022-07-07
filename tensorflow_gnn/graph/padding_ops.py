@@ -550,7 +550,7 @@ def _satisfies_size_constraints_internal(
     if min_entities_per_component > 0:
       overflow_msg += (
           ', taking into account that at least'
-          f' {min_entities_per_component} {entity_type} should be added '
+          f' {min_entities_per_component} {entity_type} should be added'
           ' to each fake component.')
     else:
       overflow_msg += '.'
