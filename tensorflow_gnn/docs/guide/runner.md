@@ -52,8 +52,7 @@ map_features = tfgnn.keras.layers.MapFeatures(node_sets_fn=initial_node_states)
 task = runner.RootNodeBinaryClassification(node_set_name="nodes")
 
 trainer = runner.KerasTrainer(
-    # COMING SOON: Automatic massaging for `tf.distribute.TPUStrategy`!
-    strategy=tf.distribute.MirroredStrategy(),
+    strategy=tf.distribute.TPUStrategy(...),
     model_dir="...",
     steps_per_epoch=8191 // 128,  # global_batch_size == 128
     validation_per_epoch=2,
@@ -61,6 +60,7 @@ trainer = runner.KerasTrainer(
 
 runner.run(
     train_ds_provider=train_ds_provider,
+    traing_padding=runner.FitOrSkipPadding(gtspec, train_ds_provider),
     # simple_gnn is a function: Callable[[tfgnn.GraphTensorSpec], tf.keras.Model].
     # Where the returned model both takes and returns a scalar `GraphTensor` for
     # its inputs and outputs.

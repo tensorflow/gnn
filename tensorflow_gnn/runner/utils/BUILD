@@ -48,6 +48,29 @@ pytype_strict_library(
 )
 
 pytype_strict_library(
+    name = "model_templates",
+    srcs = ["model_templates.py"],
+    srcs_version = "PY3",
+    visibility = ["//tensorflow_gnn/runner:__pkg__"],
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+    ],
+)
+
+pytype_strict_library(
+    name = "padding",
+    srcs = ["padding.py"],
+    srcs_version = "PY3",
+    visibility = ["//tensorflow_gnn/runner:__pkg__"],
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+        "//tensorflow_gnn/runner:orchestration",
+    ],
+)
+
+pytype_strict_library(
     name = "strategies",
     srcs = ["strategies.py"],
     srcs_version = "PY3",
@@ -96,12 +119,14 @@ py_strict_test(
 )
 
 pytype_strict_library(
-    name = "model_templates",
-    srcs = ["model_templates.py"],
+    name = "padding_test",
+    srcs = ["padding_test.py"],
     srcs_version = "PY3",
-    visibility = ["//tensorflow_gnn/runner:__pkg__"],
     deps = [
-        "//:expect_tensorflow_installed",
+        ":padding",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed:tensorflow_no_contrib",
         "//tensorflow_gnn",
+        "//tensorflow_gnn/runner:orchestration",
     ],
 )

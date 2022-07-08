@@ -11,6 +11,7 @@ from tensorflow_gnn.models import vanilla_mpnn
 
 FLAGS = flags.FLAGS
 
+# TODO(b/196880966): Update flag return values to _UPPER_SNAKE_CASE.
 _samples = flags.DEFINE_string(
     "samples",
     None,
@@ -23,11 +24,21 @@ _graph_schema = flags.DEFINE_string(
     "A filepath for the GraphSchema of the --samples.",
     required=True)
 
-_model_dir = flags.DEFINE_string(
-    "model_dir",
+_base_dir = flags.DEFINE_string(
+    "base_dir",
     None,
-    "The training and export directory.",
+    "The training and export base directory "
+    "(`runner.incrementing_model_dir(...)` is used to generate the model "
+    "directory).",
     required=True)
+
+_tpu_address = flags.DEFINE_string(
+    "tpu_address",
+    None,
+    "An optional TPU address "
+    "(see: `tf.distribute.cluster_resolver.TPUClusterResolver`), if empty "
+    "string: TensorFlow will try to automatically resolve the Cloud TPU; if "
+    "`None`: `MirroredStrategy` is used.")
 
 _paper_dim = flags.DEFINE_integer(
     "paper_dim", 512,
@@ -145,15 +156,25 @@ def main(_) -> None:
   # len(validation) == 64,879
   validation_steps = 64_879 // validation_batch_size
 
+  if _tpu_address.value is not None:
+    strategy = runner.TPUStrategy(_tpu_address.value)
+    train_padding = runner.FitOrSkipPadding(gtspec, train_ds_provider)
+    valid_padding = runner.TightPadding(gtspec, train_ds_provider)
+  else:
+    strategy = tf.distribute.MirroredStrategy()
+    train_padding = None
+    valid_padding = None
+
   trainer = runner.KerasTrainer(
-      strategy=tf.distribute.MirroredStrategy(),
-      model_dir=_model_dir.value,
+      strategy=strategy,
+      model_dir=runner.incrementing_model_dir(_base_dir.value),
       steps_per_epoch=steps_per_epoch,
       validation_per_epoch=4,
       validation_steps=validation_steps)
 
   runner.run(
       train_ds_provider=train_ds_provider,
+      train_padding=train_padding,
       model_fn=model_fn,
       optimizer_fn=tf.keras.optimizers.Adam,
       epochs=epochs,
@@ -168,7 +189,8 @@ def main(_) -> None:
               node_sets_fn=process_node_features,
               edge_sets_fn=drop_all_features)
       ],
-      valid_ds_provider=valid_ds_provider)
+      valid_ds_provider=valid_ds_provider,
+      valid_padding=valid_padding)
 
 
 if __name__ == "__main__":

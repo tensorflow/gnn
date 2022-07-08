@@ -16,6 +16,14 @@ class ParameterServerStrategy(tf.distribute.ParameterServerStrategy):
       variable_partitioner = MinSizePartitioner(max_shards=num_ps)
     else:
       variable_partitioner = MinSizePartitioner(min_shard_bytes, num_ps)
-    super(ParameterServerStrategy, self).__init__(
-        cluster_resolver,
-        variable_partitioner)
+    super().__init__(cluster_resolver, variable_partitioner)
+
+
+class TPUStrategy(tf.distribute.TPUStrategy):
+  """A `TPUStrategy` convenience wrapper."""
+
+  def __init__(self, tpu: str = ""):
+    resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu=tpu)
+    tf.config.experimental_connect_to_cluster(resolver)
+    tf.tpu.experimental.initialize_tpu_system(resolver)
+    super().__init__(resolver)
