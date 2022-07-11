@@ -38,6 +38,7 @@ GraphTensorProcessorFn = orchestration.GraphTensorProcessorFn
 run = orchestration.run
 Trainer = orchestration.Trainer
 Task = orchestration.Task
+TFDataServiceConfig = orchestration.TFDataServiceConfig
 
 # Padding
 one_node_per_component = padding_utils.one_node_per_component

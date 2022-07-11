@@ -1,9 +1,9 @@
 """The runner entry point."""
+import dataclasses
 import functools
 import os
 import sys
 from typing import Callable, Optional, Sequence, Tuple, Union
-import uuid
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -36,6 +36,20 @@ def _per_replica_batch_size(global_batch_size: int, num_replicas: int) -> int:
   return global_batch_size // num_replicas
 
 
+@dataclasses.dataclass
+class TFDataServiceConfig:
+  """Provides tf.data service related configuration options.
+
+  tf.data service has data flexible visitation guarantees, its impact over your
+  training pipelines will be empirical. Check out the tf.data service internals
+  and operation details from
+  https://www.tensorflow.org/api_docs/python/tf/data/experimental/service.
+  """
+  tf_data_service_address: str
+  tf_data_service_job_name: str
+  tf_data_service_mode: Union[str, tf.data.experimental.service.ShardingPolicy]
+
+
 @runtime_checkable
 class DatasetProvider(Protocol):
 
@@ -52,19 +66,16 @@ class _WrappedDatasetProvider:
                delegate: DatasetProvider,
                drop_remainder: bool,
                global_batch_size: int,
-               tf_data_service_address: Optional[str] = None):
+               tf_data_service_config: Optional[TFDataServiceConfig] = None):
     self._apply_fn = apply_fn
     self._delegate = delegate
     self._drop_remainder = drop_remainder
     self._global_batch_size = global_batch_size
-    self._tf_data_service_address = tf_data_service_address
-    # TODO(b/196880966): The tf.data service name should be unique per dataset
-    # (and not unique per TensorFlow worker).
-    self._tf_data_service_job_name = uuid.uuid4().hex
+    self._tf_data_service_config = tf_data_service_config
 
   def get_dataset(self, context: tf.distribute.InputContext) -> tf.data.Dataset:
     """Gets a batched dataset with `apply_fn` applied."""
-    if self._tf_data_service_address:
+    if self._tf_data_service_config:
       # Prevent any sharding for tf.data service.
       context = tf.distribute.InputContext(
           num_input_pipelines=1,
@@ -74,12 +85,18 @@ class _WrappedDatasetProvider:
     ds = ds.batch(
         context.get_per_replica_batch_size(self._global_batch_size),
         drop_remainder=self._drop_remainder)
-    if self._tf_data_service_address:
+    if self._tf_data_service_config:
+      if (self._tf_data_service_config.tf_data_service_address is None or
+          self._tf_data_service_config.tf_data_service_mode is None or
+          self._tf_data_service_config.tf_data_service_job_name is None):
+        raise ValueError(
+            "Specify tf_data_service_address, tf_data_service_mode and"
+            "tf_data_service_job_name.")
       ds = ds.apply(
           tf.data.experimental.service.distribute(
-              processing_mode="parallel_epochs",
-              service=self._tf_data_service_address,
-              job_name=self._tf_data_service_job_name))
+              processing_mode=self._tf_data_service_config.tf_data_service_mode,
+              service=self._tf_data_service_config.tf_data_service_address,
+              job_name=self._tf_data_service_config.tf_data_service_job_name))
     return ds.apply(self._apply_fn)
 
 
@@ -276,9 +293,9 @@ def run(*,
         model_exporters: Optional[Sequence[ModelExporter]] = None,
         feature_processors: Optional[Sequence[GraphTensorProcessorFn]] = None,
         valid_ds_provider: Optional[DatasetProvider] = None,
-        tf_data_service_address: Optional[str] = None,
         train_padding: Optional[GraphTensorPadding] = None,
-        valid_padding: Optional[GraphTensorPadding] = None):
+        valid_padding: Optional[GraphTensorPadding] = None,
+        tf_data_service_config: Optional[TFDataServiceConfig] = None):
   """Runs training (and validation) of a model on a task with the given data.
 
   This includes preprocessing the input data, adapting the model by appending
@@ -311,19 +328,15 @@ def run(*,
       `tfgnn.Field`) where the `tfgnn.Field` is used for training labels.
     valid_ds_provider: A `DatasetProvider` for validation. The `tf.data.Dataset`
       is not batched and contains scalar `GraphTensor` values.
-    tf_data_service_address: Address for tf.data service. tf.data service is
-      run with `processing_mode="parallel_epochs".` Parallel epochs corresponds
-      to the `ShardingPolicy.OFF` mode and it is important for users to shuffle
-      any filenames in this case, see: go/tf-data-service#processing-modes.
-      Note, `parallel_epochs` differs greatly in its data visitation promises
-      and notion of epochs from `SimpleDatasetProvider` and
-      `SimpleSampleDatasetsProvider.` These providers, without tf.data service,
-      shard by filenames (corresponding to the tf.data service processing mode
-      of `ShardingPolicy.FILE`).
     train_padding: `GraphTensor` padding for training. Required if training on
       TPU.
     valid_padding: `GraphTensor` padding for validation. Required if training on
       TPU.
+    tf_data_service_config: tf.data service speeds-up tf.data input pipeline
+      runtime reducing input bottlenecks for model training. Particularly for
+      training on accelerators consider enabling it. For more info please check
+      out;
+        https://www.tensorflow.org/api_docs/python/tf/data/experimental/service.
   """
   validate = valid_ds_provider is not None
 
@@ -372,7 +385,7 @@ def run(*,
       train_ds_provider,
       drop_remainder,
       global_batch_size,
-      tf_data_service_address)
+      tf_data_service_config)
 
   if validate:
     valid_ds_provider = _WrappedDatasetProvider(
