@@ -334,9 +334,8 @@ def run(*,
       TPU.
     tf_data_service_config: tf.data service speeds-up tf.data input pipeline
       runtime reducing input bottlenecks for model training. Particularly for
-      training on accelerators consider enabling it. For more info please check
-      out;
-        https://www.tensorflow.org/api_docs/python/tf/data/experimental/service.
+      training on accelerators consider enabling it. For more info please see:
+      https://www.tensorflow.org/api_docs/python/tf/data/experimental/service.
   """
   validate = valid_ds_provider is not None
 
