@@ -10,7 +10,7 @@ of multiple sets of nodes and multiple sets of edges, each with their own set of
 features. These come up naturally when modeling different types of objects
 (nodes) and their different types of relations (edges).
 
-## Documentation
+## User Documentation
 
 Start with our introductory guides:
 
@@ -88,6 +88,15 @@ TF-GNN has reference documentation for the API, extracted from the source code.
   * See
     [this list](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/models/README.md)
     for the bundled models (`from tensorflow_gnn.models import foo`).
+
+## Developer Documentation
+
+How to contribute to the TF-GNN library.
+
+  * [CONTRIBUTING.md](https://github.com/tensorflow/gnn/blob/main/CONTRIBUTING.md)
+    describes the process for open-source contributions.
+  * The [Developer](developer.md) guide describes how to clone our github repo
+    and install the tools and libraries required to build and run TF-GNN code.
 
 ## Talks
 
