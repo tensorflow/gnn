@@ -121,6 +121,91 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(got_2.shape, (3, 2, 3))
     self.assertAllClose(got_2, want_2, atol=.0001)
 
+  def testNoTransformKeys(self):
+    """Tests that the no key transformation variant of MHA is correct."""
+
+    # The same test graph as in the testBasic above.
+    gt_input = _get_test_bidi_cycle_graph(tf.constant(
+        [[1., 0., 0., 1.],
+         [0., 1., 0., 2.],
+         [0., 0., 1., 3.]]))
+
+    conv = multi_head_attention.MultiHeadAttentionConv(
+        num_heads=1,
+        per_head_channels=3,
+        receiver_tag=tfgnn.TARGET,
+        activation="relu",  # Let's keep it simple.
+        transform_keys=False,  # Turn off the key transformation.
+        )
+
+    _ = conv(gt_input, edge_set_name="edges")  # Build weights.
+    weights = {v.name: v for v in conv.trainable_weights}
+    # No key transformation weights.
+    self.assertLen(weights, 4)
+
+    log20 = tf.math.log(20.).numpy()
+    log2 = tf.math.log(2.).numpy()
+    # Using an inverse scaling factor to cancel out the score scaling.
+    inverse_scaling_factor = tf.math.sqrt(4.)
+
+    weights["multi_head_attention_conv/query/kernel:0"].assign(
+        # The space of attention computation of the single head has dimension 4,
+        # since we do NOT transform the keys and thus need to transform queries
+        # to match the keys width.
+        # The first three dimensions are used to represent the transformed query
+        # in one-hot manner.
+        #
+        # For example, the query vector of node 0 is
+        # inverse_scaling_factor * [0, log(20), log(2), 0], and ...
+        inverse_scaling_factor *
+        [[0., log20, log2, 0.],
+         [log2, 0., log20, 0.],
+         [log20, log2, 0., 0.],
+         [0., 0., 0., 0.]])
+    weights["multi_head_attention_conv/query/bias:0"].assign([0., 0., 0., 0.])
+
+    # The attention coefficients are computed by the dot-product of transformed
+    # query and key. We manually assign the weights to get the same attention
+    # score in the testBasic above. For example, node 0 favors node 1 (10/11)
+    # and does not favor node 2 (1/11).
+
+    weights["multi_head_attention_conv/value/kernel:0"].assign(
+        # ... the value vectors of node 1 and 2, resp., are [-1, 0, 2.2]
+        # and [-1, -1, 3.3], and only positive value (the fourth dimension)
+        # will be kept after the final ReLU activation.
+        [[0., -1., 0.],
+         [-1., 0., 0.],
+         [-1., -1., 0.],
+         [0., 0., 1.1]])
+    weights["multi_head_attention_conv/value/bias:0"].assign([0., 0., 0.])
+
+    got = conv(gt_input, edge_set_name="edges")
+
+    # ... The softmax-weighed key vectors on the incoming edges of node 0
+    # are  10/11 * [-1, 0, 2.2]  +  1/11 * [-1, -1, 3.3].
+    # The final ReLU takes out the non-positive components and leaves 2 + 0.3
+    # in the last component of the first row in the resulting node states.
+    want = tf.constant([[0., 0., 2.3],  # Node 0.
+                        [0., 0., 3.1],  # Node 1.
+                        [0., 0., 1.2]])  # Node 2.
+    self.assertAllEqual(got.shape, (3, 3))
+    self.assertAllClose(got, want, atol=.0001)
+
+    # For node states with more than one feature dimension, MultiHeadAttention
+    # works in parallel on the vectors from the innermost dimension, so we can
+    # repeat the previous computation and an alternative with different values
+    # in the last component and reversed orientation:
+    gt_input_2 = _get_test_bidi_cycle_graph(tf.constant(
+        [[[1., 0., 0., 1.], [0., 0., 1., 3.]],
+         [[0., 1., 0., 2.], [0., 1., 0., 6.]],
+         [[0., 0., 1., 3.], [1., 0., 0., 9.]]]))
+    got_2 = conv(gt_input_2, edge_set_name="edges")
+    want_2 = tf.constant([[[0., 0., 2.3], [0., 0., 9.6]],
+                          [[0., 0., 3.1], [0., 0., 3.9]],
+                          [[0., 0., 1.2], [0., 0., 6.3]]])
+    self.assertAllEqual(got_2.shape, (3, 2, 3))
+    self.assertAllClose(got_2, want_2, atol=.0001)
+
   def testMultihead(self):
     """Extends testBasic with multiple attention heads."""
     # The same test graph as in the testBasic above.

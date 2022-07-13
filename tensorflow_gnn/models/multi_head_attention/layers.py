@@ -14,35 +14,49 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
   The [Graph Transformer](https://arxiv.org/abs/2012.09699) introduces
   [transformer-style multi-head attention](https://arxiv.org/abs/1706.03762)
   to GNN. This class describes a layer of computing such multi-head attention
-  (without position encoding, and without the subsequent feed-forward network).
+  and produces concatenated multi-head outputs (without positional encoding,
+  clamping in Softmax, linear transformation for multi-head outputs, the
+  feed-forward network, the residual connections and normalization layers).
   Please see tensorflow_gnn/models/multi_head_attention/README.md for more
   details. For the regular sequential transformer attention, please see
   `tf.keras.layers.MultiHeadAttention` instead.
 
   This attention is formuated differently depending on the presence of
   edge features:
+
     1. When edge features are NOT considered, this layer is exactly the same
        as Graph Transformer attention, where the receiver node feature is seen
        as 'query' and the sender node feature is 'key' and 'value':
 
-        $$Q = h_v, K = V = h_u, \text{where} \enspace u \in N(v)$$
+        $$Q_v = h_v, K_u = V_u = h_u, \text{where} \enspace u \in N(v)$$
 
     2. When edge features are considered, this layer still uses the
        receiver node feature as 'query', but uses the concatenation of the
        sender node feature and edge feature as 'key' and 'value':
 
-        $$Q = h_v, K = V = [h_u||e_{uv}], \text{where} \enspace u \in N(v)$$
+        $$Q_v = h_v, K_u = V_u = [h_u||e_{uv}],
+        \text{where} \enspace u \in N(v)$$
 
-        which is different from Graph Transformer.
+  Then, similar to what is done in "Attention is all you need" and what is
+  described in Equations (4) and (5) of "Graph Transformer", the attention
+  output $O^k_v$ from head $k$ for receiver node $v$ is computed as
 
-  Then, similar to what is done in "Attention is all you need",
-  for attention head $i$, the attention output $O_i$ is computed as:
+    $$O^k_v = \sum_{u \in N(v)} \alpha^k_{uv} V_u W_V^k$$
 
-    $$O_i = Softmax((Q W_Q^i)(K W_K^i)^T/ \sqrt{d})V$$
+  with attention weights
 
-  where $d$ is the per-head channel width and the denominator term is
-  scaling of attention scores proposed by
-  [Vaswani&al., 2017](https://arxiv.org/abs/1706.03762).
+    $$(\alpha^k_{uv} \mid u \in N(v))
+      = Softmax((Q_v W_Q^k)(K_u W_K^k)^T \mid u \in N(v)) / \sqrt{d}$$
+
+  where the softmax is taken over all neighbors $u$ along edges $(u,v)$ into $v$
+  and $d$ is the dimension of keys and queries as projected by $W_K$ and $W_Q$.
+  The final output for node $v$ is the concatenation over all heads, that is
+
+    $$O_v = ||_k O^k_v$$.
+
+  Note that in the context of graph, only nodes with edges connected are
+  attended to each other, which means we do NOT compute $N^2$ pairs of scores
+  as the original Transformer-style Attention.
 
   Users are able to remove the scaling of attention scores (score_scaling=False)
   or add an activation on the transformed query (controled by
@@ -64,6 +78,26 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
           tfgnn.keras.layers.NextStateFromConcat(dense(node_state_dim)))}
   )(graph)
   ```
+
+  For now, there is a variant that modifies the inputs transformation part and
+  could potentially be beneficial:
+
+      1. (transform_keys is False) Instead of projecting both queries and
+        keys when computing attention weights, we only project the queries
+        because the two linear projections can be collapsed to a single
+        projection:
+
+          $$ (Q_v W_Q^k)(K_u W_K^k)^T
+            = Q_v (W_Q^k {W_K^k}^T) K_u^T
+            = Q_v W_{QK}^k K_u^T $$
+
+        where $d$ is the key width. (Following "Attention is all you need",
+        this scaling is meant to achieve unit variance of the results, assuming
+        that $Q_v W_{QK}^k$ has unit variance due to the initialization of
+        $Q_v W_{QK}^k$.)
+
+        NOTE: The single projection matrix behaves differently in
+        gradient-descent training than the product of two matrices.
 
   Init args:
     num_heads: The number of attention heads.
@@ -105,8 +139,13 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       by tf.keras.layers.Dense etc.
     kernel_regularizer: Can be set to a `kernel_regularizer` as understood
       by tf.keras.layers.Dense etc.
+    transform_keys: If true, transform both queries and keys inputs. Otherwise,
+      only queries are transformed since the two transformations on queries and
+      keys are equivalent to one. (The presence of transformations on values is
+      independent of this arg.)
     score_scaling: If true, the attention scores are divided by the square root
-      of per_head_channels.
+      of the dimension of keys (i.e., per_head_channels if transform_keys=True,
+      else whatever the dimension of combined sender inputs is).
   """
 
   def __init__(
@@ -126,6 +165,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
                                 tf.keras.initializers.Initializer] = None,
       kernel_regularizer: Union[None, str,
                                 tf.keras.regularizers.Regularizer] = None,
+      transform_keys: bool = True,
       score_scaling: bool = True,
       **kwargs):
     kwargs.setdefault("name", "multi_head_attention_conv")
@@ -175,38 +215,38 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     self._activation = tf.keras.activations.get(activation)
     self._kernel_initializer = tf.keras.initializers.get(kernel_initializer)
     self._kernel_regularizer = tf.keras.regularizers.get(kernel_regularizer)
+    self._transform_keys = transform_keys
     self._score_scaling = score_scaling
 
-    # Create the transformations for the query input in all heads.
-    self._w_query = tf.keras.layers.Dense(
-        per_head_channels * num_heads,
-        kernel_initializer=kernel_initializer,
-        kernel_regularizer=kernel_regularizer,
-        # This bias gets added to the attention features but not the outputs.
-        use_bias=use_bias,
-        name="query")
+    # The creation of queries transfomations is deferred to the first call of
+    # `Convolve()` (see there).
+    self._w_query = None
 
-    # Create the transformations for key input
-    # from sender nodes and edges.
-    if self.takes_sender_node_input:
-      self._w_sender_node_to_key = tf.keras.layers.Dense(
-          per_head_channels * num_heads,
-          kernel_initializer=kernel_initializer,
-          kernel_regularizer=kernel_regularizer,
-          use_bias=use_bias,
-          name="key_node")
-    else:
+    # Create the transformations for keys inputs from sender nodes and edges.
+    # No transformations will be created if we only transform queries.
+    if not self._transform_keys:
       self._w_sender_node_to_key = None
-    if self.takes_sender_edge_input:
-      self._w_sender_edge_to_key = tf.keras.layers.Dense(
-          per_head_channels * num_heads,
-          kernel_initializer=kernel_initializer,
-          kernel_regularizer=kernel_regularizer,
-          # This bias would be redundant with self._w_sender_node.
-          use_bias=use_bias and self._w_sender_node_to_key is None,
-          name="key_edge")
-    else:
       self._w_sender_edge_to_key = None
+    else:
+      if self.takes_sender_node_input:
+        self._w_sender_node_to_key = tf.keras.layers.Dense(
+            per_head_channels * num_heads,
+            kernel_initializer=kernel_initializer,
+            kernel_regularizer=kernel_regularizer,
+            use_bias=use_bias,
+            name="key_node")
+      else:
+        self._w_sender_node_to_key = None
+      if self.takes_sender_edge_input:
+        self._w_sender_edge_to_key = tf.keras.layers.Dense(
+            per_head_channels * num_heads,
+            kernel_initializer=kernel_initializer,
+            kernel_regularizer=kernel_regularizer,
+            # This bias would be redundant with self._w_sender_node.
+            use_bias=use_bias and self._w_sender_node_to_key is None,
+            name="key_edge")
+      else:
+        self._w_sender_edge_to_key = None
 
     self._w_value = tf.keras.layers.Dense(
         per_head_channels * num_heads,
@@ -229,6 +269,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
         kernel_regularizer=tf.keras.regularizers.serialize(  # b/238163789
             self._kernel_regularizer
         ),
+        transform_keys=self._transform_keys,
         score_scaling=self._score_scaling,
         **super().get_config())
 
@@ -243,27 +284,71 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
                    Mapping[str, Callable[..., Any]]] = None,
                **kwargs) -> tf.Tensor:
 
+    # Determine the width of transformed queries and create transfomations.
+    # If transform_keys is true, queries will be transformed to
+    # self._per_head_channels. Otherwise, transform the queries to match
+    # the width of raw sender inputs (keys).
+    if self._w_query is None:
+      with tf.init_scope():
+        if not self._transform_keys:
+          keys_width = 0
+          if sender_node_input is not None:
+            keys_width += sender_node_input.shape[-1]
+          if sender_edge_input is not None:
+            keys_width += sender_edge_input.shape[-1]
+          self._w_query = tf.keras.layers.Dense(
+              keys_width * self._num_heads,
+              kernel_initializer=self._kernel_initializer,
+              kernel_regularizer=self._kernel_regularizer,
+              use_bias=self._use_bias,
+              name="query")
+        else:
+          self._w_query = tf.keras.layers.Dense(
+              self._per_head_channels * self._num_heads,
+              kernel_initializer=self._kernel_initializer,
+              kernel_regularizer=self._kernel_regularizer,
+              use_bias=self._use_bias,
+              name="query")
+    assert self._w_query is not None
+
     # Form the attention query for each head.
+    # If transform_keys is true, it has the shape:
     # [num_items, *extra_dims, num_heads, channels_per_head]
+    # Otherwise, the shape is: [num_items, *extra_dims, num_heads, keys_width].
     assert receiver_input is not None, "__init__() should have checked this."
-    queries = broadcast_from_receiver(
-        self._split_heads(
-            self._w_query(receiver_input)))
+    queries = broadcast_from_receiver(self._split_heads(self._w_query(
+        receiver_input)))
 
     # Maybe add an activation to the queries.
     if self._attention_activation is not None:
       queries = self._attention_activation(queries)
 
-    # Form the keys  by transforming the configured inputs
-    # and adding up the transformed values.
+    # Form the attention key for each head.
+    # If transform_keys is ture, the pieces of keys inputs are transformed to
+    # [num_items, *extra_dims, num_heads, channels_per_head] and the results
+    # are added, which allows transformation for the piece from the nodes before
+    # broadcasting it and equals to first concatenating the pieces and
+    # then transforming them to channels_per_head.
+    # If transform_keys is false, the pieces of keys inputs are concatenated on
+    # last axis with a shape [num_items, *extra_dims, num_heads, keys_width].
     keys = []
-    if sender_node_input is not None:
-      keys.append(broadcast_from_sender_node(
-          self._split_heads(self._w_sender_node_to_key(sender_node_input))))
-    if sender_edge_input is not None:
-      keys.append(self._split_heads(
-          self._w_sender_edge_to_key(sender_edge_input)))
-    keys = tf.add_n(keys)
+    if not self._transform_keys:
+      if sender_node_input is not None:
+        keys.append(
+            tf.expand_dims(
+                broadcast_from_sender_node(sender_node_input), axis=-2))
+      if sender_edge_input is not None:
+        keys.append(
+            tf.expand_dims(sender_edge_input, axis=-2))
+      keys = tf.concat(keys, axis=-1)
+    else:
+      if sender_node_input is not None:
+        keys.append(broadcast_from_sender_node(
+            self._split_heads(self._w_sender_node_to_key(sender_node_input))))
+      if sender_edge_input is not None:
+        keys.append(self._split_heads(
+            self._w_sender_edge_to_key(sender_edge_input)))
+      keys = tf.add_n(keys)
 
     # Dot-product of queries and keys to produce the attention coefficients.
     # [num_items, *extra_dims, num_heads, 1]
@@ -271,7 +356,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
         queries * keys, axis=-1, keepdims=True)
     if self._score_scaling:
       attention_coefficients *= tf.math.rsqrt(
-          tf.cast(self._per_head_channels, tf.float32))
+          tf.cast(keys.shape[-1], tf.float32))
 
     attention_coefficients = extra_receiver_ops["softmax"](
         attention_coefficients)
@@ -310,13 +395,18 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
   #  - all heads concatenated:    shape [..., num_heads * channels_per_head].
 
   def _split_heads(self, tensor):
+    assert tensor.shape[-1] is not None
+    assert tensor.shape[-1] % self._num_heads == 0, (
+        f"{tensor.shape[-1]} not"
+        f"divisible by {self._num_heads}")
+    per_head_channels = tensor.shape[-1] // self._num_heads
     extra_dims = tensor.shape[1:-1]  # Possibly empty.
     if not extra_dims.is_fully_defined():
       raise ValueError(
           "MultiHeadAttentionConv requires non-ragged Tensors as inputs, "
           "and GraphTensor requires these to have statically known "
           f"dimensions except the first, but got {tensor.shape}")
-    new_shape = (-1, *extra_dims, self._num_heads, self._per_head_channels)
+    new_shape = (-1, *extra_dims, self._num_heads, per_head_channels)
     return tf.reshape(tensor, new_shape)
 
   def _merge_heads(self, tensor):
