@@ -1,5 +1,5 @@
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_library")
-load("//third_party/tensorflow/core/platform/google:distribute.bzl", "distribute_py_test")
+load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "distribute_py_test")
 
 licenses(["notice"])
 
@@ -44,6 +44,7 @@ distribute_py_test(
     python_version = "PY3",
     shard_count = 4,
     tags = [
+        "no_oss",  # TODO(b/238827505)
         "nomultivm",  # TODO(b/170502145)
     ],
     xla_enable_strict_auto_jit = False,

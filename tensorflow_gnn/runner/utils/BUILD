@@ -125,7 +125,6 @@ pytype_strict_library(
     deps = [
         ":padding",
         "//:expect_absl_installed",
-        "//:expect_tensorflow_installed:tensorflow_no_contrib",
         "//tensorflow_gnn",
         "//tensorflow_gnn/runner:orchestration",
     ],

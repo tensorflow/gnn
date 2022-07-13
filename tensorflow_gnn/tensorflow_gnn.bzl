@@ -61,3 +61,23 @@ def tf_py_test(name, deps = [], **kwargs):
         deps = deps,
         **kwargs
     )
+
+# This is a trimmed down version of distribute_py_test since a lot of internal
+# features are just not available to OSS build, and also not applicable to TFGNN.
+# Especially the TPU tests branches are removed.
+def distribute_py_test(
+        name,
+        deps = [],
+        main = None,
+        xla_enable_strict_auto_jit = False,
+        **kwargs):
+    # Default to PY3 since multi worker tests require PY3.
+    kwargs.setdefault("python_version", "PY3")
+    main = main if main else "%s.py" % name
+    xla_enable_strict_auto_jit = xla_enable_strict_auto_jit  # Dummy to suppress warning
+    tf_py_test(
+        name = name,
+        deps = deps,
+        main = main,
+        **kwargs
+    )
