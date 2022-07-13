@@ -52,7 +52,7 @@ For more details, please see our [documentation](tensorflow_gnn/docs/guide/overv
 
 ##### Latest available pip wheel.
 
-`pip install tensorflow_gnn --pre`
+`pip install tensorflow_gnn`
 
 ##### Installation from source.
 
