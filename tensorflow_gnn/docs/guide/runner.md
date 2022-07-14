@@ -60,7 +60,7 @@ trainer = runner.KerasTrainer(
 
 runner.run(
     train_ds_provider=train_ds_provider,
-    traing_padding=runner.FitOrSkipPadding(gtspec, train_ds_provider),
+    train_padding=runner.FitOrSkipPadding(gtspec, train_ds_provider),
     # simple_gnn is a function: Callable[[tfgnn.GraphTensorSpec], tf.keras.Model].
     # Where the returned model both takes and returns a scalar `GraphTensor` for
     # its inputs and outputs.
