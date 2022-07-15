@@ -98,6 +98,13 @@ How to contribute to the TF-GNN library.
   * The [Developer](developer.md) guide describes how to clone our github repo
     and install the tools and libraries required to build and run TF-GNN code.
 
+## Papers
+
+The following research paper describes the design of this library:
+
+  * O. Ferludin et al.: [TF-GNN: Graph Neural Networks in
+  TensorFlow](https://arxiv.org/abs/2207.03522), 2022.
+
 ## Talks
 
 You can find related talks at our NeurIPS 2020 Expo workshop:

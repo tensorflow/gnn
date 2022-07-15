@@ -46,7 +46,9 @@ of contexts, on homogeneous and heterogeneous graphs, and in conjunction with
 other scalable graph mining tools.
 
 For more details, please see our [documentation](tensorflow_gnn/docs/guide/overview.md).
-
+For background and discussion, please see O. Ferludin et al.:
+[TF-GNN: Graph Neural Networks in TensorFlow](https://arxiv.org/abs/2207.03522),
+2022 (full citation below).
 
 ## Installation Instructions
 
@@ -81,3 +83,29 @@ A virtual environment is highly recommended.
 4.  **Install tensorflow_gnn**
 
     > `$> cd tensorflow_gnn && python3 -m pip install .`
+
+
+## Citation
+
+When referencing this library in a paper, please cite the
+[TF-GNN paper](https://arxiv.org/abs/2207.03522):
+
+```
+@article{tfgnn,
+  author  = {Oleksandr Ferludin and Arno Eigenwillig and Martin Blais and
+             Dustin Zelle and Jan Pfeifer and Alvaro Sanchez{-}Gonzalez and
+             Sibon Li and Sami Abu{-}El{-}Haija and Peter Battaglia and
+             Neslihan Bulut and Jonathan Halcrow and
+             Filipe Miguel Gon{\c{c}}alves de Almeida and Silvio Lattanzi and
+             Andr{\'{e}} Linhares and Brandon Mayer and Vahab Mirrokni and
+             John Palowitch and Mihir Paradkar and Jennifer She and
+             Anton Tsitsulin and Kevin Villela and Lisa Wang and David Wong and
+             Bryan Perozzi},
+  title   = {{TF-GNN:} Graph Neural Networks in TensorFlow},
+  journal = {CoRR},
+  volume  = {abs/2207.03522},
+  year    = {2022},
+  url     = {http://arxiv.org/abs/2207.03522},
+}
+```
+
