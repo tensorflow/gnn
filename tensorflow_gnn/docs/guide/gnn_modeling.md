@@ -63,7 +63,7 @@ def set_initial_node_state(node_set, node_set_name):
   elif node_set_name == ...:
     ...
 
-graph = tf.keras.layers.MapFeatures(
+graph = tfgnn.keras.layers.MapFeatures(
     node_sets_fn=set_initial_node_state)(input_graph)
 ```
 
@@ -191,7 +191,7 @@ after the code from the previous sections, which can be summarized as
 
 ```python
 input_graph = tf.keras.layers.Input(type_spec=model_input_graph_spec)
-graph = tf.keras.layers.MapFeatures(
+graph = tfgnn.keras.layers.MapFeatures(
     node_sets_fn=set_initial_node_state)(input_graph)
 graph = gnn(graph)
 ```
