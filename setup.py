@@ -181,7 +181,7 @@ setup(
     ],
     namespace_packages=[],
     install_requires=[
-        'apache-beam[gcp]==2.33.0',  # TODO(b/238522209) Upgrade beam dep
+        'apache-beam',  # TODO(b/238522209) Upgrade beam dep
         'networkx',
         'pyarrow',
         'tensorflow>=2.7.0',
