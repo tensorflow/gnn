@@ -12,8 +12,8 @@
 # An end to end example from building docker, pushing to GCR,
 # copying data to GCS, and running sampling:
 #
-# pushd /[path-to]/tensorflow_gnn
-# docker build . -t tfgnn:latest -t gcr.io/${GOOGLE_CLOUD_PROJECT}/tfgnn:latest
+# docker build [path-to]/tensorflow_gnn -t tfgnn:latest \
+#   -t gcr.io/${GOOGLE_CLOUD_PROJECT}/tfgnn:latest
 # docker push gcr.io/${GOOGLE_CLOUD_PROJECT}/tfgnn:latest
 #
 # docker run -v /tmp:/tmp \
@@ -24,11 +24,6 @@
 #
 # ./[path-to]/tensorflow_gnn/examples/arxiv/sample_dataflow.sh
 #
-NUMBER_OF_WORKER_HARNESS_THREADS=4
-MB_PER_THREAD=$((38*1024))
-# DF starts 1 processs and 1 thread per vCPU.
-MB_PER_MACHINE=$(($NUMBER_OF_WORKER_HARNESS_THREADS*$MB_PER_THREAD))
-MACHINE_TYPE="custom-${NUMBER_OF_WORKER_HARNESS_THREADS}-${MB_PER_THREAD}-ext"
 MAX_NUM_WORKERS=1000
 
 # The sampling spec is included in the container, read by the controller and
@@ -63,7 +58,9 @@ REMOTE_WORKER_CONTAINER="[FILL-ME-IN]"
 # so worker machines do not impact quota limits.
 GCP_VPC_NAME="[FILL-ME-IN]"
 
-JOB_NAME="tensorflow-gnn-mag-sampling-${TIMESTAMP}"
+EDGE_AGGREGATION_METHOD="edge"
+
+JOB_NAME="tfgnn-mag-sampling-${EDGE_AGGREGATION_METHOD}-${TIMESTAMP}"
 
 # Placeholder for Google-internal script config
 
@@ -75,6 +72,7 @@ docker run -v ~/.config/gcloud:/root/.config/gcloud \
   --graph_schema="${GRAPH_SCHEMA}" \
   --sampling_spec="${SAMPLING_SPEC}" \
   --output_samples="${OUTPUT_SAMPLES}" \
+  --edge_aggregation_method="${EDGE_AGGREGATION_METHOD}" \
   --runner=DataflowRunner \
   --project=${GOOGLE_CLOUD_PROJECT} \
   --region=${GOOGLE_CLOUD_COMPUTE_REGION} \
@@ -83,7 +81,7 @@ docker run -v ~/.config/gcloud:/root/.config/gcloud \
   --job_name="${JOB_NAME}" \
   --no_use_public_ips \
   --network="${GCP_VPC_NAME}" \
-  --worker_machine_type="${MACHINE_TYPE}" \
+  --dataflow_service_options=enable_prime \
   --experiments=use_monitoring_state_manager \
   --experiments=enable_execution_details_collection \
   --experiment=use_runner_v2 \
