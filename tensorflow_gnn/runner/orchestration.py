@@ -414,7 +414,7 @@ def run(*,
 
   parsing_and_preprocess_model = model_utils.chain_first_output(
       parsing_model,
-      preprocess_model)
+      preprocess_model, first_output_only=False)
 
   for export_dir in export_dirs or [os.path.join(trainer.model_dir, "export")]:
     for exporter in model_exporters:
