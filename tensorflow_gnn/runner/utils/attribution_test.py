@@ -8,18 +8,20 @@ from tensorflow_gnn.runner.utils import attribution
 IntegratedGradientsExporter = attribution.IntegratedGradientsExporter
 ModelExporter = orchestration.ModelExporter
 
+as_tensor = lambda sequence: tf.constant(sequence, dtype=tf.float32)
+
 
 class AttributionTest(tf.test.TestCase):
 
   gt = tfgnn.GraphTensor.from_pieces(
       context=tfgnn.Context.from_fields(features={
-          "h": tf.constant((514, 433), dtype=tf.float32),
+          "h": as_tensor((.514, .433)),
       }),
       node_sets={
           "node":
               tfgnn.NodeSet.from_fields(
                   features={
-                      "h": tf.constant((8191, 9474, 1634), dtype=tf.float32),
+                      "h": as_tensor((.8191, .9474, .1634)),
                   },
                   sizes=tf.constant((3,), dtype=tf.int32),
               ),
@@ -27,7 +29,7 @@ class AttributionTest(tf.test.TestCase):
       edge_sets={
           "edge":
               tfgnn.EdgeSet.from_fields(
-                  features={"weight": tf.constant((153, 9), dtype=tf.float32)},
+                  features={"weight": as_tensor((.153, .9))},
                   sizes=tf.constant((2,), dtype=tf.int32),
                   adjacency=tfgnn.Adjacency.from_indices(
                       source=("node", (0, 1)), target=("node", (1, 2))),
@@ -40,58 +42,58 @@ class AttributionTest(tf.test.TestCase):
 
     self.assertAllEqual(
         counterfactual.context.features["h"],
-        tf.constant((492.80963, 466.38303), dtype=tf.float32))
+        as_tensor((0.49280962, 0.466383)))
 
     self.assertAllEqual(
         counterfactual.edge_sets["edge"].features["weight"],
-        tf.constant((134.47087, 66.30827), dtype=tf.float32))
+        as_tensor((0.8038801, 0.45028666)))
 
     self.assertAllEqual(
         counterfactual.node_sets["node"].features["h"],
-        tf.constant((6295.455, 3710.2205, 5127.05), dtype=tf.float32))
+        as_tensor((0.6295455, 0.37102205, 0.51270497)))
 
   def test_counterfactual_zeros(self):
     counterfactual = attribution.counterfactual(self.gt, random=False)
 
     self.assertAllEqual(
         counterfactual.context.features["h"],
-        tf.constant((0, 0), dtype=tf.float32))
+        as_tensor((0, 0)))
 
     self.assertAllEqual(
         counterfactual.edge_sets["edge"].features["weight"],
-        tf.constant((0, 0), dtype=tf.float32))
+        as_tensor((0, 0)))
 
     self.assertAllEqual(
         counterfactual.node_sets["node"].features["h"],
-        tf.constant((0, 0, 0), dtype=tf.float32))
+        as_tensor((0, 0, 0)))
 
   def test_subtract_graph_features(self):
     deltas = attribution.subtract_graph_features(
         self.gt,
         self.gt.replace_features(
-            context={"h": tf.constant((4, 8), dtype=tf.float32)},
+            context={"h": as_tensor((.4, .8))},
             node_sets={
                 "node": {
-                    "h": tf.constant((1, 2, 3), dtype=tf.float32)
+                    "h": as_tensor((.1, .2, .3))
                 }
             },
             edge_sets={
                 "edge": {
-                    "weight": tf.constant((2, 1), dtype=tf.float32)
+                    "weight": as_tensor((.2, .1))
                 }
             }))
 
-    self.assertAllEqual(
+    self.assertAllClose(
         deltas.context.features["h"],
-        tf.constant((514 - 4, 433 - 8), dtype=tf.float32))
+        as_tensor((.514 - .4, .433 - .8)))
 
-    self.assertAllEqual(
+    self.assertAllClose(
         deltas.edge_sets["edge"].features["weight"],
-        tf.constant((153 - 2, 9 - 1), dtype=tf.float32))
+        as_tensor((.153 - .2, .9 - .1)))
 
-    self.assertAllEqual(
+    self.assertAllClose(
         deltas.node_sets["node"].features["h"],
-        tf.constant((8191 - 1, 9474 - 2, 1634 - 3), dtype=tf.float32))
+        as_tensor((.8191 - .1, .9474 - .2, .1634 - .3),))
 
   def test_interpolate(self):
     counterfactual = attribution.counterfactual(self.gt, random=True, seed=8191)
@@ -105,133 +107,141 @@ class AttributionTest(tf.test.TestCase):
     # Interpolation 0
     self.assertAllEqual(
         interpolations[0].context.features["h"],
-        tf.constant((492.80963, 466.38303), dtype=tf.float32))
+        as_tensor((0.49280962, 0.466383)))
 
     self.assertAllEqual(
         interpolations[0].edge_sets["edge"].features["weight"],
-        tf.constant((134.47087, 66.30827), dtype=tf.float32))
+        as_tensor((0.8038801, 0.45028666)))
 
     self.assertAllClose(
         interpolations[0].node_sets["node"].features["h"],
-        tf.constant((6295.455, 3710.2205, 5127.05), dtype=tf.float32))
+        as_tensor((0.6295455, 0.37102205, 0.51270497)))
 
     # Interpolation 1
     self.assertAllEqual(
         interpolations[1].context.features["h"],
-        tf.constant((492.80963 + (514 - 492.80963) * 1 / 3,
-                     466.38303 + (433 - 466.38303) * 1 / 3),
-                    dtype=tf.float32))
+        as_tensor((0.49280962 + (.514 - 0.49280962) * 1 / 3,
+                   0.466383 + (.433 - 0.466383) * 1 / 3)))
 
     self.assertAllClose(
         interpolations[1].edge_sets["edge"].features["weight"],
-        tf.constant((134.47087 + (153 - 134.47087) * 1 / 3,
-                     66.30827 + (9 - 66.30827) * 1 / 3),
-                    dtype=tf.float32))
+        as_tensor((0.8038801 + (.153 - 0.8038801) * 1 / 3,
+                   0.45028666 + (.9 - 0.45028666) * 1 / 3)))
 
     self.assertAllClose(
         interpolations[1].node_sets["node"].features["h"],
-        tf.constant((6295.455 + (8191 - 6295.455) * 1 / 3,
-                     3710.2205 + (9474 - 3710.2205) * 1 / 3,
-                     5127.05 + (1634 - 5127.05) * 1 / 3),
-                    dtype=tf.float32))
+        as_tensor((0.6295455 + (.8191 - 0.6295455) * 1 / 3,
+                   0.37102205 + (.9474 - 0.37102205) * 1 / 3,
+                   0.51270497 + (.1634 - 0.51270497) * 1 / 3)))
 
     # Interpolation 2
     self.assertAllEqual(
         interpolations[2].context.features["h"],
-        tf.constant((492.80963 + (514 - 492.80963) * 2 / 3,
-                     466.38303 + (433 - 466.38303) * 2 / 3),
-                    dtype=tf.float32))
+        as_tensor((0.49280962 + (.514 - 0.49280962) * 2 / 3,
+                   0.466383 + (.433 - 0.466383) * 2 / 3)))
 
     self.assertAllClose(
         interpolations[2].edge_sets["edge"].features["weight"],
-        tf.constant((134.47087 + (153 - 134.47087) * 2 / 3,
-                     66.30827 + (9 - 66.30827) * 2 / 3),
-                    dtype=tf.float32))
+        as_tensor((0.8038801 + (.153 - 0.8038801) * 2 / 3,
+                   0.45028666 + (.9 - 0.45028666) * 2 / 3)))
 
     self.assertAllClose(
         interpolations[2].node_sets["node"].features["h"],
-        tf.constant((6295.455 + (8191 - 6295.455) * 2 / 3,
-                     3710.2205 + (9474 - 3710.2205) * 2 / 3,
-                     5127.05 + (1634 - 5127.05) * 2 / 3),
-                    dtype=tf.float32))
+        as_tensor((0.6295455 + (.8191 - 0.6295455) * 2 / 3,
+                   0.37102205 + (.9474 - 0.37102205) * 2 / 3,
+                   0.51270497 + (.1634 - 0.51270497) * 2 / 3)))
 
     # Interpolation 3
     self.assertAllEqual(
         interpolations[3].context.features["h"],
-        tf.constant((514, 433), dtype=tf.float32))
+        as_tensor((.514, .433)))
 
     self.assertAllEqual(
         interpolations[3].edge_sets["edge"].features["weight"],
-        tf.constant((153, 9), dtype=tf.float32))
+        as_tensor((.153, .9)))
 
     self.assertAllEqual(
         interpolations[3].node_sets["node"].features["h"],
-        tf.constant((8191, 9474, 1634), dtype=tf.float32))
+        as_tensor((.8191, .9474, .1634)))
 
   def test_sum_graph_features(self):
     summation = attribution.sum_graph_features((self.gt,) * 4)
 
     self.assertAllEqual(
         summation.context.features["h"],
-        tf.constant((514 * 4, 433 * 4), dtype=tf.float32))
+        as_tensor((.514 * 4, .433 * 4)))
 
     self.assertAllEqual(
         summation.edge_sets["edge"].features["weight"],
-        tf.constant((153 * 4, 9 * 4), dtype=tf.float32))
+        as_tensor((.153 * 4, .9 * 4)))
 
     self.assertAllEqual(
         summation.node_sets["node"].features["h"],
-        tf.constant((8191 * 4, 9474 * 4, 1634 * 4), dtype=tf.float32))
+        as_tensor((.8191 * 4, .9474 * 4, .1634 * 4)))
 
   def test_integrated_gradients_exporter(self):
+    # Preprocess model
     examples = tf.keras.Input(shape=(), dtype=tf.string, name="examples")
     parsed = tfgnn.keras.layers.ParseExample(self.gt.spec)(examples)
     parsed = parsed.merge_batch_to_components()
-    labels = parsed.context["h"][0]
+    label = tfgnn.keras.layers.ReadoutFirstNode(
+        node_set_name="node",
+        feature_name="h")(parsed)
+    label = tf.random.uniform(
+        tf.shape(label),
+        minval=0,
+        maxval=9,
+        dtype=tf.int32)  # 10 classes
 
-    preprocess_model = tf.keras.Model(examples, (parsed, labels))
+    preprocess_model = tf.keras.Model(examples, (parsed, label))
 
-    inputs = tf.keras.Input(type_spec=self.gt.spec)
-    graph = inputs.merge_batch_to_components()
-
+    # Model
+    inputs = graph = tf.keras.Input(type_spec=parsed.spec)
     values = tfgnn.broadcast_node_to_edges(
         graph,
         "edge",
         tfgnn.TARGET,
-        feature_name="h")[:, None]
-    weights = graph.edge_sets["edge"].features["weight"][:, None]
-
-    messages = tf.keras.layers.Concatenate()((values, weights))
+        feature_name="h")
+    weights = graph.edge_sets["edge"].features["weight"]
+    messages = (values[:, None], weights[:, None])
+    messages = tf.keras.layers.Concatenate()(messages)
     messages = tf.keras.layers.Dense(16)(messages)
-
     pooled = tfgnn.pool_edges_to_node(
         graph,
         "edge",
         tfgnn.SOURCE,
         reduce_type="sum",
         feature_value=messages)
-
-    h_old = graph.node_sets["node"].features["h"][:, None]
-    h_next = tf.keras.layers.Concatenate()((pooled, h_old))
-    h_next = tf.keras.layers.Dense(1)(h_next)
+    h_old = graph.node_sets["node"].features["h"]
+    h_next = tf.keras.layers.Concatenate()((pooled, h_old[:, None]))
+    h_next = tf.keras.layers.Dense(16)(h_next)
     graph = graph.replace_features(node_sets={"node": {"h": h_next}})
-
     activations = tfgnn.keras.layers.ReadoutFirstNode(
         node_set_name="node",
         feature_name="h")(graph)
+    logits = tf.keras.layers.Dense(10)(activations)  # 10 classes
 
-    model = tf.keras.Model(inputs, activations)
-    model.compile("adam", "mae")
+    model = tf.keras.Model(inputs, logits)
 
+    # Dataset
+    example = tfgnn.write_example(self.gt)
+    ds = tf.data.Dataset.from_tensors(example.SerializeToString()).repeat(4)
+    ds = ds.batch(1)
+
+    # Compile and fit
+    model.compile("adam", "sparse_categorical_crossentropy")
+    model.fit(ds.map(preprocess_model), epochs=16)
+
+    # Export
     export_dir = self.create_tempdir()
     exporter = attribution.IntegratedGradientsExporter("output", steps=3)
     exporter.save(preprocess_model, model, export_dir)
 
     saved_model = tf.saved_model.load(export_dir)
 
-    example = tfgnn.write_example(self.gt)
+    # Integrated gradients
     kwargs = {
-        "examples": tf.constant((example.SerializeToString(),))
+        "examples": next(iter(ds)),
     }
     outputs = saved_model.signatures["integrated_gradients"](**kwargs)
     gt = outputs["output"]
@@ -244,11 +254,11 @@ class AttributionTest(tf.test.TestCase):
     # should see no integrated gradients.
     self.assertAllClose(
         gt.node_sets["node"].features["h"],
-        tf.constant((0.992285, 1.659444, 0.), dtype=tf.float32))
+        as_tensor((2.3298206, -0.9860805, 0.)), 1e-04, 1e-04)
 
     self.assertAllClose(
         gt.edge_sets["edge"].features["weight"],
-        tf.constant((0.641726, 0.), dtype=tf.float32))
+        as_tensor((4.725009, 0.)), 1e-04, 1e-04)
 
   def test_protocol(self):
     self.assertIsInstance(IntegratedGradientsExporter, ModelExporter)

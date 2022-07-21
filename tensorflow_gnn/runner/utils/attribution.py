@@ -252,8 +252,8 @@ def integrated_gradients(
         tape.watch(interpolation)
         logits = model(interpolation)
         loss = model.compiled_loss(
-            logits,
             labels,
+            logits,
             regularization_losses=model.losses)
 
       def fn(inputs):
