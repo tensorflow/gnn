@@ -4,8 +4,8 @@ This script runs end-to-end, i.e., requiring no pre- or post-processing scripts.
 It holds the dataset in-memory, and processes the entire graph at each step. It
 uses barebones tensorflow.
 
-By default, script runs on 'ogbn-arxiv'. You substitute with another OGB
-(Stanford Open Graph Benchmark) node-classification dataset via flag --dataset.
+By default, script runs on 'ogbn-arxiv'. You substitute with another
+node-classification dataset via flag --dataset.
 """
 
 import functools
@@ -21,12 +21,8 @@ from tensorflow_gnn.examples.in_memory import reader_utils
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string('dataset', 'ogbn-arxiv',
-                    'Name of OGB dataset. Assumed to contain '
-                    'node-classification task')
-flags.DEFINE_string(
-    'ogb_cache_dir', None,
-    'Overrides $OGB_CACHE_DIR to set the cache dir for downloading OGB '
-    'datasets.')
+                    'Name of dataset. Assumed to contain node-classification '
+                    'task. OGBN datasets and Planetoid datasets are supported.')
 flags.DEFINE_string('model', 'GCN',
                     'Model name. Choices: ' +
                     ', '.join(models.MODEL_NAMES))
@@ -40,15 +36,15 @@ flags.DEFINE_integer('steps', 101,
 
 
 def main(unused_argv):
-  ogb_wrapper = datasets.NodeClassificationOgbDatasetWrapper(
-      FLAGS.dataset, cache_dir=FLAGS.ogb_cache_dir)
-  graph_schema = datasets.create_graph_schema_from_directed(
-      ogb_wrapper.ogb_dataset)
-  type_spec = tfgnn.create_graph_spec_from_schema_pb(graph_schema)
-
-  num_classes = ogb_wrapper.num_classes()
+  dataset_wrapper = datasets.get_dataset(FLAGS.dataset)
+  num_classes = dataset_wrapper.num_classes()
   prefers_undirected, model = models.make_model_by_name(
       FLAGS.model, num_classes, l2_coefficient=FLAGS.l2_regularization)
+
+  graph_schema = datasets.create_graph_schema_from_directed(
+      dataset_wrapper, make_undirected=prefers_undirected)
+  type_spec = tfgnn.create_graph_spec_from_schema_pb(graph_schema)
+
   input_graph = tf.keras.layers.Input(type_spec=type_spec)
   graph = input_graph
 
@@ -71,12 +67,13 @@ def main(unused_argv):
       from_logits=True, reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE)
   keras_model.compile(opt, loss=loss, metrics=['acc'])
 
-  train_dataset = ogb_wrapper.iterate_once(make_undirected=prefers_undirected)
+  train_dataset = dataset_wrapper.iterate_once(
+      make_undirected=prefers_undirected)
   train_labels_dataset = train_dataset.map(
       functools.partial(reader_utils.pair_graphs_with_labels, num_classes))
 
   # Similarly for validation.
-  validation_ds = ogb_wrapper.iterate_once(
+  validation_ds = dataset_wrapper.iterate_once(
       split='valid', make_undirected=prefers_undirected)
   validation_ds = validation_ds.map(
       functools.partial(reader_utils.pair_graphs_with_labels, num_classes))

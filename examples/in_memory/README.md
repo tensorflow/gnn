@@ -21,8 +21,9 @@ binaries:
 
 Both of these binaries accept the following flags:
 
-* `--dataset=<dataset_name>`. We currently support `ogbn-*` datasets, such as,
-  `--dataset=ogbn-arxiv`. Datasets are implemented in file `datasets.py`.
+* `--dataset=<dataset_name>`. We currently support `ogbn-*` and planetoid
+  datasets, such as, `--dataset=ogbn-arxiv` or `--dataset=pubmed`. Datasets are
+  implemented in file `datasets.py`.
 * `--model=<model_name>`. For instance, `--model=JKNet` or `--model=GCN`,
   respectively, for models of [[2]](#2) or [[3]](#3). Models are implemented in
   file `models.py`.

@@ -4,8 +4,8 @@ This script runs end-to-end, i.e., requiring no pre- or post-processing scripts.
 It holds the dataset in-memory, and processes the entire graph at each step. It
 uses barebones tensorflow.
 
-By default, script runs on 'ogbn-arxiv'. You substitute with another OGB
-(Stanford Open Graph Benchmark) node-classification dataset via flag --dataset.
+By default, script runs on 'ogbn-arxiv'. You substitute with another
+node-classification dataset via flag --dataset.
 """
 from absl import app
 from absl import flags
@@ -18,8 +18,8 @@ from tensorflow_gnn.examples.in_memory import reader_utils
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string('dataset', 'ogbn-arxiv',
-                    'Name of OGB dataset. Assumed to contain '
-                    'node-classification task')
+                    'Name of dataset. Assumed to contain node-classification '
+                    'task. OGBN datasets and Planetoid datasets are supported.')
 flags.DEFINE_string(
     'ogb_cache_dir', None,
     'Overrides $OGB_CACHE_DIR to set the cache dir for downloading OGB '
@@ -37,13 +37,13 @@ flags.DEFINE_integer('steps', 101,
 
 
 def main(unused_argv):
-  ogb_wrapper = datasets.NodeClassificationOgbDatasetWrapper(
+  dataset_wrapper = datasets.NodeClassificationOgbDatasetWrapper(
       FLAGS.dataset, cache_dir=FLAGS.ogb_cache_dir)
-  num_classes = ogb_wrapper.num_classes()
+  num_classes = dataset_wrapper.num_classes()
   prefers_undirected, model = models.make_model_by_name(
       FLAGS.model, num_classes, l2_coefficient=FLAGS.l2_regularization)
 
-  graph_tensor = ogb_wrapper.export_to_graph_tensor(
+  graph_tensor = dataset_wrapper.export_to_graph_tensor(
       make_undirected=prefers_undirected)
   graph_tensor, seed_y = reader_utils.pair_graphs_with_labels(
       num_classes, graph_tensor)
@@ -75,7 +75,7 @@ def main(unused_argv):
     gradients = tape.gradient(loss, model.trainable_variables)
     opt.apply_gradients(zip(gradients, model.trainable_variables))
 
-  valid_graph = ogb_wrapper.export_to_graph_tensor(split='valid')
+  valid_graph = dataset_wrapper.export_to_graph_tensor(split='valid')
   valid_graph, valid_y = reader_utils.pair_graphs_with_labels(
       num_classes, valid_graph)
   valid_graph = tfgnn.keras.layers.MapFeatures(node_sets_fn=init_node_state)(
