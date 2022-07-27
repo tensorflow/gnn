@@ -20,6 +20,7 @@ pytype_strict_library(
         ":graph_update",
         ":map_features",
         ":next_state",
+        ":node_ops",
         ":padding_ops",
         ":parse_example",
     ],
@@ -176,6 +177,17 @@ tf_py_test(
         ":next_state",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:graph_constants",
+    ],
+)
+
+pytype_strict_library(
+    name = "node_ops",
+    srcs = ["node_ops.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn/graph:graph_constants",
+        "//tensorflow_gnn/graph:graph_tensor",
     ],
 )
 
