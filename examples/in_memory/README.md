@@ -19,7 +19,7 @@ binaries:
   python3 keras_trainer.py
   ```
 
-Both of these binaries accept the following flags:
+Both binaries accept identical flags, including:
 
 * `--dataset=<dataset_name>`. We currently support `ogbn-*` and planetoid
   datasets, such as, `--dataset=ogbn-arxiv` or `--dataset=pubmed`. Datasets are
@@ -27,6 +27,8 @@ Both of these binaries accept the following flags:
 * `--model=<model_name>`. For instance, `--model=JKNet` or `--model=GCN`,
   respectively, for models of [[2]](#2) or [[3]](#3). Models are implemented in
   file `models.py`.
+* `--model_kwargs_json=JSON_ENCODING` (optional), where `JSON_ENCODING` depends
+  on the `--model` parameter. See *Experiments on Planetoid Datasets*.
 * Other flags, such as learning-rate, regularization, number of data epochs, are
   available. You may run:
   
@@ -35,6 +37,29 @@ Both of these binaries accept the following flags:
   ```
 
   for an explanation of all the flags.
+
+### Experiments on OGBN Datasets
+
+You can run experiments on OGBN datasets, e.g.,
+
+```
+python3 tf_trainer.py --dataset=ogbn-arxiv
+```
+
+
+### Experiments on Planetoid Datasets
+
+To replicate the GCN paper [[3]](#3), you can run as:
+
+```sh
+python3 tf_trainer.py --dataset=cora --model=GCN --model_kwargs_json='{"batchnorm":true, "dropout": 0.8, "hidden_units": 32, "depth": 2}' --l2_regularization=1e-3 --steps=500
+```
+
+You can replace the `--dataset=cora` value with `pubmed` or `citeseer`.
+
+**Note**: these Planetoid datasets are sensitive to initial conditions and
+hyper-parameters.
+
 
 ## References
 <a id="1">[1]</a>
