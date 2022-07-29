@@ -6,6 +6,7 @@ from tensorflow_gnn.keras.layers import graph_ops
 from tensorflow_gnn.keras.layers import graph_update
 from tensorflow_gnn.keras.layers import map_features
 from tensorflow_gnn.keras.layers import next_state
+from tensorflow_gnn.keras.layers import node_ops
 from tensorflow_gnn.keras.layers import padding_ops
 from tensorflow_gnn.keras.layers import parse_example
 
