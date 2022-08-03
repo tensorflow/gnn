@@ -142,7 +142,7 @@ def random_graph_tensor(
     sample_dict: A dict of (set-type, set-name, field-name) to list-of-values to
       sample from. The intended purpose is to generate random values that are
       more realistic, more representative of what the actual dataset will
-      contain. You can provide such If the values aren't provided for a feature,
+      contain. You can provide such if the values aren't provided for a feature,
       random features are inserted of the right type.
     row_lengths_range: Minimum and maximum values for each row lengths in a
       ragged range.
