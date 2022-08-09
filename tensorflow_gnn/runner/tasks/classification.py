@@ -8,28 +8,47 @@ import tensorflow_gnn as tfgnn
 Tensor = Union[tf.Tensor, tf.RaggedTensor]
 
 
-class _FromLogitsMixIn(tf.keras.metrics.Metric):
-  """Mixin for `tf.keras.metrics.Metric` with a from_logits option."""
+class _GnnMetricMixIn(tf.keras.metrics.Metric):
+  """Mixin for `tf.keras.metrics.Metric` with gnn-specific options."""
 
-  def __init__(self, from_logits: bool, *args, **kwargs) -> None:
+  def __init__(self,
+               from_logits: bool,
+               *args,
+               class_id: int = -1,
+               **kwargs) -> None:
+    """Initializes metric mixin class.
+
+    Args:
+      from_logits: Whether the predictions are logits.
+      *args: Variable arguments.
+      class_id: Categorical class id for per-class precision/recall.
+        Assume class id starts with 0.
+      **kwargs: Variable key-word arguments.
+    """
     super().__init__(*args, **kwargs)
     self._from_logits = from_logits
+    self._class_id = class_id
 
   def update_state(self,
                    y_true: tf.Tensor,
                    y_pred: tf.Tensor,
                    sample_weight: Optional[tf.Tensor] = None) -> None:
-    return super().update_state(
-        y_true,
-        tf.nn.sigmoid(y_pred) if self._from_logits else y_pred,
-        sample_weight)
+    if self._from_logits:
+      if self._class_id >= 0:
+        # Multi-class classification.
+        y_true = (y_true == self._class_id)
+        y_pred = (tf.argmax(y_pred, -1) == self._class_id)
+      else:
+        # Binary classification.
+        y_pred = tf.nn.sigmoid(y_pred)
+    return super().update_state(y_true, y_pred, sample_weight)
 
 
-class _Precision(_FromLogitsMixIn, tf.keras.metrics.Precision):
+class _Precision(_GnnMetricMixIn, tf.keras.metrics.Precision):
   pass
 
 
-class _Recall(_FromLogitsMixIn, tf.keras.metrics.Recall):
+class _Recall(_GnnMetricMixIn, tf.keras.metrics.Recall):
   pass
 
 
@@ -98,7 +117,20 @@ class _BinaryClassification(_Classification):
 class _MulticlassClassification(_Classification):
   """Multiclass classification."""
 
-  def __init__(self, num_classes: int, *args, **kwargs):  # pylint: disable=useless-super-delegation
+  def __init__(self,
+               num_classes: int,
+               *args,
+               class_names: Optional[Sequence[str]] = None,
+               per_class_statistics: bool = False,
+               **kwargs):  # pylint: disable=useless-super-delegation
+    if (class_names is not None and len(class_names) != num_classes):
+      raise ValueError(f"Expected {num_classes} classes, got "
+                       f"{len(class_names)} class names.")
+    if class_names is None:
+      self._class_names = [f"class_{i}" for i in range(num_classes)]
+    else:
+      self._class_names = class_names
+    self._per_class_statistics = per_class_statistics
     super().__init__(num_classes, *args, **kwargs)
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
@@ -107,8 +139,21 @@ class _MulticlassClassification(_Classification):
 
   def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     """Sparse categorical metrics."""
-    return (tf.keras.metrics.SparseCategoricalAccuracy(),
-            tf.keras.metrics.SparseCategoricalCrossentropy(from_logits=True))
+    metric_objs = [
+        tf.keras.metrics.SparseCategoricalAccuracy(),
+        tf.keras.metrics.SparseCategoricalCrossentropy(from_logits=True)]
+
+    if self._per_class_statistics:
+      for (i, class_name) in enumerate(self._class_names):
+        metric_objs.append(_Precision(
+            from_logits=True,
+            class_id=i,
+            name=f"precision_for_{class_name}"))
+        metric_objs.append(_Recall(
+            from_logits=True,
+            class_id=i,
+            name=f"recall_for_{class_name}"))
+    return metric_objs
 
 
 class _GraphClassification(_Classification):

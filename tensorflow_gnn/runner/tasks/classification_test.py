@@ -161,6 +161,34 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
   def test_protocol(self, klass: object):
     self.assertIsInstance(klass, orchestration.Task)
 
+  def test_default_per_class_metrics(self):
+    task = classification.GraphMulticlassClassification(
+        num_classes=5, node_set_name="nodes", per_class_statistics=True)
+    metric_names = [metric.name for metric in task.metrics()]
+    self.assertContainsSubset([
+        "precision_for_class_0", "precision_for_class_1",
+        "precision_for_class_2", "precision_for_class_3",
+        "precision_for_class_4", "recall_for_class_0", "recall_for_class_1",
+        "recall_for_class_2", "recall_for_class_3", "recall_for_class_4"
+    ], metric_names)
+
+  def test_custom_per_class_metrics(self):
+    task = classification.RootNodeMulticlassClassification(
+        num_classes=3,
+        node_set_name="nodes",
+        per_class_statistics=True,
+        class_names=["foo", "bar", "baz"])
+    metric_names = [metric.name for metric in task.metrics()]
+    self.assertContainsSubset([
+        "precision_for_foo", "precision_for_bar", "precision_for_baz",
+        "recall_for_foo", "recall_for_bar", "recall_for_baz"
+    ], metric_names)
+
+  def test_invalid_number_of_class_names(self):
+    with self.assertRaises(ValueError):
+      classification.GraphMulticlassClassification(
+          num_classes=5, node_set_name="nodes", class_names=["foo", "bar"])
+
 
 if __name__ == "__main__":
   tf.test.main()
