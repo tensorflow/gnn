@@ -37,6 +37,7 @@ pytype_strict_library(
     srcs = ["graph_tensor_ops.py"],
     srcs_version = "PY3",
     deps = [
+        ":adjacency",
         ":graph_constants",
         ":graph_tensor",
         ":tensor_utils",

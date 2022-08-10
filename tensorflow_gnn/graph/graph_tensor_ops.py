@@ -3,6 +3,7 @@ import functools
 from typing import Any, Callable, List, Mapping, Optional, Union
 import tensorflow as tf
 
+from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import tensor_utils as utils
@@ -418,6 +419,134 @@ def pool(graph_tensor: GraphTensor,
         graph_tensor, reduce_type=reduce_type, edge_set_name=edge_set_name,
         node_tag=to_tag,
         feature_value=feature_value, feature_name=feature_name)
+
+
+_EdgeFeatureInitializer = Callable[[gt.FieldName, tf.TensorShape], tf.Tensor]
+
+
+def _zero_edge_feat_init(
+    feature_name: gt.FieldName, shape: tf.TensorShape) -> tf.Tensor:
+  """Returns zeros with shape `shape`."""
+  del feature_name
+  return tf.zeros(shape, dtype=tf.float32)
+
+
+def add_self_loops(
+    graph: GraphTensor, edge_set_name: gt.EdgeSetName, *,
+    edge_feature_initializer: _EdgeFeatureInitializer = _zero_edge_feat_init,
+    ) -> GraphTensor:
+  """Adds self-loops for edge with name `edge_set_name` EVEN if already exist.
+
+  Edge `edge_set_name` must connect pair of nodes of the same node set.
+
+  Args:
+    graph: GraphTensor without self-loops. NOTE: If it has self-loops, then
+      another round if self-loops will be added.
+    edge_set_name: Must connect node pairs of the same node set.
+    edge_feature_initializer: initializes edge features for the self-loop edges.
+      It defaults to initializing features of new edges to tf.zeros.
+
+  Returns:
+    GraphTensor with self-loops added.
+  """
+  gt.check_scalar_graph_tensor(graph, 'tfgnn.add_self_loops()')
+
+  edge_set = graph.edge_sets[edge_set_name]
+
+  if edge_set.adjacency.source_name != edge_set.adjacency.target_name:
+    raise ValueError(
+        'Edge set "%s" must connect source and target nodes from the same node '
+        'set. Got: node set names %s != %s' % (
+            edge_set_name, edge_set.adjacency.source_name,
+            edge_set.adjacency.target_name))
+
+  node_set_name = edge_set.adjacency.source_name
+  node_set = graph.node_sets[node_set_name]
+
+  num_nodes = node_set.total_size
+  num_edges = edge_set.total_size
+
+  self_loop_source = tf.range(  # == self_loop_target
+      num_nodes, dtype=edge_set.adjacency.target.dtype)
+
+  # shape (components, 2)
+  stacked_sizes = tf.stack([edge_set.sizes, node_set.sizes], 1)
+
+  # [ |E1|, |N1|, |E2|, |N2|, ... ]
+  alternate_sizes = tf.reshape(stacked_sizes, [-1])
+  # where |Ei| and |Ni| are number of edges and nodes in i'th component.
+
+  # [0, 0, ..,    1, 1, ..,   2, 2, ...,   3, 3, 3, ...]
+  #  ---------    ---------   ----------   ------------
+  #    |E1|          |N1|         |E2|        |N2|
+  segment_indicator = utils.repeat(
+      tf.range(tf.shape(alternate_sizes)[0], dtype=tf.int32), alternate_sizes,
+      repeats_sum_hint=tf.get_static_value(num_nodes + num_edges))
+
+  node_indicator = segment_indicator % 2  # Marks odd (i.e. node positions)
+  edge_indicator = 1 - node_indicator     # Marks even (i.e. edge positions)
+
+  # [0, 1, 2,..,  x, x, ...,  |E1|, |E1|+1,..,  x, x, x, ...];  "x" = dont care.
+  #  -----------  ---------   ----------------  ------------
+  #    |E1|          |N1|           |E2|            |N2|
+  edge_positions = tf.cumsum(edge_indicator) - 1
+  # Some "x" values can be -1. Remove.
+  edge_positions = tf.clip_by_value(
+      edge_positions, clip_value_min=0, clip_value_max=num_edges)
+
+  # [x, x, x,..,  0, 1, ...,  x, x,..,  |N1|, |N1|+1, ...];  "x" = dont care.
+  #  -----------  ---------   --------  -----------------
+  #    |E1|          |N1|        |E2|         |N2|
+  node_positions = tf.cumsum(node_indicator) - 1
+
+  # Some "x" values can be -1. Remove.
+  node_positions = tf.clip_by_value(
+      node_positions, clip_value_min=0, clip_value_max=num_nodes)
+
+  bool_edge_indicator = tf.cast(edge_indicator, tf.bool)
+  indices = tf.where(bool_edge_indicator, edge_positions,
+                     node_positions + num_edges)
+
+  new_source = tf.gather(
+      tf.concat([edge_set.adjacency.source, self_loop_source], 0), indices)
+  new_target = tf.gather(
+      tf.concat([edge_set.adjacency.target, self_loop_source], 0), indices)
+
+  updated_edge_sets = {}
+  for existing_edge_set_name, existing_edge_set in graph.edge_sets.items():
+    if edge_set_name != existing_edge_set_name:
+      # Unmodified.
+      updated_edge_sets[existing_edge_set_name] = existing_edge_set
+      continue
+
+    updated_features = {}
+    for feat_name, existing_feat_value in existing_edge_set.features.items():
+      feat_shape = tf.shape(existing_feat_value)[1:]
+      self_loop_edge_feature = edge_feature_initializer(feat_name, feat_shape)
+      self_loop_edge_feature = utils.repeat(
+          tf.expand_dims(self_loop_edge_feature, axis=0),
+          tf.expand_dims(num_nodes, axis=0),
+          repeats_sum_hint=tf.get_static_value(num_nodes + 0))
+      # Transposing twice so that we get broadcasting for free (instead of
+      # reshaping, adding 1's on some axis dimensions).
+      new_feature = tf.transpose(tf.where(
+          bool_edge_indicator,
+          tf.transpose(tf.gather(existing_feat_value, edge_positions)),
+          tf.transpose(tf.gather(self_loop_edge_feature, node_positions))))
+      updated_features[feat_name] = new_feature
+
+    updated_edge_sets[existing_edge_set_name] = gt.EdgeSet.from_fields(
+        sizes=tf.reduce_sum(stacked_sizes, 1),
+        features=updated_features,
+        adjacency=adj.Adjacency.from_indices(
+            source=(node_set_name, new_source),
+            target=(node_set_name, new_target),
+        )
+    )
+
+  return GraphTensor.from_pieces(
+      context=graph.context, node_sets=graph.node_sets,
+      edge_sets=updated_edge_sets)
 
 
 def _validate_names_and_tag(tag, *, edge_set_name, node_set_name):

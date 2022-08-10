@@ -907,5 +907,129 @@ class CombineFeaturesTest(tf.test.TestCase, parameterized.TestCase):
       ops.combine_values(bad_inputs, combine_type='sum')
 
 
+class SelfLoopsTest(tf.test.TestCase, parameterized.TestCase):
+
+  def testWithEmptyComponents(self):
+    node_sizes = [0, 5]
+    edge_sizes = [0, 0]
+
+    graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            'node': gt.NodeSet.from_fields(
+                sizes=as_tensor(node_sizes),
+                features={})
+        },
+        edge_sets={
+            'edge': gt.EdgeSet.from_fields(
+                sizes=tf.constant(as_tensor(edge_sizes), dtype=tf.int32),
+                adjacency=adj.Adjacency.from_indices(
+                    source=('node', tf.zeros([0], dtype=tf.int32)),
+                    target=('node', tf.zeros([0], dtype=tf.int32)),
+                ),
+                features={}),
+        })
+    out_graph = ops.add_self_loops(graph, 'edge')
+    self.assertLen(out_graph.node_sets, 1)
+    self.assertAllEqual(node_sizes, out_graph.node_sets['node'].sizes)
+    self.assertAllEqual(node_sizes, out_graph.edge_sets['edge'].sizes)
+    self.assertAllEqual(tf.range(5, dtype=tf.int32),
+                        out_graph.edge_sets['edge'].adjacency.source)
+    self.assertAllEqual(tf.range(5, dtype=tf.int32),
+                        out_graph.edge_sets['edge'].adjacency.target)
+
+  def testSelfLoops(self):
+    # pylint: disable=bad-whitespace
+    component_edges = (
+        # source nodes,                    target nodes
+        ([],                               []),         # <-- Component 0 edges.
+        ([1, 2, 3],                        [2, 3, 1]),  # <-- Component 1.
+        ([4, 5, 6, 7, 8, 5],               [5, 6, 7, 8, 4, 7]),  # ...
+        ([9, 10, 11, 12, 13, 14, 15, 10],  [10, 11, 12, 13, 14, 15, 9, 13]),
+        ([],                               []),
+        ([],                               []),
+    )
+    edge_sizes = []
+    node_sizes = [1, 3, 5, 7, 3, 0]
+
+    source_ids = []
+    target_ids = []
+    for component_source_ids, component_target_ids in component_edges:
+      assert len(component_source_ids) == len(component_target_ids)
+      edge_sizes.append(len(component_source_ids))
+      source_ids.extend(component_source_ids)
+      target_ids.extend(component_target_ids)
+
+    total_edges = len(target_ids)
+    edge_features = tf.random.uniform(shape=(total_edges, 5, 2))
+
+    graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            'node': gt.NodeSet.from_fields(
+                sizes=as_tensor(node_sizes),
+                features={})
+        },
+        edge_sets={
+            'edge': gt.EdgeSet.from_fields(
+                sizes=tf.constant(as_tensor(edge_sizes), dtype=tf.int32),
+                adjacency=adj.Adjacency.from_indices(
+                    source=('node', as_tensor(source_ids)),
+                    target=('node', as_tensor(target_ids)),
+                ),
+                features={'feats': edge_features}),
+        })
+    out_graph = ops.add_self_loops(graph, 'edge')
+
+    # Assert: Node sets are copied as-is
+    self.assertLen(out_graph.node_sets, 1)
+    self.assertIn('node', out_graph.node_sets)
+    self.assertAllEqual(node_sizes, out_graph.node_sets['node'].sizes)
+
+    # Assert: Edge counts are modified are added.
+    expected_edge_sizes = [es + ns for es, ns in zip(edge_sizes, node_sizes)]
+    self.assertAllEqual(expected_edge_sizes, out_graph.edge_sets['edge'].sizes)
+
+    # Assert: each component has original edges with self-loops added.
+    offset_edges = 0
+    offset_new_edges = 0
+    offset_nodes = 0
+    all_edges = tf.stack([
+        out_graph.edge_sets['edge'].adjacency.source,
+        out_graph.edge_sets['edge'].adjacency.target,
+    ], 1)
+    out_features = out_graph.edge_sets['edge'].features['feats']
+    for ns, es, (src, trgt) in zip(node_sizes, edge_sizes, component_edges):
+      new_es = es + ns  # i.e., expected_edge_sizes[.]
+      out_component_edges = (
+          all_edges[offset_new_edges : offset_new_edges + new_es])
+      expected_edges = list(zip(src, trgt))
+      expected_edges.extend(
+          [(i, i) for i in range(offset_nodes, offset_nodes + ns)])
+
+      if expected_edges:
+        # Assert that adjacency contains original and self-loop edges.
+        self.assertAllEqual(expected_edges, out_component_edges)
+      else:
+        self.assertEqual(0, out_component_edges.shape[0])
+
+      # Assert that features are copied correctly.
+      out_component_features = (
+          out_features[offset_new_edges : offset_new_edges + new_es])
+      expected_component_features = (
+          edge_features[offset_edges : offset_edges + es])
+      expected_component_features = tf.concat([
+          expected_component_features,
+          tf.zeros_like(out_component_features[-ns:]),
+      ], 0)
+      self.assertAllEqual(out_component_features, expected_component_features)
+
+      offset_new_edges += new_es
+      offset_nodes += ns
+      offset_edges += es
+
+    self.assertAllEqual(offset_nodes, sum(node_sizes))
+    self.assertAllEqual(offset_edges, sum(edge_sizes))
+    self.assertAllEqual(offset_new_edges, sum(expected_edge_sizes))
+
+
 if __name__ == '__main__':
   tf.test.main()
