@@ -13,7 +13,7 @@
 import os
 import pickle
 import sys
-from typing import Any, Mapping
+from typing import Any, Mapping, List, Union
 import urllib.request
 
 import numpy as np
@@ -70,8 +70,9 @@ class NodeClassificationDatasetWrapper:
     """int numpy array of length num_nodes containing train and test labels."""
     raise NotImplementedError()
 
-  def iterate_once(self, add_self_connections=False, split='train',
-                   make_undirected=False) -> tf.data.Dataset:
+  def iterate_once(self, add_self_connections: bool = False,
+                   split: Union[str, List[str]] = 'train',
+                   make_undirected: bool = False) -> tf.data.Dataset:
     """tf.data iterator with one example containg entire graph (full-batch)."""
     graph_tensor = self.export_to_graph_tensor(
         add_self_connections, split, make_undirected)
@@ -82,8 +83,10 @@ class NodeClassificationDatasetWrapper:
 
     return tf.data.Dataset.from_generator(once, output_signature=spec)
 
-  def export_to_graph_tensor(self, add_self_connections=False, split='train',
-                             make_undirected=False) -> tfgnn.GraphTensor:
+  def export_to_graph_tensor(
+      self, add_self_connections: bool = False,
+      split: Union[str, List[str]] = 'train',
+      make_undirected: bool = False) -> tfgnn.GraphTensor:
     """Makes GraphTensor corresponding to the *entire graph*.
 
     It populates the nodes under node_set "nodes" (== tfgnn.NODES). Argument
@@ -114,7 +117,7 @@ class NodeClassificationDatasetWrapper:
     # Construct `GraphTensor` with `node_sets`, `edge_sets`, and `context`.
     node_features_dict = self.node_features_dict()
     node_features_dict = {k: _t(v) for k, v in node_features_dict.items()}
-    if split == 'test':
+    if split == 'test' or 'test' in split:
       node_features_dict['label'] = _t(self.test_labels())
     else:
       node_features_dict['label'] = _t(self.labels())
@@ -140,10 +143,17 @@ class NodeClassificationDatasetWrapper:
               source=(tfgnn.NODES, _t(edge_list[1])),
               target=(tfgnn.NODES, _t(edge_list[0]))))
 
+    # Expand seed nodes.
+    if not isinstance(split, (tuple, list)):
+      splits = [split]
+    else:
+      splits = split
+    seed_nodes = np.concatenate(
+        [self.node_split()[split].reshape(-1) for split in splits], axis=0)
+
     graph_tensor = tfgnn.GraphTensor.from_pieces(
         node_sets=node_sets, edge_sets=edge_sets,
-        context=tfgnn.Context.from_fields(
-            features={'seed': _t(self.node_split()[split].reshape(-1))}))
+        context=tfgnn.Context.from_fields(features={'seed': _t(seed_nodes)}))
 
     return graph_tensor
 
@@ -371,7 +381,9 @@ class PlanetoidDatasetWrapper(NodeClassificationDatasetWrapper):
 
   def node_split(self) -> Mapping[str, np.ndarray]:
     """Returns dict with node IDs in {train, validation, test} partitions."""
-    num_train_nodes = 20 * self.num_classes()  # Per Planetoid & GCN setup.
+    # By default, we mimic Planetoid & GCN setup -- i.e., 20 labels per class.
+    labels_per_class = int(os.environ.get('PLANETOID_LABELS_PER_CLASS', '20'))
+    num_train_nodes = labels_per_class * self.num_classes()
     num_validate_nodes = 500
     train_ids = np.arange(num_train_nodes, dtype='int32')
     validate_ids = np.arange(
