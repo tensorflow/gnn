@@ -491,9 +491,12 @@ class GraphPieceSpecBase(type_spec.BatchableTypeSpec, metaclass=abc.ABCMeta):
   def _deserialize(cls, serialization):
     """Extension Types API: Deserialization from a nest of simpler types."""
     data_spec, shape, indices_dtype, metadata = serialization
-    # Keras Model serialization lost the type information due to b/209524368.
+    # Reinstate types lost by Keras Model serialization.
+    # TODO(b/241917040): Remove if/when fixed in Keras.
     if not isinstance(shape, tf.TensorShape):
       shape = tf.TensorShape(shape)
+    if not isinstance(indices_dtype, tf.dtypes.DType):
+      indices_dtype = tf.dtypes.as_dtype(indices_dtype)
     return cls(data_spec, shape, indices_dtype, metadata)
 
   @property

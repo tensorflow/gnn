@@ -189,6 +189,10 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
       model.save(export_dir, include_optimizer=False)
       if reload_model == ReloadModel.KERAS:
         model = tf.keras.models.load_model(export_dir)
+        # Check that from_config() worked, no fallback to a function trace, see
+        # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
+        self.assertIsInstance(model.get_layer(index=1),
+                              tfgnn.keras.layers.GraphUpdate)
       else:
         model = tf.saved_model.load(export_dir)
 
@@ -311,6 +315,10 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
       model.save(export_dir, include_optimizer=False)
       if reload_model == ReloadModel.KERAS:
         model = tf.keras.models.load_model(export_dir)
+        # Check that from_config() worked, no fallback to a function trace, see
+        # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
+        self.assertIsInstance(model.get_layer(index=1),
+                              tfgnn.keras.layers.GraphUpdate)
       else:
         model = tf.saved_model.load(export_dir)
 

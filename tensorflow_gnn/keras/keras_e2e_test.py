@@ -51,10 +51,12 @@ class ExportedKerasNamesTest(tf.test.TestCase):
 class AddWeightedSwappedInEdges(tf.keras.layers.Layer):
   """Adds weighted sum of coordinate-swapped neighbor states to each node."""
 
-  def __init__(self, supports_get_config=True, **kwargs):
+  def __init__(self, supports_get_config=True, supports_from_config=True,
+               **kwargs):
     kwargs.setdefault('name', 'add_weighted_swapped_in_edges')
     super().__init__(**kwargs)
     self.supports_get_config = supports_get_config
+    self.supports_from_config = supports_from_config
     self.fnn = tf.keras.layers.Dense(
         units=2,
         name='swap_node_state_coordinates',
@@ -63,9 +65,18 @@ class AddWeightedSwappedInEdges(tf.keras.layers.Layer):
 
   def get_config(self):
     if self.supports_get_config:
-      return super().get_config()
+      return dict(
+          supports_from_config=self.supports_from_config,
+          **super().get_config())
     else:
       raise NotImplementedError('unsupported')
+
+  @classmethod
+  def from_config(cls, config):
+    if config['supports_from_config']:
+      return cls(**config)
+    else:
+      raise ValueError('Let\'s pretend there was a problem.')
 
   def call(self, graph):
     weight = graph.edge_sets['edge']['edge_weight']
@@ -266,13 +277,17 @@ class GraphTensorKerasModelTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(model(graph_1), expected_1)
     self.assertAllClose(restored_model(graph_1), expected_1)
 
-  @parameterized.parameters([True, False])
-  def testCustomModelKerasRestore(self, static_shapes):
+  @parameterized.named_parameters(
+      ('Basic', True, True),
+      ('DynamicShapes', False, True),
+      ('FallbackToTfFunction', True, False))
+  def testCustomModelKerasRestore(self, static_shapes, from_config):
 
     # A Keras Model that maps a GraphTensor to a Tensor.
     inputs = net = tf.keras.layers.Input(
         type_spec=self._get_input_spec(static_shapes))
-    net = AddWeightedSwappedInEdges(supports_get_config=True)(net)
+    net = AddWeightedSwappedInEdges(supports_get_config=True,
+                                    supports_from_config=from_config)(net)
     net = tfgnn.keras.layers.Readout(
         node_set_name='node', feature_name='hidden_state')(
             net)
@@ -285,8 +300,14 @@ class GraphTensorKerasModelTest(tf.test.TestCase, parameterized.TestCase):
         custom_objects=dict(
             AddWeightedSwappedInEdges=AddWeightedSwappedInEdges))
     self.assertIsInstance(restored_model, tf.keras.Model)
-    self.assertIsInstance(
-        restored_model.get_layer(index=1), AddWeightedSwappedInEdges)
+    if from_config:  # The common case.
+      self.assertIsInstance(
+          restored_model.get_layer(index=1), AddWeightedSwappedInEdges)
+    else:
+      # Model loading wraps a tf.function as a one-off Layer type.
+      # This used to fail (b/217370590) when the layer's input is a GraphTensor.
+      self.assertNotIsInstance(
+          restored_model.get_layer(index=1), AddWeightedSwappedInEdges)
     self.assertIsInstance(
         restored_model.get_layer(index=2), tfgnn.keras.layers.Readout)
 
