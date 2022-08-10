@@ -13,9 +13,12 @@ DatasetProvider = orchestration.DatasetProvider
 
 
 @dataclasses.dataclass
-class KerasOptions:
-  """Provides Keras Modeling related options."""
+class KerasTrainerOptions:
+  """Provides Keras training related options."""
   policy: Optional[Union[str, tf.keras.mixed_precision.Policy]] = None
+  soft_device_placement: bool = False
+  # `enable_check_numerics` requires `soft_device_placement` if running on TPU.
+  enable_check_numerics: bool = False
 
 
 class KerasTrainer:
@@ -35,7 +38,7 @@ class KerasTrainer:
       checkpoint_every_n_steps: Union[int, str] = "epoch",
       callbacks: Optional[Sequence[tf.keras.callbacks.Callback]] = None,
       restore_best_weights: bool = True,
-      keras_options: Optional[KerasOptions] = None):
+      options: Optional[KerasTrainerOptions] = None):
     """Sets training parameters.
 
     Args:
@@ -64,8 +67,7 @@ class KerasTrainer:
       restore_best_weights: Requires a `checkpoint_every_n_steps` other than
         "never." Whether to restore the best model weights as determined by
         `tf.keras.callbacks.ModelCheckpoint` after training.
-      keras_options: A `KerasOptions` for mixed precision, see:
-        https://www.tensorflow.org/guide/mixed_precision.
+      options: A `KerasTrainerOptions.`
     """
     if restore_best_weights and checkpoint_every_n_steps == "never":
       raise ValueError("`restore_best_weights` requires a "
@@ -88,7 +90,7 @@ class KerasTrainer:
     self._checkpoint_every_n_steps = checkpoint_every_n_steps
     self._callbacks = callbacks
     self._restore_best_weights = restore_best_weights
-    self._keras_options = keras_options
+    self._options = options
 
   @property
   def model_dir(self) -> str:
@@ -157,8 +159,14 @@ class KerasTrainer:
     if self._restore_best_weights and valid_ds_provider is None:
       raise ValueError("`restore_best_weights` requires a validation dataset")
 
-    if self._keras_options and self._keras_options.policy:
-      tf.keras.mixed_precision.set_global_policy(self._keras_options.policy)
+    if self._options and self._options.soft_device_placement:
+      tf.config.set_soft_device_placement(True)
+
+    if self._options and self._options.enable_check_numerics:
+      tf.debugging.enable_check_numerics()
+
+    if self._options and self._options.policy:
+      tf.keras.mixed_precision.set_global_policy(self._options.policy)
 
     def per_replica_ds_fn(input_context, *, delegate, repeat):
       ds = delegate.get_dataset(input_context)
@@ -217,7 +225,7 @@ class KerasTrainer:
     with self._strategy.scope():
       model = model_fn()
 
-    if self._keras_options and self._keras_options.policy:
+    if self._options and self._options.policy:
       # Cast logits to `tf.keras.backend.floatx()` for mixed_precision.
       # For more details, see:
       # https://www.tensorflow.org/guide/mixed_precision#building_the_model.
