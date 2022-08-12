@@ -383,6 +383,7 @@ def _assert_rank1_int(t: tf.Tensor, tensor_name: Text) -> None:
 
 
 def is_ragged_tensor(value: Value) -> bool:
+  """Returns whether a tensor (TF or Keras) is a RaggedTensor."""
   return isinstance(value, (tf.RaggedTensor, kt.RaggedKerasTensor))
 
 

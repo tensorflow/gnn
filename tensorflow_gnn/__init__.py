@@ -27,6 +27,7 @@ from tensorflow_gnn.graph import preprocessing_common
 from tensorflow_gnn.graph import schema_utils
 from tensorflow_gnn.graph import schema_validation
 from tensorflow_gnn.graph import tag_utils
+from tensorflow_gnn.graph import tensor_utils
 from tensorflow_gnn.proto import graph_schema
 
 # Package version.
@@ -160,9 +161,10 @@ validate_schema = schema_validation.validate_schema
 check_required_features = schema_validation.check_required_features
 assert_constraints = schema_validation.assert_constraints
 
-# Graph Tensor Validation Utils
+# Tensor Validation Utils
 check_scalar_graph_tensor = graph_tensor.check_scalar_graph_tensor
 check_homogeneous_graph_tensor = graph_tensor.check_homogeneous_graph_tensor
+is_ragged_tensor = tensor_utils.is_ragged_tensor
 
 # Prune imported module symbols so they're not accessible implicitly,
 # except those meant to be used as subpackages, like tfgnn.keras.*.
@@ -183,4 +185,5 @@ del preprocessing_common
 del schema_utils
 del schema_validation
 del tag_utils
+del tensor_utils
 del graph_schema
