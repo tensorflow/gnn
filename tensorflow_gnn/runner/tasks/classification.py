@@ -33,6 +33,38 @@ class _Recall(_FromLogitsMixIn, tf.keras.metrics.Recall):
   pass
 
 
+class _PerClassMetricMixIn(tf.keras.metrics.Metric):
+  """Mixin for `tf.keras.metrics.Metric` with a class_id option.
+
+  This Mixin is needed because ground truths come as class id integer, which is
+  incompatible with tf.keras.metrics.Precision.
+  """
+
+  def __init__(self,
+               class_id: int,
+               *args,
+               **kwargs) -> None:
+    super().__init__(*args, **kwargs)
+    self._class_id = class_id
+
+  def update_state(self,
+                   y_true: tf.Tensor,
+                   y_pred: tf.Tensor,
+                   sample_weight: Optional[tf.Tensor] = None) -> None:
+    return super().update_state(
+        (y_true == self._class_id),
+        (tf.argmax(y_pred, -1) == self._class_id),
+        sample_weight)
+
+
+class _PerClassPrecision(_PerClassMetricMixIn, tf.keras.metrics.Precision):
+  pass
+
+
+class _PerClassRecall(_PerClassMetricMixIn, tf.keras.metrics.Recall):
+  pass
+
+
 class _Classification(abc.ABC):
   """Abstract classification class.
 
@@ -98,8 +130,23 @@ class _BinaryClassification(_Classification):
 class _MulticlassClassification(_Classification):
   """Multiclass classification."""
 
-  def __init__(self, num_classes: int, *args, **kwargs):  # pylint: disable=useless-super-delegation
+  def __init__(self,
+               *args,
+               num_classes: Optional[int] = None,
+               class_names: Optional[Sequence[str]] = None,
+               per_class_statistics: bool = False,
+               **kwargs):  # pylint: disable=useless-super-delegation
+    if not (num_classes is None or class_names is None):
+      raise ValueError(
+          "Only one of `num_classes` or `class_names` may be specified")
+    if num_classes is None:
+      num_classes = len(class_names)
     super().__init__(num_classes, *args, **kwargs)
+    if class_names is None:
+      self._class_names = [f"class_{i}" for i in range(num_classes)]
+    else:
+      self._class_names = class_names
+    self._per_class_statistics = per_class_statistics
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     """Sparse categorical crossentropy loss."""
@@ -107,8 +154,17 @@ class _MulticlassClassification(_Classification):
 
   def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     """Sparse categorical metrics."""
-    return (tf.keras.metrics.SparseCategoricalAccuracy(),
-            tf.keras.metrics.SparseCategoricalCrossentropy(from_logits=True))
+    metric_objs = [
+        tf.keras.metrics.SparseCategoricalAccuracy(),
+        tf.keras.metrics.SparseCategoricalCrossentropy(from_logits=True)]
+
+    if self._per_class_statistics:
+      for i, class_name in enumerate(self._class_names):
+        metric_objs.append(
+            _PerClassPrecision(class_id=i, name=f"precision_for_{class_name}"))
+        metric_objs.append(
+            _PerClassRecall(class_id=i, name=f"recall_for_{class_name}"))
+    return metric_objs
 
 
 class _GraphClassification(_Classification):

@@ -48,8 +48,7 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
           testcase_name="GraphMulticlassClassification",
           schema=SCHEMA,
           task=classification.GraphMulticlassClassification(
-              4,
-              node_set_name="nodes"),
+              num_classes=4, node_set_name="nodes"),
           y_true=[3],
           expected_y_pred=[[0.35868323, -0.4112632, -0.23154753, 0.20909603]],
           expected_loss=[1.2067872]),
@@ -65,8 +64,7 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
           testcase_name="RootNodeMulticlassClassification",
           schema=SCHEMA,
           task=classification.RootNodeMulticlassClassification(
-              3,
-              node_set_name="nodes"),
+              num_classes=3, node_set_name="nodes"),
           y_true=[2],
           expected_y_pred=[[-0.4718209, 0.04619305, -0.5249821]],
           expected_loss=[1.3415444]),
@@ -105,8 +103,7 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
           testcase_name="GraphMulticlassClassification",
           schema=SCHEMA,
           task=classification.GraphMulticlassClassification(
-              4,
-              node_set_name="nodes")),
+              num_classes=4, node_set_name="nodes")),
       dict(
           testcase_name="RootNodeBinaryClassification",
           schema=SCHEMA,
@@ -116,8 +113,7 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
           testcase_name="RootNodeMulticlassClassification",
           schema=SCHEMA,
           task=classification.RootNodeMulticlassClassification(
-              3,
-              node_set_name="nodes")),
+              num_classes=3, node_set_name="nodes")),
   ])
   def test_fit(self,
                schema: str,
@@ -160,6 +156,33 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
   ])
   def test_protocol(self, klass: object):
     self.assertIsInstance(klass, orchestration.Task)
+
+  def test_per_class_metrics_with_num_classes(self):
+    task = classification.GraphMulticlassClassification(
+        num_classes=5, node_set_name="nodes", per_class_statistics=True)
+    metric_names = [metric.name for metric in task.metrics()]
+    self.assertContainsSubset([
+        "precision_for_class_0", "precision_for_class_1",
+        "precision_for_class_2", "precision_for_class_3",
+        "precision_for_class_4", "recall_for_class_0", "recall_for_class_1",
+        "recall_for_class_2", "recall_for_class_3", "recall_for_class_4"
+    ], metric_names)
+
+  def test_per_class_metrics_with_class_names(self):
+    task = classification.RootNodeMulticlassClassification(
+        node_set_name="nodes",
+        per_class_statistics=True,
+        class_names=["foo", "bar", "baz"])
+    metric_names = [metric.name for metric in task.metrics()]
+    self.assertContainsSubset([
+        "precision_for_foo", "precision_for_bar", "precision_for_baz",
+        "recall_for_foo", "recall_for_bar", "recall_for_baz"
+    ], metric_names)
+
+  def test_invalid_both_num_classes_and_class_names(self):
+    with self.assertRaises(ValueError):
+      classification.GraphMulticlassClassification(
+          num_classes=5, node_set_name="nodes", class_names=["foo", "bar"])
 
 
 if __name__ == "__main__":
