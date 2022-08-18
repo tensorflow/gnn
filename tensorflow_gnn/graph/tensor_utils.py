@@ -396,6 +396,28 @@ def _assert_rank1_int(t: tf.Tensor, tensor_name: Text) -> None:
                      f' got rank={t.shape.rank}, dtype={t.dtype.name}')
 
 
+def with_undefined_outer_dimension(spec: ValueSpec) -> ValueSpec:
+  """Sets outer most shape dimension to None (undefined)."""
+  if spec.shape.rank == 0:
+    raise ValueError('The `spec` must have rank>0, got scalar (rank=0)')
+
+  if spec.shape[0] is None:
+    return spec
+  relaxed_shape = tf.TensorShape([None, *spec.shape[1:]])
+
+  if isinstance(spec, tf.TensorSpec):
+    return tf.TensorSpec(shape=relaxed_shape, dtype=spec.dtype)
+
+  if isinstance(spec, tf.RaggedTensorSpec):
+    return tf.RaggedTensorSpec(
+        shape=relaxed_shape,
+        dtype=spec.dtype,
+        ragged_rank=spec.ragged_rank,
+        row_splits_dtype=spec.row_splits_dtype)
+
+  raise ValueError(f'Unsupported type {type(spec).__name__}')
+
+
 def is_ragged_tensor(value: Value) -> bool:
   """Returns whether a tensor (TF or Keras) is a RaggedTensor."""
   return isinstance(value, (tf.RaggedTensor, kt.RaggedKerasTensor))

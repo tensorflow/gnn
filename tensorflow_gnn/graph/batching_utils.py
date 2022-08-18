@@ -13,11 +13,15 @@
 # limitations under the License.
 # ==============================================================================
 """Defines advanced batching operations for GraphTensor."""
+import functools
+
 from typing import Any, cast, Iterable, List, Mapping, NamedTuple, Optional, Tuple, Union
 
 import numpy as np
 import tensorflow as tf
+from tensorflow_gnn.graph import adjacency
 from tensorflow_gnn.graph import graph_constants as const
+from tensorflow_gnn.graph import graph_piece as gp
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import padding_ops
 from tensorflow_gnn.graph import preprocessing_common
@@ -778,3 +782,99 @@ def _validate_and_prepare_constraints(
       total_num_nodes=total_num_nodes,
       total_num_edges=total_num_edges)
   return max_total_sizes, dict(constraints.min_nodes_per_component)
+
+
+def dataset_from_generator(generator) -> tf.data.Dataset:
+  """Creates dataset from generator of any nest of scalar graph pieces.
+
+  Similar to `tf.data.Dataset.from_generator()`, but requires the generator
+  to yield at least one element and sets the result's `.element_spec` from it.
+  In subsequent elements, graph pieces must have the same features (incl. their
+  shapes and dtypes), and graphs must have the same edge sets and node sets, but
+  the numbers of nodes and edges may vary between elements.
+
+  NOTE: Compared to `tf.data.from_generator()` the generator is first called
+  during the dataset construction. If generator is shared between two datasets
+  this could lead to some obscure behaviour, like:
+
+  ```
+  my_generator = [pieceA, pieceB, pieceC, pieceD]
+  dataset1 = tfgnn.dataset_from_generator(my_generator).take(2)
+  dataset2 = tfgnn.dataset_from_generator(my_generator).take(2)
+  print([dataset2])  # prints: pieceB, pieceC, while expected pieceA, pieceB.
+  print([dataset1])  # prints: pieceA, pieceD.
+  ```
+
+  Args:
+    generator: a callable object that returns an object that supports the iter()
+      protocol. Could consist of any nest of tensors and scalar graph pieces
+      (e.g. `tfgnn.GraphTensor`, `tfgnn.Context`, `tfgnn.NodeSet`,
+      `tfgnn.EdgeSet`, `tfgnn.Adjacency`, etc.)
+
+  Returns:
+    A `tf.data.Dataset`.
+
+  Raises:
+    ValueError: if any contained graph piece is not scalar or has not compatible
+      number of graph components.
+  """
+  iterator0 = iter(generator())
+  try:
+    first = next(iterator0)
+  except StopIteration as e:
+    raise ValueError('The generator must produce at least one value.') from e
+
+  def _get_spec(value):
+    spec = tf.type_spec_from_value(value)
+    if not isinstance(spec, gp.GraphPieceSpecBase):
+      return spec
+
+    gp.check_scalar_graph_piece(spec, 'dataset_from_generator()')
+    if isinstance(spec, gt.GraphTensorSpec):
+      return spec.relax(num_components=False, num_nodes=True, num_edges=True)
+    if isinstance(spec, gt.ContextSpec):
+      return spec
+    if isinstance(spec, gt.NodeSetSpec):
+      return spec.relax(num_components=False, num_nodes=True)
+    if isinstance(spec, gt.EdgeSetSpec):
+      return spec.relax(num_components=False, num_edges=True)
+    if isinstance(spec,
+                  (adjacency.AdjacencySpec, adjacency.HyperAdjacencySpec)):
+      return spec.relax(num_edges=True)
+    raise NotImplementedError(type(spec).__name__)
+
+  def _validate(index: int, expected_spec, value) -> None:
+    """Provides readable error messages for common mistakes."""
+    # pylint: disable=protected-access
+
+    if not isinstance(expected_spec,
+                      (gt.GraphTensorSpec, gt._GraphPieceWithFeaturesSpec)):
+      return
+    actual_spec = _get_spec(value)
+
+    if actual_spec != expected_spec:
+      raise ValueError('Generated graph pieces are not compatible.'
+                       f' piece0: {expected_spec},'
+                       f' piece{index}: {actual_spec}.')
+
+  relaxed_spec = tf.nest.map_structure(_get_spec, first)
+  head_stack = [first]
+
+  def restored_generator():
+    # If dataset is re-iterated multiple times, we want to make sure that the
+    # generator is called again for the first element.
+    start_index = len(head_stack)
+    if start_index == 0:
+      iterator = iter(generator())
+    else:
+      iterator = iterator0
+      while head_stack:
+        yield head_stack.pop()
+
+    for index, value in enumerate(iterator, start=start_index):
+      tf.nest.map_structure(
+          functools.partial(_validate, index), relaxed_spec, value)
+      yield value
+
+  return tf.data.Dataset.from_generator(
+      restored_generator, output_signature=relaxed_spec)

@@ -752,5 +752,85 @@ class ConstraintsForStaticBatchTest(ConstraintsTestBase):
     self.assertEqual(actual.total_num_edges['node->node'], expected_num_edges)
 
 
+class FromGenerator(tu.GraphTensorTestBase):
+
+  @parameterized.named_parameters(('single_value', [
+      gt.NodeSet.from_fields(features={'a': [1]}, sizes=[1]),
+  ]), ('context', [
+      gt.Context.from_fields(features={'a': [1]}),
+  ]), ('node_sets', [
+      gt.NodeSet.from_fields(features={'a': [1]}, sizes=[1]),
+      gt.NodeSet.from_fields(features={'a': [1, 2]}, sizes=[2])
+  ]), ('edge_sets', [
+      gt.EdgeSet.from_fields(
+          features={},
+          sizes=[1],
+          adjacency=adj.Adjacency.from_indices(('a', [0]), ('b', [0]))),
+      gt.EdgeSet.from_fields(
+          features={},
+          sizes=[2],
+          adjacency=adj.Adjacency.from_indices(('a', [0, 1]), ('b', [1, 1]))),
+      gt.EdgeSet.from_fields(
+          features={},
+          sizes=[3],
+          adjacency=adj.Adjacency.from_indices(('a', [0, 1, 2]),
+                                               ('b', [1, 1, 1]))),
+  ]), ('graph_tensor', [
+      gt.GraphTensor.from_pieces(
+          node_sets={
+              'n': gt.NodeSet.from_fields(features={'a': [1]}, sizes=[1])
+          },
+          edge_sets={
+              'e':
+                  gt.EdgeSet.from_fields(
+                      features={},
+                      sizes=[1],
+                      adjacency=adj.Adjacency.from_indices(('n', [0]),
+                                                           ('n', [0])))
+          }),
+      gt.GraphTensor.from_pieces(
+          node_sets={
+              'n': gt.NodeSet.from_fields(features={'a': [1, 2]}, sizes=[2])
+          },
+          edge_sets={
+              'e':
+                  gt.EdgeSet.from_fields(
+                      features={},
+                      sizes=[3],
+                      adjacency=adj.Adjacency.from_indices(('n', [0, 1, 1]),
+                                                           ('n', [0, 0, 1])))
+          })
+  ]), ('graph_tensor_with_labels', [
+      (gt.GraphTensor.from_pieces(node_sets={
+          'n': gt.NodeSet.from_fields(features={'a': [1]}, sizes=[1])
+      }), as_tensor('A')),
+      (gt.GraphTensor.from_pieces(node_sets={
+          'n': gt.NodeSet.from_fields(features={'a': [1, 2]}, sizes=[2])
+      }), as_tensor('A'))
+  ]))
+  def testParametrized(self, values):
+    actual = list(batching_utils.dataset_from_generator(lambda: values))
+    actual = tf.nest.flatten(actual, True)
+    expected = tf.nest.flatten(values, True)
+    self.assertEqual(len(actual), len(expected))
+    for a, e in zip(actual, expected):
+      self.assertAllEqual(a, e)
+
+  def testReiterations(self):
+    values = [
+        gt.NodeSet.from_fields(features={'a': [1]}, sizes=[1]),
+        gt.NodeSet.from_fields(features={'a': [1, 2]}, sizes=[2])
+    ]
+    dataset = batching_utils.dataset_from_generator(lambda: values)
+    expected = tf.nest.flatten(values, True)
+    for iteration in range(3):
+      actual = list(dataset)
+      actual = tf.nest.flatten(actual, True)
+
+      self.assertEqual(len(actual), len(expected))
+      for a, e in zip(actual, expected):
+        self.assertAllEqual(a, e, msg=f'iteration{iteration}')
+
+
 if __name__ == '__main__':
   tf.test.main()
