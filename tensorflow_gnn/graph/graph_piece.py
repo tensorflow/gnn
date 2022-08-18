@@ -1008,3 +1008,21 @@ def _get_batch_shape_from_fields(data: Data,
                        f' 1st field shape: {fields[0].shape},'
                        f' 2nd field shape: {field.shape}')
   return result
+
+
+def check_scalar_graph_piece(piece: Union[GraphPieceBase,
+                                          GraphPieceSpecBase],
+                             name='This operation') -> None:
+  if isinstance(piece, GraphPieceSpecBase):
+    piece_name: str = type(piece.value_type).__name__
+  else:
+    piece_name: str = type(piece).__name__
+
+  if piece.rank != 0:
+    raise ValueError(
+        (f'{name} requires a scalar {piece_name}, that is,'
+         f' with `{piece_name}.rank=0`, but got `rank={piece.rank}`.'
+         f' Use GraphTensor.merge_batch_to_components() to merge all contained'
+         ' graphs into one contiguously indexed graph of the scalar'
+         ' GraphTensor.'))
+

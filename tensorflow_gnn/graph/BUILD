@@ -422,7 +422,9 @@ pytype_strict_library(
     srcs = ["batching_utils.py"],
     srcs_version = "PY3",
     deps = [
+        ":adjacency",
         ":graph_constants",
+        ":graph_piece",
         ":graph_tensor",
         ":padding_ops",
         ":preprocessing_common",

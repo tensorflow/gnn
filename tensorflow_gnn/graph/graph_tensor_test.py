@@ -15,7 +15,7 @@
 """Tests for GraphTensor  (go/tf-gnn-api)."""
 
 import collections
-from typing import Mapping
+from typing import Mapping, Optional
 
 from absl.testing import parameterized
 import tensorflow as tf
@@ -1067,6 +1067,108 @@ def _make_test_graph_from_num_pieces(num_node_sets, num_edge_sets):
                   source=('atoms_1', as_ragged([[0, 1], []])),
                   target=('atoms_1', as_ragged([[1, 2], []]))))
           for j in range(num_edge_sets)})
+
+
+class SpecRelaxationTest(tu.GraphTensorTestBase):
+
+  def _get_context_spec(self, num_components: Optional[int]) -> gt.ContextSpec:
+    return gt.ContextSpec.from_field_specs(
+        features_spec={
+            'v': tf.TensorSpec(shape=(num_components,), dtype=tf.int16),
+            'm': tf.TensorSpec(shape=(num_components, 3), dtype=tf.int32),
+        })
+
+  def _get_node_set_spec(self, num_components: Optional[int],
+                         num_nodes: Optional[int]) -> gt.NodeSetSpec:
+    return gt.NodeSetSpec.from_field_specs(
+        sizes_spec=tf.TensorSpec(shape=(num_components,), dtype=tf.int64),
+        features_spec={
+            'id':
+                tf.TensorSpec(shape=(num_nodes,), dtype=tf.int32),
+            'words':
+                tf.RaggedTensorSpec(
+                    shape=(num_nodes, None),
+                    dtype=tf.string,
+                    ragged_rank=1,
+                    row_splits_dtype=tf.int64),
+        })
+
+  def _get_edge_set_spec(self, num_components: Optional[int],
+                         num_edges: Optional[int]) -> gt.EdgeSetSpec:
+    return gt.EdgeSetSpec.from_field_specs(
+        sizes_spec=tf.TensorSpec(shape=(num_components,), dtype=tf.int64),
+        features_spec={
+            'weight': tf.TensorSpec(shape=(num_edges,), dtype=tf.float32),
+        },
+        adjacency_spec=adj.AdjacencySpec.from_incident_node_sets(
+            'a',
+            'b',
+            tf.TensorSpec(shape=(num_edges,), dtype=tf.int64),
+        ))
+
+  def _get_graph_tensor_spec(self, num_components: Optional[int],
+                             num_nodes: Optional[int],
+                             num_edges: Optional[int]) -> gt.GraphTensorSpec:
+    return gt.GraphTensorSpec.from_piece_specs(
+        context_spec=self._get_context_spec(num_components),
+        node_sets_spec={
+            'a': self._get_node_set_spec(num_components, num_nodes),
+            'b': self._get_node_set_spec(num_components, num_nodes)
+        },
+        edge_sets_spec={
+            'a->b': self._get_edge_set_spec(num_components, num_edges)
+        })
+
+  def testContext(self):
+    expected = self._get_context_spec(None)
+    self.assertEqual(
+        self._get_context_spec(3).relax(num_components=True), expected)
+    self.assertEqual(
+        self._get_context_spec(3).relax(num_components=True).relax(
+            num_components=True), expected)
+
+  @parameterized.product(num_components=[True, False], num_nodes=[True, False])
+  def testNodeSet(self, num_components, num_nodes):
+    original = self._get_node_set_spec(1, 3)
+    expected = self._get_node_set_spec(None if num_components else 1,
+                                       None if num_nodes else 3)
+    relaxed1 = original.relax(
+        num_components=num_components, num_nodes=num_nodes)
+    relaxed2 = relaxed1.relax(
+        num_components=num_components, num_nodes=num_nodes)
+
+    self.assertEqual(relaxed1, expected)
+    self.assertEqual(relaxed2, expected)
+
+  @parameterized.product(num_components=[True, False], num_edges=[True, False])
+  def testEdgeSet(self, num_components, num_edges):
+    original = self._get_edge_set_spec(1, 5)
+    expected = self._get_edge_set_spec(None if num_components else 1,
+                                       None if num_edges else 5)
+    relaxed1 = original.relax(
+        num_components=num_components, num_edges=num_edges)
+    relaxed2 = relaxed1.relax(
+        num_components=num_components, num_edges=num_edges)
+
+    self.assertEqual(relaxed1, expected)
+    self.assertEqual(relaxed2, expected)
+
+  @parameterized.product(
+      num_components=[True, False],
+      num_nodes=[True, False],
+      num_edges=[True, False])
+  def testGraphTensor(self, num_components, num_nodes, num_edges):
+    original = self._get_graph_tensor_spec(1, 5, 7)
+    expected = self._get_graph_tensor_spec(None if num_components else 1,
+                                           None if num_nodes else 5,
+                                           None if num_edges else 7)
+    relaxed1 = original.relax(
+        num_components=num_components, num_nodes=num_nodes, num_edges=num_edges)
+    relaxed2 = relaxed1.relax(
+        num_components=num_components, num_nodes=num_nodes, num_edges=num_edges)
+
+    self.assertEqual(relaxed1, expected)
+    self.assertEqual(relaxed2, expected)
 
 
 if __name__ == '__main__':

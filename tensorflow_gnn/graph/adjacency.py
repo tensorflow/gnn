@@ -255,6 +255,38 @@ class HyperAdjacencySpec(gp.GraphPieceSpecBase):
     assert ind_spec is not None
     return ind_spec.shape[:(self.rank + 1)].num_elements()
 
+  def relax(self, *, num_edges: bool = False) -> 'HyperAdjacencySpec':
+    """Allows variable number of graph edges.
+
+    Calling with all default parameters keeps the spec unchanged.
+
+    Args:
+      num_edges: if True, allows a variable number of edges in each edge set.
+        If False, returns spec unchanged.
+
+    Returns:
+      Relaxed compatible spec.
+
+    Raises:
+      ValueError: if adjacency is not scalar (rank > 0).
+    """
+    gp.check_scalar_graph_piece(self, 'HyperAdjacencySpec.relax()')
+
+    if not num_edges:
+      return self
+
+    specs = self.get_index_specs_dict()
+    if not specs:
+      # Degenerate case of hyperadjacency which does not connect any node sets.
+      return self
+
+    # Class invariant: same index_spec shared across the index specs dict.
+    _, index_spec = next(iter(specs.values()))
+    incident_node_sets = {tag: set_name for tag, (set_name, _) in specs.items()}
+    return self.from_incident_node_sets(
+        incident_node_sets,
+        index_spec=utils.with_undefined_outer_dimension(index_spec))
+
 
 class Adjacency(HyperAdjacency):
   """Stores how edges connect pairs of nodes from source and target node sets.
@@ -402,6 +434,30 @@ class AdjacencySpec(HyperAdjacencySpec):
   def target_name(self) -> NodeSetName:
     """Returns the node set name for target nodes."""
     return self.node_set_name(const.TARGET)
+
+  def relax(self, *, num_edges: bool = False) -> 'AdjacencySpec':
+    """Allows variable number of graph edges.
+
+    Calling with all default parameters keeps the spec unchanged.
+
+    Args:
+      num_edges: if True, allows a variable number of edges in each edge set.
+        If False, returns spec unchanged.
+
+    Returns:
+      Relaxed compatible spec.
+
+    Raises:
+      ValueError: if adjacency is not scalar (rank > 0).
+    """
+    gp.check_scalar_graph_piece(self, 'Adjacency.relax()')
+    if not num_edges:
+      return self
+
+    return self.from_incident_node_sets(
+        self.source_name, self.target_name,
+        # Class invariant: same index_spec shared between source and target.
+        index_spec=utils.with_undefined_outer_dimension(self.source))
 
 
 def _validate_indices(indices: Indices) -> Indices:

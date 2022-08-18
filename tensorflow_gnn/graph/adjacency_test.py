@@ -184,6 +184,16 @@ class HyperAdjacencyTest(tf.test.TestCase, parameterized.TestCase):
         })
     self.assertAllEqual(result[0], [0, 1, 1 + 3, 0 + 3 + 2, 0 + 3 + 2 + 4])
 
+  def testRelaxation(self):
+    incident_node_sets = {0: 'a', 1: 'b', 2: 'c'}
+    original = adjacency.HyperAdjacencySpec.from_incident_node_sets(
+        incident_node_sets, index_spec=tf.TensorSpec([2], tf.int64))
+    expected = adjacency.HyperAdjacencySpec.from_incident_node_sets(
+        incident_node_sets, index_spec=tf.TensorSpec([None], tf.int64))
+    self.assertEqual(original.relax(num_edges=True), expected)
+    self.assertEqual(
+        original.relax(num_edges=True).relax(num_edges=True), expected)
+
 
 class AdjacencyTest(tf.test.TestCase, parameterized.TestCase):
 
@@ -300,6 +310,17 @@ class AdjacencyTest(tf.test.TestCase, parameterized.TestCase):
         "source=('node.a', <tf.Tensor: shape=(3,), dtype=tf.int32>), "
         "target=('node.b', <tf.Tensor: shape=(3,), dtype=tf.int32>))",
         repr(adj))
+
+  def testRelaxation(self):
+    original = adjacency.AdjacencySpec.from_incident_node_sets(
+        'a', 'b', index_spec=tf.TensorSpec([3], tf.int64)
+    )
+    expected = adjacency.AdjacencySpec.from_incident_node_sets(
+        'a', 'b', index_spec=tf.TensorSpec([None], tf.int64)
+    )
+    self.assertEqual(original.relax(num_edges=True), expected)
+    self.assertEqual(
+        original.relax(num_edges=True).relax(num_edges=True), expected)
 
 if __name__ == '__main__':
   tf.test.main()

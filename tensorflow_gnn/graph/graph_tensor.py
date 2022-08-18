@@ -369,6 +369,29 @@ class ContextSpec(_GraphPieceWithFeaturesSpec):
   def value_type(self):
     return Context
 
+  def relax(self, *, num_components: bool = False) -> 'ContextSpec':
+    """Allows variable number of graph components.
+
+    Calling with all default parameters keeps the spec unchanged.
+
+    Args:
+      num_components: if True, allows variable number of graph components by
+        setting the outermost sizes dimension to `None`.
+
+    Returns:
+      Relaxed compatible context spec.
+
+    Raises:
+      ValueError: if contex is not scalar (rank > 0).
+    """
+    gp.check_scalar_graph_piece(self, 'ContextSpec.relax()')
+    if not num_components:
+      return self
+
+    return self.from_field_specs(
+        features_spec=_relax_outer_dim_if(num_components, self.features_spec),
+        sizes_spec=_relax_outer_dim_if(num_components, self.sizes_spec))
+
 
 class _NodeOrEdgeSet(_GraphPieceWithFeatures):
   """Base class for node set or edge set."""
@@ -474,6 +497,32 @@ class NodeSetSpec(_NodeOrEdgeSetSpec):
   @property
   def value_type(self):
     return NodeSet
+
+  def relax(self,
+            *,
+            num_components: bool = False,
+            num_nodes: bool = False) -> 'NodeSetSpec':
+    """Allows variable number of nodes or/and graph components.
+
+    Calling with all default parameters keeps the spec unchanged.
+
+    Args:
+      num_components: if True, allows variable number of graph components by
+        setting the outermost sizes dimension to `None`.
+      num_nodes: if True, allows variable number of nodes by setting the
+        outermost features dimensions to `None`.
+
+    Returns:
+      Relaxed compatible edge set spec.
+
+    Raises:
+      ValueError: if edge set is not scalar (rank > 0).
+    """
+    gp.check_scalar_graph_piece(self, 'NodeSetSpec.relax()')
+
+    return self.from_field_specs(
+        features_spec=_relax_outer_dim_if(num_nodes, self.features_spec),
+        sizes_spec=_relax_outer_dim_if(num_components, self.sizes_spec))
 
 
 class EdgeSet(_NodeOrEdgeSet):
@@ -596,6 +645,33 @@ class EdgeSetSpec(_NodeOrEdgeSetSpec):
     """The total number of edges if known."""
     return _ifnone(super().total_size, self.adjacency_spec.total_size)
 
+  def relax(self,
+            *,
+            num_components: bool = False,
+            num_edges: bool = False) -> 'EdgeSetSpec':
+    """Allows variable number of edge or/and graph components.
+
+    Calling with all default parameters keeps the spec unchanged.
+
+    Args:
+      num_components: if True, allows variable number of graph components by
+        setting the outermost sizes dimension to `None`.
+      num_edges: if True, allows variable number of edges by setting the
+        outermost features dimensions to `None`.
+
+    Returns:
+      Relaxed compatible edge set spec.
+
+    Raises:
+      ValueError: if edge set is not scalar (rank > 0).
+    """
+    gp.check_scalar_graph_piece(self, 'EdgeSetSpec.relax()')
+
+    return self.from_field_specs(
+        features_spec=_relax_outer_dim_if(num_edges, self.features_spec),
+        adjacency_spec=self.adjacency_spec.relax(num_edges=num_edges),
+        sizes_spec=_relax_outer_dim_if(num_components, self.sizes_spec))
+
 
 class GraphTensor(gp.GraphPieceBase):
   """A composite tensor for heterogeneous directed graphs with features.
@@ -656,7 +732,7 @@ class GraphTensor(gp.GraphPieceBase):
   item (graph component, node or edge) within the same graph piece (context,
   node set or edge set).
 
-  RULE: 'None' always denotes ragged or outer most field dimension. Uniform
+  RULE: 'None' always denotes ragged or outermost field dimension. Uniform
   dimensions must have a fixed size that is given in the dimension.
 
   In particular this rule implies that if a feature has `tf.Tensor` type its
@@ -1174,6 +1250,45 @@ class GraphTensorSpec(gp.GraphPieceSpecBase):
     return cast(_GraphPieceWithFeaturesSpec,
                 indicative_piece).total_num_components
 
+  def relax(
+      self,
+      *,
+      num_components: bool = False,
+      num_nodes: bool = False,
+      num_edges: bool = False,
+  ) -> 'GraphTensorSpec':
+    """Allows variable number of graph nodes, edges or/and graph components.
+
+    Calling with all default parameters keeps the spec unchanged.
+
+    Args:
+      num_components: if True, allows the variable number of graph components.
+      num_nodes: if True, allows a variable number of nodes in each node set.
+      num_edges: if True, allows a variable number of edges in each edge set.
+
+    Returns:
+      Relaxed compatible graph tensor spec.
+
+    Raises:
+      ValueError: if graph tensor is not scalar (rank > 0).
+    """
+    check_scalar_graph_tensor(self, 'GraphTensorSpec.relax()')
+
+    result = self.from_piece_specs(
+        self.context_spec.relax(num_components=num_components), {
+            name: spec.relax(
+                num_components=num_components, num_nodes=num_nodes)
+            for name, spec in self.node_sets_spec.items()
+        }, {
+            name: spec.relax(
+                num_components=num_components, num_edges=num_edges)
+            for name, spec in self.edge_sets_spec.items()
+        })
+    if const.validate_internal_results:
+      assert self.is_compatible_with(
+          result), f'{result} is not compatible with {self}.'
+    return result
+
 
 def _ifnone(value, default):
   return value if value is not None else default
@@ -1280,15 +1395,16 @@ def _fast_alternative(use_fast_path: bool,
     return tf.identity(fast_result)
 
 
+def _relax_outer_dim_if(cond: bool, features_nest: Any) -> Any:
+  if not cond:
+    return features_nest
+  return tf.nest.map_structure(utils.with_undefined_outer_dimension,
+                               features_nest)
+
+
 def check_scalar_graph_tensor(graph: Union[GraphTensor, GraphTensorSpec],
                               name='This operation') -> None:
-  if graph.rank != 0:
-    raise ValueError(
-        (f'{name} requires a scalar GraphTensor, that is,'
-         f' with `GraphTensor.rank=0`, but got `rank={graph.rank}`.'
-         ' Use GraphTensor.merge_batch_to_components() to merge all contained'
-         ' graphs into one contiguously indexed graph of the scalar'
-         ' GraphTensor.'))
+  gp.check_scalar_graph_piece(graph, name=name)
 
 
 def check_homogeneous_graph_tensor(graph: Union[GraphTensor, GraphTensorSpec],
