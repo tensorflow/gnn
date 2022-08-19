@@ -18,6 +18,7 @@ MakeEmptyFeature = map_features.MakeEmptyFeature
 
 PadToTotalSizes = padding_ops.PadToTotalSizes
 
+AddSelfLoops = graph_ops.AddSelfLoops
 Broadcast = graph_ops.Broadcast
 Pool = graph_ops.Pool
 Readout = graph_ops.Readout

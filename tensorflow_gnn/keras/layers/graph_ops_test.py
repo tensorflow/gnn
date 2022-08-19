@@ -13,9 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for graph_ops Keras layers."""
+from unittest import mock
 
 from absl.testing import parameterized
 import tensorflow as tf
+
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
@@ -363,6 +365,20 @@ def _make_test_graph_132(values):
                                                ("nodes", tf.constant([0, 2]))),
           **maybe_features("edges"))})
   return graph
+
+
+class AddSelfLoopsTest(tf.test.TestCase, parameterized.TestCase):
+  """Ensures that AddSelfLoops invokes well-tested function add_self_loops."""
+
+  def testAddSelfLoopLayerCallAddSelfLoopsFnReturningItsValue(self):
+    mock.MagicMock()
+    with mock.patch.object(
+        graph_ops.ops, "add_self_loops", autospec=True) as mock_one:
+      mock_one.return_value = "testReturn"
+
+      layer = graph_ops.AddSelfLoops("some_edge_set")
+      self.assertEqual("testReturn", layer("some_graph_tensor"))
+      mock_one.assert_called_once_with("some_graph_tensor", "some_edge_set")
 
 
 class PoolTest(tf.test.TestCase, parameterized.TestCase):
