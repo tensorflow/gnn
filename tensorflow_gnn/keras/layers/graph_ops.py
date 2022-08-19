@@ -182,6 +182,28 @@ def _format_as_kwargs(kwargs_dict):
 
 
 @tf.keras.utils.register_keras_serializable(package="GNN")
+class AddSelfLoops(tf.keras.layers.Layer):
+  """Adds self-loops to scalar graphs.
+
+  The edge_set_name is expected to be a homogeneous edge (connects a node pair
+  of the node set). NOTE: Self-connections will always be added, regardless if
+  if self-connections already exist or not.
+  """
+
+  def __init__(self, edge_set_name):
+    super().__init__()
+    self._edge_set_name = edge_set_name
+
+  def call(self, graph_tensor: gt.GraphTensor) -> gt.GraphTensor:
+    return ops.add_self_loops(graph_tensor, self._edge_set_name)
+
+  def get_config(self):
+    config = super().get_config().copy()
+    config["edge_set_name"] = self._edge_set_name
+    return config
+
+
+@tf.keras.utils.register_keras_serializable(package="GNN")
 class ReadoutFirstNode(tf.keras.layers.Layer):
   """Reads a feature from the first node of each graph conponent.
 

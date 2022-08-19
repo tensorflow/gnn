@@ -95,6 +95,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":graph_ops",
+        "//third_party/py/mock",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:adjacency",
         "//tensorflow_gnn/graph:graph_constants",
