@@ -56,9 +56,8 @@ class MapFeatures(tf.keras.layers.Layer):
     if features: # Concatenate and project all inputs (assumes they are floats).
       return tf.keras.layers.Dense(state_dim)(
           tf.keras.layers.Concatenate([v for _, v in sorted(features.items())]))
-    else:  # There are no inputs, create a zero state.
-      total_size = tfgnn.keras.layers.TotalSize()(node_set)
-      return tf.zeros([total_size, state_dim])
+    else:  # There are no inputs, create an empty state.
+      return tfgnn.keras.layers.MakeEmptyFeature()(node_set)
   graph = tfgnn.keras.layers.MapFeatures(node_sets_fn=node_sets_fn)(graph)
   ```
 
@@ -119,10 +118,13 @@ class MapFeatures(tf.keras.layers.Layer):
 
   This happens naturally for outputs of transformed input features.
   Outputs created from scratch still need to depend on the input for its size.
-  In case of scalar GraphTensors, users are recommended to call
-  `tfgnn.keras.layers.TotalSize()(graph_piece)` and use the result as the
-  leading dimension of outputs, as seen in the example code snippet above.
-  (For constant shapes on TPUs, see the documentation of TotalSize.)
+  The helper `tfgnn.keras.layers.MakeEmptyFeature()(graph_piece)` does this
+  for the common case of creating an empty hidden state for a latent node;
+  see its documentation for details on how to use it with TPUs.
+  If TPUs and shape inference are no concern, the callback can simply use
+  `graph_piece.sizes` or (esp. for rank 0) graph_piece.total_size` to construct
+  outputs of the right shape, but not `graph_piece.spec.total_size`, which
+  breaks the dependency chain of KerasTensors.
 
   Init args:
     context_fn: A callback to build a Keras model for transforming context
@@ -276,10 +278,11 @@ def _make_model_or_none(model_fn, graph_piece_spec, **kwargs):
                        if not tf.keras.backend.is_keras_tensor(v)}
   if non_keras_outputs:
     raise ValueError(
-        "MapFeatures(...=fn) requires the callback fn to return KerasTensors "
-        "that depend on the input to fn. For values created from scratch, "
-        "use tfgnn.keras.layers.TotalSize()(...) to get the (possibly static) "
-        "output size with a proper dependency on the input.\n"
+        "`MapFeatures(...=fn)` requires the callback `fn(inputs, ...)` to only "
+        "return KerasTensors that depend on the `inputs` graph piece. "
+        "For values created from scratch, use a tensor depdendency on "
+        "`inputs.total_size` (possibly static, useful for scalar GraphTensors) "
+        "or `inputs.sizes`.\n"
         f"The callback for {kwargs or 'context'} "
         f"returned the following non-KerasTensor outputs: {non_keras_outputs}")
 
@@ -299,44 +302,8 @@ def _call_model(model, graph_piece, *, logging_name):
   return model(graph_piece)
 
 
-@tf.keras.utils.register_keras_serializable(package="GNN")
-class TotalSize(tf.keras.layers.Layer):
-  """Returns the .total_size of a graph piece.
-
-  This layer returns the total size of an input EdgeSet, NodeSet or Context
-  as a scalar tensor (akin to `input.total_size`), with a dependency on the
-  input tensor as required by the Keras functional API. This layer can be used
-  to generate new feature values for a scalar GraphTensor inside a callback
-  passed to MapFeatures.
-
-  Init args:
-    constant_from_spec: Setting this to true guarantees that the output is a
-      constant Tensor (suitable for environments in which constant shapes are
-      required, like models distributed to TPU). Setting this requires that
-      `input.spec.total_size is not None`. If unset, the output Tensor may or
-      may not be constant.
-  """
-
-  def __init__(self, *, constant_from_spec: bool = False, **kwargs):
-    super().__init__(**kwargs)
-    self._constant_from_spec = constant_from_spec
-
-  def get_config(self):
-    return dict(
-        constant_from_spec=self._constant_from_spec,
-        **super().get_config())
-
-  def call(self, graph_piece):
-    if not self._constant_from_spec:
-      return graph_piece.total_size
-
-    total_size = graph_piece.spec.total_size
-    if total_size is None:
-      raise ValueError("TotalSize(constant_from_spec=True)(x) "
-                       "requires x.spec.total_size != None")
-    return tf.constant(total_size, dtype=graph_piece.spec.indices_dtype)
-
-
+# TODO(b/217538005): When fixed, update the paragraph on TPU compatibility
+# and the the matching explanations in gnn_modeling.md.
 @tf.keras.utils.register_keras_serializable(package="GNN")
 class MakeEmptyFeature(tf.keras.layers.Layer):
   """Returns an empty feature with a shape that fits the input graph piece.
@@ -355,8 +322,14 @@ class MakeEmptyFeature(tf.keras.layers.Layer):
     graph piece, and 0 is the feature dimension that makes this an empty tensor.
     In particular, if graph_shape == [], meaning graph_piece is from a scalar
     GraphTensor, the result is a Tensor of shape [graph_piece.total_size, 0].
-    That shape is constant (for use on TPU) if graph_piece.spec.total_size is
-    not None.
+
+  TPU compatibility:
+    If graph_shape == [], the shape of the result is static (as required)
+    if graph_piece.spec.total_size is not None. That, however, requires the
+    presence of other features on the same graph piece from which its static
+    total_size can be inferred. Therefore, to create an empty hidden state for
+    a latent graph piece (one without input features), this layer must be used
+    already in dataset preprocessing, before padding inputs to fixed sizes.
   """
 
   def call(self, graph_piece: Union[gt.EdgeSet, gt.NodeSet, gt.Context]):

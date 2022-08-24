@@ -13,7 +13,6 @@ ParseExample = parse_example.ParseExample
 ParseSingleExample = parse_example.ParseSingleExample
 
 MapFeatures = map_features.MapFeatures
-TotalSize = map_features.TotalSize
 MakeEmptyFeature = map_features.MakeEmptyFeature
 
 PadToTotalSizes = padding_ops.PadToTotalSizes

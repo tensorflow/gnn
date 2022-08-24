@@ -26,8 +26,6 @@ from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.keras import keras_tensors  # For registration. pylint: disable=unused-import
 from tensorflow_gnn.keras.layers import map_features
 
-# NOTE: TotalSize is tested through its uses in MapFeatures.
-
 
 def double_fn(inputs, **_):
   """Returns twice the value of each input feature."""
@@ -117,21 +115,17 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEmpty(edges.features)
 
   @parameterized.named_parameters(
-      ("DynamicSize", False, ReloadModel.SKIP),
-      ("DynamicSizeRestored", False, ReloadModel.SAVED_MODEL),
-      ("DynamicSizeRestoredKeras", False, ReloadModel.KERAS),
-      ("StaticSize", True, ReloadModel.SKIP),
-      ("StaticSizeRestored", True, ReloadModel.SAVED_MODEL),
-      ("StaticSizeRestoredKeras", True, ReloadModel.KERAS))
-  def testNewFeature(self, use_static_size, reload_model):
+      ("", ReloadModel.SKIP),
+      ("Restored", ReloadModel.SAVED_MODEL),
+      ("RestoredKeras", ReloadModel.KERAS))
+  def testNewFeature(self, reload_model):
     input_graph = _make_scalar_test_graph()
 
     # Replaces all features by hidden state [1., 1., 1.] for each node/edge.
     state_dim = 3
     def fn(inputs, *, node_set_name=None, edge_set_name=None):
       del node_set_name, edge_set_name  # Unused.
-      total_size = map_features.TotalSize(
-          constant_from_spec=use_static_size)(inputs)
+      total_size = inputs.total_size
       self.assertEqual(total_size.shape.rank, 0)  # A scalar Tensor.
       target_shape = tf.stack([total_size, tf.constant(state_dim)])
       return tf.ones(target_shape)
@@ -143,13 +137,6 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     outputs = layer(inputs)
     model = tf.keras.Model(inputs, outputs)
     _ = model(input_graph)  # Trigger building.
-
-    # Test that TotalSize(constant_from_spec=True) causes a statically known
-    # shape. (If False, it might or might not be known.)
-    if use_static_size:
-      symbolic_state = outputs.node_sets["nodes"][const.HIDDEN_STATE]
-      self.assertAllEqual(symbolic_state.shape.as_list(),
-                          [2, state_dim])
 
     # Do an optional round-trip through SavedModel before testing the layer's
     # behavior.
@@ -186,7 +173,7 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
     def bad_fn(inputs, **_):
       state_dim = 3
-      # Getting the static total size like this (and not with TotalSize)
+      # Getting the static total size like this (and not with inputs.total_size)
       # is an easy mistake to make, because it works in raw TensorFlow
       # but violates the requirement of the Keras functional API that
       # outputs must be KerasTensors computed from inputs.
@@ -195,7 +182,7 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
       target_shape = tf.constant([total_size, state_dim])
       return tf.ones(target_shape)
 
-    with self.assertRaisesRegex(ValueError, r"return KerasTensor.*TotalSize"):
+    with self.assertRaisesRegex(ValueError, r"return KerasTensor.*total_size"):
       layer = map_features.MapFeatures(**{kwarg_to_test: bad_fn})
       _ = layer(input_graph)  # Trigger building.
 
