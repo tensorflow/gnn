@@ -102,11 +102,15 @@ achieved as follows:
 
 ```python
 def set_initial_node_state(node_set, node_set_name):
-  total_size = tfgnn.keras.layers.TotalSize()(node_set)
   if node_set_name == "some_latent_node_set":
-    return tf.zeros([total_size, 0])
+    return tfgnn.keras.layers.MakeEmptyFeature()(node_set)
   ...
 ```
+
+Side note: For TPUs, it is necessary to call `MakeEmptyFeature` already in the
+[input pipeline](input_pipeline.md), and then simply return the empty feature
+from `set_initial_node_state()`. Without any feature, shape inference in the
+TPU compiler would not be able to deduce the static node set size.
 
 Either way, the tensors returned by `set_initial_node_state` are stored in the
 output `GraphTensor` of `MapFeatures` as features with the name
