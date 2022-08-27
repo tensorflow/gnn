@@ -194,9 +194,17 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
     ], metric_names)
 
   def test_invalid_both_num_classes_and_class_names(self):
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegex(
+        ValueError,
+        r"Exactly one of `num_classes` or `class_names` must be specified"):
       classification.GraphMulticlassClassification(
           num_classes=5, node_set_name="nodes", class_names=["foo", "bar"])
+
+  def test_invalid_no_num_classes_or_class_names(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        r"Exactly one of `num_classes` or `class_names` must be specified"):
+      classification.GraphMulticlassClassification(node_set_name="nodes")
 
 
 if __name__ == "__main__":

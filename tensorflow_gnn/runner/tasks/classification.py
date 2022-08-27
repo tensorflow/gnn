@@ -150,9 +150,9 @@ class _MulticlassClassification(_Classification):
                class_names: Optional[Sequence[str]] = None,
                per_class_statistics: bool = False,
                **kwargs):  # pylint: disable=useless-super-delegation
-    if not (num_classes is None or class_names is None):
+    if (num_classes is None) == (class_names is None):
       raise ValueError(
-          "Only one of `num_classes` or `class_names` may be specified")
+          "Exactly one of `num_classes` or `class_names` must be specified")
     if num_classes is None:
       num_classes = len(class_names)
     super().__init__(num_classes, *args, **kwargs)
