@@ -97,8 +97,11 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
   def test_run(self, distribution: tf.distribute.Strategy):
     schema = tfgnn.parse_schema(SCHEMA)
     gtspec = tfgnn.create_graph_spec_from_schema_pb(schema)
-    example = tfgnn.write_example(tfgnn.random_graph_tensor(gtspec))
-    ds_provider = DatasetProvider([example.SerializeToString()] * 6)
+    smaller_graph = tfgnn.random_graph_tensor(gtspec, row_lengths_range=[1, 2])
+    larger_graph = tfgnn.random_graph_tensor(gtspec, row_lengths_range=[7, 19])
+    ds_provider = DatasetProvider(
+        [tfgnn.write_example(smaller_graph).SerializeToString()] * 4 +
+        [tfgnn.write_example(larger_graph).SerializeToString()])
 
     def extract_labels(gt):
       return gt, gt.context["label"] % 10  # Ten labels
@@ -130,7 +133,11 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
         restore_best_weights=False)
 
     if isinstance(distribution, tf.distribute.TPUStrategy):
-      train_padding = padding.FitOrSkipPadding(gtspec, ds_provider)
+      train_padding = padding.FitOrSkipPadding(
+          gtspec,
+          ds_provider,
+          fit_or_skip_sample_sample_size=5,
+          fit_or_skip_success_ratio=0.7)
       valid_padding = padding.TightPadding(gtspec, ds_provider)
     else:
       train_padding = None
