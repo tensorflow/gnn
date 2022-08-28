@@ -17,7 +17,7 @@ import dataclasses
 import functools
 import os
 import sys
-from typing import Callable, Optional, Sequence, Tuple, Union
+from typing import Callable, Mapping, Optional, Sequence, Tuple, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -118,7 +118,8 @@ class _WrappedDatasetProvider:
 class GraphTensorPadding(Protocol):
   """Collects `GraphtTensor` padding helpers."""
 
-  def get_filter_fn(self, target_batch_size: int) -> Callable[..., bool]:
+  def get_filter_fn(self,
+                    size_constraints: SizeConstraints) -> Callable[..., bool]:
     """"""
     raise NotImplementedError()
 
@@ -292,6 +293,17 @@ def make_preprocessing_model(
   return tf.keras.Model(gt, (x, y, mask))
 
 
+def _get_padding_kwargs(
+    padding: GraphTensorPadding, batch_size: int
+) -> Mapping[str, Union[Callable[..., bool], tfgnn.SizeConstraints]]:
+  size_constraints = padding.get_size_constraints(batch_size)
+  filter_fn = padding.get_filter_fn(size_constraints)
+  return {
+      "padding_filter_fn": filter_fn,
+      "padding_size_constraints": size_constraints
+  }
+
+
 def run(*,
         train_ds_provider: DatasetProvider,
         model_fn: Callable[[tfgnn.GraphTensorSpec], tf.keras.Model],
@@ -365,17 +377,16 @@ def run(*,
   parsing_model = make_parsing_model(gtspec)
   preprocess_model = make_preprocessing_model(gtspec, feature_processors or ())
 
-  def apply_fn(ds, *, padding: Optional[GraphTensorPadding] = None):
+  def apply_fn(ds,
+               *,
+               padding_filter_fn: Optional[Callable[..., bool]] = None,
+               padding_size_constraints: Optional[SizeConstraints] = None):
     ds = _map_over_dataset(ds, parsing_model)
-    if padding is not None:
-      target_batch_size = _per_replica_batch_size(
-          global_batch_size,
-          trainer.strategy.num_replicas_in_sync)
+    if padding_filter_fn is not None:
+      ds = ds.filter(padding_filter_fn)
+    if padding_size_constraints is not None:
       padding_preprocess_model = make_preprocessing_model(
-          gtspec,
-          feature_processors or (),
-          padding.get_size_constraints(target_batch_size))
-      ds = ds.filter(padding.get_filter_fn(target_batch_size))
+          gtspec, feature_processors or (), padding_size_constraints)
       ds = _map_over_dataset(ds, padding_preprocess_model)
     else:
       ds = _map_over_dataset(ds, preprocess_model)
@@ -383,13 +394,21 @@ def run(*,
     # in the `map_fn.`
     return functools.reduce(lambda acc, fn: fn(acc), task.preprocessors(), ds)
 
+  target_batch_size = _per_replica_batch_size(
+      global_batch_size, trainer.strategy.num_replicas_in_sync)
+  # The following code computes the size_constraints for padding (on the host
+  # that runs this Python code) before the actual training or validation
+  # datasets are created (possibly replicated, possibly distributed to
+  # one or more worker jobs).
   if train_padding is not None:
-    train_apply_fn = functools.partial(apply_fn, padding=train_padding)
+    train_apply_fn = functools.partial(
+        apply_fn, **_get_padding_kwargs(train_padding, target_batch_size))
   else:
     train_apply_fn = apply_fn
 
   if validate and valid_padding is not None:
-    valid_apply_fn = functools.partial(apply_fn, padding=valid_padding)
+    valid_apply_fn = functools.partial(
+        apply_fn, **_get_padding_kwargs(valid_padding, target_batch_size))
   elif validate:
     valid_apply_fn = apply_fn
 
