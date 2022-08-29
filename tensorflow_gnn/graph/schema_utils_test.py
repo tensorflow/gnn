@@ -23,6 +23,119 @@ from tensorflow_gnn.graph import schema_utils as su
 import tensorflow_gnn.proto.graph_schema_pb2 as schema_pb2
 from tensorflow_gnn.utils import test_utils
 
+_SCHEMA_SPEC_MATCHING_PAIRS = [
+    dict(
+        testcase_name='context_schema',
+        schema_pbtxt="""
+          context {
+            features {
+              key: "label"
+              value: {
+                dtype: DT_STRING
+              }
+            }
+            features {
+              key: "embedding"
+              value: {
+                dtype: DT_FLOAT
+                shape: { dim { size: 128 } }
+              }
+            }
+          }
+          """,
+        graph_spec=gt.GraphTensorSpec.from_piece_specs(
+            context_spec=gt.ContextSpec.from_field_specs(
+                features_spec={
+                    'label':
+                        tf.TensorSpec(shape=(1,), dtype=tf.string),
+                    'embedding':
+                        tf.TensorSpec(shape=(1, 128), dtype=tf.float32),
+                },
+                indices_dtype=tf.int64))),
+    dict(
+        testcase_name='nodes_schema',
+        schema_pbtxt="""
+              node_sets {
+                key: 'node'
+                value {
+                  features {
+                    key: "id"
+                    value: {
+                      dtype: DT_INT32
+                    }
+                  }
+                  features {
+                    key: "words"
+                    value: {
+                      dtype: DT_STRING
+                      shape: { dim { size: -1 } }
+                    }
+                  }
+                }
+              }
+              """,
+        graph_spec=gt.GraphTensorSpec.from_piece_specs(
+            node_sets_spec={
+                'node':
+                    gt.NodeSetSpec.from_field_specs(
+                        sizes_spec=tf.TensorSpec(
+                            shape=(1,), dtype=tf.int64),
+                        features_spec={
+                            'id':
+                                tf.TensorSpec(
+                                    shape=(None,), dtype=tf.int32),
+                            'words':
+                                tf.RaggedTensorSpec(
+                                    shape=(None, None),
+                                    dtype=tf.string,
+                                    ragged_rank=1,
+                                    row_splits_dtype=tf.int64),
+                        })
+            })),
+    dict(
+        testcase_name='edges_schema',
+        schema_pbtxt="""
+              node_sets { key: 'node'}
+              edge_sets {
+                key: 'edge'
+                value {
+                  source: 'node'
+                  target: 'node'
+                  features {
+                    key: "weight"
+                    value: {
+                      dtype: DT_FLOAT
+                    }
+                  }
+                }
+              }
+              """,
+        graph_spec=gt.GraphTensorSpec.from_piece_specs(
+            node_sets_spec={
+                'node':
+                    gt.NodeSetSpec.from_field_specs(
+                        sizes_spec=tf.TensorSpec(
+                            shape=(1,), dtype=tf.int32))
+            },
+            edge_sets_spec={
+                'edge':
+                    gt.EdgeSetSpec.from_field_specs(
+                        features_spec={
+                            'weight':
+                                tf.TensorSpec(
+                                    shape=(None,), dtype=tf.float32)
+                        },
+                        sizes_spec=tf.TensorSpec(
+                            shape=(1,), dtype=tf.int32),
+                        adjacency_spec=(
+                            adj.AdjacencySpec.from_incident_node_sets(
+                                source_node_set='node',
+                                target_node_set='node',
+                                index_spec=tf.TensorSpec(
+                                    shape=(None,), dtype=tf.int32))))
+            }))
+]
+
 
 class SchemaUtilsTest(tf.test.TestCase):
 
@@ -84,129 +197,73 @@ class SchemaToGraphTensorSpecTest(tf.test.TestCase, parameterized.TestCase):
     self.assertIsNone(edge_set_spec.total_size)
     self.assertEqual(list(edge_set_spec.features_spec.keys()), ['weight'])
 
-  @parameterized.parameters([
-      dict(
-          description='context schema parsing',
-          schema_pbtxt="""
-          context {
-            features {
-              key: "label"
-              value: {
-                dtype: DT_STRING
-              }
-            }
-            features {
-              key: "embedding"
-              value: {
-                dtype: DT_FLOAT
-                shape: { dim { size: 128 } }
-              }
-            }
-          }
-          """,
-          expected_spec=gt.GraphTensorSpec.from_piece_specs(
-              context_spec=gt.ContextSpec.from_field_specs(
-                  features_spec={
-                      'label':
-                          tf.TensorSpec(shape=(1,), dtype=tf.string),
-                      'embedding':
-                          tf.TensorSpec(shape=(1, 128), dtype=tf.float32),
-                  },
-                  indices_dtype=tf.int64)),
-          indices_dtype=tf.int64,
-      ),
-      dict(
-          description='nodes schema parsing',
-          schema_pbtxt="""
-              node_sets {
-                key: 'node'
-                value {
-                  features {
-                    key: "id"
-                    value: {
-                      dtype: DT_INT32
-                    }
-                  }
-                  features {
-                    key: "words"
-                    value: {
-                      dtype: DT_STRING
-                      shape: { dim { size: -1 } }
-                    }
-                  }
-                }
-              }
-              """,
-          expected_spec=gt.GraphTensorSpec.from_piece_specs(
-              node_sets_spec={
-                  'node':
-                      gt.NodeSetSpec.from_field_specs(
-                          sizes_spec=tf.TensorSpec(
-                              shape=(1,), dtype=tf.int64),
-                          features_spec={
-                              'id':
-                                  tf.TensorSpec(
-                                      shape=(None,), dtype=tf.int32),
-                              'words':
-                                  tf.RaggedTensorSpec(
-                                      shape=(None, None),
-                                      dtype=tf.string,
-                                      ragged_rank=1,
-                                      row_splits_dtype=tf.int64),
-                          })
-              }),
-          indices_dtype=tf.int64,
-      ),
-      dict(
-          description='edges schema parsing',
-          schema_pbtxt="""
-              node_sets { key: 'node'}
-              edge_sets {
-                key: 'edge'
-                value {
-                  source: 'node'
-                  target: 'node'
-                  features {
-                    key: "weight"
-                    value: {
-                      dtype: DT_FLOAT
-                    }
-                  }
-                }
-              }
-              """,
-          expected_spec=gt.GraphTensorSpec.from_piece_specs(
-              node_sets_spec={
-                  'node':
-                      gt.NodeSetSpec.from_field_specs(
-                          sizes_spec=tf.TensorSpec(
-                              shape=(1,), dtype=tf.int32))
-              },
-              edge_sets_spec={
-                  'edge':
-                      gt.EdgeSetSpec.from_field_specs(
-                          features_spec={'weight': tf.TensorSpec(
-                              shape=(None,), dtype=tf.float32)},
-                          sizes_spec=tf.TensorSpec(
-                              shape=(1,), dtype=tf.int32),
-                          adjacency_spec=(
-                              adj.AdjacencySpec.from_incident_node_sets(
-                                  source_node_set='node',
-                                  target_node_set='node',
-                                  index_spec=tf.TensorSpec(
-                                      shape=(None,), dtype=tf.int32))
-                          ))
-              }),
-          indices_dtype=tf.int32,
-      )
-  ])
-  def testParametrized(self, description: str, schema_pbtxt: str,
-                       expected_spec: gt.GraphTensorSpec,
-                       indices_dtype: tf.dtypes.DType):
+  @parameterized.named_parameters(_SCHEMA_SPEC_MATCHING_PAIRS)
+  def testParametrized(self, schema_pbtxt: str, graph_spec: gt.GraphTensorSpec):
     schema_pb = pbtext.Merge(schema_pbtxt, schema_pb2.GraphSchema())
     result_spec = su.create_graph_spec_from_schema_pb(
-        schema_pb, indices_dtype=indices_dtype)
-    self.assertAllEqual(expected_spec, result_spec)
+        schema_pb, indices_dtype=graph_spec.indices_dtype)
+    self.assertAllEqual(graph_spec, result_spec)
+
+
+class GraphTensorSpecToSchemaTest(tf.test.TestCase, parameterized.TestCase):
+  """Tests for Graph Tensor specification."""
+
+  @parameterized.named_parameters(_SCHEMA_SPEC_MATCHING_PAIRS)
+  def testParametrized(self, schema_pbtxt: str, graph_spec: gt.GraphTensorSpec):
+    result_schema = su.create_schema_pb_from_graph_spec(graph_spec)
+    expected_schema_pb = pbtext.Merge(schema_pbtxt, schema_pb2.GraphSchema())
+    self.assertEqual(expected_schema_pb, result_schema)
+
+
+class CompatibleWithSchemaTest(tf.test.TestCase, parameterized.TestCase):
+  """Tests for Graph Tensor specification."""
+
+  @parameterized.named_parameters(_SCHEMA_SPEC_MATCHING_PAIRS)
+  def testParametrized(self, schema_pbtxt: str, graph_spec: gt.GraphTensorSpec):
+    # pylint: disable=protected-access
+    schema_pb = pbtext.Merge(schema_pbtxt, schema_pb2.GraphSchema())
+    su.check_compatible_with_schema_pb(graph_spec, schema_pb)
+    self.assertRaisesRegex(
+        ValueError,
+        r'check_compatible_with_schema_pb\(\) requires a scalar GraphTensor',
+        su.check_compatible_with_schema_pb, graph_spec._batch(None), schema_pb)
+
+  def testFailsForMultipleComponents(self):
+    # pylint: disable=protected-access
+    schema_pbtxt = """
+          context {
+            features { key: "label" value: { dtype: DT_STRING } }
+          }
+          """
+    graph_spec = gt.GraphTensorSpec.from_piece_specs(
+        context_spec=gt.ContextSpec.from_field_specs(
+            features_spec={
+                'label': tf.TensorSpec(shape=(2,), dtype=tf.string),
+            },
+            indices_dtype=tf.int64))
+    schema_pb = pbtext.Merge(schema_pbtxt, schema_pb2.GraphSchema())
+    self.assertRaisesRegex(
+        ValueError, (r'check_compatible_with_schema_pb\(\) requires scalar'
+                     ' GraphTensor with a single graph component'),
+        su.check_compatible_with_schema_pb, graph_spec, schema_pb)
+
+  def testFailsForIncompatibleFeatures(self):
+    # pylint: disable=protected-access
+    schema_pbtxt = """
+          context {
+            features { key: "label" value: { dtype: DT_STRING } }
+          }
+          """
+    graph_spec = gt.GraphTensorSpec.from_piece_specs(
+        context_spec=gt.ContextSpec.from_field_specs(
+            features_spec={
+                'not_label': tf.TensorSpec(shape=(1,), dtype=tf.string),
+            },
+            indices_dtype=tf.int64))
+    schema_pb = pbtext.Merge(schema_pbtxt, schema_pb2.GraphSchema())
+    self.assertRaisesRegex(
+        ValueError, (r'Graph is not compatible with the graph schema'),
+        su.check_compatible_with_schema_pb, graph_spec, schema_pb)
 
 
 if __name__ == '__main__':

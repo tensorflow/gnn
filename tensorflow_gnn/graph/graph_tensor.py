@@ -1407,13 +1407,34 @@ def check_scalar_graph_tensor(graph: Union[GraphTensor, GraphTensorSpec],
   gp.check_scalar_graph_piece(graph, name=name)
 
 
+def get_graph_tensor_spec(
+    graph: Union[GraphTensor, GraphTensorSpec]) -> GraphTensorSpec:
+  if isinstance(graph, GraphTensorSpec):
+    return graph
+
+  if hasattr(graph, 'spec') and isinstance(graph.spec, GraphTensorSpec):
+    return graph.spec
+
+  raise ValueError(f'Unsupported value type {type(graph).__name__}.')
+
+
+def check_scalar_singleton_graph_tensor(graph: Union[GraphTensor,
+                                                     GraphTensorSpec],
+                                        name='This operation') -> None:
+  """Checks that graph tensor is scalar with single graph component."""
+  spec = get_graph_tensor_spec(graph)
+  check_scalar_graph_tensor(graph, name=name)
+  if spec.total_num_components != 1:
+    raise ValueError(
+        (f'{name} requires scalar GraphTensor with a single graph component,'
+         f' got a scalar GraphTensor with {spec.total_num_components}'
+         ' components.'))
+
+
 def check_homogeneous_graph_tensor(graph: Union[GraphTensor, GraphTensorSpec],
                                    name='This operation') -> None:
   """Raises ValueError unless there is exactly one node set and edge set."""
-  if isinstance(graph, GraphTensorSpec):
-    spec = graph
-  else:
-    spec = graph.spec
+  spec = get_graph_tensor_spec(graph)
   if len(spec.node_sets_spec) != 1 or len(spec.edge_sets_spec) != 1:
     raise ValueError(
         f'{name} requires a graph with 1 node set and 1 edge set '

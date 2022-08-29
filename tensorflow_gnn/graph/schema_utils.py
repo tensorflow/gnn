@@ -14,7 +14,7 @@
 # ==============================================================================
 """Misc graph tensor utilities."""
 
-from typing import Any, Iterator, Optional, Text, Tuple, Union
+from typing import Any, Iterator, Mapping, Optional, Text, Tuple, Union
 
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency
@@ -29,8 +29,8 @@ def parse_schema(schema_text: str) -> schema_pb2.GraphSchema:
   """Parse a schema from text-formatted protos.
 
   Args:
-    schema_text: A string containing a text-formatted protocol buffer
-      rendition of a `GraphSchema` message.
+    schema_text: A string containing a text-formatted protocol buffer rendition
+      of a `GraphSchema` message.
 
   Returns:
     A `GraphSchema` instance.
@@ -57,8 +57,8 @@ def write_schema(schema: schema_pb2.GraphSchema, filename: str):
 
   Args:
     schema: A `GraphSchema` instance to write out.
-    filename: A string, the path to a file to render a text-formatted
-      rendition of the `GraphSchema` message to.
+    filename: A string, the path to a file to render a text-formatted rendition
+      of the `GraphSchema` message to.
   """
   with tf.io.gfile.GFile(filename, 'w') as schema_file:
     schema_file.write(text_format.MessageToString(schema))
@@ -75,6 +75,9 @@ def create_graph_spec_from_schema_pb(
   requirements, that accompanies each `GraphTensor` instance and fulfills much
   of the same goal. This function converts the proto to the corresponding type
   spec.
+
+  It is guranteed that the output graph spec is compatible with the input graph
+  schema (as `tfgnn.check_compatible_with_schema_pb()`.)
 
   Args:
     schema: An instance of the graph schema proto message.
@@ -116,6 +119,112 @@ def create_graph_spec_from_schema_pb(
       context_spec=context_spec,
       node_sets_spec=nodes_spec,
       edge_sets_spec=edges_spec)
+
+
+def create_schema_pb_from_graph_spec(
+    graph: Union[gt.GraphTensor, gt.GraphTensorSpec]) -> schema_pb2.GraphSchema:
+  """Converts scalar GraphTensorSpec to a graph schema proto message.
+
+  The result graph schema containts entires for all graph pieces. The features
+  proto field contains type (`dtype`) and shape (`shape`) information for all
+  features. For edge sets their `source` and `target` fields are populated. All
+  other fields are left unset. (Callers can set them separately before writing
+  out the schema.)
+
+  It is guranteed that the input graph is compatible with the output graph
+  schema (as `tfgnn.check_compatible_with_schema_pb()`.)
+
+  Args:
+    graph: The scalar graph tensor or its spec with single graph component.
+
+  Returns:
+    An instance of the graph schema proto message.
+
+  Raises:
+    ValueError: if graph has multiple graph components or rank > 0.
+    ValueError: if adjacency types is not an instance of `fgnn.Adjacency`.
+  """
+  graph_spec = gt.get_graph_tensor_spec(graph)
+  gt.check_scalar_singleton_graph_tensor(graph_spec,
+                                         'create_schema_pb_from_graph()')
+
+  def _to_feature(spec: gc.FieldSpec) -> schema_pb2.Feature:
+    result = schema_pb2.Feature()
+    result.dtype = spec.dtype.as_datatype_enum
+    feature_shape = spec.shape[1:]  # Drop num_items dimension.
+    if feature_shape.rank > 0:  # For empty, use default.
+      result.shape.CopyFrom(feature_shape.as_proto())
+    return result
+
+  def _add_features_spec(features_spec: gc.FieldsSpec,
+                         target: Mapping[str, schema_pb2.Feature]) -> None:
+    for name, spec in features_spec.items():
+      target[name].MergeFrom(_to_feature(spec))
+
+  result = schema_pb2.GraphSchema()
+
+  _add_features_spec(graph_spec.context_spec.features_spec,
+                     result.context.features)
+
+  for name, node_set_spec in graph_spec.node_sets_spec.items():
+    node_set_schema = result.node_sets[name]
+    _add_features_spec(node_set_spec.features_spec, node_set_schema.features)
+
+  for name, edge_set_spec in graph_spec.edge_sets_spec.items():
+    edge_set_schema = result.edge_sets[name]
+    _add_features_spec(edge_set_spec.features_spec, edge_set_schema.features)
+    adjacency_spec = edge_set_spec.adjacency_spec
+    if not isinstance(adjacency_spec, adjacency.AdjacencySpec):
+      raise ValueError(f'Adjacency type `{adjacency_spec.value_type.__name__}`'
+                       f' of the edge set \'{name}\' is not supported.'
+                       ' Expected an instance of `tfgnn.Adjacency`.')
+
+    edge_set_schema.source = edge_set_spec.adjacency_spec.source_name
+    edge_set_schema.target = edge_set_spec.adjacency_spec.target_name
+
+  return result
+
+
+def check_compatible_with_schema_pb(graph: Union[gt.GraphTensor,
+                                                 gt.GraphTensorSpec],
+                                    schema: schema_pb2.GraphSchema) -> None:
+  """Checks that the given spec or value is compatible with the graph schema.
+
+  The `graph` is compatible with the `schema` if
+
+  * it is scalar (rank=0) graph tensor;
+  * has single graph component;
+  * has matching sets of nodes and edges;
+  * has matching sets of features on all node sets, edge sets, and the context,
+    and their types and shapes are compatible;
+  * all adjacencies are of type `tfgnn.Adjacency`.
+
+  Args:
+    graph: The graph tensor or graph tensor spec.
+    schema: The graph schema.
+
+  Raises:
+    ValueError: if `spec_or_value` is not represented by the graph schema.
+  """
+  gt.check_scalar_singleton_graph_tensor(graph,
+                                         'check_compatible_with_schema_pb()')
+
+  actual_spec = gt.get_graph_tensor_spec(graph).relax(
+      num_edges=True, num_nodes=True)
+  expected_spec = create_graph_spec_from_schema_pb(schema, graph.indices_dtype)
+
+  # We can require an exact equality here, because graph pieces must be equal,
+  # their feature specs must be equal, and that means:
+  # * dtypes are exactly equal (for indices_dtype by construction);
+  # * shapes are exactly equal without special-casing None, because fields have
+  #    - no graph dimensions,
+  #    - an items dimension as outermost dimension that is set exactly to None,
+  #    - feature dimensions that, per GraphTensor requirements, are None if and
+  #      only if it is a ragged dimension of a RaggedTensor.
+  if actual_spec != expected_spec:
+    raise ValueError('Graph is not compatible with the graph schema.'
+                     f' Graph spec: {actual_spec},'
+                     f' spec imposed by schema: {expected_spec}.')
 
 
 def _is_ragged_dim(dim) -> bool:
@@ -171,6 +280,7 @@ def iter_sets(
 
   Args:
     schema: An instance of a `GraphSchema` proto message.
+
   Yields:
     Triplets of (set-type, set-name, features) where
 
@@ -197,6 +307,7 @@ def iter_features(
 
   Args:
     schema: An instance of a `GraphSchema` proto message.
+
   Yields:
     Triplets of (set-type, set-name, feature-name, feature-value) where
 
