@@ -15,7 +15,7 @@
 """Encoder for an eager instance of GraphTensor to tf.train.Example protos.
 
 The code in this module may be used to produce streams of tf.train.Example proto
-messages that will parse with tensorflow_gnn.parse_example.
+messages that will parse with `tfgnn.parse_example()`.
 """
 
 import functools
@@ -34,8 +34,15 @@ def write_example(graph: gt.GraphTensor,
   """Encode an eager `GraphTensor` to a tf.train.Example proto.
 
   This routine can be used to create a stream of training data for GNNs from a
-  Python job. Create instances of `GraphTensor` and call this to write them
-  out in a format that will be parseable by `tensorflow_gnn.parse_example()`.
+  Python job. Create instances of scalar `GraphTensor` with a single graph
+  component and call this to write them out. It is recommended to always
+  accompany serialized graph tensor tensorflow examples by their graph schema
+  file (see `tfgnn.create_schema_pb_from_graph_spec()`). TF-GNN library provides
+  `tfgnn.check_compatible_with_schema_pb()` to check that graph tensor instances
+  (or their specs) are compatible with the graph schema. The graph tensors
+  materialized in this way will be parseable by `tfgnn.parse_example()`
+  (using the spec deserialized from the schema) and have the same contents
+  (up to the choice of indices_dtype).
 
   Args:
     graph: An eager instance of `GraphTensor` to write out.

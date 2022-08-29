@@ -1014,10 +1014,9 @@ def check_scalar_graph_piece(piece: Union[GraphPieceBase,
                                           GraphPieceSpecBase],
                              name='This operation') -> None:
   if isinstance(piece, GraphPieceSpecBase):
-    piece_name: str = type(piece.value_type).__name__
+    piece_name: str = piece.value_type.__name__
   else:
     piece_name: str = type(piece).__name__
-
   if piece.rank != 0:
     raise ValueError(
         (f'{name} requires a scalar {piece_name}, that is,'
