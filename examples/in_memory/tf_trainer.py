@@ -52,6 +52,10 @@ flags.DEFINE_float('l2_regularization', 1e-5,
 flags.DEFINE_integer('steps', 101,
                      'Total number of training steps. Each step uses full '
                      'graph, so this is also the number of epochs.')
+flags.DEFINE_bool('train_on_validation', False,
+                  'If set, also uses validation set as training set. This is '
+                  'allowed by some tasks, such as OGBN. Nonetheless, this flag '
+                  'should only be set *after* hyperparameter tuning.')
 
 
 def main(unused_argv):
@@ -62,8 +66,11 @@ def main(unused_argv):
       FLAGS.model, num_classes, l2_coefficient=FLAGS.l2_regularization,
       model_kwargs=model_kwargs)
 
+  train_split = ['train']
+  if FLAGS.train_on_validation:
+    train_split.append('valid')
   graph_tensor = dataset_wrapper.export_to_graph_tensor(
-      make_undirected=prefers_undirected)
+      split=train_split, make_undirected=prefers_undirected)
   graph_tensor, seed_y = reader_utils.pair_graphs_with_labels(
       num_classes, graph_tensor)
 
@@ -94,8 +101,9 @@ def main(unused_argv):
     gradients = tape.gradient(loss, model.trainable_variables)
     opt.apply_gradients(zip(gradients, model.trainable_variables))
 
+  valid_split = 'test' if FLAGS.train_on_validation else 'valid'
   valid_graph = dataset_wrapper.export_to_graph_tensor(
-      split='valid', make_undirected=prefers_undirected)
+      split=valid_split, make_undirected=prefers_undirected)
   valid_graph, valid_y = reader_utils.pair_graphs_with_labels(
       num_classes, valid_graph)
   valid_graph = tfgnn.keras.layers.MapFeatures(node_sets_fn=init_node_state)(
