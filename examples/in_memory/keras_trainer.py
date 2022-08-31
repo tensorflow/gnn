@@ -49,6 +49,10 @@ flags.DEFINE_float('l2_regularization', 1e-5,
 flags.DEFINE_integer('steps', 101,
                      'Total number of training steps. Each step uses full '
                      'graph, so this is also the number of epochs.')
+flags.DEFINE_bool('train_on_validation', False,
+                  'If set, also uses validation set as training set. This is '
+                  'allowed by some tasks, such as OGBN. Nonetheless, this flag '
+                  'should only be set *after* hyperparameter tuning.')
 
 
 def main(unused_argv):
@@ -85,14 +89,18 @@ def main(unused_argv):
       from_logits=True, reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE)
   keras_model.compile(opt, loss=loss, metrics=['acc'])
 
+  train_split = ['train']
+  if FLAGS.train_on_validation:
+    train_split.append('valid')
   train_dataset = dataset_wrapper.iterate_once(
-      make_undirected=prefers_undirected)
+      split='train', make_undirected=prefers_undirected)
   train_labels_dataset = train_dataset.map(
       functools.partial(reader_utils.pair_graphs_with_labels, num_classes))
 
   # Similarly for validation.
+  valid_split = 'test' if FLAGS.train_on_validation else 'valid'
   validation_ds = dataset_wrapper.iterate_once(
-      split='valid', make_undirected=prefers_undirected)
+      split=valid_split, make_undirected=prefers_undirected)
   validation_ds = validation_ds.map(
       functools.partial(reader_utils.pair_graphs_with_labels, num_classes))
 
