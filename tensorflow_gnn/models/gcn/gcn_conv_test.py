@@ -283,7 +283,7 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                     )),
         },
     )
-    layer = gcn_conv.GCNHomGraphUpdate(units=3)
+    layer = gcn_conv.GCNHomGraphUpdate(units=4)
     self.assertRaises(ValueError, lambda: layer(graph))
 
 if __name__ == '__main__':
