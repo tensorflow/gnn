@@ -538,7 +538,7 @@ class GATv2MPNNGraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
     with self.assertRaisesRegex(
         ValueError, r"must be divisible by num_heads, got 5 and 2"):
       _ = gat_v2.GATv2MPNNGraphUpdate(message_dim=5, num_heads=2,
-                                      units=12, receiver_tag=tfgnn.TARGET)
+                                      units=12, receiver_tag=tfgnn.SOURCE)
 
 
 def _make_test_graph_abc():
