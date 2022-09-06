@@ -115,15 +115,17 @@ class GCNConv(tf.keras.layers.Layer):
     self._sender = tfgnn.reverse_tag(receiver_tag)
 
   def get_config(self):
+    filter_config = self._filter.get_config()
     return dict(
         receiver_tag=self._receiver,
         node_feature=self._node_feature,
         add_self_loops=self._add_self_loops,
         normalize=self._normalize,
-        units=self._filter.get_config()['units'],
-        activation=self._filter.get_config()['activation'],
-        use_bias=self._filter.get_config()['use_bias'],
-        kernel_initializer=self._filter.get_config()['kernel_initializer'],
+        units=filter_config['units'],
+        activation=filter_config['activation'],
+        use_bias=filter_config['use_bias'],
+        kernel_initializer=filter_config['kernel_initializer'],
+        kernel_regularizer=filter_config['kernel_regularizer'],
         **super().get_config())
 
   def call(
