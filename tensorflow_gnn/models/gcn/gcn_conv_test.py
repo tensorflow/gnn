@@ -220,7 +220,10 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                                                          dtype=tf.int64)),
                     ))
         })
-    layer = gcn_conv.GCNHomGraphUpdate(units=3, add_self_loops=True)
+    l2reg = 0.1  # Coefficient for L2 regularization.
+    layer = gcn_conv.GCNHomGraphUpdate(
+        units=3, add_self_loops=True,
+        kernel_regularizer=tf.keras.regularizers.l2(l2reg))
     _ = layer(gt_input)  # Build weights.
     weights = {v.name: v for v in layer.trainable_weights}
     self.assertLen(weights, 2)
@@ -246,6 +249,18 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                               tfgnn.keras.layers.GraphUpdate)
       else:
         model = tf.saved_model.load(export_dir)
+
+    if not reload_model or reload_model == ReloadModel.KERAS:
+      # Model.losses only works on Keras models. tf.saved_model.load(), however,
+      # does not return a Keras model. See:
+      # https://www.tensorflow.org/api_docs/python/tf/saved_model/load
+      kernel_variables = [v for v in model.trainable_variables
+                          if '/kernel:0' in v.name]
+      self.assertLen(kernel_variables, 1)  # 1 kernel variable per `weights[]`.
+      self.assertLen(model.losses, 1)      # One loss term per kernel variable.
+
+      expected_model_loss = tf.reduce_sum(kernel_variables[0] ** 2) * l2reg
+      self.assertAllClose(model.losses[0], expected_model_loss)
 
     got_gt = model(gt_input)
     got = got_gt.node_sets['nodes'][tfgnn.HIDDEN_STATE]
