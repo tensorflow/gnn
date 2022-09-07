@@ -29,7 +29,7 @@ import csv
 import hashlib
 from os import path
 import re
-from typing import Any, Callable, Dict, List, Mapping, Optional, Text, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Text, Tuple, Union
 import apache_beam as beam
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -40,7 +40,10 @@ from tensorflow_gnn.proto import graph_schema_pb2
 
 
 # Special constant column names required to be present in the node and edge
-# tabular files.
+# tabular files. As BigQuery doesn't support the `#` character in column names,
+# the special constant column names for BigQuery tables are the same without
+# the `#` character. The resulting serizlied tf.train.Example protocol messages
+# will contain the `#` character.
 NODE_ID = "#id"
 SOURCE_ID = "#source"
 TARGET_ID = "#target"
@@ -287,149 +290,60 @@ def read_graph(schema: tfgnn.GraphSchema,
   return pcoll_dict
 
 
-def bigquery_args_from_proto(bq: graph_schema_pb2.BigQuery) -> Dict[str, Any]:
-  """Parse a tensorflow_gnn.BigQuery message and return BigQuery source args.
-
-  Args:
-    bq: A graph_schema_pb2.BigQuery message.
-
-  Returns:
-    Dict[str, Any] Dictionary that can be used as arguments to
-      beam.io.ReadFromBigQuery function.
-
-  Raises:
-    ValueError if unable to parse input message.
-  """
-  bq_args = {}
-
-  if bq.HasField("table_spec"):
-    if not bq.table_spec.dataset:
-      raise ValueError("Must provide a big query source dataset string.")
-
-    if not bq.table_spec.table:
-      raise ValueError("Must provide a big query source table name.")
-
-    bq_args["table"] = ""
-    if bq.table_spec.project:
-      bq_args["table"] = f"{bq.table_spec.project}:"
-    bq_args["table"] += f"{bq.table_spec.dataset}.{bq.table_spec.table}"
-
-  elif bq.HasField("sql"):
-    if not bq.sql:
-      raise ValueError("Must provide non-empty SQL query.")
-    bq_args["query"] = bq.sql
-  else:
-    raise ValueError("Must provide BigQuerySource table_spec or query.")
-
-  bq_args["read_method"] = graph_schema_pb2.BigQuery.ReadMethod.Name(
-      bq.read_method)
-
-  return bq_args
-
-
-def bigquery_stage_name_suffix(bq: graph_schema_pb2.BigQuery) -> str:
-  """Return a stage name suffix from a BigQuery proto message.
-
-  Args:
-    bq: A graph_schema_pb2.BigQuery protocol buffer instance
-
-  Returns:
-    The string stage suffix indicating a table_spec or query.
-  """
-  sfx = ""
-  if bq.HasField("table_spec"):
-    if bq.table_spec.project:
-      sfx += f"{bq.table_spec.project}_"
-
-    if not bq.table_spec.dataset:
-      raise ValueError("Must provide a big query source dataset string.")
-
-    if not bq.table_spec.table:
-      raise ValueError("Must provide a big query source table name.")
-    sfx += f"{bq.table_spec.dataset}_{bq.table_spec.table}"
-  elif bq.HasField("sql"):
-    sfx = "query"
-  else:
-    raise ValueError("Must provide BigQuerySource table_spec or query.")
-
-  return sfx
-
-
-def append_row_to_example(features: Mapping[str, graph_schema_pb2.Feature],
-                          row: Dict[str,
-                                    Any], example: tf.train.Example) -> None:
-  """Extract features from row and append them to a tf.train.Example.
-
-  Args:
-    features: A Dict[str, graph_schema_pb2.Features] to extract from `row`
-    row: A Dict mapping names to data.
-    example: A tf.train.Example to add the feature to.
-
-  Returns:
-    None
-
-  Raises:
-    ValueError if the row data cannot be parsed from feature specs.
-  """
-  for feature_name, feature in features.items():
-    # In case client encodes `id`, `source` or `target` explicitly in the
-    # features specification.
-    tf_feature_name = _TRANSLATIONS.get(feature_name, feature_name)
-
-    if not row.get(feature_name):
-      raise ValueError(
-          f"Could not find {feature_name} in query result dictionary: {row.keys()}"
-      )
-
-    example_feature = example.features.feature[tf_feature_name]
-    if feature.dtype == tf.float32.as_datatype_enum:
-      example_feature.float_list.value.append(row[feature_name])
-    if feature.dtype == tf.int64.as_datatype_enum:
-      example_feature.int64_list.value.append(row[feature_name])
-    if feature.dtype == tf.string.as_datatype_enum:
-      example_feature.bytes_list.value.append(row[feature_name].encode("utf-8"))
-
-
-class ReadNodeSetFromBigQueryTable(beam.PTransform):
+class ReadFromBigQuery(beam.PTransform):
   """Read a NodeSet from a BigQuery table.
 
   Yeilds tf.Example protos of the features from the table.
   """
   _SUPPORTED_DTYPES = [tf.dtypes.float32, tf.dtypes.int64, tf.dtypes.string]
   _ID_COLUMN = "id"
+  _SOURCE_COLUMN = "source"
+  _TARGET_COLUMN = "target"
 
   def __init__(
       self,
-      node_set_name: str,
-      node_set: graph_schema_pb2.NodeSet,
-      read_from_bigquery: Callable[..., beam.PCollection[Dict[
+      fset_name: str,
+      fset: Union[graph_schema_pb2.NodeSet, graph_schema_pb2.EdgeSet],
+      bigquery_reader: Callable[..., beam.PCollection[Dict[
           str, Any]]] = beam.io.ReadFromBigQuery,
   ):
     """Constructor for PTransform for reading a NodeSet from BigQuery.
 
     Args:
-      node_set_name: The string name of the node set
-      node_set: a graph_schema_pb2.NodeSet protocol buffer message.
-      read_from_bigquery: Callable, ONLY USED FOR UNIT-TESTING.
+      fset_name: The string name of the node/edge set
+      fset: Either a graph_schema_pb2.NodeSet or graph_schema_pb2.EdgeSet
+        message.
+      bigquery_reader: Callable, **ONLY USED FOR UNIT-TESTING**.
     """
     super().__init__()
 
     # ONLY use for testing.
-    self.read_from_bigquery = read_from_bigquery
+    self._bigquery_reader = bigquery_reader
 
-    self.node_set_name = node_set_name
-    self.node_set = node_set
+    self.fset_name = fset_name
+    self.fset = fset
 
-    if not node_set.metadata.HasField("bigquery"):
+    if not fset.HasField("metadata"):
+      raise ValueError(
+          "Must specify metadata to read BigQuery graph component.")
+
+    if not fset.metadata.HasField("bigquery"):
       raise ValueError("NodeSet does not specify a BigQuery table.")
 
-    self.bq = node_set.metadata.bigquery
-    self.sfx = bigquery_stage_name_suffix(self.bq)
-    self.bq_args = bigquery_args_from_proto(self.bq)
+    # Only used for edge sets
+    self.edge_reversed = False
+    if isinstance(self.fset, graph_schema_pb2.EdgeSet):
+      for kv in fset.metadata.extra:
+        if kv.key == "edge_type" and kv.value == "reversed":
+          self.edge_reversed = True
+
+    self.bq = fset.metadata.bigquery
+    self.sfx = self.stage_name_suffix(self.fset_name, self.fset)
+    self.bq_args = self.bigquery_args_from_proto(self.bq)
     self.bq_args["method"] = graph_schema_pb2.BigQuery.ReadMethod.Name(
         self.bq.read_method)
 
-    for feature_name, feature in self.node_set.features.items():
+    for feature_name, feature in self.fset.features.items():
       if feature.dtype not in self._SUPPORTED_DTYPES:
         raise ValueError(
             f"{feature_name}: Only {self._SUPPORTED_DTYPES} feature types are supported."
@@ -443,36 +357,178 @@ class ReadNodeSetFromBigQueryTable(beam.PTransform):
         if len(feature.shape.dim) and feature.shape.dim[0].size > 0:
           raise ValueError(err)
 
-  def row_to_keyed_example(self, row: Any) -> Tuple[str, tf.train.Example]:
+  @staticmethod
+  def bigquery_args_from_proto(bq: graph_schema_pb2.BigQuery) -> Dict[str, Any]:
+    """Parse a tensorflow_gnn.BigQuery message and return BigQuery source args.
+
+    Args:
+      bq: A graph_schema_pb2.BigQuery message.
+
+    Returns:
+      Dict[str, Any] Dictionary that can be used as arguments to
+        beam.io.ReadFromBigQuery function.
+
+    Raises:
+      ValueError if unable to parse input message.
+    """
+    bq_args = {}
+
+    if bq.HasField("table_spec"):
+      if not bq.table_spec.dataset:
+        raise ValueError("Must provide a big query source dataset string.")
+
+      if not bq.table_spec.table:
+        raise ValueError("Must provide a big query source table name.")
+
+      bq_args["table"] = ""
+      if bq.table_spec.project:
+        bq_args["table"] = f"{bq.table_spec.project}:"
+      bq_args["table"] += f"{bq.table_spec.dataset}.{bq.table_spec.table}"
+
+    elif bq.HasField("sql"):
+      if not bq.sql:
+        raise ValueError("Must provide non-empty SQL query.")
+      bq_args["query"] = bq.sql
+    else:
+      raise ValueError("Must provide BigQuerySource table_spec or query.")
+
+    bq_args["read_method"] = graph_schema_pb2.BigQuery.ReadMethod.Name(
+        bq.read_method)
+
+    return bq_args
+
+  @staticmethod
+  def stage_name_suffix(
+      fset_name: str, fset: Union[graph_schema_pb2.NodeSet,
+                                  graph_schema_pb2.EdgeSet]) -> str:
+    """Return a stage name suffix from a BigQuery proto message.
+
+    Args:
+      fset_name: Name of the feature set.
+      fset: A feature set (node or edge).
+
+    Returns:
+      The string stage suffix indicating a table_spec or query.
+
+    Raises:
+      ValueError if error generating the suffix.
+    """
+    if not fset.metadata.HasField("bigquery"):
+      raise ValueError("Feature set does not specify a BigQuery source.")
+
+    bq = fset.metadata.bigquery
+    sfx = "ReadFromBigQuery"
+    if isinstance(fset, graph_schema_pb2.NodeSet):
+      sfx += "\\NodeSet\\"
+    elif isinstance(fset, graph_schema_pb2.EdgeSet):
+      sfx += "\\EdgeSet\\"
+    else:
+      raise ValueError("Must specify a Node or Edge set.")
+
+    sfx += f"{fset_name}\\"
+    if bq.HasField("table_spec"):
+      if bq.table_spec.project:
+        sfx += f"{bq.table_spec.project}:"
+
+      if not bq.table_spec.dataset:
+        raise ValueError("Must provide a big query source dataset string.")
+
+      if not bq.table_spec.table:
+        raise ValueError("Must provide a big query source table name.")
+      sfx += f"{bq.table_spec.dataset}.{bq.table_spec.table}"
+    elif bq.HasField("sql"):
+      sfx += "query"
+    else:
+      raise ValueError("Must provide BigQuerySource table_spec or query.")
+
+    return sfx
+
+  def row_to_keyed_example(
+      self, row: Mapping[str, Any]
+  ) -> Union[Tuple[str, tf.train.Example], Tuple[str, str, tf.train.Example]]:
     """Convert a single row from a BigQuery result to tf.Example.
 
     Args:
       row: Dict[str, Any] result of a BigQuery read.
 
     Returns:
-      Tuple (node_id: str, example: tf.train.Example)
+      If the input fset is a graph_schema_pb2.NodeSet, returns
+        Tuple(id: str, example: tf.train.Example).
+      If the input fset is a graph_schema_pb2.Edgeset, returns
+        Tuple(source: str, target: str, example: tf.train.Example)
 
     Raises:
       ValueError if a field name is not found in the BQ row.
     """
-    if self._ID_COLUMN not in row.keys():
-      raise ValueError(
-          f"Query result must have a column named {self._ID_COLUMN}")
-
+    ret_key = None
     example = Example()
-    node_id = row[self._ID_COLUMN]
-    node_id_feature_name = _TRANSLATIONS[self._ID_COLUMN]
-    example.features.feature[node_id_feature_name].bytes_list.value.append(
-        node_id.encode("utf-8"))
 
-    append_row_to_example(self.node_set.features, row, example)
+    if isinstance(self.fset, graph_schema_pb2.NodeSet):
+      if self._ID_COLUMN not in row.keys():
+        raise ValueError(
+            f"Query result must have a column named {self._ID_COLUMN}")
 
-    return node_id, example
+      node_id = row[self._ID_COLUMN]
+      node_id_feature_name = _TRANSLATIONS[self._ID_COLUMN]
+      example.features.feature[node_id_feature_name].bytes_list.value.append(
+          node_id.encode("utf-8"))
+      ret_key = [node_id]
+
+    elif isinstance(self.fset, graph_schema_pb2.EdgeSet):
+      if self._SOURCE_COLUMN not in row.keys():
+        raise ValueError(
+            f"Query result must have a column named {self._SOURCE_COLUMN}")
+      if self._TARGET_COLUMN not in row.keys():
+        raise ValueError(
+            f"Query result must have a column named {self._TARGET_COLUMN}")
+
+      if self.edge_reversed:
+        source_id = row[self._TARGET_COLUMN]
+        target_id = row[self._SOURCE_COLUMN]
+      else:
+        source_id = row[self._SOURCE_COLUMN]
+        target_id = row[self._TARGET_COLUMN]
+
+      source_feature_name = _TRANSLATIONS[self._SOURCE_COLUMN]
+      target_feature_name = _TRANSLATIONS[self._TARGET_COLUMN]
+
+      example.features.feature[source_feature_name].bytes_list.value.append(
+          source_id.encode("utf-8"))
+      example.features.feature[target_feature_name].bytes_list.value.append(
+          target_id.encode("utf-8"))
+
+      ret_key = [source_id, target_id]
+    else:
+      raise ValueError("Row must represent at Node or Edge set.")
+
+    for feature_name, feature in self.fset.features.items():
+      # In case client encodes `id`, `source` or `target` explicitly in the
+      # features specification.
+      tf_feature_name = _TRANSLATIONS.get(feature_name, feature_name)
+
+      if not row.get(feature_name):
+        raise ValueError(
+            f"Could not find {feature_name} in query result dictionary: {row.keys()}"
+        )
+
+      example_feature = example.features.feature[tf_feature_name]
+      if feature.dtype == tf.float32.as_datatype_enum:
+        example_feature.float_list.value.append(row[feature_name])
+      if feature.dtype == tf.int64.as_datatype_enum:
+        example_feature.int64_list.value.append(row[feature_name])
+      if feature.dtype == tf.string.as_datatype_enum:
+        example_feature.bytes_list.value.append(
+            row[feature_name].encode("utf-8"))
+
+    if len(ret_key) == 1:
+      return ret_key[0], example
+    else:
+      return ret_key[0], ret_key[1], example
 
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
     result = (
         pcoll
-        | f"ReadBigQuery\\{self.sfx}" >> self.read_from_bigquery(**self.bq_args)
+        | f"{self.sfx}" >> self._bigquery_reader(**self.bq_args)
         | f"RowToKeyedExamples\\{self.sfx}" >> beam.Map(
             self.row_to_keyed_example))
     if self.bq.reshuffle:

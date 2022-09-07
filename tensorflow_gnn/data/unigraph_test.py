@@ -168,9 +168,10 @@ class TestReadGraph(tf.test.TestCase):
         table: "test_table"
       }""", tfgnn.proto.graph_schema_pb2.BigQuery())
     self.assertEqual(
-        unigraph.bigquery_args_from_proto(bq),
-        {"table": "test_project:test_dataset.test_table",
-         "read_method": "EXPORT"})
+        unigraph.ReadFromBigQuery.bigquery_args_from_proto(bq), {
+            "table": "test_project:test_dataset.test_table",
+            "read_method": "EXPORT"
+        })
 
   def test_bigquery_row_to_keyed_example_node_set(self):
     node_set = text_format.Parse(
@@ -203,6 +204,12 @@ class TestReadGraph(tf.test.TestCase):
             }
         } """, tfgnn.proto.graph_schema_pb2.NodeSet())
 
+    # Quick test of the suffix generation
+    self.assertEqual(
+        unigraph.ReadFromBigQuery.stage_name_suffix("fake_node_set", node_set),
+        ("ReadFromBigQuery\\NodeSet\\fake_node_set\\test_project:"
+         "test_dataset.test_table"))
+
     # Mock a source that returns fake BQ rows.
     def fake_bq_reader(**unused_kwargs):
       del unused_kwargs
@@ -220,8 +227,8 @@ class TestReadGraph(tf.test.TestCase):
 
     with test_pipeline.TestPipeline() as pipeline:
       rows = (
-          pipeline | unigraph.ReadNodeSetFromBigQueryTable(
-              "fake_node_set", node_set, read_from_bigquery=fake_bq_reader))
+          pipeline | unigraph.ReadFromBigQuery(
+              "fake_node_set", node_set, bigquery_reader=fake_bq_reader))
 
       result = pipeline.run()
       result.wait_until_finish()
@@ -300,6 +307,312 @@ class TestReadGraph(tf.test.TestCase):
                                     }
                                   }
                                 }""", tf.train.Example()))]))
+
+  def test_bigquery_row_to_keyed_example_edge_set(self):
+    edge_set = text_format.Parse(
+        """
+        features {
+          key: "int_feature"
+          value: {
+            dtype: DT_INT64
+          }
+        }
+        features: {
+          key: "float_feature"
+          value {
+              dtype: DT_FLOAT
+          }
+        }
+        features: {
+            key: "string_feature"
+            value {
+                dtype: DT_STRING
+            }
+        }
+        metadata {
+            bigquery {
+                table_spec {
+                  project: "test_project"
+                  dataset: "test_dataset"
+                  table: "test_table"
+                }
+            }
+        }""", tfgnn.proto.graph_schema_pb2.EdgeSet())
+
+    self.assertEqual(
+        unigraph.ReadFromBigQuery.stage_name_suffix("fake_edge_set", edge_set),
+        ("ReadFromBigQuery\\EdgeSet\\fake_edge_set\\"
+         "test_project:test_dataset.test_table"))
+
+    # Mock a source that returns fake BQ rows.
+    def fake_bq_reader(**unused_kwargs):
+      del unused_kwargs
+      return beam.Create([{
+          "source": "s1",
+          "target": "t1",
+          "string_feature": "a",
+          "float_feature": 1.0,
+          "int_feature": 2
+      }, {
+          "source": "s2",
+          "target": "t2",
+          "string_feature": "b",
+          "int_feature": 3,
+          "float_feature": 4.0
+      }])
+
+    with test_pipeline.TestPipeline() as pipeline:
+      rows = (
+          pipeline | unigraph.ReadFromBigQuery(
+              "fake_edge_set", edge_set, bigquery_reader=fake_bq_reader))
+
+      result = pipeline.run()
+      result.wait_until_finish()
+
+      util.assert_that(
+          rows,
+          util.equal_to([("s1", "t1",
+                          text_format.Parse(
+                              """
+                              features {
+                                feature {
+                                  key: "#source"
+                                  value {
+                                    bytes_list {
+                                      value: "s1"
+                                    }
+                                  }
+                                }
+                                feature {
+                                  key: "#target"
+                                  value {
+                                    bytes_list {
+                                        value: "t1"
+                                    }
+                                  }
+                                }
+                                feature {
+                                  key: "float_feature"
+                                  value {
+                                    float_list {
+                                      value: 1.0
+                                    }
+                                  }
+                                }
+                                feature {
+                                  key: "int_feature"
+                                  value {
+                                    int64_list {
+                                      value: 2
+                                    }
+                                  }
+                                }
+                                feature {
+                                  key: "string_feature"
+                                  value {
+                                    bytes_list {
+                                      value: "a"
+                                    }
+                                  }
+                                }
+                            }""", tf.train.Example())),
+                         ("s2", "t2",
+                          text_format.Parse(
+                              """features {
+                                  feature {
+                                    key: "#source"
+                                    value {
+                                      bytes_list {
+                                        value: "s2"
+                                      }
+                                    }
+                                  }
+                                  feature {
+                                    key: "#target"
+                                    value {
+                                      bytes_list {
+                                        value: "t2"
+                                      }
+                                    }
+                                  }
+                                  feature {
+                                    key: "float_feature"
+                                    value {
+                                      float_list {
+                                        value: 4.0
+                                      }
+                                    }
+                                  }
+                                  feature {
+                                    key: "int_feature"
+                                    value {
+                                      int64_list {
+                                        value: 3
+                                      }
+                                    }
+                                  }
+                                  feature {
+                                    key: "string_feature"
+                                    value {
+                                      bytes_list {
+                                        value: "b"
+                                      }
+                                    }
+                                  }
+                                }""", tf.train.Example()))]))
+
+  def test_bigquery_row_to_keyed_example_edge_set_reversed(self):
+    edge_set = text_format.Parse(
+        """
+        features {
+          key: "int_feature"
+          value: {
+            dtype: DT_INT64
+          }
+        }
+        features: {
+          key: "float_feature"
+          value {
+              dtype: DT_FLOAT
+          }
+        }
+        features: {
+            key: "string_feature"
+            value {
+                dtype: DT_STRING
+            }
+        }
+        metadata {
+            extra {
+              key: "edge_type"
+              value: "reversed"
+            }
+            bigquery {
+                table_spec {
+                  project: "test_project"
+                  dataset: "test_dataset"
+                  table: "test_table"
+                }
+            }
+        }""", tfgnn.proto.graph_schema_pb2.EdgeSet())
+
+    # Mock a source that returns fake BQ rows.
+    def fake_bq_reader(**unused_kwargs):
+      del unused_kwargs
+      return beam.Create([{
+          "source": "s1",
+          "target": "t1",
+          "string_feature": "a",
+          "float_feature": 1.0,
+          "int_feature": 2
+      }, {
+          "source": "s2",
+          "target": "t2",
+          "string_feature": "b",
+          "int_feature": 3,
+          "float_feature": 4.0
+      }])
+
+    with test_pipeline.TestPipeline() as pipeline:
+      rows = (
+          pipeline | unigraph.ReadFromBigQuery(
+              "fake_node_set", edge_set, bigquery_reader=fake_bq_reader))
+
+      result = pipeline.run()
+      result.wait_until_finish()
+
+      util.assert_that(
+          rows,
+          util.equal_to([("t1", "s1",
+                          text_format.Parse(
+                              """
+                              features {
+                                feature {
+                                  key: "#source"
+                                  value {
+                                    bytes_list {
+                                      value: "t1"
+                                    }
+                                  }
+                                }
+                                feature {
+                                  key: "#target"
+                                  value {
+                                    bytes_list {
+                                        value: "s1"
+                                    }
+                                  }
+                                }
+                                feature {
+                                  key: "float_feature"
+                                  value {
+                                    float_list {
+                                      value: 1.0
+                                    }
+                                  }
+                                }
+                                feature {
+                                  key: "int_feature"
+                                  value {
+                                    int64_list {
+                                      value: 2
+                                    }
+                                  }
+                                }
+                                feature {
+                                  key: "string_feature"
+                                  value {
+                                    bytes_list {
+                                      value: "a"
+                                    }
+                                  }
+                                }
+                            }""", tf.train.Example())),
+                         ("t2", "s2",
+                          text_format.Parse(
+                              """features {
+                                  feature {
+                                    key: "#source"
+                                    value {
+                                      bytes_list {
+                                        value: "t2"
+                                      }
+                                    }
+                                  }
+                                  feature {
+                                    key: "#target"
+                                    value {
+                                      bytes_list {
+                                        value: "s2"
+                                      }
+                                    }
+                                  }
+                                  feature {
+                                    key: "float_feature"
+                                    value {
+                                      float_list {
+                                        value: 4.0
+                                      }
+                                    }
+                                  }
+                                  feature {
+                                    key: "int_feature"
+                                    value {
+                                      int64_list {
+                                        value: 3
+                                      }
+                                    }
+                                  }
+                                  feature {
+                                    key: "string_feature"
+                                    value {
+                                      bytes_list {
+                                        value: "b"
+                                      }
+                                    }
+                                  }
+                                }""", tf.train.Example()))]))
+
 
 if __name__ == "__main__":
   tf.test.main()
