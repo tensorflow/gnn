@@ -24,6 +24,8 @@ import tensorflow_gnn as tfgnn
 from tensorflow_gnn.data import unigraph
 from tensorflow_gnn.utils import test_utils
 
+from google.protobuf import text_format
+
 
 class TestUnigraph(tf.test.TestCase):
 
@@ -157,6 +159,147 @@ class TestReadGraph(tf.test.TestCase):
              | unigraph.WriteTable(outfile, "tfrecord"))
       self.assertTrue(tf.io.gfile.exists(outfile))
 
+  def test_bigquery_table_spec_args_from_proto(self):
+    bq = text_format.Parse(
+        """
+      table_spec {
+        project: "test_project"
+        dataset: "test_dataset"
+        table: "test_table"
+      }""", tfgnn.proto.graph_schema_pb2.BigQuery())
+    self.assertEqual(
+        unigraph.bigquery_args_from_proto(bq),
+        {"table": "test_project:test_dataset.test_table",
+         "read_method": "EXPORT"})
+
+  def test_bigquery_row_to_keyed_example_node_set(self):
+    node_set = text_format.Parse(
+        """
+        features {
+          key: "int_feature"
+          value: {
+            dtype: DT_INT64
+          }
+        }
+        features: {
+          key: "float_feature"
+          value {
+              dtype: DT_FLOAT
+          }
+        }
+        features: {
+            key: "string_feature"
+            value {
+                dtype: DT_STRING
+            }
+        }
+        metadata {
+            bigquery {
+                table_spec {
+                  project: "test_project"
+                  dataset: "test_dataset"
+                  table: "test_table"
+                }
+            }
+        } """, tfgnn.proto.graph_schema_pb2.NodeSet())
+
+    # Mock a source that returns fake BQ rows.
+    def fake_bq_reader(**unused_kwargs):
+      del unused_kwargs
+      return beam.Create([{
+          "id": "id1",
+          "string_feature": "a",
+          "float_feature": 1.0,
+          "int_feature": 2
+      }, {
+          "id": "id2",
+          "string_feature": "b",
+          "int_feature": 3,
+          "float_feature": 4.0
+      }])
+
+    with test_pipeline.TestPipeline() as pipeline:
+      rows = (
+          pipeline | unigraph.ReadNodeSetFromBigQueryTable(
+              "fake_node_set", node_set, read_from_bigquery=fake_bq_reader))
+
+      result = pipeline.run()
+      result.wait_until_finish()
+
+      util.assert_that(
+          rows,
+          util.equal_to([("id1",
+                          text_format.Parse(
+                              """features {
+                                  feature {
+                                    key: "#id"
+                                    value {
+                                      bytes_list {
+                                        value: "id1"
+                                      }
+                                    }
+                                  }
+                                  feature {
+                                    key: "float_feature"
+                                    value {
+                                      float_list {
+                                        value: 1.0
+                                      }
+                                    }
+                                  }
+                                  feature {
+                                    key: "int_feature"
+                                    value {
+                                      int64_list {
+                                        value: 2
+                                      }
+                                    }
+                                  }
+                                  feature {
+                                    key: "string_feature"
+                                    value {
+                                      bytes_list {
+                                        value: "a"
+                                      }
+                                    }
+                                  }
+                              }""", tf.train.Example())),
+                         ("id2",
+                          text_format.Parse(
+                              """features {
+                                  feature {
+                                    key: "#id"
+                                    value {
+                                      bytes_list {
+                                        value: "id2"
+                                      }
+                                    }
+                                  }
+                                  feature {
+                                    key: "float_feature"
+                                    value {
+                                      float_list {
+                                        value: 4.0
+                                      }
+                                    }
+                                  }
+                                  feature {
+                                    key: "int_feature"
+                                    value {
+                                      int64_list {
+                                        value: 3
+                                      }
+                                    }
+                                  }
+                                  feature {
+                                    key: "string_feature"
+                                    value {
+                                      bytes_list {
+                                        value: "b"
+                                      }
+                                    }
+                                  }
+                                }""", tf.train.Example()))]))
 
 if __name__ == "__main__":
   tf.test.main()

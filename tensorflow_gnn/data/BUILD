@@ -12,6 +12,7 @@ pytype_strict_library(
         "//third_party/py/apache_beam",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//tensorflow_gnn/proto:graph_schema_py_proto",
     ],
 )
 

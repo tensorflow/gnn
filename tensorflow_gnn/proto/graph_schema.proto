@@ -117,6 +117,34 @@ message Feature {
   extensions 65536 to max;
 }
 
+// Message describing a BigQuery table or SQL statement at a source for node
+// features or edge sets.
+message BigQuery {
+  message TableSpec {
+    // If a table_spec is specified, the entire table will be read
+    optional string project = 1;
+    optional string dataset = 2;
+    optional string table = 3;
+  }
+
+  enum ReadMethod {
+    UNSPECIFIED = 0;
+    EXPORT = 1;
+    DIRECT_READ = 2;
+  }
+
+  oneof source {
+    TableSpec table_spec = 1;
+    string sql = 2;
+  }
+
+  // Read method for Beam BigQuery reader.
+  optional ReadMethod read_method = 3 [default = EXPORT];
+
+  // Reshuffle afer BQ read to prevent downstream fusion.
+  optional bool reshuffle = 4 [default = false];
+}
+
 // Extra information optionally provided on a context, node set or edge set.
 message Metadata {
   // Arbitrary extra key/value data pairs.
@@ -136,6 +164,8 @@ message Metadata {
   // regenerated with a varying set of nodes, you can leave this unset. This is
   // entirely optional.
   optional int64 cardinality = 3;
+
+  optional BigQuery bigquery = 4;
 }
 
 // A container for named features of global scope, which may apply to the entire
