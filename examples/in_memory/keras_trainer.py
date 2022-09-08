@@ -28,9 +28,9 @@ from absl import app
 from absl import flags
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
-from tensorflow_gnn.examples.in_memory import datasets
-from tensorflow_gnn.examples.in_memory import models
-from tensorflow_gnn.examples.in_memory import reader_utils
+import datasets
+import models
+import reader_utils
 
 FLAGS = flags.FLAGS
 
