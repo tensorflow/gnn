@@ -101,6 +101,7 @@ HyperAdjacencySpec = adjacency.HyperAdjacencySpec
 # Principal container and spec type.
 GraphTensor = graph_tensor.GraphTensor
 GraphTensorSpec = graph_tensor.GraphTensorSpec
+homogeneous = graph_tensor.homogeneous
 
 # Proto description of schema.
 GraphSchema = graph_schema.GraphSchema

@@ -25,6 +25,7 @@ pytype_strict_library(
     srcs = ["graph_tensor.py"],
     srcs_version = "PY3",
     deps = [
+        ":adjacency",
         ":graph_constants",
         ":graph_piece",
         ":tensor_utils",

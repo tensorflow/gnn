@@ -80,8 +80,7 @@ class CreationTest(tu.GraphTensorTestBase):
 
     source = gt.Context.from_fields(features={'x': as_tensor([1.])})
     features = source.features
-    self.assertRaisesRegex(Exception,
-                           'does not support item assignment',
+    self.assertRaisesRegex(Exception, 'does not support item assignment',
                            lambda: set_x_to_2(features))
     fields_copy = source.get_features_dict()
     set_x_to_2(fields_copy)
@@ -134,9 +133,8 @@ class CreationTest(tu.GraphTensorTestBase):
           expected_shape=[2]),
   ])
   def testEdgeSet(self, features, sizes, adjacency, expected_shape):
-    edge_set = gt.EdgeSet.from_fields(features=features,
-                                      sizes=sizes,
-                                      adjacency=adjacency)
+    edge_set = gt.EdgeSet.from_fields(
+        features=features, sizes=sizes, adjacency=adjacency)
     self.assertAllEqual(edge_set.shape, expected_shape)
     self.assertAllEqual(edge_set.sizes, sizes)
     self.assertFieldsEqual(edge_set.features, features)
@@ -161,18 +159,19 @@ class CreationTest(tu.GraphTensorTestBase):
          '  context=Context('
          'features={}, sizes=[], shape=(), indices_dtype=tf.int32),\n'
          '  node_set_names=[],\n'
-         '  edge_set_names=[])'),
-        repr(result))
+         '  edge_set_names=[])'), repr(result))
 
   def testGraphTensor(self):
     result = gt.GraphTensor.from_pieces(
         context=gt.Context.from_fields(
             features={'label': as_tensor([['X'], ['Y']])}),
         node_sets={
-            'a': gt.NodeSet.from_fields(features={},
-                                        sizes=as_tensor([[1], [1]])),
-            'b': gt.NodeSet.from_fields(features={},
-                                        sizes=as_tensor([[2], [1]])),
+            'a':
+                gt.NodeSet.from_fields(
+                    features={}, sizes=as_tensor([[1], [1]])),
+            'b':
+                gt.NodeSet.from_fields(
+                    features={}, sizes=as_tensor([[2], [1]])),
         },
         edge_sets={
             'a->b':
@@ -214,11 +213,153 @@ class CreationTest(tu.GraphTensorTestBase):
                  'dtype=tf.string>},'
                  'sizes=[[1][1]],'
                  'shape=(2,),'
-                 "indices_dtype=tf.int32),"
+                 'indices_dtype=tf.int32),'
                  "node_set_names=['a', 'b'],"
                  "edge_set_names=['a->b'])").split()),
         # Easy way to get rid of whitespace
         ''.join(repr(result).split()))
+
+
+class HomogeneousTest(tu.GraphTensorTestBase):
+  """Tests for homogeneous(...)."""
+
+  def testNodeSizesIfNotEdges(self):
+    src = tf.constant([0, 3])
+    tgt = tf.constant([1, 2])
+    self.assertRaisesRegex(ValueError, 'node_set_sizes must be provided',
+                           lambda: gt.homogeneous(source=src, target=tgt))
+
+  @parameterized.named_parameters(
+      (
+          'homogeneous_no_features',
+          gt.homogeneous(
+              source=tf.constant([0, 3]),
+              target=tf.constant([1, 2]),
+              node_set_sizes=tf.constant([4])),
+          gt.GraphTensor.from_pieces(
+              context=gt.Context.from_fields(features={}, sizes=None),
+              node_sets={
+                  const.NODES:
+                      gt.NodeSet.from_fields(
+                          features={}, sizes=tf.constant([4]))
+              },
+              edge_sets={
+                  const.EDGES:
+                      gt.EdgeSet.from_fields(
+                          features={},
+                          sizes=tf.constant([2]),
+                          adjacency=adj.Adjacency.from_indices(
+                              source=(const.NODES, tf.constant([0, 3])),
+                              target=(const.NODES, tf.constant([1, 2])),
+                          )),
+              },
+          ),
+      ),
+      (
+          'homogeneous_node_features_only',
+          gt.homogeneous(
+              source=tf.constant([0, 3]),
+              target=tf.constant([1, 2]),
+              node_features=tf.eye(4),
+          ),
+          gt.GraphTensor.from_pieces(
+              context=gt.Context.from_fields(features={}, sizes=None),
+              node_sets={
+                  const.NODES:
+                      gt.NodeSet.from_fields(
+                          features={const.HIDDEN_STATE: tf.eye(4)},
+                          sizes=tf.constant([4]))
+              },
+              edge_sets={
+                  const.EDGES:
+                      gt.EdgeSet.from_fields(
+                          features={},
+                          sizes=tf.constant([2]),
+                          adjacency=adj.Adjacency.from_indices(
+                              source=(const.NODES, tf.constant([0, 3])),
+                              target=(const.NODES, tf.constant([1, 2])),
+                          )),
+              },
+          ),
+      ),
+      (
+          'homogeneous_multiple_components',
+          gt.homogeneous(
+              source=tf.constant([0, 3, 4, 5]),
+              target=tf.constant([1, 2, 6, 4]),
+              node_features=tf.eye(7),
+              node_set_sizes=tf.constant([4, 3]),
+              edge_set_sizes=tf.constant([2, 2]),
+          ),
+          gt.GraphTensor.from_pieces(
+              context=gt.Context.from_fields(
+                  features={}, sizes=tf.constant([1, 1])),
+              node_sets={
+                  const.NODES:
+                      gt.NodeSet.from_fields(
+                          features={const.HIDDEN_STATE: tf.eye(7)},
+                          sizes=tf.constant([4, 3]))
+              },
+              edge_sets={
+                  const.EDGES:
+                      gt.EdgeSet.from_fields(
+                          features={},
+                          sizes=tf.constant([2, 2]),
+                          adjacency=adj.Adjacency.from_indices(
+                              source=(const.NODES, tf.constant([0, 3, 4, 5])),
+                              target=(const.NODES, tf.constant([1, 2, 6, 4])),
+                          )),
+              },
+          ),
+      ),
+      (
+          'homogeneous_single_component_implied_sizes',
+          gt.homogeneous(
+              source=tf.constant([0, 3, 4, 5]),
+              target=tf.constant([1, 2, 6, 4]),
+              node_features=tf.eye(7),
+              edge_features=tf.ones([4, 3]),
+              context_features=tf.zeros(5),
+          ),
+          gt.GraphTensor.from_pieces(
+              context=gt.Context.from_fields(
+                  features={const.HIDDEN_STATE: tf.zeros(5)},
+                  sizes=tf.constant([1])),
+              node_sets={
+                  const.NODES:
+                      gt.NodeSet.from_fields(
+                          features={const.HIDDEN_STATE: tf.eye(7)},
+                          sizes=tf.constant([7]))
+              },
+              edge_sets={
+                  const.EDGES:
+                      gt.EdgeSet.from_fields(
+                          features={const.HIDDEN_STATE: tf.ones([4, 3])},
+                          sizes=tf.constant([4]),
+                          adjacency=adj.Adjacency.from_indices(
+                              source=(const.NODES, tf.constant([0, 3, 4, 5])),
+                              target=(const.NODES, tf.constant([1, 2, 6, 4])),
+                          )),
+              },
+          ),
+      ),
+  )
+  def testHomogeneous(self, actual, expected):
+    """Tests for homogeneous()."""
+    self.assertFieldsEqual(
+        actual.node_sets['nodes'].features,
+        expected.node_sets['nodes'].features,
+    )
+    self.assertAllEqual(actual.node_sets['nodes'].sizes,
+                        expected.node_sets['nodes'].sizes)
+    self.assertFieldsEqual(
+        actual.edge_sets['edges'].features,
+        expected.edge_sets['edges'].features,
+    )
+    self.assertAllEqual(actual.edge_sets['edges'].sizes,
+                        expected.edge_sets['edges'].sizes)
+    self.assertFieldsEqual(actual.context.features, expected.context.features)
+    self.assertAllEqual(actual.context.sizes, expected.context.sizes)
 
 
 class ReplaceFeaturesTest(tu.GraphTensorTestBase):
@@ -244,8 +385,8 @@ class ReplaceFeaturesTest(tu.GraphTensorTestBase):
       })
   ])
   def testNodeSet(self, features):
-    node_set = gt.NodeSet.from_fields(features={'a': as_tensor([1., 2.])},
-                                      sizes=as_tensor([2]))
+    node_set = gt.NodeSet.from_fields(
+        features={'a': as_tensor([1., 2.])}, sizes=as_tensor([2]))
     result = node_set.replace_features(features)
     self.assertFieldsEqual(result.features, features)
     self.assertAllEqual(result.sizes, [2])
@@ -258,10 +399,11 @@ class ReplaceFeaturesTest(tu.GraphTensorTestBase):
       })
   ])
   def testEdgeSet(self, features):
-    edge_set = gt.EdgeSet.from_fields(features={'a': as_tensor([1., 2.])},
-                                      sizes=as_tensor([2]),
-                                      adjacency=adj.HyperAdjacency.from_indices(
-                                          {0: ('a', as_tensor([0, 1]))}))
+    edge_set = gt.EdgeSet.from_fields(
+        features={'a': as_tensor([1., 2.])},
+        sizes=as_tensor([2]),
+        adjacency=adj.HyperAdjacency.from_indices({0: ('a', as_tensor([0,
+                                                                       1]))}))
     result = edge_set.replace_features(features)
     self.assertFieldsEqual(result.features, features)
     self.assertAllEqual(result.sizes, [2])
@@ -272,10 +414,12 @@ class ReplaceFeaturesTest(tu.GraphTensorTestBase):
         context=gt.Context.from_fields(
             features={'label': as_tensor([['X'], ['Y']])}),
         node_sets={
-            'a': gt.NodeSet.from_fields(features={},
-                                        sizes=as_tensor([[1], [1]])),
-            'b': gt.NodeSet.from_fields(features={},
-                                        sizes=as_tensor([[2], [1]])),
+            'a':
+                gt.NodeSet.from_fields(
+                    features={}, sizes=as_tensor([[1], [1]])),
+            'b':
+                gt.NodeSet.from_fields(
+                    features={}, sizes=as_tensor([[2], [1]])),
         },
         edge_sets={
             'a->b':
@@ -343,28 +487,50 @@ class RemoveFeaturesTest(tu.GraphTensorTestBase):
 
   def _make_test_graph(self):
     return gt.GraphTensor.from_pieces(
-        context=gt.Context.from_fields(
-            features={'fc': as_tensor([10]), 'f2': as_tensor([20])}),
+        context=gt.Context.from_fields(features={
+            'fc': as_tensor([10]),
+            'f2': as_tensor([20])
+        }),
         node_sets={
-            'a': gt.NodeSet.from_fields(
-                features={'fa': as_tensor([10]), 'f2': as_tensor([20])},
-                sizes=as_tensor([1])),
-            'b': gt.NodeSet.from_fields(
-                features={'fb': as_tensor([10]), 'f2': as_tensor([20])},
-                sizes=as_tensor([1]))},
+            'a':
+                gt.NodeSet.from_fields(
+                    features={
+                        'fa': as_tensor([10]),
+                        'f2': as_tensor([20])
+                    },
+                    sizes=as_tensor([1])),
+            'b':
+                gt.NodeSet.from_fields(
+                    features={
+                        'fb': as_tensor([10]),
+                        'f2': as_tensor([20])
+                    },
+                    sizes=as_tensor([1]))
+        },
         edge_sets={
-            'ab': gt.EdgeSet.from_fields(
-                features={'fab': as_tensor([10]), 'f2': as_tensor([20])},
-                sizes=as_tensor([1]),
-                adjacency=adj.HyperAdjacency.from_indices({
-                    const.SOURCE: ('a', as_tensor([0])),
-                    const.TARGET: ('b', as_tensor([0]))})),
-            'ba': gt.EdgeSet.from_fields(
-                features={'fba': as_tensor([10]), 'f2': as_tensor([20])},
-                sizes=as_tensor([1]),
-                adjacency=adj.HyperAdjacency.from_indices({
-                    const.SOURCE: ('b', as_tensor([0])),
-                    const.TARGET: ('a', as_tensor([0]))}))})
+            'ab':
+                gt.EdgeSet.from_fields(
+                    features={
+                        'fab': as_tensor([10]),
+                        'f2': as_tensor([20])
+                    },
+                    sizes=as_tensor([1]),
+                    adjacency=adj.HyperAdjacency.from_indices({
+                        const.SOURCE: ('a', as_tensor([0])),
+                        const.TARGET: ('b', as_tensor([0]))
+                    })),
+            'ba':
+                gt.EdgeSet.from_fields(
+                    features={
+                        'fba': as_tensor([10]),
+                        'f2': as_tensor([20])
+                    },
+                    sizes=as_tensor([1]),
+                    adjacency=adj.HyperAdjacency.from_indices({
+                        const.SOURCE: ('b', as_tensor([0])),
+                        const.TARGET: ('a', as_tensor([0]))
+                    }))
+        })
 
   @parameterized.named_parameters(
       ('None', [], [], [], [], []),
@@ -372,10 +538,11 @@ class RemoveFeaturesTest(tu.GraphTensorTestBase):
       ('OneFromNode', [], [], ['f2'], [], []),
       ('OneFromEdge', [], [], [], [], ['f2']),
       ('OneFromAll', ['fc'], ['fa'], ['fb'], ['fab'], ['fba']),
-      ('RepeatedFromAll', ['fc']*2, ['fa']*2, ['fb']*2, ['fab']*2, ['fba']*2),
+      ('RepeatedFromAll', ['fc'] * 2, ['fa'] * 2, ['fb'] * 2, ['fab'] * 2,
+       ['fba'] * 2),
       ('TwoFromEachType', ['fc', 'f2'], ['fa', 'f2'], [], [], ['fba', 'f2']),
-      ('All', ['fc', 'f2'], ['fa', 'f2'], ['fb', 'f2'], ['fab', 'f2'],
-       ['fba', 'f2']),
+      ('All', ['fc', 'f2'], ['fa', 'f2'], ['fb', 'f2'], ['fab', 'f2'
+                                                        ], ['fba', 'f2']),
   )
   def testRemove(self, rm_context, rm_a, rm_b, rm_ab, rm_ba):
     graph = self._make_test_graph()
@@ -407,8 +574,7 @@ class RemoveFeaturesTest(tu.GraphTensorTestBase):
   def testRemoveNonexistantFromContext(self):
     graph = self._make_test_graph()
     with self.assertRaisesRegex(
-        ValueError,
-        'GraphTensor has no feature context\\[\'xyz\'\\]'):
+        ValueError, 'GraphTensor has no feature context\\[\'xyz\'\\]'):
       _ = graph.remove_features(context=['fc', 'xyz', 'f2'])
 
   def testRemoveNonexistantFromNodeSet(self):
@@ -416,16 +582,20 @@ class RemoveFeaturesTest(tu.GraphTensorTestBase):
     with self.assertRaisesRegex(
         ValueError,
         'GraphTensor has no feature node_sets\\[\'b\'\\]\\[\'xyz\'\\]'):
-      _ = graph.remove_features(node_sets={'a': ['fa', 'f2'],
-                                           'b': ['fb', 'xyz', 'f2']})
+      _ = graph.remove_features(node_sets={
+          'a': ['fa', 'f2'],
+          'b': ['fb', 'xyz', 'f2']
+      })
 
   def testRemoveNonexistantFromEdgeSet(self):
     graph = self._make_test_graph()
     with self.assertRaisesRegex(
         ValueError,
         'GraphTensor has no feature edge_sets\\[\'ba\'\\]\\[\'xyz\'\\]'):
-      _ = graph.remove_features(edge_sets={'ab': ['fab', 'f2'],
-                                           'ba': ['fba', 'xyz', 'f2']})
+      _ = graph.remove_features(edge_sets={
+          'ab': ['fab', 'f2'],
+          'ba': ['fba', 'xyz', 'f2']
+      })
 
 
 class ElementsCountsTest(tf.test.TestCase, parameterized.TestCase):
@@ -497,9 +667,10 @@ class ElementsCountsTest(tf.test.TestCase, parameterized.TestCase):
         context=gt.Context.from_fields(
             features={'label': as_tensor([['1', '2'], ['3', '4']])}),
         node_sets={
-            'a': gt.NodeSet.from_fields(
-                features={'f': as_ragged([[1., 2.], [3., 4.]])},
-                sizes=as_tensor([[1, 1], [1, 1]])),
+            'a':
+                gt.NodeSet.from_fields(
+                    features={'f': as_ragged([[1., 2.], [3., 4.]])},
+                    sizes=as_tensor([[1, 1], [1, 1]])),
         },
         edge_sets={
             'a->a':
@@ -521,9 +692,10 @@ class ElementsCountsTest(tf.test.TestCase, parameterized.TestCase):
   def testRank1StaticlyShaped(self):
     graph = gt.GraphTensor.from_pieces(
         node_sets={
-            'a': gt.NodeSet.from_fields(
-                features={'f': as_tensor([[1., 2.], [3., 4.]])},
-                sizes=as_tensor([[1, 1], [1, 1]])),
+            'a':
+                gt.NodeSet.from_fields(
+                    features={'f': as_tensor([[1., 2.], [3., 4.]])},
+                    sizes=as_tensor([[1, 1], [1, 1]])),
         },
         edge_sets={
             'a->a':
@@ -554,8 +726,7 @@ class TfFunctionTest(tf.test.TestCase, parameterized.TestCase):
     def add(node_set, value):
       features = node_set.features.copy()
       features['x'] += value
-      return gt.NodeSet.from_fields(features=features,
-                                    sizes=node_set.sizes)
+      return gt.NodeSet.from_fields(features=features, sizes=node_set.sizes)
 
     node_set = gt.NodeSet.from_fields(
         features={'x': as_tensor([1, 2, 3])}, sizes=as_tensor([3]))
@@ -587,8 +758,7 @@ class TfFunctionTest(tf.test.TestCase, parameterized.TestCase):
     def add(node_set, value):
       features = node_set.features.copy()
       features['x'] += value
-      return gt.NodeSet.from_fields(features=features,
-                                    sizes=node_set.sizes)
+      return gt.NodeSet.from_fields(features=features, sizes=node_set.sizes)
 
     node_set = gt.NodeSet.from_fields(
         features={'x': as_tensor([1, 2, 3])}, sizes=as_tensor([3]))
@@ -617,14 +787,12 @@ class TfFunctionTest(tf.test.TestCase, parameterized.TestCase):
                       sizes=a.sizes + b.sizes,
                       adjacency=adj.HyperAdjacency.from_indices(
                           indices={
-                              const.SOURCE: (
-                                  'node',
-                                  join(a.adjacency[const.SOURCE],
-                                       b.adjacency[const.SOURCE])),
-                              const.TARGET: (
-                                  'node',
-                                  join(a.adjacency[const.TARGET],
-                                       b.adjacency[const.TARGET])),
+                              const.SOURCE: ('node',
+                                             join(a.adjacency[const.SOURCE],
+                                                  b.adjacency[const.SOURCE])),
+                              const.TARGET: ('node',
+                                             join(a.adjacency[const.TARGET],
+                                                  b.adjacency[const.TARGET])),
                           }))
           })
 
@@ -638,10 +806,10 @@ class TfFunctionTest(tf.test.TestCase, parameterized.TestCase):
                       sizes=tf.reshape(tf.size(features), [1]),
                       adjacency=adj.HyperAdjacency.from_indices(
                           indices={
-                              const.SOURCE: (
-                                  'node', tf.zeros_like(features, tf.int64)),
-                              const.TARGET: (
-                                  'node', tf.ones_like(features, tf.int64)),
+                              const.SOURCE: ('node',
+                                             tf.zeros_like(features, tf.int64)),
+                              const.TARGET: ('node',
+                                             tf.ones_like(features, tf.int64)),
                           }))
           })
 
@@ -709,8 +877,7 @@ class BatchingUnbatchingMergingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(
         element['x'],
         as_ragged([
-            [[0, 1, 2, 3, 4, 5],
-             [0, 1, 2, 3, 4, 5, 6],
+            [[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5, 6],
              [0, 1, 2, 3, 4, 5, 6, 7]],
         ]))
     self.assertAllEqual(
@@ -1013,17 +1180,15 @@ class NumComponentsTest(tu.GraphTensorTestBase):
 class CheckScalarGraphTensorTest(tf.test.TestCase):
 
   def testSuccess(self):
-    graph_tensor = gt.GraphTensor.from_pieces(
-        node_sets={'nodes': gt.NodeSet.from_fields(
-            sizes=[1],
-            features={'f': [[1.]]})})
+    graph_tensor = gt.GraphTensor.from_pieces(node_sets={
+        'nodes': gt.NodeSet.from_fields(sizes=[1], features={'f': [[1.]]})
+    })
     gt.check_scalar_graph_tensor(graph_tensor)  # Doesn't raise.
 
   def testFailure(self):
-    graph_tensor = gt.GraphTensor.from_pieces(
-        node_sets={'nodes': gt.NodeSet.from_fields(
-            sizes=[[1]],
-            features={'f': [[[1.]]]})})
+    graph_tensor = gt.GraphTensor.from_pieces(node_sets={
+        'nodes': gt.NodeSet.from_fields(sizes=[[1]], features={'f': [[[1.]]]})
+    })
     with self.assertRaisesRegex(ValueError,
                                 r'My test code requires.*got `rank=1`'):
       gt.check_scalar_graph_tensor(graph_tensor, 'My test code')
@@ -1037,11 +1202,8 @@ class CheckHomogeneousGraphTensorTest(tf.test.TestCase, parameterized.TestCase):
     gt.check_homogeneous_graph_tensor(graph.spec)  # Doesn't raise.
 
   @parameterized.named_parameters(
-      ('ZeroNodeSets', 0, 0),
-      ('ThreeNodeSets', 3, 1),
-      ('ZeroEdgeSets', 1, 0),
-      ('SevenEdgeSets', 1, 7),
-      ('ManyPieces', 4, 5))
+      ('ZeroNodeSets', 0, 0), ('ThreeNodeSets', 3, 1), ('ZeroEdgeSets', 1, 0),
+      ('SevenEdgeSets', 1, 7), ('ManyPieces', 4, 5))
   def testFailure(self, num_node_sets, num_edge_sets):
     graph = _make_test_graph_from_num_pieces(num_node_sets, num_edge_sets)
     with self.assertRaisesRegex(ValueError,
@@ -1057,16 +1219,17 @@ def _make_test_graph_from_num_pieces(num_node_sets, num_edge_sets):
   return gt.GraphTensor.from_pieces(
       node_sets={
           f'atoms_{i}': gt.NodeSet.from_fields(
-              sizes=[2, 1],
-              features={'f': [[1.], [2.], [3.]]})
-          for i in range(num_node_sets)},
+              sizes=[2, 1], features={'f': [[1.], [2.], [3.]]})
+          for i in range(num_node_sets)
+      },
       edge_sets={
           f'bonds_{j}': gt.EdgeSet.from_fields(
               sizes=as_tensor([2, 0]),
               adjacency=adj.Adjacency.from_indices(
                   source=('atoms_1', as_ragged([[0, 1], []])),
                   target=('atoms_1', as_ragged([[1, 2], []]))))
-          for j in range(num_edge_sets)})
+          for j in range(num_edge_sets)
+      })
 
 
 class SpecRelaxationTest(tu.GraphTensorTestBase):
