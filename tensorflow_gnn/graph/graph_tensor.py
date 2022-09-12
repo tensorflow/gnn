@@ -15,9 +15,11 @@
 """The GraphTensor composite tensor and its pieces."""
 
 import abc
+import collections.abc
 from typing import Any, Callable, cast, Dict, Mapping, Optional, Sequence, Union
 
 import tensorflow as tf
+from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_piece as gp
 from tensorflow_gnn.graph import tensor_utils as utils
@@ -32,8 +34,12 @@ EdgeSetName = const.EdgeSetName
 ShapeLike = const.ShapeLike
 Field = const.Field
 Fields = const.Fields
+FieldOrFields = const.FieldOrFields
 FieldSpec = const.FieldSpec
 FieldsSpec = const.FieldsSpec
+EDGES = const.EDGES
+NODES = const.NODES
+HIDDEN_STATE = const.HIDDEN_STATE
 
 # TODO(b/189057503): use adjacency interface class instead.
 Adjacency = Any
@@ -80,8 +86,7 @@ class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
     return _fast_alternative(
         self.spec.total_size is not None,
         lambda: tf.constant(self.spec.total_size, dtype, shape=[]),
-        lambda: tf.math.reduce_sum(self.sizes),
-        'total_size != spec.total_size')
+        lambda: tf.math.reduce_sum(self.sizes), 'total_size != spec.total_size')
 
   @property
   def num_components(self) -> tf.Tensor:
@@ -242,14 +247,14 @@ class Context(_GraphPieceWithFeatures):
         `num_components` is the number of graph components (could be ragged).
         For symmetry with `sizes` in NodeSet and EdgeSet, this counts the items
         per graph component, but since the items of Context are the components
-        themselves, each value is 1. Must be compatible with `shape`, if that
-        is specified.
+        themselves, each value is 1. Must be compatible with `shape`, if that is
+        specified.
       shape: The shape of this tensor and a GraphTensor containing it, also
         known as the `graph_shape`. If not specified, the shape is inferred from
         `sizes` or set to `[]` if the `sizes` is not specified.
-      indices_dtype: An `indices_dtype` of a GraphTensor containing this
-        object, used as `row_splits_dtype` when batching potentially ragged
-        fields. If `sizes` are specified they are casted to that type.
+      indices_dtype: An `indices_dtype` of a GraphTensor containing this object,
+        used as `row_splits_dtype` when batching potentially ragged fields. If
+        `sizes` are specified they are casted to that type.
 
     Returns:
       A `Context` composite tensor.
@@ -283,8 +288,9 @@ class Context(_GraphPieceWithFeatures):
     if features is None:
       features = {}
     else:
-      features = {k: gp.convert_to_tensor_or_ragged(v)
-                  for k, v in features.items()}
+      features = {
+          k: gp.convert_to_tensor_or_ragged(v) for k, v in features.items()
+      }
     if sizes is None:
       shape = _ifnone(shape, tf.TensorShape([]))
       indices_dtype = _ifnone(indices_dtype, const.default_indices_dtype)
@@ -328,7 +334,8 @@ class ContextSpec(_GraphPieceWithFeaturesSpec):
 
   @classmethod
   def from_field_specs(
-      cls, *,
+      cls,
+      *,
       features_spec: Optional[FieldsSpec] = None,
       sizes_spec: Optional[FieldSpec] = None,
       shape: ShapeLike = tf.TensorShape([]),
@@ -359,9 +366,7 @@ class ContextSpec(_GraphPieceWithFeaturesSpec):
             dtype=indices_dtype,
             row_splits_dtype=indices_dtype)
       else:
-        sizes_spec = tf.TensorSpec(
-            shape=sizes_shape,
-            dtype=indices_dtype)
+        sizes_spec = tf.TensorSpec(shape=sizes_shape, dtype=indices_dtype)
 
     return cls._from_feature_and_size_specs(features_spec, sizes_spec)
 
@@ -579,12 +584,12 @@ class EdgeSet(_NodeOrEdgeSet):
     Args:
       features: A mapping from feature name to feature Tensor or RaggedTensor.
         All feature tensors must have shape `[*graph_shape, num_edges,
-        *feature_shape]`, where num_edge is the number of edges in the edge
-        set (could be ragged) and feature_shape is a shape of the feature value
-        for each edge.
-      sizes: The number of edges in each graph component.
-        Has shape `[*graph_shape, num_components]`, where `num_components` is
-        the number of graph components (could be ragged).
+        *feature_shape]`, where num_edge is the number of edges in the edge set
+        (could be ragged) and feature_shape is a shape of the feature value for
+        each edge.
+      sizes: The number of edges in each graph component. Has shape
+        `[*graph_shape, num_components]`, where `num_components` is the number
+        of graph components (could be ragged).
       adjacency: One of the supported adjacency types (see adjacency.py).
 
     Returns:
@@ -1312,8 +1317,10 @@ def _get_indicative_feature(
 
 
 def _get_indicative_graph_piece(
-    context: Union[Context, ContextSpec],
-    node_sets: Mapping[NodeSetName, Union[NodeSet, NodeSetSpec]],
+    context: Union[Context,
+                   ContextSpec], node_sets: Mapping[NodeSetName,
+                                                    Union[NodeSet,
+                                                          NodeSetSpec]],
     edge_sets: Mapping[EdgeSetName, Union[EdgeSet, EdgeSetSpec]]
 ) -> Union[_GraphPieceWithFeatures, _GraphPieceWithFeaturesSpec]:
   """Deterministically selects one of the graph pieces."""
@@ -1429,6 +1436,101 @@ def check_scalar_singleton_graph_tensor(graph: Union[GraphTensor,
         (f'{name} requires scalar GraphTensor with a single graph component,'
          f' got a scalar GraphTensor with {spec.total_num_components}'
          ' components.'))
+
+
+def _fields_from_fieldorfields(
+    features: FieldOrFields,
+    default_feature_name: FieldName,
+):
+  """Returns a mapping from a default feature name if needed."""
+  if isinstance(features, collections.abc.Mapping):
+    keys = features.keys()
+    count = features[next(keys)].shape[0:1]
+  elif features is None:
+    count, features = None, {}
+  else:
+    count = features.shape[0:1]
+    features = {default_feature_name: features}
+  return features, count
+
+
+def homogeneous(
+    source: tf.Tensor,
+    target: tf.Tensor,
+    *,
+    node_features: Optional[FieldOrFields] = None,
+    edge_features: Optional[FieldOrFields] = None,
+    context_features: Optional[FieldOrFields] = None,
+    node_set_name: Optional[FieldName] = const.NODES,
+    edge_set_name: Optional[FieldName] = const.EDGES,
+    node_set_sizes: Optional[Field] = None,
+    edge_set_sizes: Optional[Field] = None,
+) -> GraphTensor:
+  """Constructs a homogeneous `GraphTensor` with node features and one edge_set.
+
+  Args:
+    source: A dense Tensor with the source indices for edges
+    target: A dense Tensor with the target indices for edges
+    node_features: A Tensor or mapping from feature name to Tensor of features
+      corresponding to graph nodes.
+    edge_features: Optional Tensor or mapping from feature name to Tensor of
+      features corresponding to graph edges.
+    context_features: Optional Tensor or mapping from name to Tensor for the
+      context (entire graph)
+    node_set_name: Optional name for the node set
+    edge_set_name: Optional name for the edge set
+    node_set_sizes: Optional Tensor with the number of nodes per component. If
+      this is provided, edge_set_sizes should also be passed and it should be
+      the same length.
+    edge_set_sizes: Optional Tensor with the number of edges per component. If
+      this is provided, node_set_sizes should also be passed and it should be
+      the same length.
+
+  Returns:
+    A scalar `GraphTensor` with a single node set and edge set.
+  """
+
+  # Featureless edges with no sizes are okay because we can compute sizes
+  # from the adjacency source and target.
+  # This is impossible for node sets with no features
+  if node_features is None and node_set_sizes is None:
+    raise ValueError('node_set_sizes must be provided if node_features is not')
+
+  node_features, num_nodes = _fields_from_fieldorfields(node_features,
+                                                        HIDDEN_STATE)
+  edge_features, _ = _fields_from_fieldorfields(edge_features, HIDDEN_STATE)
+  context_features, _ = _fields_from_fieldorfields(context_features,
+                                                   HIDDEN_STATE)
+
+  num_edges = tf.shape(source)
+  node_sizes = (
+      num_nodes if node_set_sizes is None else node_set_sizes)
+  edge_sizes = (
+      num_edges if edge_set_sizes is None else edge_set_sizes)
+  return GraphTensor.from_pieces(
+      node_sets={
+          node_set_name:
+              NodeSet.from_fields(
+                  sizes=node_sizes,
+                  features=node_features,
+              )
+      },
+      edge_sets={
+          edge_set_name:
+              EdgeSet.from_fields(
+                  sizes=edge_sizes,
+                  adjacency=adj.Adjacency.from_indices(
+                      source=(node_set_name, source),
+                      target=(node_set_name, target),
+                  ),
+                  features=edge_features,
+              )
+      },
+      context=Context.from_fields(
+          features=context_features,
+          sizes=tf.ones_like(node_sizes),
+      ),
+  )
 
 
 def check_homogeneous_graph_tensor(graph: Union[GraphTensor, GraphTensorSpec],
