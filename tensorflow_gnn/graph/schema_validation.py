@@ -251,6 +251,16 @@ def _validate_schema_context_references(schema: schema_pb2.GraphSchema):
 def _validate_schema_node_set_references(schema: schema_pb2.GraphSchema):
   """Verify the source and target set references from the edge sets."""
   for set_name, edge_set in schema.edge_sets.items():
+
+    if not set_name:
+      raise ValidationError("Edge set name cannot be empty.")
+
+    if not edge_set.source:
+      raise ValidationError(f"Edge set {set_name} must specify a `source`.")
+
+    if not edge_set.target:
+      raise ValidationError(f"Edge set {set_name} must specify a `target`.")
+
     for feature_name in edge_set.source, edge_set.target:
       if feature_name not in schema.node_sets:
         raise ValidationError(
