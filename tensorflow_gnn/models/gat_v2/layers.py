@@ -75,7 +75,11 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
   Init args:
     num_heads: The number of attention heads.
     per_head_channels: The number of channels for each attention head. This
-      means that the final output size will be per_head_channels * num_heads.
+      means:
+        if `heads_merge_type == "concat"`, then final output size will be:
+          `per_head_channels * num_heads`.
+        if `heads_merge_type == "mean"`, then final output size will be:
+          `per_head_channels`.
     receiver_tag: one of `tfgnn.SOURCE`, `tfgnn.TARGET` or `tfgnn.CONTEXT`.
       The results of attention are aggregated for this graph piece.
       If set to `tfgnn.SOURCE` or `tfgnn.TARGET`, the layer can be called for
@@ -107,10 +111,16 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       function, or a string understood by tf.keras.layers.Activation().
       Defaults to "leaky_relu", which in turn defaults to a negative slope
       of `alpha=0.2`.
+    heads_merge_type: The merge operation for combining output from
+      all `num_heads` attention heads. By default, output of heads will be
+      concatenated. However, GAT paper (Velickovic et al, Eq 6) recommends *only
+      for output layer* to do mean across attention heads, which is acheivable
+      by setting to `"mean"`.
     activation: The nonlinearity applied to the final result of attention,
       specified in the same ways as attention_activation.
     kernel_initializer: Can be set to a `kerner_initializer` as understood
       by `tf.keras.layers.Dense` etc.
+    kernel_regularizer: If given, will be used to regularize all layer kernels.
   """
 
   def __init__(self,
@@ -126,9 +136,12 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
                edge_dropout: float = 0.,
                attention_activation: Union[str,
                                            Callable[..., Any]] = "leaky_relu",
+               heads_merge_type: str = "concat",
                activation: Union[str, Callable[..., Any]] = "relu",
                kernel_initializer: Union[
                    None, str, tf.keras.initializers.Initializer] = None,
+               kernel_regularizer: Union[
+                   None, str, tf.keras.regularizers.Regularizer] = None,
                **kwargs):
     kwargs.setdefault("name", "gat_v2_conv")
     super().__init__(
@@ -163,6 +176,8 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     self._attention_activation = tf.keras.activations.get(attention_activation)
     self._activation = tf.keras.activations.get(activation)
     self._kernel_initializer = kernel_initializer
+    self._kernel_regularizer = tf.keras.regularizers.get(kernel_regularizer)
+    self._heads_merge_type = heads_merge_type
 
     # Create the transformations for the query input in all heads.
     self._w_query = tf.keras.layers.Dense(
@@ -170,6 +185,7 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
         kernel_initializer=kernel_initializer,
         # This bias gets added to the attention features but not the outputs.
         use_bias=use_bias,
+        kernel_regularizer=kernel_regularizer,
         name="query")
 
     # Create the transformations for value input from sender nodes and edges.
@@ -179,6 +195,7 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
           kernel_initializer=kernel_initializer,
           # This bias gets added to the attention features and the outputs.
           use_bias=use_bias,
+          kernel_regularizer=kernel_regularizer,
           name="value_node")
     else:
       self._w_sender_node = None
@@ -189,6 +206,7 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
           kernel_initializer=kernel_initializer,
           # This bias would be redundant with self._w_sender_node.
           use_bias=use_bias and self._w_sender_node is None,
+          kernel_regularizer=kernel_regularizer,
           name="value_edge")
     else:
       self._w_sender_edge = None
@@ -204,6 +222,7 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
         "...ik,ki->...i",
         output_shape=(None, num_heads, 1),  # TODO(b/205825425): (num_heads,)
         kernel_initializer=kernel_initializer,
+        kernel_regularizer=kernel_regularizer,
         name="attn_logits")
 
   def get_config(self):
@@ -212,9 +231,12 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
         per_head_channels=self._per_head_channels,
         use_bias=self._use_bias,
         edge_dropout=self._edge_dropout,
+        heads_merge_type=self._heads_merge_type,
         attention_activation=self._attention_activation,
         activation=self._activation,
         kernel_initializer=self._kernel_initializer,
+        kernel_regularizer=tf.keras.regularizers.serialize(  # b/238163789.
+            self._kernel_regularizer),
         **super().get_config())
 
   def convolve(self, *,
@@ -272,17 +294,25 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     # Receivers without incoming senders get the empty sum 0.
     # [num_receivers, *extra_dims, num_heads, per_head_channels]
     pooled_messages = pool_to_receiver(messages, reduce_type="sum")
-    # Apply the nonlinearity.
+    # Merge attention heads then apply the nonlinearity.
+    pooled_messages = _merge_heads(pooled_messages, self._heads_merge_type)
     pooled_messages = self._activation(pooled_messages)
-    pooled_messages = self._merge_heads(pooled_messages)
 
     return pooled_messages
 
-  # The following helpers map forth and back between tensors with...
-  #  - a separate heads dimension: shape [..., num_heads, channels_per_head],
-  #  - all heads concatenated:    shape [..., num_heads * channels_per_head].
-
   def _split_heads(self, tensor):
+    """Splits tensor from all heads into activations per head.
+
+    This function can be reversed with `_merge_heads(z, "concat")`
+    where `z` is output of this `_split_heads`.
+
+    Args:
+      tensor: with shape [..., num_heads, channels_per_head].
+
+    Returns:
+      Tensor with shape [..., num_heads, channels_per_head] that reconstructs
+      `z` from `y = _merge_heads(z, "concat")`.
+    """
     extra_dims = tensor.shape[1:-1]  # Possibly empty.
     if not extra_dims.is_fully_defined():
       raise ValueError(
@@ -292,7 +322,28 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     new_shape = (-1, *extra_dims, self._num_heads, self._per_head_channels)
     return tf.reshape(tensor, new_shape)
 
-  def _merge_heads(self, tensor):
+
+def _merge_heads(  # pylint: disable=invalid-name.
+    tensor: tf.Tensor, merge_type: str) -> tf.Tensor:
+  """Combines output of attention heads by concatenation or mean.
+
+  If merge_type is "concat", then:
+     it converts tensor from shape [..., num_heads, channels_per_head], to
+     tensor of shape [..., num_heads * channels_per_head], by concatenation
+     along the last axis.
+  Otherwise, if merge_type "mean", then:
+     it converts tensor from shape [..., num_heads, channels_per_head], to
+     tensor of shape [..., channels_per_head], by reduce_mean(axis=-2).
+
+  Args:
+    tensor: of shape [..., num_heads, channels_per_head].
+    merge_type: str. Must be one of {"mean", "concat"}.
+
+  Returns:
+    Tensor, with num_heads dimension removed (either averaged over, or
+    concatenated).
+  """
+  if merge_type == "concat":
     num_merged = 2
     extra_dims = tensor.shape[1 : -num_merged]  # Possibly empty.
     merged_dims = tensor.shape[-num_merged:]
@@ -301,6 +352,10 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
           f"Unexpected unknown dimensions in shape {tensor.shape}")
     new_shape = (-1, *extra_dims, merged_dims.num_elements())
     return tf.reshape(tensor, new_shape)
+  elif merge_type == "mean":
+    return tf.reduce_mean(tensor, axis=-2)
+  else:
+    raise ValueError("Unknown merge_type %s" % str(merge_type))
 
 
 def GATv2EdgePool(*,  # To be called like a class initializer.  pylint: disable=invalid-name
@@ -364,6 +419,7 @@ def GATv2HomGraphUpdate(
     per_head_channels: int,
     receiver_tag: tfgnn.IncidentNodeOrContextTag,
     feature_name: str = tfgnn.HIDDEN_STATE,
+    heads_merge_type: str = "concat",
     name: str = "gat_v2",
     **kwargs):
   """Returns a GraphUpdate layer with a Graph Attention Network V2 (GATv2).
@@ -386,6 +442,8 @@ def GATv2HomGraphUpdate(
     receiver_tag: one of `tfgnn.SOURCE` or `tfgnn.TARGET`.
     feature_name: The feature name of node states; defaults to
       `tfgnn.HIDDEN_STATE`.
+    heads_merge_type: "concat" or "mean". Gets passed to GATv2Conv, which uses
+      it to combine all heads into layer's output.
     name: Optionally, a name for the layer returned.
     **kwargs: Any optional arguments to GATv2Conv, see there.
   """
@@ -403,6 +461,7 @@ def GATv2HomGraphUpdate(
                 num_heads=num_heads, per_head_channels=per_head_channels,
                 receiver_tag=receiver_tag,
                 sender_node_feature=feature_name, receiver_feature=feature_name,
+                heads_merge_type=heads_merge_type,
                 **kwargs)},
             next_state=tfgnn.keras.layers.SingleInputNextState(),
             node_input_feature=feature_name)}
@@ -430,6 +489,7 @@ def GATv2MPNNGraphUpdate(  # To be called like a class initializer.  pylint: dis
     units: int,
     message_dim: int,
     num_heads: int,
+    heads_merge_type: str = "concat",
     receiver_tag: tfgnn.IncidentNodeOrContextTag,
     node_set_names: Optional[Collection[tfgnn.NodeSetName]] = None,
     edge_feature: Optional[tfgnn.FieldName] = None,
@@ -456,6 +516,8 @@ def GATv2MPNNGraphUpdate(  # To be called like a class initializer.  pylint: dis
       each edge.  Must be divisible by `num_heads`.
     num_heads: The number of attention heads used by GATv2. `message_dim`
       must be divisible by this number.
+    heads_merge_type: "concat" or "mean". Gets passed to GATv2Conv, which uses
+      it to combine all heads into layer's output.
     receiver_tag: one of `tfgnn.TARGET` or `tfgnn.SOURCE`, to select the
       incident node of each edge that receives the message.
     node_set_names: The names of node sets to update. If unset, updates all
@@ -490,8 +552,8 @@ def GATv2MPNNGraphUpdate(  # To be called like a class initializer.  pylint: dis
                      f"got {message_dim} and {num_heads}.")
   per_head_channels = message_dim // num_heads
 
+  regularizer = tf.keras.regularizers.l2(l2_regularization)
   def dense(units):  # pylint: disable=invalid-name
-    regularizer = tf.keras.regularizers.l2(l2_regularization)
     return tf.keras.Sequential([
         tf.keras.layers.Dense(
             units,
@@ -507,9 +569,11 @@ def GATv2MPNNGraphUpdate(  # To be called like a class initializer.  pylint: dis
   gnn_builder = tfgnn.keras.ConvGNNBuilder(
       lambda edge_set_name, receiver_tag: GATv2Conv(
           num_heads=num_heads, per_head_channels=per_head_channels,
+          heads_merge_type=heads_merge_type,
           edge_dropout=edge_dropout_rate, receiver_tag=receiver_tag,
           sender_edge_feature=edge_feature,
           attention_activation=attention_activation, activation=conv_activation,
+          kernel_regularizer=regularizer,
           kernel_initializer=kernel_initializer),
       lambda node_set_name: tfgnn.keras.layers.NextStateFromConcat(
           dense(units)),

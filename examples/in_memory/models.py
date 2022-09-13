@@ -19,9 +19,10 @@ from typing import Optional, Tuple, Callable, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
+from tensorflow_gnn.models import gat_v2
 from tensorflow_gnn.models import gcn
 
-MODEL_NAMES = ('GCN', 'Simple', 'JKNet')
+MODEL_NAMES = ('GCN', 'Simple', 'JKNet', 'GATv2')
 
 
 def make_map_node_features_layer(
@@ -95,6 +96,9 @@ def make_model_by_name(
         num_classes, kernel_regularizer=regularizer, **model_kwargs)
   elif model_name == 'JKNet':
     return True, make_jknet_model(
+        num_classes, kernel_regularizer=regularizer, **model_kwargs)
+  elif model_name == 'GATv2':
+    return True, make_gatv2_model(
         num_classes, kernel_regularizer=regularizer, **model_kwargs)
   else:
     raise ValueError('Invalid model name ' + model_name)
@@ -186,6 +190,58 @@ def make_gcn_model(
           tf.keras.layers.Activation(activation)))
 
   return tf.keras.Sequential(layers)
+
+
+def make_gatv2_model(
+    num_classes: int, depth: int = 2,
+    num_heads=8, per_head_channels=8,
+    hidden_activation: _OptionalActivation = 'relu',
+    kernel_regularizer: _OptionalRegularizer = None,
+    out_activation: _OptionalActivation = None,
+    add_self_loops=True,
+    batchnorm: bool = False, dropout: float = 0.5) -> tf.keras.Sequential:
+  """Makes GATv2 tower interleaving GATv2 conv with batchnorm and dropout."""
+  layers = []
+  if add_self_loops:
+    layers.append(tfgnn.keras.layers.AddSelfLoops(tfgnn.EDGES))
+
+  for i in range(depth):
+    if i == depth - 1:  # Last layer of GAT
+      channels = num_classes
+      post_gat_activation = None  # Loss is applied on logits.
+      gat_combine_heads = 'mean'
+    else:  # latent layer.
+      channels = per_head_channels
+      post_gat_activation = hidden_activation
+      gat_combine_heads = 'concat'
+
+    if dropout > 0:
+      layers.append(make_map_node_features_layer(
+          tf.keras.layers.Dropout(dropout)))
+
+    layers.append(gat_v2.GATv2HomGraphUpdate(
+        num_heads=num_heads, per_head_channels=channels,
+        receiver_tag=tfgnn.SOURCE, activation=None,
+        kernel_regularizer=kernel_regularizer,
+        edge_dropout=dropout,
+        heads_merge_type=gat_combine_heads,
+        name='gatv2_layer_%i' % i))
+
+    if batchnorm:
+      layers.append(make_map_node_features_layer(
+          tf.keras.layers.BatchNormalization(momentum=0.9)))
+
+    if post_gat_activation is not None:
+      layers.append(make_map_node_features_layer(
+          tf.keras.layers.Activation(post_gat_activation)))
+
+  if out_activation is not None:
+    layers.append(make_map_node_features_layer(
+        tf.keras.layers.Activation(out_activation)))
+
+  model = tf.keras.Sequential(layers)
+
+  return model
 
 
 def make_jknet_model(

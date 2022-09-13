@@ -116,12 +116,15 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(got_2.shape, (3, 2, 4))
     self.assertAllClose(got_2, want_2, atol=.0001)
 
-  def testMultihead(self):
+  @parameterized.named_parameters(
+      ("ConcatMerge", "concat"),
+      ("MeanMerge", "mean"))
+  def testMultihead(self, merge_type):
     """Extends testBasic with multiple attention heads."""
     # The same test graph as in the testBasic above.
     gt_input = _get_test_bidi_cycle_graph(tf.constant(
         [[1., 0., 0., 1.],
-         [0., 1., 0., 2.],
+         [0., 1., 0., -2.],
          [0., 0., 1., 3.]]))
 
     conv = gat_v2.GATv2Conv(
@@ -129,7 +132,8 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         per_head_channels=4,
         receiver_tag=tfgnn.TARGET,
         attention_activation=tf.keras.layers.LeakyReLU(alpha=0.0),
-        use_bias=False)  # Don't create /bias variables.
+        use_bias=False,  # Don't create /bias variables.
+        heads_merge_type=merge_type)
 
     _ = conv(gt_input, edge_set_name="edges")  # Build weights.
     weights = {v.name: v for v in conv.trainable_weights}
@@ -164,10 +168,16 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
     # Attention head 0 generates the first four output dimensions as in the
     # testBasic above, with weights 10/11 and 1/11,
     # Attention head 1 uses weights 0 and 1 (note the reversed preference).
-    want = tf.constant([[0., 0., 0., 2.3, 0., 0., 0., 3.0],
-                        [0., 0., 0., 3.1, 0., 0., 0., 1.0],
-                        [0., 0., 0., 1.2, 0., 0., 0., 2.0]])
-    self.assertAllEqual(got.shape, (3, 8))
+    want_logits = tf.constant([[0., 0., 0., -2+.3, 0., 0., 0., 3.0],
+                               [0., 0., 0., 3+.1, 0., 0., 0., 1.0],
+                               [0., 0., 0., 1-.2, 0., 0., 0., -2.0]])
+
+    if merge_type == "mean":
+      # Expect mean of heads, followed by activation.
+      want = tf.nn.relu((want_logits[:, :4] + want_logits[:, 4:]) / 2)
+    elif merge_type == "concat":
+      want = tf.nn.relu(want_logits)
+
     self.assertAllClose(got, want, atol=.0001)
 
   @parameterized.named_parameters(
@@ -195,11 +205,13 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
              [6.],  # Edge from node 2 (counterclockwise, favored).
              [4.]]))  # Edge from node 1 (counterclockwise, favored).
 
+    l2reg = 1e-2
     layer = gat_v2.GATv2HomGraphUpdate(
         num_heads=1,
         per_head_channels=5,
         receiver_tag=tfgnn.TARGET,
         sender_edge_feature=tfgnn.HIDDEN_STATE,  # Activate edge input.
+        kernel_regularizer=tf.keras.regularizers.l2(l2reg),
         attention_activation="relu")
 
     _ = layer(gt_input)  # Build weights.
@@ -232,6 +244,7 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
     inputs = tf.keras.layers.Input(type_spec=gt_input.spec)
     outputs = layer(inputs)
     model = tf.keras.Model(inputs, outputs)
+
     if reload_model:
       export_dir = os.path.join(self.get_temp_dir(), "edge-input-model")
       model.save(export_dir, include_optimizer=False)
@@ -242,10 +255,23 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         self.assertIsInstance(model.get_layer(index=1),
                               tfgnn.keras.layers.GraphUpdate)
       else:
-        model = tf.saved_model.load(export_dir)
+        model = tf.saved_model.load(export_dir)  # Gives _UserObject
 
     got_gt = model(gt_input)
     got = got_gt.node_sets["nodes"][tfgnn.HIDDEN_STATE]
+
+    # Verify kernel regularization is attached on model kernel variables.
+    if not reload_model or reload_model == ReloadModel.KERAS:
+      # Model.losses only works on Keras models. tf.saved_model.load(), however,
+      # does not return a Keras model. See:
+      # https://www.tensorflow.org/api_docs/python/tf/saved_model/load
+      kernel_variables = [v for v in model.trainable_variables
+                          if "/kernel:0" in v.name]
+      self.assertLen(kernel_variables, 4)  # 4 kernel variables per `weights[]`.
+      self.assertLen(model.losses, 4)      # One loss term per kernel variable.
+      expected_model_losses = [tf.reduce_sum(v ** 2) * l2reg
+                               for v in kernel_variables]
+      self.assertAllClose(model.losses, expected_model_losses)
 
     # The fourth column with values x.y from nodes is analogous to the
     # testBasic test above, with the contribution x from the favored
