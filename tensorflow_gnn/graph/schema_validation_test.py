@@ -225,6 +225,32 @@ class GraphValidationTest(tf.test.TestCase):
     with self.assertRaises(sv.ValidationError):
       sv._validate_schema_node_set_references(bad_schema)
 
+  def test_validate_schema_edge_set_empty_source_or_target(self):
+    empty_source_schema = text_format.Parse(
+        """
+      edge_sets {
+        key: "clicks"
+        value {
+            target: "documents"
+        }
+      }
+    """, schema_pb2.GraphSchema())
+
+    with self.assertRaises(sv.ValidationError):
+      sv._validate_schema_node_set_references(empty_source_schema)
+
+    empty_target_schema = text_format.Parse(
+        """
+      edge_sets {
+        key: "clicks"
+        value {
+            source: "queries"
+        }
+      }
+    """, schema_pb2.GraphSchema())
+    with self.assertRaises(sv.ValidationError):
+      sv._validate_schema_node_set_references(empty_target_schema)
+
 
 class SchemaTests(tf.test.TestCase):
 
