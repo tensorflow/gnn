@@ -49,10 +49,12 @@ RUN python3.9 -m venv ${VIRTUAL_ENV}
 ENV PATH="${VIRTUAL_ENV}/bin:/app/tensorflow_gnn:${PATH}"
 RUN pip3 install --upgrade pip
 
+# TODO(b/246860101) Remove pins when protobuf-4/tensorflow incompatibilities are resolved.
+# TF issue: https://github.com/tensorflow/tensorflow/issues/56077
+RUN pip3 install "google-api-core==1.31.0" "apache-beam[gcp]==2.38.0" httplib2 notebook ogb
+
 # Add `--no-cache-dir` if disk space is an issue.
 RUN python3 -m pip install /app
-
-RUN pip3 install -U "apache-beam[gcp]>=2.37.0" httplib2 notebook ogb
 
 # Install the apache beam sdk for local and dataflow runner support.
 COPY --from=apache/beam_python3.9_sdk /opt/apache/beam /opt/apache/beam
