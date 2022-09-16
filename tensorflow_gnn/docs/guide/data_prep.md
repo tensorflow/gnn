@@ -117,6 +117,10 @@ Three of the features are implicitly defined:
     edges/<set_name>.#target
     ```
 
+    Recall that the notion of "source" and "target" captures the direction
+    of an edge in the graph (as a data structure), but does not prescribe
+    which way a GNN model can send information along the edge.
+
 Note: Serialization for hyper-adjacency — edges with more than two endpoints —
 is not currently supported, and when support for it is added, some modifications
 may occur on these names.

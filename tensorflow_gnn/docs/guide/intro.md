@@ -132,7 +132,23 @@ In practice, many graphs are very large (e.g., a large social network may have
 billions of nodes) and may not fit in memory. The approach this library uses
 in the case of large graphs is to sample neighborhoods around nodes which we
 want to train over (say, nodes with associated ground truth labels), and stream
-them from the filesytem into the TensorFlow training code.
+these sampled subgraphs from the filesystem into the TensorFlow training code.
+The node of interest is the root node of the sampled subgraph.
+
+## About edge direction
+
+A `tfgnn.GraphTensor` (whether in memory or serialized) stores *directed* edges,
+connecting a *source* to a *target* node. By convention, GraphTensors that
+represent sampled subgraphs have their edges directed away from the root.
+That is to say, the edge's source endpoint was found before the edge itself,
+and then the sampling has proceeded from source to target.
+
+However, **a GNN model can use edges in either direction**: the user can select
+either the source or target node as the *receiver node* of a convolution
+(that is, the endpoint whose state gets updated with a message sent along the
+edge); the other endpoint becomes the *sender node*. In a sampled subgraph,
+convolutions often have the source nodes of edges (those closer to the root)
+as their receivers.
 
 ## More Information and Research
 
