@@ -27,9 +27,10 @@ Supported file formats include:
 
 import csv
 import hashlib
-from os import path
+import os
 import re
 from typing import Any, Callable, Dict, List, Mapping, Optional, Text, Tuple, Union
+from absl import logging
 import apache_beam as beam
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -61,7 +62,7 @@ gfile = tf.io.gfile
 NodeId = bytes
 Example = tf.train.Example
 PCollection = beam.pvalue.PCollection
-FeatureSet = Dict[Text, tfgnn.Feature]
+FeatureSet = Mapping[Text, tfgnn.Feature]
 
 # A value converter function and dict.
 Converter = Callable[[tf.train.Feature, Any], None]
@@ -145,7 +146,7 @@ def find_schema_filename(file_or_dir: str) -> str:
     if len(pbtxts) != 1:
       raise ValueError("Could not find schema pbtxt file in '{}': {}".format(
           file_or_dir, pbtxts))
-    file_or_dir = path.join(file_or_dir, pbtxts[0])
+    file_or_dir = os.path.join(file_or_dir, pbtxts[0])
   return file_or_dir
 
 
@@ -159,7 +160,7 @@ def read_graph_and_schema(
   schema = tfgnn.read_schema(filename)
 
   # Read the graph.
-  colls_dict = read_graph(schema, path.dirname(filename), rcoll)
+  colls_dict = read_graph(schema, os.path.dirname(filename), rcoll)
 
   return schema, colls_dict
 
@@ -191,7 +192,7 @@ def get_edge_ids(example: Example,
 
 def read_node_set(pcoll: PCollection,
                   filename: str,
-                  set_name: str,
+                  set_name: tfgnn.NodeSetName,
                   converters: Optional[Converters] = None) -> PCollection:
   sfx = _stage_suffix(filename)
   return (pcoll
@@ -202,7 +203,7 @@ def read_node_set(pcoll: PCollection,
 
 def read_edge_set(pcoll: PCollection,
                   filename: str,
-                  set_name: str,
+                  set_name: tfgnn.EdgeSetName,
                   converters: Optional[Converters] = None,
                   edge_reversed=False) -> PCollection:
   sfx = _stage_suffix(filename)
@@ -213,6 +214,8 @@ def read_edge_set(pcoll: PCollection,
               get_edge_ids, edge_reversed=edge_reversed))
 
 
+# TODO(b/245730844): Reconsider arguments as context sets do not return a name
+# during iteration.
 def read_context_set(pcoll: PCollection,
                      filename: str,
                      set_name: str,
@@ -243,16 +246,23 @@ def build_converter_from_schema(features: FeatureSet) -> Converters:
   return converters
 
 
-# TODO(blais): Add a PTransform version of this.
-def read_graph(schema: tfgnn.GraphSchema,
-               graph_dir: str,
-               rcoll: PCollection) -> Dict[str, Dict[str, PCollection]]:
+def read_graph(
+    schema: tfgnn.GraphSchema,
+    graph_dir: str,
+    rcoll: PCollection,
+    gcs_location: Optional[str] = None,
+    bigquery_reader: Callable[..., beam.PCollection[Dict[
+        str, Any]]] = beam.io.ReadFromBigQuery
+) -> Dict[str, Dict[str, PCollection]]:
   """Read a universal graph given a schema.
 
   Args:
     schema: An instance of GraphSchema to read the graph of.
     graph_dir: The name of the directory to look for the files from.
     rcoll: The root collection for the reading stages.
+    gcs_location: An optional GCS temporary location used by BigQuery EXPORT
+      read methods.
+    bigquery_reader: **DO NOT SET. ONLY USED FOR UNIIT-TESTS!**
   Returns:
     A dict set type to set name to PCollection of tf.Example of the features.
     Node sets have items of type (node-id, Example).
@@ -260,28 +270,19 @@ def read_graph(schema: tfgnn.GraphSchema,
   """
   pcoll_dict = {}
   for set_type, set_name, fset in tfgnn.iter_sets(schema):
-    # Accept absolute filename; if relative, attach to the given directory,
-    # which is typically where the schema is located.
-    filename = fset.metadata.filename
-    if not path.isabs(filename):
-      filename = path.join(graph_dir, filename)
 
-    # Read the table, extracting ids where required.
-    converters = build_converter_from_schema(fset.features)
-    if set_type == "nodes":
-      pcoll = read_node_set(rcoll, filename, set_name, converters)
-    elif set_type == "edges":
-      # look for reverse edge flag
-      edge_reversed = False
-      for kv in fset.metadata.extra:
-        if kv.key == "edge_type" and kv.value == "reversed":
-          edge_reversed = True
-
-      pcoll = read_edge_set(
-          rcoll, filename, set_name, converters, edge_reversed=edge_reversed)
-    else:
-      assert set_type == "context"
-      pcoll = read_context_set(rcoll, filename, set_name, converters)
+    if fset.metadata.HasField("filename"):
+      pcoll = (
+          rcoll
+          | f"ReadFile/{set_name}" >> ReadUnigraphPieceFromFile(
+              set_type, set_name, fset, graph_dir))
+    elif fset.metadata.HasField("bigquery"):
+      pcoll = (
+          rcoll | f"ReadBigQuery/{set_name}" >> ReadUnigraphPieceFromBigQuery(
+              set_name,
+              fset,
+              gcs_location=gcs_location,
+              bigquery_reader=bigquery_reader))
 
     # Save the collection for output.
     set_dict = pcoll_dict.setdefault(set_type, {})
@@ -290,8 +291,75 @@ def read_graph(schema: tfgnn.GraphSchema,
   return pcoll_dict
 
 
-class ReadFromBigQuery(beam.PTransform):
-  """Read a NodeSet from a BigQuery table.
+class ReadUnigraphPieceFromFile(beam.PTransform):
+  """Read a unigraph node/edge/context component from a file.
+
+  Returns a PCollection object representing the Unigraph component.
+  """
+
+  def __init__(self, fset_type: str, fset_name: str,
+               fset: Union[graph_schema_pb2.NodeSet,
+                           graph_schema_pb2.EdgeSet], graph_dir: Optional[str]):
+    """Constructor for ReadUnigraphPieceFromFile PTransform.
+
+    Args:
+      fset_type: String typename for the component.
+      fset_name: The string name of the node/edge/context set.
+      fset: A NodeSet or EdgeSet protocol buffer message.
+      graph_dir: Optional string root graph directory.
+
+    Raises:
+      ValueError if initialization fails.
+    """
+    super().__init__()
+    self.fset_type = fset_type
+    self.fset_name = fset_name
+    self.fset = fset
+    self.graph_dir = graph_dir
+
+    if not self.fset.HasField("metadata") and not self.fset.metadata.HasField(
+        "filename"):
+      raise ValueError(f"{fset_name} does not specify a file: {fset}")
+
+    self.filename = fset.metadata.filename
+    if not os.path.isabs(self.filename):
+      if not self.graph_dir:
+        raise ValueError(f"{self.filename} does not specify a full path "
+                         "and graph_dir is None.")
+      self.filename = os.path.join(self.graph_dir, self.filename)
+
+    self.converters = build_converter_from_schema(self.fset.features)
+
+    self.reversed = False
+    if isinstance(fset, graph_schema_pb2.EdgeSet):
+      for kv in fset.metadata.extra:
+        if kv.key == "edge_type" and kv.value == "reversed":
+          self.edge_reversed = True
+
+  def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
+    if self.fset_type == tfgnn.NODES:
+      logging.info("Reading NodeSet %s from file: %s", self.fset_name,
+                   self.filename)
+      return read_node_set(pcoll, self.filename, self.fset_name,
+                           self.converters)
+    elif self.fset_type == tfgnn.EDGES:
+      logging.info("Reading EdgeSet %s (reversed=%s) from file: %s ",
+                   self.fset_name, self.reversed, self.filename)
+      return read_edge_set(pcoll, self.filename, self.fset_name,
+                           self.converters, self.reversed)
+    elif self.fset_type == tfgnn.CONTEXT:
+      logging.info("Reading Context %s from file: %s", self.fset_name,
+                   self.filename)
+      assert not self.fset_name, "Context pieces should not have a name."
+      return read_context_set(pcoll, self.filename, self.fset_name,
+                              self.converters)
+    else:
+      raise ValueError(
+          f"Unknown Unigraph component {self.fset_type}, {self.fset_name}.")
+
+
+class ReadUnigraphPieceFromBigQuery(beam.PTransform):
+  """Read a unigraph node/edge/context component from a BigQuery table.
 
   Yeilds tf.Example protos of the features from the table.
   """
@@ -304,24 +372,26 @@ class ReadFromBigQuery(beam.PTransform):
       self,
       fset_name: str,
       fset: Union[graph_schema_pb2.NodeSet, graph_schema_pb2.EdgeSet],
+      gcs_location: Optional[str] = None,
       bigquery_reader: Callable[..., beam.PCollection[Dict[
           str, Any]]] = beam.io.ReadFromBigQuery,
   ):
     """Constructor for PTransform for reading a NodeSet from BigQuery.
 
     Args:
-      fset_name: The string name of the node/edge set
+      fset_name: The string name of the node/edge/context set.
       fset: Either a graph_schema_pb2.NodeSet or graph_schema_pb2.EdgeSet
         message.
+      gcs_location: An optional string specifying a google storage location
+        used if the EXPORT BigQuery method is specified.
       bigquery_reader: Callable, **ONLY USED FOR UNIT-TESTING**.
     """
     super().__init__()
 
-    # ONLY use for testing.
-    self._bigquery_reader = bigquery_reader
-
     self.fset_name = fset_name
     self.fset = fset
+    self.gcs_location = gcs_location
+    self._bigquery_reader = bigquery_reader  # ONLY use for testing
 
     if not fset.HasField("metadata"):
       raise ValueError(
@@ -340,8 +410,8 @@ class ReadFromBigQuery(beam.PTransform):
     self.bq = fset.metadata.bigquery
     self.sfx = self.stage_name_suffix(self.fset_name, self.fset)
     self.bq_args = self.bigquery_args_from_proto(self.bq)
-    self.bq_args["method"] = graph_schema_pb2.BigQuery.ReadMethod.Name(
-        self.bq.read_method)
+    if self.gcs_location:
+      self.bq_args["gcs_location"] = self.gcs_location
 
     for feature_name, feature in self.fset.features.items():
       if feature.dtype not in self._SUPPORTED_DTYPES:
@@ -392,8 +462,10 @@ class ReadFromBigQuery(beam.PTransform):
     else:
       raise ValueError("Must provide BigQuerySource table_spec or query.")
 
-    bq_args["read_method"] = graph_schema_pb2.BigQuery.ReadMethod.Name(
-        bq.read_method)
+    if bq.read_method == graph_schema_pb2.BigQuery.EXPORT:
+      bq_args["method"] = beam.io.ReadFromBigQuery.Method.EXPORT
+    elif bq.read_method == graph_schema_pb2.BigQuery.DIRECT_READ:
+      bq_args["method"] = beam.io.ReadFromBigQuery.Method.DIRECT_READ
 
     return bq_args
 
@@ -419,13 +491,13 @@ class ReadFromBigQuery(beam.PTransform):
     bq = fset.metadata.bigquery
     sfx = "ReadFromBigQuery"
     if isinstance(fset, graph_schema_pb2.NodeSet):
-      sfx += "\\NodeSet\\"
+      sfx += "/NodeSet/"
     elif isinstance(fset, graph_schema_pb2.EdgeSet):
-      sfx += "\\EdgeSet\\"
+      sfx += "/EdgeSet/"
     else:
       raise ValueError("Must specify a Node or Edge set.")
 
-    sfx += f"{fset_name}\\"
+    sfx += f"{fset_name}/"
     if bq.HasField("table_spec"):
       if bq.table_spec.project:
         sfx += f"{bq.table_spec.project}:"
@@ -443,9 +515,7 @@ class ReadFromBigQuery(beam.PTransform):
 
     return sfx
 
-  def row_to_keyed_example(
-      self, row: Mapping[str, Any]
-  ) -> Union[Tuple[str, tf.train.Example], Tuple[str, str, tf.train.Example]]:
+  def row_to_keyed_example(self, row: Mapping[str, Any]) -> Any:
     """Convert a single row from a BigQuery result to tf.Example.
 
     Args:
@@ -506,10 +576,9 @@ class ReadFromBigQuery(beam.PTransform):
       # features specification.
       tf_feature_name = _TRANSLATIONS.get(feature_name, feature_name)
 
-      if not row.get(feature_name):
+      if feature_name not in row:
         raise ValueError(
-            f"Could not find {feature_name} in query result dictionary: {row.keys()}"
-        )
+            f"Could not find {feature_name} in query result: {row}")
 
       example_feature = example.features.feature[tf_feature_name]
       if feature.dtype == tf.float32.as_datatype_enum:
@@ -518,21 +587,21 @@ class ReadFromBigQuery(beam.PTransform):
         example_feature.int64_list.value.append(row[feature_name])
       if feature.dtype == tf.string.as_datatype_enum:
         example_feature.bytes_list.value.append(
-            row[feature_name].encode("utf-8"))
+            row.get(feature_name, "").encode("utf-8"))
 
     if len(ret_key) == 1:
-      return ret_key[0], example
+      return ret_key[0].encode("utf-8"), example
     else:
-      return ret_key[0], ret_key[1], example
+      return ret_key[0].encode("utf-8"), ret_key[1].encode("utf-8"), example
 
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
     result = (
         pcoll
         | f"{self.sfx}" >> self._bigquery_reader(**self.bq_args)
-        | f"RowToKeyedExamples\\{self.sfx}" >> beam.Map(
-            self.row_to_keyed_example))
+        |
+        f"RowToKeyedExamples/{self.sfx}" >> beam.Map(self.row_to_keyed_example))
     if self.bq.reshuffle:
-      result = result | f"Reshuffle\\{self.sfx}" >> beam.Reshuffle()
+      result = result | f"Reshuffle/{self.sfx}" >> beam.Reshuffle()
     return result
 
 

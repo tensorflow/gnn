@@ -19,6 +19,7 @@ import math
 import random
 from typing import Any, Callable, DefaultDict, Dict, List, Iterable, Iterator, Set, Tuple
 
+from absl import logging
 import apache_beam as beam
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -427,6 +428,8 @@ def create_unique_node_ids(
     return sample_id, [seed_node_id]
 
   for node_set_name, seed_ids in seeds.items():
+    logging.info("[create_unique_node_ids][to_list] node_set_name: %s",
+                 node_set_name)
     ids: UniqueNodeIds = (
         seed_ids
         | stage_name(node_set_name, "MoveSeedToList") >> beam.MapTuple(to_list))
@@ -443,6 +446,7 @@ def create_unique_node_ids(
     return sample_id, [edge.neighbor_id for edge in node.outgoing_edges]
 
   for edge_set_name, edge_set_edges in edges.items():
+    logging.info("[create_unique_node_ids] edge_set_name: %s", edge_set_name)
     node_set_to_ids[schema.edge_sets[edge_set_name].source].append(
         edge_set_edges
         | stage_name(edge_set_name, "GetSourceIds") >> beam.MapTuple(
@@ -504,6 +508,7 @@ def lookup_node_features(
         | f"{stage_prefix}/ExtractFeatures" >> beam.MapTuple(extract_features))
 
   result = {}
+
   for node_set_name, node_set_node_ids in node_ids.items():
     result[node_set_name] = lookup_features(node_set_name, node_set_node_ids,
                                             node_examples[node_set_name])

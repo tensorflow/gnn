@@ -168,9 +168,9 @@ class TestReadGraph(tf.test.TestCase):
         table: "test_table"
       }""", tfgnn.proto.graph_schema_pb2.BigQuery())
     self.assertEqual(
-        unigraph.ReadFromBigQuery.bigquery_args_from_proto(bq), {
+        unigraph.ReadUnigraphPieceFromBigQuery.bigquery_args_from_proto(bq), {
             "table": "test_project:test_dataset.test_table",
-            "read_method": "EXPORT"
+            "method": beam.io.ReadFromBigQuery.Method.EXPORT
         })
 
   def test_bigquery_row_to_keyed_example_node_set(self):
@@ -206,8 +206,9 @@ class TestReadGraph(tf.test.TestCase):
 
     # Quick test of the suffix generation
     self.assertEqual(
-        unigraph.ReadFromBigQuery.stage_name_suffix("fake_node_set", node_set),
-        ("ReadFromBigQuery\\NodeSet\\fake_node_set\\test_project:"
+        unigraph.ReadUnigraphPieceFromBigQuery.stage_name_suffix(
+            "fake_node_set", node_set),
+        ("ReadFromBigQuery/NodeSet/fake_node_set/test_project:"
          "test_dataset.test_table"))
 
     # Mock a source that returns fake BQ rows.
@@ -227,7 +228,7 @@ class TestReadGraph(tf.test.TestCase):
 
     with test_pipeline.TestPipeline() as pipeline:
       rows = (
-          pipeline | unigraph.ReadFromBigQuery(
+          pipeline | unigraph.ReadUnigraphPieceFromBigQuery(
               "fake_node_set", node_set, bigquery_reader=fake_bq_reader))
 
       result = pipeline.run()
@@ -235,7 +236,7 @@ class TestReadGraph(tf.test.TestCase):
 
       util.assert_that(
           rows,
-          util.equal_to([("id1",
+          util.equal_to([(b"id1",
                           text_format.Parse(
                               """features {
                                   feature {
@@ -271,7 +272,7 @@ class TestReadGraph(tf.test.TestCase):
                                     }
                                   }
                               }""", tf.train.Example())),
-                         ("id2",
+                         (b"id2",
                           text_format.Parse(
                               """features {
                                   feature {
@@ -340,8 +341,9 @@ class TestReadGraph(tf.test.TestCase):
         }""", tfgnn.proto.graph_schema_pb2.EdgeSet())
 
     self.assertEqual(
-        unigraph.ReadFromBigQuery.stage_name_suffix("fake_edge_set", edge_set),
-        ("ReadFromBigQuery\\EdgeSet\\fake_edge_set\\"
+        unigraph.ReadUnigraphPieceFromBigQuery.stage_name_suffix(
+            "fake_edge_set", edge_set),
+        ("ReadFromBigQuery/EdgeSet/fake_edge_set/"
          "test_project:test_dataset.test_table"))
 
     # Mock a source that returns fake BQ rows.
@@ -363,7 +365,7 @@ class TestReadGraph(tf.test.TestCase):
 
     with test_pipeline.TestPipeline() as pipeline:
       rows = (
-          pipeline | unigraph.ReadFromBigQuery(
+          pipeline | unigraph.ReadUnigraphPieceFromBigQuery(
               "fake_edge_set", edge_set, bigquery_reader=fake_bq_reader))
 
       result = pipeline.run()
@@ -371,7 +373,7 @@ class TestReadGraph(tf.test.TestCase):
 
       util.assert_that(
           rows,
-          util.equal_to([("s1", "t1",
+          util.equal_to([(b"s1", b"t1",
                           text_format.Parse(
                               """
                               features {
@@ -416,7 +418,7 @@ class TestReadGraph(tf.test.TestCase):
                                   }
                                 }
                             }""", tf.train.Example())),
-                         ("s2", "t2",
+                         (b"s2", b"t2",
                           text_format.Parse(
                               """features {
                                   feature {
@@ -515,7 +517,7 @@ class TestReadGraph(tf.test.TestCase):
 
     with test_pipeline.TestPipeline() as pipeline:
       rows = (
-          pipeline | unigraph.ReadFromBigQuery(
+          pipeline | unigraph.ReadUnigraphPieceFromBigQuery(
               "fake_node_set", edge_set, bigquery_reader=fake_bq_reader))
 
       result = pipeline.run()
@@ -523,7 +525,7 @@ class TestReadGraph(tf.test.TestCase):
 
       util.assert_that(
           rows,
-          util.equal_to([("t1", "s1",
+          util.equal_to([(b"t1", b"s1",
                           text_format.Parse(
                               """
                               features {
@@ -568,7 +570,7 @@ class TestReadGraph(tf.test.TestCase):
                                   }
                                 }
                             }""", tf.train.Example())),
-                         ("t2", "s2",
+                         (b"t2", b"s2",
                           text_format.Parse(
                               """features {
                                   feature {
@@ -612,6 +614,207 @@ class TestReadGraph(tf.test.TestCase):
                                     }
                                   }
                                 }""", tf.train.Example()))]))
+
+  def test_read_graph_bigquery(self):
+    schema = text_format.Parse(
+        """
+      node_sets {
+        key: "customers"
+        value {
+          features {
+            key: "occupation"
+            value {
+              dtype: DT_STRING
+            }
+          }
+          metadata {
+            bigquery {
+              sql: "SELECT customer_uid AS id, occupation FROM [test_project:test_dataset.customers] LIMIT 100"
+            }
+          }
+        }
+      }
+      edge_sets {
+        key: "transactions"
+        value {
+          features {
+            key: "amount"
+            value {
+              dtype: DT_FLOAT
+            }
+          }
+          features {
+            key: "post_date"
+            value {
+              dtype: DT_STRING
+            }
+          }
+          metadata {
+            bigquery  {
+              sql: "SELECT source, destination AS target, amount, post_date FROM [test_project:test_dataset.transactions] LIMIT 100"
+            }
+          }
+        }
+      }""", tfgnn.GraphSchema())
+
+    def fake_bq_reader(**kwargs):
+      if kwargs["query"] == ("SELECT customer_uid AS id, occupation FROM "
+                             "[test_project:test_dataset.customers] LIMIT 100"):
+        return beam.Create([{
+            "id": "c1",
+            "occupation": "SWE"
+        }, {
+            "id": "c2",
+            "occupation": "SRE"
+        }])
+      elif kwargs["query"] == (
+          "SELECT source, destination AS target, amount, post_date"
+          " FROM [test_project:test_dataset.transactions] LIMIT "
+          "100"):
+        return beam.Create([{
+            "source": "c1",
+            "target": "c2",
+            "amount": 42.0,
+            "post_date": "2022/09/06",
+            "int_feature": 2
+        }, {
+            "source": "c2",
+            "target": "c1",
+            "amount": 24.0,
+            "post_date": "2022/09/07"
+        }])
+      else:
+        raise ValueError(f"No query matches {kwargs['query']}")
+
+    expected_graph = {
+        "edges": {
+            "transactions": [(b"c1", b"c2",
+                              text_format.Parse(
+                                  """features {
+              feature {
+                key: "#source"
+                value {
+                  bytes_list {
+                    value: "c1"
+                  }
+                }
+              }
+              feature {
+                key: "#target"
+                value {
+                  bytes_list {
+                    value: "c2"
+                  }
+                }
+              }
+              feature {
+                key: "amount"
+                value {
+                  float_list {
+                    value: 42.0
+                  }
+                }
+              }
+              feature {
+                key: "post_date"
+                value {
+                  bytes_list {
+                    value: "2022/09/06"
+                  }
+                }
+              }}""", tf.train.Example())),
+                             (b"c2", b"c1",
+                              text_format.Parse(
+                                  """features {
+              feature {
+                key: "#source"
+                value {
+                  bytes_list {
+                    value: "c2"
+                  }
+                }
+              }
+              feature {
+                key: "#target"
+                value {
+                  bytes_list {
+                    value: "c1"
+                  }
+                }
+              }
+              feature {
+                key: "amount"
+                value {
+                  float_list {
+                    value: 24.0
+                  }
+                }
+              }
+              feature {
+                key: "post_date"
+                value {
+                  bytes_list {
+                    value: "2022/09/07"
+                  }
+                }
+              }
+            }""", tf.train.Example()))]
+        },
+        "nodes": {
+            "customers": [(b"c1",
+                           text_format.Parse(
+                               """features {
+                          feature {
+                            key: "#id"
+                            value {
+                              bytes_list {
+                                value: "c1"
+                              }
+                            }
+                          }
+                          feature {
+                            key: "occupation"
+                            value {
+                              bytes_list {
+                                value: "SWE"
+                              }
+                            }
+                          }} """, tf.train.Example())),
+                          (b"c2",
+                           text_format.Parse(
+                               """features {
+                          feature {
+                              key: "#id"
+                              value {
+                                bytes_list {
+                                  value: "c2"
+                                }
+                              }
+                            }
+                            feature {
+                              key: "occupation"
+                              value {
+                                bytes_list {
+                                  value: "SRE"
+                                }
+                              }
+                            }}""", tf.train.Example()))]
+        }
+    }
+
+    with test_pipeline.TestPipeline() as pipeline:
+      graph = unigraph.read_graph(
+          schema, "", pipeline, bigquery_reader=fake_bq_reader)
+      result = pipeline.run()
+      result.wait_until_finish()
+      util.assert_that(
+          graph["edges"]["transactions"],
+          util.equal_to(expected_graph["edges"]["transactions"]),
+          label="transactions")
+      util.assert_that(
+          graph["nodes"]["customers"],
+          util.equal_to(expected_graph["nodes"]["customers"]),
+          label="customers")
 
 
 if __name__ == "__main__":

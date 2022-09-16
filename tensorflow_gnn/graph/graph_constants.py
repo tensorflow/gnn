@@ -19,6 +19,7 @@ from typing import Any, List, Mapping, Optional, Sequence, Tuple, Union
 
 import tensorflow as tf
 
+# TODO(b/245729353) Migrate string constants to enums where appropriate.
 # Formatting string for feature names.
 CONTEXT_FMT = '{stype}/{fname}'
 FEATURE_FMT = '{stype}/{sname}.{fname}'
