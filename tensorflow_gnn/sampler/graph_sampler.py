@@ -32,6 +32,7 @@ from absl import app
 from absl import flags
 from absl import logging
 import apache_beam as beam
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 import tensorflow as tf
@@ -111,9 +112,14 @@ def validate_schema(schema: tfgnn.GraphSchema):
 
   # Ensure that the filenames are set on the universal graph format.
   for set_type, set_name, set_ in tfgnn.iter_sets(schema):
-    if not (set_.HasField("metadata") and set_.metadata.HasField("filename")):
-      raise ValueError("Filename is not set on schema's {}/{} set.".format(
-          set_type, set_name))
+    if not set_.HasField("metadata"):
+      raise ValueError(
+          f"{set_type}/{set_name} does not specify a metadata field")
+
+    if not (set_.metadata.HasField("filename") or
+            set_.metadata.HasField("bigquery")):
+      raise ValueError(f"{set_type}/{set_name} does not specify a "
+                       "filename or bigquery source.")
 
   # Check for raggedness, which we don't support in this sampler (the format
   # supports it).
@@ -290,7 +296,11 @@ def run_sample_graph_pipeline(
   with beam.Pipeline(
       runner=create_beam_runner(runner_name), options=pipeline_options) as root:
     # Read the graph.
-    graph_dict = unigraph.read_graph(schema, path.dirname(filename), root)
+    gcs_location = None
+    if pipeline_options:
+      gcs_location = pipeline_options.view_as(GoogleCloudOptions).temp_location
+    graph_dict = unigraph.read_graph(
+        schema, path.dirname(filename), root, gcs_location=gcs_location)
 
     # Read the seeds, or use the node ids as the seeds.
     if seeds_filename:
@@ -316,6 +326,8 @@ def run_sample_graph_pipeline(
         graph_dict, sort_edges=False)
 
     sampled_edges = sampling_lib.sample_edges(sampling_spec, seeds, adj_lists)
+
+    logging.info("sampled_schema: %s", sampled_schema)
     node_ids = sampling_lib.create_unique_node_ids(sampled_schema, seeds,
                                                    sampled_edges)
     node_features = sampling_lib.lookup_node_features(node_ids,
