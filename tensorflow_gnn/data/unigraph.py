@@ -571,6 +571,7 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
     else:
       raise ValueError("Row must represent at Node or Edge set.")
 
+    id_is_set = False
     for feature_name, feature in self.fset.features.items():
       # In case client encodes `id`, `source` or `target` explicitly in the
       # features specification.
@@ -579,6 +580,13 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
       if feature_name not in row:
         raise ValueError(
             f"Could not find {feature_name} in query result: {row}")
+
+      # If the ID is already set, skip the explicit feature enumeration.
+      # This can happen if a table or query already contains a row named `id`.
+      if (tf_feature_name == "#id" or tf_feature_name == "id") and id_is_set:
+        continue
+      else:
+        id_is_set = True
 
       example_feature = example.features.feature[tf_feature_name]
       if feature.dtype == tf.float32.as_datatype_enum:

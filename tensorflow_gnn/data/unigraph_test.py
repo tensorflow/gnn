@@ -177,6 +177,12 @@ class TestReadGraph(tf.test.TestCase):
     node_set = text_format.Parse(
         """
         features {
+          key: "id"
+          value: {
+              dtype: DT_STRING
+          }
+        }
+        features {
           key: "int_feature"
           value: {
             dtype: DT_INT64
