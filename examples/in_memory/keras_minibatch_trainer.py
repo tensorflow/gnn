@@ -97,7 +97,7 @@ def main(unused_argv):
   _, train_dataset = int_arithmetic_sampler.make_sampled_subgraphs_dataset(
       dataset_wrapper, sampling_spec=train_sampling_spec,
       batch_size=FLAGS.batch_size,
-      sampling=int_arithmetic_sampler.EdgeSampling.WITH_REPLACEMENT,
+      sampling=int_arithmetic_sampler.EdgeSampling.W_REPLACEMENT,
       make_undirected=prefers_undirected)
 
   train_labels_dataset = train_dataset.map(
@@ -107,7 +107,7 @@ def main(unused_argv):
   _, validation_ds = int_arithmetic_sampler.make_sampled_subgraphs_dataset(
       dataset_wrapper, sampling_spec=train_sampling_spec,
       batch_size=FLAGS.batch_size,
-      sampling=int_arithmetic_sampler.EdgeSampling.WITHOUT_REPLACEMENT,
+      sampling=int_arithmetic_sampler.EdgeSampling.WO_REPLACEMENT,
       split='valid', make_undirected=prefers_undirected)
   validation_ds = validation_ds.map(
       functools.partial(reader_utils.pair_graphs_with_labels, num_classes))
