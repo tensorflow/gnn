@@ -113,6 +113,7 @@ SizeConstraints = preprocessing_common.SizeConstraints
 
 # General preprocessing helpers.
 dataset_filter_with_summary = preprocessing_common.dataset_filter_with_summary
+dataset_from_generator = batching_utils.dataset_from_generator
 
 # I/O functions (input parsing).
 parse_example = graph_tensor_io.parse_example
