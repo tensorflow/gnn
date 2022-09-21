@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L324-L369">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L339-L384">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -44,14 +44,14 @@ not need this flexibility and can directly call one of the underlying functions
 
 <tr>
 <td>
-`graph_tensor`
+`graph_tensor`<a id="graph_tensor"></a>
 </td>
 <td>
 A scalar GraphTensor.
 </td>
 </tr><tr>
 <td>
-`from_tag`
+`from_tag`<a id="from_tag"></a>
 </td>
 <td>
 Values are broadcast from context if this is <a href="../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a> or
@@ -59,14 +59,14 @@ from the incident node on each edge with this tag.
 </td>
 </tr><tr>
 <td>
-`edge_set_name`
+`edge_set_name`<a id="edge_set_name"></a>
 </td>
 <td>
 The name of the edge set to which values are broadcast.
 </td>
 </tr><tr>
 <td>
-`node_set_name`
+`node_set_name`<a id="node_set_name"></a>
 </td>
 <td>
 The name of the node set to which values are broadcast.
@@ -75,14 +75,14 @@ node_set_name must be set.
 </td>
 </tr><tr>
 <td>
-`feature_value`
+`feature_value`<a id="feature_value"></a>
 </td>
 <td>
 As for the underlying broadcast_*() function.
 </td>
 </tr><tr>
 <td>
-`feature_name`
+`feature_name`<a id="feature_name"></a>
 </td>
 <td>
 As for the underlying broadcast_*() function.

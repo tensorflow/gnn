@@ -1,4 +1,4 @@
-# tfgnn.is_graph_tensor
+# tfgnn.is_ragged_tensor
 
 [TOC]
 
@@ -6,21 +6,19 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L853-L855">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/tensor_utils.py#L421-L423">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
 
-Returns whether `value` is a GraphTensor (possibly wrapped for Keras).
+Returns whether a tensor (TF or Keras) is a RaggedTensor.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
-<code>tfgnn.is_graph_tensor(
-    value: Any
+<code>tfgnn.is_ragged_tensor(
+    value: <a href="../tfgnn/Field.md"><code>tfgnn.Field</code></a>
 ) -> bool
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->

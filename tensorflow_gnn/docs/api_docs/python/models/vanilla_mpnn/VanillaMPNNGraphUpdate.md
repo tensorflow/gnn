@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/vanilla_mpnn/layers.py#L8-L91">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/vanilla_mpnn/layers.py#L22-L105">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -61,14 +61,14 @@ $$h_v := \text{ReLU}(
 
 <tr>
 <td>
-`units`
+`units`<a id="units"></a>
 </td>
 <td>
 The dimension of output hidden states for each node.
 </td>
 </tr><tr>
 <td>
-`message_dim`
+`message_dim`<a id="message_dim"></a>
 </td>
 <td>
 The dimension of messages (attention values) computed on
@@ -76,7 +76,7 @@ each edge.  Must be divisible by `num_heads`.
 </td>
 </tr><tr>
 <td>
-`receiver_tag`
+`receiver_tag`<a id="receiver_tag"></a>
 </td>
 <td>
 one of `tfgnn.TARGET` or `tfgnn.SOURCE`, to select the
@@ -84,7 +84,7 @@ incident node of each edge that receives the message.
 </td>
 </tr><tr>
 <td>
-`node_set_names`
+`node_set_names`<a id="node_set_names"></a>
 </td>
 <td>
 The names of node sets to update. If unset, updates all
@@ -92,7 +92,7 @@ that are on the receiving end of any edge set.
 </td>
 </tr><tr>
 <td>
-`edge_feature`
+`edge_feature`<a id="edge_feature"></a>
 </td>
 <td>
 Can be set to a feature name of the edge set to select
@@ -101,7 +101,7 @@ this input.
 </td>
 </tr><tr>
 <td>
-`reduce_type`
+`reduce_type`<a id="reduce_type"></a>
 </td>
 <td>
 How to pool the messages from edges to receiver nodes.
@@ -110,7 +110,7 @@ defaults to "sum".
 </td>
 </tr><tr>
 <td>
-`l2_regularization`
+`l2_regularization`<a id="l2_regularization"></a>
 </td>
 <td>
 The coefficient of L2 regularization for weights and
@@ -118,7 +118,7 @@ biases.
 </td>
 </tr><tr>
 <td>
-`dropout_rate`
+`dropout_rate`<a id="dropout_rate"></a>
 </td>
 <td>
 The dropout rate applied to messages on each edge and to the
@@ -126,7 +126,7 @@ new node state.
 </td>
 </tr><tr>
 <td>
-`kernel_initializer`
+`kernel_initializer`<a id="kernel_initializer"></a>
 </td>
 <td>
 Can be set to a `kerner_initializer` as understood

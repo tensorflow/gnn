@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L465-L548">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L533-L616">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 A composite tensor for edge set features, size and adjacency information.
 
@@ -51,14 +49,14 @@ the `.sizes` tensor which defines the number of edges in each graph component.
 
 <tr>
 <td>
-`data`
+`data`<a id="data"></a>
 </td>
 <td>
 Nest of Field or subclasses of GraphPieceBase.
 </td>
 </tr><tr>
 <td>
-`spec`
+`spec`<a id="spec"></a>
 </td>
 <td>
 A subclass of GraphPieceSpecBase with a `_data_spec` that matches
@@ -66,7 +64,7 @@ A subclass of GraphPieceSpecBase with a `_data_spec` that matches
 </td>
 </tr><tr>
 <td>
-`validate`
+`validate`<a id="validate"></a>
 </td>
 <td>
 if set, checks that data and spec are aligned, compatible and
@@ -75,84 +73,49 @@ supported.
 </tr>
 </table>
 
-
-
-
-
 <!-- Tabular view -->
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>
 
-<tr>
-<td>
-`adjacency`
-</td>
-<td>
-The information which edges connect which nodes (see tfgnn.Adjacency).
-</td>
-</tr><tr>
-<td>
-`features`
-</td>
-<td>
-A read-only mapping of feature name to feature specs.
-</td>
-</tr><tr>
-<td>
-`indices_dtype`
-</td>
-<td>
-The integer type to represent ragged splits.
-</td>
-</tr><tr>
-<td>
-`num_components`
-</td>
-<td>
-The number of graph components for each graph.
-</td>
-</tr><tr>
-<td>
-`rank`
-</td>
-<td>
-The rank of this Tensor. Guaranteed not to be `None`.
-</td>
-</tr><tr>
-<td>
-`shape`
-</td>
-<td>
-A possibly-partial shape specification for this Tensor.
+<tr> <td> `adjacency`<a id="adjacency"></a> </td> <td> The information which
+edges connect which nodes (see tfgnn.Adjacency). </td> </tr><tr> <td>
+`features`<a id="features"></a> </td> <td> A read-only mapping of feature name
+to feature specs. </td> </tr><tr> <td> `indices_dtype`<a id="indices_dtype"></a>
+</td> <td> The integer type to represent ragged splits. </td> </tr><tr> <td>
+`num_components`<a id="num_components"></a> </td> <td> The number of graph
+components for each graph. </td> </tr><tr> <td> `rank`<a id="rank"></a> </td>
+<td> The rank of this Tensor. Guaranteed not to be `None`. </td> </tr><tr> <td>
+`shape`<a id="shape"></a> </td> <td> A possibly-partial shape specification for
+this Tensor.
 
 The returned `TensorShape` is guaranteed to have a known rank, but the
 individual dimension sizes may be unknown.
 </td>
 </tr><tr>
 <td>
-`sizes`
+`sizes`<a id="sizes"></a>
 </td>
 <td>
 The number of items in each graph component.
 </td>
 </tr><tr>
 <td>
-`spec`
+`spec`<a id="spec"></a>
 </td>
 <td>
 The public type specification of this tensor.
 </td>
 </tr><tr>
 <td>
-`total_num_components`
+`total_num_components`<a id="total_num_components"></a>
 </td>
 <td>
 The total number of graph components.
 </td>
 </tr><tr>
 <td>
-`total_size`
+`total_size`<a id="total_size"></a>
 </td>
 <td>
 The total number of items.
@@ -160,13 +123,12 @@ The total number of items.
 </tr>
 </table>
 
-
-
 ## Methods
 
 <h3 id="from_fields"><code>from_fields</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L488-L533">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L556-L601">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>@classmethod</code>
@@ -217,18 +179,18 @@ tfgnn.EdgeSet.from_fields(
 <td>
 A mapping from feature name to feature Tensor or RaggedTensor.
 All feature tensors must have shape `[*graph_shape, num_edges,
-*feature_shape]`, where num_edge is the number of edges in the edge
-set (could be ragged) and feature_shape is a shape of the feature value
-for each edge.
+*feature_shape]`, where num_edge is the number of edges in the edge set
+(could be ragged) and feature_shape is a shape of the feature value for
+each edge.
 </td>
 </tr><tr>
 <td>
 `sizes`
 </td>
 <td>
-The number of edges in each graph component.
-Has shape `[*graph_shape, num_components]`, where `num_components` is
-the number of graph components (could be ragged).
+The number of edges in each graph component. Has shape
+`[*graph_shape, num_components]`, where `num_components` is the number
+of graph components (could be ragged).
 </td>
 </tr><tr>
 <td>
@@ -239,8 +201,6 @@ One of the supported adjacency types (see adjacency.py).
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -258,7 +218,8 @@ An `EdgeSet` composite tensor.
 
 <h3 id="get_features_dict"><code>get_features_dict</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L138-L140">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L157-L159">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>get_features_dict() -> Dict[FieldName, Field]
@@ -269,7 +230,8 @@ Returns features copy as a dictionary.
 
 <h3 id="replace_features"><code>replace_features</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L362-L368">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L404-L410">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>replace_features(
@@ -282,7 +244,8 @@ Returns a new instance with a new set of features.
 
 <h3 id="set_shape"><code>set_shape</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L290-L296">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L304-L310">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>set_shape(
@@ -295,7 +258,8 @@ Enforce the common prefix shape on all the contained features.
 
 <h3 id="__getitem__"><code>__getitem__</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L34-L36">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L54-L56">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>__getitem__(

@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_utils.py#L27-L38">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_utils.py#L41-L52">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Read a proto schema from a file with text-formatted contents.
 
@@ -35,7 +33,7 @@ Read a proto schema from a file with text-formatted contents.
 
 <tr>
 <td>
-`filename`
+`filename`<a id="filename"></a>
 </td>
 <td>
 A string, the path to a file containing a text-formatted protocol
@@ -43,8 +41,6 @@ buffer rendition of a `GraphSchema` message.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

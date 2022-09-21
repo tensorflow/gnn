@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_utils.py#L176-L203">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_utils.py#L300-L328">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Utility function to iterate over the features of a graph schema.
 
@@ -37,15 +35,13 @@ each of the node sets, and each of the edge sets.
 
 <tr>
 <td>
-`schema`
+`schema`<a id="schema"></a>
 </td>
 <td>
 An instance of a `GraphSchema` proto message.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

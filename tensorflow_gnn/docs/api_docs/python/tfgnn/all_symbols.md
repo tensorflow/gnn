@@ -28,6 +28,7 @@
 *   <a href="../tfgnn/NodeSetSpec.md"><code>tfgnn.NodeSetSpec</code></a>
 *   <a href="../tfgnn/SizeConstraints.md"><code>tfgnn.SizeConstraints</code></a>
 *   <a href="../tfgnn/ValidationError.md"><code>tfgnn.ValidationError</code></a>
+*   <a href="../tfgnn/add_self_loops.md"><code>tfgnn.add_self_loops</code></a>
 *   <a href="../tfgnn/assert_constraints.md"><code>tfgnn.assert_constraints</code></a>
 *   <a href="../tfgnn/assert_satisfies_size_constraints.md"><code>tfgnn.assert_satisfies_size_constraints</code></a>
 *   <a href="../tfgnn/assert_satisfies_size_constraints.md"><code>tfgnn.assert_satisfies_total_sizes</code></a>
@@ -46,12 +47,15 @@
 *   <a href="../tfgnn/get_io_spec.md"><code>tfgnn.get_io_spec</code></a>
 *   <a href="../tfgnn/get_registered_reduce_operation_names.md"><code>tfgnn.get_registered_reduce_operation_names</code></a>
 *   <a href="../tfgnn/graph_tensor_to_values.md"><code>tfgnn.graph_tensor_to_values</code></a>
+*   <a href="../tfgnn/homogeneous.md"><code>tfgnn.homogeneous</code></a>
 *   <a href="../tfgnn/is_graph_tensor.md"><code>tfgnn.is_graph_tensor</code></a>
+*   <a href="../tfgnn/is_ragged_tensor.md"><code>tfgnn.is_ragged_tensor</code></a>
 *   <a href="../tfgnn/iter_features.md"><code>tfgnn.iter_features</code></a>
 *   <a href="../tfgnn/iter_sets.md"><code>tfgnn.iter_sets</code></a>
 *   <a href="../tfgnn/keras.md"><code>tfgnn.keras</code></a>
 *   <a href="../tfgnn/keras/ConvGNNBuilder.md"><code>tfgnn.keras.ConvGNNBuilder</code></a>
 *   <a href="../tfgnn/keras/layers.md"><code>tfgnn.keras.layers</code></a>
+*   <a href="../tfgnn/keras/layers/AddSelfLoops.md"><code>tfgnn.keras.layers.AddSelfLoops</code></a>
 *   <a href="../tfgnn/keras/layers/AnyToAnyConvolutionBase.md"><code>tfgnn.keras.layers.AnyToAnyConvolutionBase</code></a>
 *   <a href="../tfgnn/keras/layers/Broadcast.md"><code>tfgnn.keras.layers.Broadcast</code></a>
 *   <a href="../tfgnn/keras/layers/ContextUpdate.md"><code>tfgnn.keras.layers.ContextUpdate</code></a>
@@ -70,7 +74,6 @@
 *   <a href="../tfgnn/keras/layers/ResidualNextState.md"><code>tfgnn.keras.layers.ResidualNextState</code></a>
 *   <a href="../tfgnn/keras/layers/SimpleConv.md"><code>tfgnn.keras.layers.SimpleConv</code></a>
 *   <a href="../tfgnn/keras/layers/SingleInputNextState.md"><code>tfgnn.keras.layers.SingleInputNextState</code></a>
-*   <a href="../tfgnn/keras/layers/TotalSize.md"><code>tfgnn.keras.layers.TotalSize</code></a>
 *   <a href="../tfgnn/learn_fit_or_skip_size_constraints.md"><code>tfgnn.learn_fit_or_skip_size_constraints</code></a>
 *   <a href="../tfgnn/pad_to_total_sizes.md"><code>tfgnn.pad_to_total_sizes</code></a>
 *   <a href="../tfgnn/parse_example.md"><code>tfgnn.parse_example</code></a>

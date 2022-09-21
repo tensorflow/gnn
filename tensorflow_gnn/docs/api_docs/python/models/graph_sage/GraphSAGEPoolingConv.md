@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L111-L236">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L125-L250">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -60,7 +60,7 @@ involves the aforementioned hidden layer. For element-wise aggregation (as in
 
 <tr>
 <td>
-`receiver_tag`
+`receiver_tag`<a id="receiver_tag"></a>
 </td>
 <td>
 Either one of `tfgnn.SOURCE` or `tfgnn.TARGET`. The results
@@ -70,7 +70,7 @@ set and will aggregate results at the specified endpoint of the edges.
 </td>
 </tr><tr>
 <td>
-`sender_node_feature`
+`sender_node_feature`<a id="sender_node_feature"></a>
 </td>
 <td>
 Can be set to specify the feature name for use as the
@@ -79,7 +79,7 @@ input feature from sender nodes to GraphSAGE aggregation, defaults to
 </td>
 </tr><tr>
 <td>
-`units`
+`units`<a id="units"></a>
 </td>
 <td>
 Number of output units for the final dimensionality of the output
@@ -87,7 +87,7 @@ from the layer.
 </td>
 </tr><tr>
 <td>
-`hidden_units`
+`hidden_units`<a id="hidden_units"></a>
 </td>
 <td>
 Number of output units for the linear transformation applied
@@ -97,7 +97,7 @@ W_pool from Eq. (3) in
 </td>
 </tr><tr>
 <td>
-`reduce_type`
+`reduce_type`<a id="reduce_type"></a>
 </td>
 <td>
 An aggregation operation name. Supported list of aggregation
@@ -106,7 +106,7 @@ operators can be found at
 </td>
 </tr><tr>
 <td>
-`use_bias`
+`use_bias`<a id="use_bias"></a>
 </td>
 <td>
 If true a bias term will be added to the linear transformations
@@ -114,7 +114,7 @@ for the sender node features.
 </td>
 </tr><tr>
 <td>
-`dropout_rate`
+`dropout_rate`<a id="dropout_rate"></a>
 </td>
 <td>
 Can be set to a dropout rate that will be applied to sender
@@ -122,7 +122,7 @@ node features (independently on each edge).
 </td>
 </tr><tr>
 <td>
-`activation`
+`activation`<a id="activation"></a>
 </td>
 <td>
 The nonlinearity applied to the concatenated or added node
@@ -132,7 +132,7 @@ by `tf.keras.layers.Activation()`. Defaults to relu.
 </td>
 </tr><tr>
 <td>
-`**kwargs`
+`**kwargs`<a id="**kwargs"></a>
 </td>
 <td>
 Additional arguments for the Layer.
@@ -147,21 +147,21 @@ Additional arguments for the Layer.
 
 <tr>
 <td>
-`takes_receiver_input`
+`takes_receiver_input`<a id="takes_receiver_input"></a>
 </td>
 <td>
 If `False`, all calls to convolve() will get `receiver_input=None`.
 </td>
 </tr><tr>
 <td>
-`takes_sender_edge_input`
+`takes_sender_edge_input`<a id="takes_sender_edge_input"></a>
 </td>
 <td>
 If `False`, all calls to convolve() will get `sender_edge_input=None`.
 </td>
 </tr><tr>
 <td>
-`takes_sender_node_input`
+`takes_sender_node_input`<a id="takes_sender_node_input"></a>
 </td>
 <td>
 If `False`, all calls to convolve() will get `sender_node_input=None`.
@@ -173,7 +173,7 @@ If `False`, all calls to convolve() will get `sender_node_input=None`.
 
 <h3 id="convolve"><code>convolve</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L221-L236">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L235-L250">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">

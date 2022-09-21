@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L239-L455">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L253-L469">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -84,14 +84,14 @@ weight matrix will be used in place of W_E and W_self.
 
 <tr>
 <td>
-`edge_set_names`
+`edge_set_names`<a id="edge_set_names"></a>
 </td>
 <td>
 A list of edge set names to broadcast sender node states.
 </td>
 </tr><tr>
 <td>
-`receiver_tag`
+`receiver_tag`<a id="receiver_tag"></a>
 </td>
 <td>
 Either one of `tfgnn.SOURCE` or `tfgnn.TARGET`. The results
@@ -103,7 +103,7 @@ set name in the edge_set_name_dict.
 </td>
 </tr><tr>
 <td>
-`reduce_type`
+`reduce_type`<a id="reduce_type"></a>
 </td>
 <td>
 An aggregation operation name. Supported list of aggregation
@@ -111,7 +111,7 @@ operators are sum or mean.
 </td>
 </tr><tr>
 <td>
-`self_node_feature`
+`self_node_feature`<a id="self_node_feature"></a>
 </td>
 <td>
 Feature name for the self node sets to be aggregated
@@ -120,7 +120,7 @@ with the broadcasted sender node states. Default is
 </td>
 </tr><tr>
 <td>
-`sender_node_feature`
+`sender_node_feature`<a id="sender_node_feature"></a>
 </td>
 <td>
 Feature name for the sender node sets. Default is
@@ -128,7 +128,7 @@ Feature name for the sender node sets. Default is
 </td>
 </tr><tr>
 <td>
-`units`
+`units`<a id="units"></a>
 </td>
 <td>
 Number of output units for the linear transformation applied to
@@ -136,7 +136,7 @@ sender node and self node features.
 </td>
 </tr><tr>
 <td>
-`dropout_rate`
+`dropout_rate`<a id="dropout_rate"></a>
 </td>
 <td>
 Can be set to a dropout rate that will be applied to both
@@ -144,7 +144,7 @@ self node and the sender node states.
 </td>
 </tr><tr>
 <td>
-`activation`
+`activation`<a id="activation"></a>
 </td>
 <td>
 The nonlinearity applied to the update node states. This can
@@ -153,7 +153,7 @@ string understood by tf.keras.layers.Activation(). Defaults to relu.
 </td>
 </tr><tr>
 <td>
-`use_bias`
+`use_bias`<a id="use_bias"></a>
 </td>
 <td>
 If true a bias term will be added to mean aggregated feature
@@ -161,7 +161,7 @@ vectors before applying non-linear activation.
 </td>
 </tr><tr>
 <td>
-`share_weights`
+`share_weights`<a id="share_weights"></a>
 </td>
 <td>
 If left unset, separate weights are used to transform the
@@ -171,7 +171,7 @@ applied to all inputs.
 </td>
 </tr><tr>
 <td>
-`add_self_loop`
+`add_self_loop`<a id="add_self_loop"></a>
 </td>
 <td>
 If left at True (the default), each node state update takes

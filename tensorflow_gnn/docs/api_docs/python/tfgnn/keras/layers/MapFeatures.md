@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/map_features.py#L12-L244">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/map_features.py#L26-L260">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Transforms features on a GraphTensor by user-defined callbacks.
 
@@ -58,9 +56,8 @@ def node_sets_fn(node_set, *, node_set_name):
   if features: # Concatenate and project all inputs (assumes they are floats).
     return tf.keras.layers.Dense(state_dim)(
         tf.keras.layers.Concatenate([v for _, v in sorted(features.items())]))
-  else:  # There are no inputs, create a zero state.
-    total_size = tfgnn.keras.layers.TotalSize()(node_set)
-    return tf.zeros([total_size, state_dim])
+  else:  # There are no inputs, create an empty state.
+    return tfgnn.keras.layers.MakeEmptyFeature()(node_set)
 graph = tfgnn.keras.layers.MapFeatures(node_sets_fn=node_sets_fn)(graph)
 ```
 
@@ -119,42 +116,84 @@ The output values are required to
   * depend on the input, so that the Keras functional API can use them
     as Model outputs.
 
-This happens naturally for outputs of transformed input features.
-Outputs created from scratch still need to depend on the input for its size.
-In case of scalar GraphTensors, users are recommended to call
-`tfgnn.keras.layers.TotalSize()(graph_piece)` and use the result as the
-leading dimension of outputs, as seen in the example code snippet above.
-(For constant shapes on TPUs, see the documentation of TotalSize.)
+This happens naturally for outputs of transformed input features. Outputs
+created from scratch still need to depend on the input for its size. The helper
+`tfgnn.keras.layers.MakeEmptyFeature()(graph_piece)` does this for the common
+case of creating an empty hidden state for a latent node; see its documentation
+for details on how to use it with TPUs. If TPUs and shape inference are no
+concern, the callback can simply use `graph_piece.sizes` or (esp. for rank 0)
+graph_piece.total_size`to construct outputs of the right shape, but
+not`graph_piece.spec.total_size`, which breaks the dependency chain of
+KerasTensors.
 
-#### Init args:
+<!-- Tabular view -->
 
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
 
-* <b>`context_fn`</b>: A callback to build a Keras model for transforming context
-  features. It will be called as `output = context_fn(g.context)`.
-  Leaving this at the default `None` is equivalent to returning `None`.
-* <b>`node_sets_fn`</b>: A callback to build a Keras model for transforming node set
-  features. It will be called for every node sets as
-  `node_sets_fn(g.node_sets[node_set_name], node_set_name=node_set_name)`.
-  Leaving this at the default `None` is equivalent to returning `None`
-  for every node set.
-* <b>`edge_sets_fn`</b>: A callback to build a Keras model for transforming edge set
-  features. It will be called for every edge sets as
-  `edge_sets_fn(g.edge_sets[edge_set_name], edge_set_name=edge_set_name)`.
-  Leaving this at the default `None` is equivalent to returning `None`
-  for every edge set.
+<tr>
+<td>
+`context_fn`<a id="context_fn"></a>
+</td>
+<td>
+A callback to build a Keras model for transforming context
+features. It will be called as `output = context_fn(g.context)`.
+Leaving this at the default `None` is equivalent to returning `None`.
+</td>
+</tr><tr>
+<td>
+`node_sets_fn`<a id="node_sets_fn"></a>
+</td>
+<td>
+A callback to build a Keras model for transforming node set
+features. It will be called for every node sets as
+`node_sets_fn(g.node_sets[node_set_name], node_set_name=node_set_name)`.
+Leaving this at the default `None` is equivalent to returning `None`
+for every node set.
+</td>
+</tr><tr>
+<td>
+`edge_sets_fn`<a id="edge_sets_fn"></a>
+</td>
+<td>
+A callback to build a Keras model for transforming edge set
+features. It will be called for every edge sets as
+`edge_sets_fn(g.edge_sets[edge_set_name], edge_set_name=edge_set_name)`.
+Leaving this at the default `None` is equivalent to returning `None`
+for every edge set.
+</td>
+</tr>
+</table>
 
+<!-- Tabular view -->
 
-#### Call args:
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Call args</h2></th></tr>
 
+<tr>
+<td>
+`graph`<a id="graph"></a>
+</td>
+<td>
+A GraphTensor. The very first call triggers the building of
+the models that map the various feature maps, with tensor specs
+taken from the GraphTensorSpec of the first input.
+</td>
+</tr>
+</table>
 
-* <b>`graph`</b>: A GraphTensor. The very first call triggers the building of
-  the models that map the various feature maps, with tensor specs
-  taken from the GraphTensorSpec of the first input.
+<!-- Tabular view -->
 
-
-#### Call returns:
-
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Call returns</h2></th></tr>
+<tr class="alt">
+<td colspan="2">
 A GraphTensor with the same nodes and edges as the input, but with
 transformed feature maps.
+</td>
+</tr>
 
-
+</table>

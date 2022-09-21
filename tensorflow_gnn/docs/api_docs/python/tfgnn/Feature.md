@@ -31,48 +31,45 @@ fields about a feature in the schema.
 
 <tr>
 <td>
-`description`
+`description`<a id="description"></a>
 </td>
 <td>
 `string description`
 </td>
 </tr><tr>
 <td>
-`dtype`
+`dtype`<a id="dtype"></a>
 </td>
 <td>
 `DataType dtype`
 </td>
 </tr><tr>
 <td>
-`example_values`
+`example_values`<a id="example_values"></a>
 </td>
 <td>
 `repeated Feature example_values`
 </td>
 </tr><tr>
 <td>
-`sample_values`
+`sample_values`<a id="sample_values"></a>
 </td>
 <td>
 `Feature sample_values`
 </td>
 </tr><tr>
 <td>
-`shape`
+`shape`<a id="shape"></a>
 </td>
 <td>
 `TensorShapeProto shape`
 </td>
 </tr><tr>
 <td>
-`source`
+`source`<a id="source"></a>
 </td>
 <td>
 `string source`
 </td>
 </tr>
 </table>
-
-
-

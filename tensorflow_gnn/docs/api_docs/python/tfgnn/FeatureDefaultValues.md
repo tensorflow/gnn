@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/preprocessing_common.py#L18-L22">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/preprocessing_common.py#L32-L36">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Default values for graph context, node sets and edge sets features.
 
@@ -37,27 +35,24 @@ Default values for graph context, node sets and edge sets features.
 
 <tr>
 <td>
-`context`
+`context`<a id="context"></a>
 </td>
 <td>
 A `namedtuple` alias for field number 0
 </td>
 </tr><tr>
 <td>
-`node_sets`
+`node_sets`<a id="node_sets"></a>
 </td>
 <td>
 A `namedtuple` alias for field number 1
 </td>
 </tr><tr>
 <td>
-`edge_sets`
+`edge_sets`<a id="edge_sets"></a>
 </td>
 <td>
 A `namedtuple` alias for field number 2
 </td>
 </tr>
 </table>
-
-
-

@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gcn/gcn_conv.py#L178-L235">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gcn/gcn_conv.py#L194-L251">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -48,14 +48,14 @@ GCNConv objects instead.
 
 <tr>
 <td>
-`units`
+`units`<a id="units"></a>
 </td>
 <td>
 The dimension of output hidden states for each node.
 </td>
 </tr><tr>
 <td>
-`receiver_tag`
+`receiver_tag`<a id="receiver_tag"></a>
 </td>
 <td>
 The default is `tfgnn.TARGET`,
@@ -66,7 +66,7 @@ in either direction.)
 </td>
 </tr><tr>
 <td>
-`add_self_loops`
+`add_self_loops`<a id="add_self_loops"></a>
 </td>
 <td>
 Whether to compute the result as if a loop from each node
@@ -74,7 +74,7 @@ to itself had been added to the edge set.
 </td>
 </tr><tr>
 <td>
-`feature_name`
+`feature_name`<a id="feature_name"></a>
 </td>
 <td>
 The feature name of node states; defaults to
@@ -82,14 +82,14 @@ The feature name of node states; defaults to
 </td>
 </tr><tr>
 <td>
-`name`
+`name`<a id="name"></a>
 </td>
 <td>
 Optionally, a name for the layer returned.
 </td>
 </tr><tr>
 <td>
-`**kwargs`
+`**kwargs`<a id="**kwargs"></a>
 </td>
 <td>
 Any optional arguments to GCNConv, see there.

@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L94-L151">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L109-L166">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Aggregates (pools) edge values to incident nodes.
 
@@ -56,21 +54,21 @@ of that with this function.)
 
 <tr>
 <td>
-`graph_tensor`
+`graph_tensor`<a id="graph_tensor"></a>
 </td>
 <td>
 A scalar GraphTensor.
 </td>
 </tr><tr>
 <td>
-`edge_set_name`
+`edge_set_name`<a id="edge_set_name"></a>
 </td>
 <td>
 The name of the edge set from which values are pooled.
 </td>
 </tr><tr>
 <td>
-`node_tag`
+`node_tag`<a id="node_tag"></a>
 </td>
 <td>
 The incident node of each edge at which values are aggregated,
@@ -78,7 +76,7 @@ identified by its tag in the edge set.
 </td>
 </tr><tr>
 <td>
-`reduce_type`
+`reduce_type`<a id="reduce_type"></a>
 </td>
 <td>
 A pooling operation name, like 'sum', 'mean' or 'max'. For the
@@ -87,7 +85,7 @@ You may use `register_reduce_operation()` to register new ops.
 </td>
 </tr><tr>
 <td>
-`feature_value`
+`feature_value`<a id="feature_value"></a>
 </td>
 <td>
 A ragged or dense edge feature value. Has a shape
@@ -97,15 +95,13 @@ feature value for each edge.
 </td>
 </tr><tr>
 <td>
-`feature_name`
+`feature_name`<a id="feature_name"></a>
 </td>
 <td>
 An edge feature name.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

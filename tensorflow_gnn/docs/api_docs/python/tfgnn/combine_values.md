@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L659-L692">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L802-L835">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Combines a list of tensors into one (by concatenation or otherwise).
 
@@ -36,21 +34,11 @@ provide standard names for common types of combining.
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
-<tr>
-<td>
-`inputs`
-</td>
-<td>
-a list of Tensors or RaggedTensors, with shapes and types that are
-compatible for the selected combine_type.
-</td>
-</tr><tr>
-<td>
-`combine_type`
-</td>
-<td>
-one of the following string values, to select the method for
-combining the inputs:
+<tr> <td> `inputs`<a id="inputs"></a> </td> <td> a list of Tensors or
+RaggedTensors, with shapes and types that are compatible for the selected
+combine_type. </td> </tr><tr> <td> `combine_type`<a id="combine_type"></a> </td>
+<td> one of the following string values, to select the method for combining the
+inputs:
 
   * "sum": The input tensors are added. Their dtypes and shapes must
     match.

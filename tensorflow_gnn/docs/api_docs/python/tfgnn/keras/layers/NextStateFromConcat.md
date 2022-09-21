@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/next_state.py#L96-L128">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/next_state.py#L110-L142">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Computes a new state by concatenating inputs and applying a Keras Layer.
 
@@ -30,15 +28,32 @@ Computes a new state by concatenating inputs and applying a Keras Layer.
 This layer flattens all inputs into a list (forgetting their origin),
 concatenates them and sends them through a user-supplied feed-forward network.
 
-#### Init args:
+<!-- Tabular view -->
 
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
 
-* <b>`transformation`</b>: Required. A Keras Layer to transform the combined inputs
-  into the new state.
+<tr>
+<td>
+`transformation`<a id="transformation"></a>
+</td>
+<td>
+Required. A Keras Layer to transform the combined inputs
+into the new state.
+</td>
+</tr>
+</table>
 
+<!-- Tabular view -->
 
-#### Call returns:
-
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Call returns</h2></th></tr>
+<tr class="alt">
+<td colspan="2">
 The result of transformation.
+</td>
+</tr>
 
-
+</table>

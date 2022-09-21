@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_validation.py#L59-L128">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_validation.py#L73-L142">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Checks the requirements of a given schema against another.
 
@@ -53,14 +51,14 @@ an equivalent construct using the `GraphTensorSpec.)
 
 <tr>
 <td>
-`requirements`
+`requirements`<a id="requirements"></a>
 </td>
 <td>
 An instance of a GraphSchema object, with optional shapes.
 </td>
 </tr><tr>
 <td>
-`actual`
+`actual`<a id="actual"></a>
 </td>
 <td>
 The instance of actual schema to check is a matching superset
@@ -69,8 +67,6 @@ of the required schema.
 </tr>
 </table>
 
-
-
 <!-- Tabular view -->
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
@@ -78,11 +74,10 @@ of the required schema.
 
 <tr>
 <td>
-`ValidationError`
+`ValidationError`<a id="ValidationError"></a>
 </td>
 <td>
 If the given schema does not fulfill the requirements.
 </td>
 </tr>
 </table>
-

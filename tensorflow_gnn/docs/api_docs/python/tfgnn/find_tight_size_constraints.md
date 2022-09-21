@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/batching_utils.py#L172-L236">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/batching_utils.py#L190-L254">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Returns smallest possible size constraints that allow dataset padding.
 
@@ -55,14 +53,14 @@ its execution time is proportional to the dataset's cardinality.
 
 <tr>
 <td>
-`dataset`
+`dataset`<a id="dataset"></a>
 </td>
 <td>
 finite dataset of graph tensors of any rank.
 </td>
 </tr><tr>
 <td>
-`min_nodes_per_component`
+`min_nodes_per_component`<a id="min_nodes_per_component"></a>
 </td>
 <td>
 mapping from a node set name to a minimum number of
@@ -70,7 +68,7 @@ nodes in each graph component. Defaults to 0.
 </td>
 </tr><tr>
 <td>
-`target_batch_size`
+`target_batch_size`<a id="target_batch_size"></a>
 </td>
 <td>
 if not `None`, an integer for multiplying the sizes
@@ -78,8 +76,6 @@ measured from dataset before making room for padding.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -103,7 +99,7 @@ in the input dataset.
 
 <tr>
 <td>
-`ValueError`
+`ValueError`<a id="ValueError"></a>
 </td>
 <td>
 if dataset elements are not GraphTensors or its cardinality
@@ -111,4 +107,3 @@ is `tf.data.INFINITE_CARDINALITY`.
 </td>
 </tr>
 </table>
-

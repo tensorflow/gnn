@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/padding_ops.py#L196-L236">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/padding_ops.py#L210-L250">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Raises InvalidArgumentError if graph_tensor exceeds size_constraints.
 
@@ -60,22 +58,20 @@ following important advantages:
 
 <tr>
 <td>
-`graph_tensor`
+`graph_tensor`<a id="graph_tensor"></a>
 </td>
 <td>
 a graph tensor to check against target total sizes.
 </td>
 </tr><tr>
 <td>
-`size_constraints`
+`size_constraints`<a id="size_constraints"></a>
 </td>
 <td>
 target total sizes for each graph piece.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -98,7 +94,7 @@ Validation operations to execute within a `tf.control_dependencies`.
 
 <tr>
 <td>
-`tf.errors.InvalidArgumentError`
+`tf.errors.InvalidArgumentError`<a id="tf.errors.InvalidArgumentError"></a>
 </td>
 <td>
 if input graph tensor could not be padded to
@@ -106,4 +102,3 @@ the `size_constraints`.
 </td>
 </tr>
 </table>
-

@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_io.py#L40-L86">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_io.py#L54-L100">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Parses a batch of serialized Example protos into a single `GraphTensor`.
 
@@ -51,7 +49,7 @@ verifications of this encoding.
 
 <tr>
 <td>
-`spec`
+`spec`<a id="spec"></a>
 </td>
 <td>
 A graph tensor type specification of a single serialized graph tensor
@@ -59,7 +57,7 @@ value.
 </td>
 </tr><tr>
 <td>
-`serialized`
+`serialized`<a id="serialized"></a>
 </td>
 <td>
 A rank-1 dense tensor of strings with serialized Example protos,
@@ -68,7 +66,7 @@ type spec.
 </td>
 </tr><tr>
 <td>
-`prefix`
+`prefix`<a id="prefix"></a>
 </td>
 <td>
 An optional prefix string over all the features. You may use
@@ -76,7 +74,7 @@ this if you are encoding other data in the same protocol buffer.
 </td>
 </tr><tr>
 <td>
-`validate`
+`validate`<a id="validate"></a>
 </td>
 <td>
 A boolean indicating whether or not to validate that the input
@@ -84,8 +82,6 @@ values form a valid GraphTensor. Defaults to `True`.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

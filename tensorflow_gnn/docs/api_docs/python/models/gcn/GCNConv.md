@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gcn/gcn_conv.py#L14-L175">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gcn/gcn_conv.py#L28-L191">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -37,32 +37,109 @@ This class implements a Graph Convolutional Network from
 https://arxiv.org/abs/1609.02907 as a Keras layer that can be used as a
 convolution on an edge set in a tfgnn.keras.layers.NodeSetUpdate.
 
-#### Init arguments:
+<!-- Tabular view -->
 
-*   <b>`units`</b>: Number of output units for this transformation applied to
-    sender node features.
-*   <b>`receiver_tag`</b>: This layer's result is obtained by pooling the
-    per-edge results at this endpoint of each edge. The default is
-    `tfgnn.TARGET`, but it is perfectly reasonable to do a convolution towards
-    the `tfgnn.SOURCE` instead. (Source and target are conventional names for
-    the incident nodes of a directed edge, data flow in a GNN may happen in
-    either direction.)
-*   <b>`activation`</b>: Keras activation to apply to the result, defaults to
-    'relu'.
-*   <b>`use_bias`</b>: Whether to add bias in the final transformation. The
-    original paper doesn't use a bias, but this defaults to True to be
-    consistent with Keras and other implementations.
-*   <b>`add_self_loops`</b>: Whether to compute the result as if a loop from
-    each node to itself had been added to the edge set.
-*   <b>`normalize`</b>: Whether to normalize the node features by in-degree.
-*   <b>`kernel_initializer`</b>: initializer of type tf.keras.initializers .
-*   <b>`node_feature`</b>: Name of the node feature to transform.
-*   <b>`**kwargs`</b>: additional arguments for the Layer.
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Init arguments</h2></th></tr>
 
-#### Call arguments:
+<tr>
+<td>
+`units`<a id="units"></a>
+</td>
+<td>
+Number of output units for this transformation applied to sender
+node features.
+</td>
+</tr><tr>
+<td>
+`receiver_tag`<a id="receiver_tag"></a>
+</td>
+<td>
+This layer's result is obtained by pooling the per-edge
+results at this endpoint of each edge. The default is `tfgnn.TARGET`,
+but it is perfectly reasonable to do a convolution towards the
+`tfgnn.SOURCE` instead. (Source and target are conventional names for
+the incident nodes of a directed edge, data flow in a GNN may happen
+in either direction.)
+</td>
+</tr><tr>
+<td>
+`activation`<a id="activation"></a>
+</td>
+<td>
+Keras activation to apply to the result, defaults to 'relu'.
+</td>
+</tr><tr>
+<td>
+`use_bias`<a id="use_bias"></a>
+</td>
+<td>
+Whether to add bias in the final transformation. The original
+paper doesn't use a bias, but this defaults to True to be consistent
+with Keras and other implementations.
+</td>
+</tr><tr>
+<td>
+`add_self_loops`<a id="add_self_loops"></a>
+</td>
+<td>
+Whether to compute the result as if a loop from each node
+to itself had been added to the edge set.
+</td>
+</tr><tr>
+<td>
+`normalize`<a id="normalize"></a>
+</td>
+<td>
+Whether to normalize the node features by in-degree.
+</td>
+</tr><tr>
+<td>
+`kernel_initializer`<a id="kernel_initializer"></a>
+</td>
+<td>
+initializer of type tf.keras.initializers .
+</td>
+</tr><tr>
+<td>
+`node_feature`<a id="node_feature"></a>
+</td>
+<td>
+Name of the node feature to transform.
+</td>
+</tr><tr>
+<td>
+`**kwargs`<a id="**kwargs"></a>
+</td>
+<td>
+additional arguments for the Layer.
+</td>
+</tr>
+</table>
 
-*   <b>`graph`</b>: The GraphTensor on which to apply the layer.
-*   <b>`edge_set_name`</b>: Edge set of `graph` over which to apply the layer.
+<!-- Tabular view -->
+
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Call arguments</h2></th></tr>
+
+<tr>
+<td>
+`graph`<a id="graph"></a>
+</td>
+<td>
+The GraphTensor on which to apply the layer.
+</td>
+</tr><tr>
+<td>
+`edge_set_name`<a id="edge_set_name"></a>
+</td>
+<td>
+Edge set of `graph` over which to apply the layer.
+</td>
+</tr>
+</table>
 
 #### Example:
 

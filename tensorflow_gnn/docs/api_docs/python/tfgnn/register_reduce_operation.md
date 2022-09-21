@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L629-L656">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L772-L799">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Register a new reduction operation for pooling.
 
@@ -41,7 +39,7 @@ this module.
 
 <tr>
 <td>
-`reduce_type`
+`reduce_type`<a id="reduce_type"></a>
 </td>
 <td>
 A pooling operation name. This name must not conflict with the
@@ -51,7 +49,7 @@ set. For the full list of supported values use
 </td>
 </tr><tr>
 <td>
-`unsorted_reduce_op`
+`unsorted_reduce_op`<a id="unsorted_reduce_op"></a>
 </td>
 <td>
 The TensorFlow op for reduction. This op does not rely
@@ -59,7 +57,7 @@ on sorting over edges.
 </td>
 </tr><tr>
 <td>
-`allow_override`
+`allow_override`<a id="allow_override"></a>
 </td>
 <td>
 A boolean flag to allow overwriting the existing registry of
@@ -67,4 +65,3 @@ operations. Use this with care.
 </td>
 </tr>
 </table>
-

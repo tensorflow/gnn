@@ -21,6 +21,9 @@ The tfgnn.keras.layers package.
 
 ## Classes
 
+[`class AddSelfLoops`](../../tfgnn/keras/layers/AddSelfLoops.md): Adds
+self-loops to scalar graphs.
+
 [`class AnyToAnyConvolutionBase`](../../tfgnn/keras/layers/AnyToAnyConvolutionBase.md): Convenience base class for convolutions to nodes or to context.
 
 [`class Broadcast`](../../tfgnn/keras/layers/Broadcast.md): Broadcasts a GraphTensor feature.
@@ -58,6 +61,3 @@ layer that applies a passed-in message_fn.
 
 [`class SingleInputNextState`](../../tfgnn/keras/layers/SingleInputNextState.md):
 Replaces a state from a single input.
-
-[`class TotalSize`](../../tfgnn/keras/layers/TotalSize.md): Returns the .total_size of a graph piece.
-

@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L444-L462">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L486-L530">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 A type spec for <a href="../tfgnn/NodeSet.md"><code>tfgnn.NodeSet</code></a>.
 
@@ -39,63 +37,22 @@ A type spec for <a href="../tfgnn/NodeSet.md"><code>tfgnn.NodeSet</code></a>.
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>
 
-<tr>
-<td>
-`features_spec`
-</td>
-<td>
-A read-only mapping of feature name to feature spec.
-</td>
-</tr><tr>
-<td>
-`indices_dtype`
-</td>
-<td>
-The integer type to represent ragged splits.
-</td>
-</tr><tr>
-<td>
-`rank`
-</td>
-<td>
-The rank of the GraphPiece. Guaranteed not to be `None`.
-</td>
-</tr><tr>
-<td>
-`shape`
-</td>
-<td>
-A possibly-partial shape specification of the GraphPiece.
+<tr> <td> `features_spec`<a id="features_spec"></a> </td> <td> A read-only
+mapping of feature name to feature spec. </td> </tr><tr> <td>
+`indices_dtype`<a id="indices_dtype"></a> </td> <td> The integer type to
+represent ragged splits. </td> </tr><tr> <td> `rank`<a id="rank"></a> </td> <td>
+The rank of the GraphPiece. Guaranteed not to be `None`. </td> </tr><tr> <td>
+`shape`<a id="shape"></a> </td> <td> A possibly-partial shape specification of
+the GraphPiece.
 
 The returned `TensorShape` is guaranteed to have a known rank, but the
-individual dimension sizes may be unknown.
-</td>
-</tr><tr>
-<td>
-`sizes_spec`
-</td>
-<td>
-The type spec for the sizes that provides num. elements per component.
-</td>
-</tr><tr>
-<td>
-`total_num_components`
-</td>
-<td>
-The total number of graph components if known.
-</td>
-</tr><tr>
-<td>
-`total_size`
-</td>
-<td>
-The total number of graph items if known.
-</td>
-</tr><tr>
-<td>
-`value_type`
-</td>
-<td>
+individual dimension sizes may be unknown. </td> </tr><tr> <td>
+`sizes_spec`<a id="sizes_spec"></a> </td> <td> The type spec for the sizes that
+provides num. elements per component. </td> </tr><tr> <td>
+`total_num_components`<a id="total_num_components"></a> </td> <td> The total
+number of graph components if known. </td> </tr><tr> <td>
+`total_size`<a id="total_size"></a> </td> <td> The total number of graph items
+if known. </td> </tr><tr> <td> `value_type`<a id="value_type"></a> </td> <td>
 The Python type for values that are compatible with this TypeSpec.
 
 In particular, all values that are compatible with this TypeSpec must be an
@@ -108,9 +65,60 @@ instance of this type.
 
 ## Methods
 
+<h3 id="experimental_as_proto"><code>experimental_as_proto</code></h3>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>experimental_as_proto() -> struct_pb2.TypeSpecProto
+</code></pre>
+
+Returns a proto representation of the TypeSpec instance.
+
+Do NOT override for custom non-TF types.
+
+<h3 id="experimental_from_proto"><code>experimental_from_proto</code></h3>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>@classmethod</code>
+<code>experimental_from_proto(
+    proto: struct_pb2.TypeSpecProto
+) -> 'TypeSpec'
+</code></pre>
+
+Returns a TypeSpec instance based on the serialized proto.
+
+Do NOT override for custom non-TF types.
+
+<!-- Tabular view -->
+
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Args</th></tr>
+
+<tr>
+<td>
+`proto`
+</td>
+<td>
+Proto generated using 'experimental_as_proto'.
+</td>
+</tr>
+</table>
+
+<h3 id="experimental_type_proto"><code>experimental_type_proto</code></h3>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>@classmethod</code>
+<code>experimental_type_proto() -> Type[struct_pb2.TypeSpecProto]
+</code></pre>
+
+Returns the type of proto associated with TypeSpec serialization.
+
+Do NOT override for custom non-TF types.
+
 <h3 id="from_field_specs"><code>from_field_specs</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L448-L458">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L490-L500">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>@classmethod</code>
@@ -126,7 +134,8 @@ The counterpart of <a href="../tfgnn/NodeSet.md#from_fields"><code>NodeSet.from_
 
 <h3 id="from_value"><code>from_value</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L481-L484">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L495-L498">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>@classmethod</code>
@@ -286,7 +295,74 @@ and `other`.
 </tr>
 </table>
 
+<h3 id="relax"><code>relax</code></h3>
 
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L506-L530">View
+source</a>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>relax(
+    *, num_components: bool = False, num_nodes: bool = False
+) -> 'NodeSetSpec'
+</code></pre>
+
+Allows variable number of nodes or/and graph components.
+
+Calling with all default parameters keeps the spec unchanged.
+
+<!-- Tabular view -->
+
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Args</th></tr>
+
+<tr>
+<td>
+`num_components`
+</td>
+<td>
+if True, allows variable number of graph components by
+setting the outermost sizes dimension to `None`.
+</td>
+</tr><tr>
+<td>
+`num_nodes`
+</td>
+<td>
+if True, allows variable number of nodes by setting the
+outermost features dimensions to `None`.
+</td>
+</tr>
+</table>
+
+<!-- Tabular view -->
+
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Returns</th></tr>
+<tr class="alt">
+<td colspan="2">
+Relaxed compatible edge set spec.
+</td>
+</tr>
+
+</table>
+
+<!-- Tabular view -->
+
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Raises</th></tr>
+
+<tr>
+<td>
+`ValueError`
+</td>
+<td>
+if edge set is not scalar (rank > 0).
+</td>
+</tr>
+</table>
 
 <h3 id="__eq__"><code>__eq__</code></h3>
 
@@ -301,7 +377,8 @@ Return self==value.
 
 <h3 id="__getitem__"><code>__getitem__</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L146-L147">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L165-L166">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>__getitem__(

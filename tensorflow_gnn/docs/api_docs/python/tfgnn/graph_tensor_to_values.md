@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_pprint.py#L35-L56">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_pprint.py#L49-L70">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Convert an eager `GraphTensor` to a mapping of mappings of PODTs.
 
@@ -38,15 +36,13 @@ contents.
 
 <tr>
 <td>
-`graph`
+`graph`<a id="graph"></a>
 </td>
 <td>
 An eager `GraphTensor` instance to be pprinted.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

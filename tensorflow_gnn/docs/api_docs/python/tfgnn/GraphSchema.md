@@ -60,34 +60,31 @@ disallowed. (These are used in serialization.)
 
 <tr>
 <td>
-`context`
+`context`<a id="context"></a>
 </td>
 <td>
 `Context context`
 </td>
 </tr><tr>
 <td>
-`edge_sets`
+`edge_sets`<a id="edge_sets"></a>
 </td>
 <td>
 `repeated EdgeSetsEntry edge_sets`
 </td>
 </tr><tr>
 <td>
-`info`
+`info`<a id="info"></a>
 </td>
 <td>
 `OriginInfo info`
 </td>
 </tr><tr>
 <td>
-`node_sets`
+`node_sets`<a id="node_sets"></a>
 </td>
 <td>
 `repeated NodeSetsEntry node_sets`
 </td>
 </tr>
 </table>
-
-
-

@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/preprocessing_common.py#L89-L174">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/preprocessing_common.py#L103-L188">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Dataset filter with a summary for the fraction of dataset elements removed.
 
@@ -48,28 +46,28 @@ for how to write and retreive them.
 
 <tr>
 <td>
-`dataset`
+`dataset`<a id="dataset"></a>
 </td>
 <td>
 An input dataset.
 </td>
 </tr><tr>
 <td>
-`predicate`
+`predicate`<a id="predicate"></a>
 </td>
 <td>
 A function mapping a dataset element to a boolean.
 </td>
 </tr><tr>
 <td>
-`summary_name`
+`summary_name`<a id="summary_name"></a>
 </td>
 <td>
 A name for this summary.
 </td>
 </tr><tr>
 <td>
-`summary_steps`
+`summary_steps`<a id="summary_steps"></a>
 </td>
 <td>
 Report summary for this number of elements in the input
@@ -77,7 +75,7 @@ dataset before filtering.
 </td>
 </tr><tr>
 <td>
-`summary_decay`
+`summary_decay`<a id="summary_decay"></a>
 </td>
 <td>
 An exponential moving average decay factor. If not set,
@@ -85,8 +83,6 @@ defaults to the `exp(- 1 / summary_steps)`.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
