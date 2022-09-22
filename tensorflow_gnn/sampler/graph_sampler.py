@@ -25,7 +25,7 @@ inferred from the filename fields in the schema (e.g. "TFRecord").
 
 import enum
 import functools
-from os import path
+import os
 from typing import Any, Dict, Iterable, Iterator, Optional, Set, Tuple
 
 from absl import app
@@ -260,21 +260,43 @@ def convert_samples_to_examples(
 
 
 def run_sample_graph_pipeline(
-    schema_filename: str,
+    schema: unigraph.graph_schema_pb2.GraphSchema,
     sampling_spec: sampling_spec_pb2.SamplingSpec,
     edge_aggregation_method: EdgeAggregationMethod,
     output_pattern: str,
+    graph_root_path: Optional[str] = None,
     seeds_filename: Optional[str] = None,
     runner_name: Optional[str] = None,
-    pipeline_options: Optional[PipelineOptions] = None):
-  """Runs the pipeline on a graph, which may be homogeneous or heterogeneous."""
+    pipeline_options: Optional[PipelineOptions] = None) -> beam.pvalue.PDone:
+  """Runs the pipeline on a graph, which may be homogeneous or heterogeneous.
 
-  # Read the schema and validate it.
-  filename = unigraph.find_schema_filename(schema_filename)
-  logging.info("Reading schema...")
-  schema = tfgnn.read_schema(filename)
-  validate_schema(schema)
-  logging.info("Schema read and validated.")
+  Args:
+    schema: A unigraph.graph_Schema_pb2.GraphSchema protobuf message describing
+      heterogeneous topology and data locations.
+    sampling_spec: A sampling_spec_pb2.SamplingSpec protobuf message describing
+      the desired sampling tragectory.
+    edge_aggregation_method: An enum instance of EdgeAggregationMethod, either
+      NODE or EDGE. See enum doc string for more information.
+    output_pattern: A (potentially sharded) file pattern for graph sample
+      output. A GCS bucket is common.
+    graph_root_path: Optional string root directory file-backed unigraph. This
+      field is only necessary if defining unigraph components with files on
+      persistent storage and with filename metadata fields that specify relative
+      locations. `graph_root_path` is specified, the final filename of any graph
+      schema component will be the path concatenation of this and the relative
+      filename in the filename metadata, e.g., os.path.join(graph_root_path,
+      <filename>).
+    seeds_filename: An optional filename to a CSV file of seed ids. If a
+      `seeds_filename` is not provided, the seed_op in the sampling
+      specification will use all the ids of the specified node set.
+    runner_name: Optional string specifying a beam runner, e.g., 'DirectRunner'
+      (default) or 'DataflowRunner'.
+    pipeline_options: Additional beam pipeline options provided to the pipeline
+      runner.
+
+  Returns:
+    beam.PDone object.
+  """
 
   # Validate configuration.
   _validate_sampling_spec(sampling_spec, schema)
@@ -300,7 +322,7 @@ def run_sample_graph_pipeline(
     if pipeline_options:
       gcs_location = pipeline_options.view_as(GoogleCloudOptions).temp_location
     graph_dict = unigraph.read_graph(
-        schema, path.dirname(filename), root, gcs_location=gcs_location)
+        schema, graph_root_path, root, gcs_location=gcs_location)
 
     # Read the seeds, or use the node ids as the seeds.
     if seeds_filename:
@@ -349,7 +371,7 @@ def run_sample_graph_pipeline(
 
   logging.info("Pipeline complete, writing output...")
   # Produce output schema of the tensors.
-  output_schema_filename = f"{path.dirname(output_pattern)}/schema.pbtxt"
+  output_schema_filename = f"{os.path.dirname(output_pattern)}/schema.pbtxt"
   tfgnn.write_schema(sampled_schema, output_schema_filename)
 
   logging.info("Sampling complete.")
@@ -421,21 +443,34 @@ def app_main(argv):
   if FLAGS.runner == _DATAFLOW_RUNNER:
     pipeline_options.view_as(SetupOptions).save_main_session = True
 
+  logging.info("output_samples: %s", FLAGS.output_samples)
+
   with tf.io.gfile.GFile(FLAGS.sampling_spec) as spec_file:
     spec = text_format.Parse(spec_file.read(), sampling_spec_pb2.SamplingSpec())
+  logging.info("Sampling Specification:\n %s", spec)
 
-  logging.info("spec: %s", spec)
-  logging.info("output_samples: %s", FLAGS.output_samples)
+  # Read the schema and validate it.
+  graph_schema_filename = unigraph.find_schema_filename(FLAGS.schema_filename)
+  graph_root_path = os.path.dirname(graph_schema_filename)
+  logging.info("Reading schema from: %s", graph_schema_filename)
+  schema = tfgnn.read_schema(graph_schema_filename)
+  validate_schema(schema)
+  logging.info("Schema read and validated.")
+
+  with tf.io.gfile.GFile(FLAGS.schema_filename) as schema_file:
+    schema = text_format.Parse(schema_file.read(),
+                               unigraph.graph_schema_pb2.GraphSchema())
+  logging.info("Graph Schema:\n %s", schema)
 
   run_sample_graph_pipeline(
       FLAGS.graph_schema,
       spec,
       FLAGS.edge_aggregation_method,
-      FLAGS.output_samples,
-      FLAGS.input_seeds,
-      FLAGS.runner,
-      pipeline_options,
-  )
+      output_pattern=FLAGS.output_samples,
+      graph_root_path=graph_root_path,
+      seeds_filename=FLAGS.input_seeds,
+      runner_name=FLAGS.runner,
+      pipeline_options=pipeline_options)
 
 
 def main():

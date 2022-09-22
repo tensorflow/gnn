@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for open source graph sampler."""
 
-from os import path
+import os
 import random
 import tempfile
 
@@ -230,14 +230,20 @@ class TestSamplePipeline(tf.test.TestCase, parameterized.TestCase):
                                edge_aggregation_method, golden_file):
     spec = text_format.Parse(spec_text, sampling_spec_pb2.SamplingSpec())
     schema_file = test_utils.get_resource(schema_file)
+    graph_root_path = os.path.dirname(schema_file)
+    schema = tfgnn.read_schema(schema_file)
+
     with tempfile.TemporaryDirectory() as tmpdir:
-      graph_tensor_filename = path.join(tmpdir, "graph_tensors.tfrecords")
-      sampler.run_sample_graph_pipeline(schema_file, spec,
-                                        edge_aggregation_method,
-                                        graph_tensor_filename)
+      graph_tensor_filename = os.path.join(tmpdir, "graph_tensors.tfrecords")
+      sampler.run_sample_graph_pipeline(
+          schema,
+          spec,
+          edge_aggregation_method,
+          graph_tensor_filename,
+          graph_root_path=graph_root_path)
 
       self._assert_parseable(
-          path.join(tmpdir, "schema.pbtxt"), graph_tensor_filename)
+          os.path.join(tmpdir, "schema.pbtxt"), graph_tensor_filename)
 
       actual_protos = {
           get_key(example): example
@@ -365,10 +371,16 @@ class TestSamplePipeline(tf.test.TestCase, parameterized.TestCase):
   def test_invalid_spec(self, sampling_spec, error_regex):
     """Tests that the given spec fails with the given error regex."""
     spec = text_format.Parse(sampling_spec, sampling_spec_pb2.SamplingSpec())
+    schema_file = test_utils.get_resource("testdata/homogeneous/citrus.pbtxt")
+    schema = tfgnn.read_schema(schema_file)
+    graph_root_path = os.path.dirname(schema_file)
     with self.assertRaisesRegex(ValueError, error_regex):
       sampler.run_sample_graph_pipeline(
-          test_utils.get_resource("testdata/homogeneous/citrus.pbtxt"), spec,
-          EdgeAggregationMethod.NODE, "graph_tensors.tfrecords")
+          schema,
+          spec,
+          EdgeAggregationMethod.NODE,
+          "graph_tensors.tfrecords",
+          graph_root_path=graph_root_path)
 
   @parameterized.named_parameters(
       ("no_sampling", "testdata/homogeneous/citrus.pbtxt", """
@@ -520,15 +532,20 @@ class TestSamplePipeline(tf.test.TestCase, parameterized.TestCase):
     """Tests that the given nodes are indeed the ones that were sampled."""
     spec = text_format.Parse(sampling_spec, sampling_spec_pb2.SamplingSpec())
     schema_file = test_utils.get_resource(schema_file)
+    graph_root_path = os.path.dirname(schema_file)
+    schema = tfgnn.read_schema(schema_file)
     with tempfile.TemporaryDirectory() as tmpdir:
-      graph_tensor_filename = path.join(tmpdir, "graph_tensors.tfrecords")
-      sampler.run_sample_graph_pipeline(schema_file, spec,
-                                        EdgeAggregationMethod.NODE,
-                                        graph_tensor_filename,
-                                        test_utils.get_resource(seeds_file))
+      graph_tensor_filename = os.path.join(tmpdir, "graph_tensors.tfrecords")
+      sampler.run_sample_graph_pipeline(
+          schema,
+          spec,
+          EdgeAggregationMethod.NODE,
+          graph_tensor_filename,
+          graph_root_path=graph_root_path,
+          seeds_filename=test_utils.get_resource(seeds_file))
 
       self._assert_parseable(
-          path.join(tmpdir, "schema.pbtxt"), graph_tensor_filename)
+          os.path.join(tmpdir, "schema.pbtxt"), graph_tensor_filename)
       expected_records = read_tfrecords_of_examples(graph_tensor_filename)
 
     # Construct the actual and expected objects.
@@ -569,17 +586,20 @@ class TestEdgeAggregationMethod(tf.test.TestCase, parameterized.TestCase):
       spec = text_format.ParseLines(f, sampling_spec_pb2.SamplingSpec())
 
     with tempfile.TemporaryDirectory() as tmpdir:
-      graph_tensor_filename = path.join(tmpdir, "graph_tensors.tfrecords")
+      graph_tensor_filename = os.path.join(tmpdir, "graph_tensors.tfrecords")
 
-      input_schema_file = test_utils.get_resource(
-          "testdata/node_vs_edge/schema.pbtxt")
+      schema = tfgnn.read_schema(
+          test_utils.get_resource("testdata/node_vs_edge/schema.pbtxt"))
+      graph_root_path = os.path.dirname(
+          test_utils.get_resource("testdata/node_vs_edge/schema.pbtxt"))
       sampler.run_sample_graph_pipeline(
-          input_schema_file,
+          schema,
           spec,
           edge_aggregation_method,
-          graph_tensor_filename)
+          graph_tensor_filename,
+          graph_root_path=graph_root_path)
 
-      output_schema_filename = path.join(tmpdir, "schema.pbtxt")
+      output_schema_filename = os.path.join(tmpdir, "schema.pbtxt")
       output_schema = tfgnn.read_schema(output_schema_filename)
 
       examples = read_tfrecords_of_examples(graph_tensor_filename)
