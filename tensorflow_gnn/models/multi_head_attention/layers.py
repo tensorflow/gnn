@@ -275,12 +275,24 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
         per_head_channels=self._per_head_channels,
         use_bias=self._use_bias,
         edge_dropout=self._edge_dropout,
+        # All forms of activation functions can be returned as-is:
+        # - A Keras Layer is serialized and deserialized recursively through
+        #   its own get_config/from config methods. It's best to not try and
+        #   simulate that recursive process here.
+        # - A str with a name may be passed to __init__, but __init__ anyways
+        #   calls .get() to turn it into a function from tf.keras.activations.*.
+        # - A function from tf.keras.activations.* is automatically serialized
+        #   and deserialized as its name, and then converted to a function by
+        #   __init__. (Activation functions that require to save a hparam,
+        #  such as LeakyReLU, are Layer objects, not functions.)
         attention_activation=self._attention_activation,
         activation=self._activation,
+        # Regularizers and initializers need explicit serialization here
+        # (and deserialization in __init__ via .get()) due to b/238163789.
         kernel_initializer=tf.keras.initializers.serialize(
             self._kernel_initializer
         ),
-        kernel_regularizer=tf.keras.regularizers.serialize(  # b/238163789
+        kernel_regularizer=tf.keras.regularizers.serialize(
             self._kernel_regularizer
         ),
         transform_keys=self._transform_keys,
