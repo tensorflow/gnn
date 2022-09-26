@@ -47,49 +47,58 @@ Heterogeneous models are general and flexible and can be applied nearly
 anywhere, with a pretty straightforward mapping of real-world entities to model
 structure.
 
-## Neural Networks on Graphs: Convolutions
+## Graph Neural Networks
 
 Graphs have been used in learning tasks for a long time. Algorithms that create
 clusters of nodes on existing graphs are well-established and label propagation
 algorithms that trickle information between nodes have been around for decades.
 But how do we use graphs with neural networks?
 
-The essence of the method is the graph convolution. The input features of each
-node are transformed into a single vector of floating-point numbers.
-The specifics of this initial transformation can vary a lot, ranging from a
-simple normalization and encoding (as required for any neural network) up to
-running a sophisticated, trained encoder (e.g., to embed words or images).
-In any case, this provides each node with its initial *hidden state*.
-The hidden states then go through rounds of updates using information from their
-neighbors. One such update is called a "graph convolution". In its simplest
-form, it consists of four stages:
+A Graph Neural Network (GNN) maintains a vector of floating-point numbers for
+each node, called the node state, which is similar to the vector of neuron
+activations in a classic neural network. The input features of each node are
+transformed into its initial state. The specifics of this transformation
+can vary a lot, ranging from a simple normalization and encoding (as required
+for any neural network) up to running a sophisticated, trained encoder (e.g.,
+to embed words or images).
 
- 1. broadcast: the node states are copied onto edges (that is, outgoing edges,
-    possibly also incoming edges);
- 2. transform: the value(s) on each edge are transformed by a function,
-    possibly itself a neural network;
- 3. pooling: the results of these edge transformations are aggregated back
-    onto nodes (e.g., by averaging over incoming edges);
- 4. state update: the pooled results from the edges are used to produce an
-    updated state for each node (e.g., by running them through another small
-    neural network).
+The essence of a Graph Neural Network is to update node states with a trainable
+function applied to the states of a node and its neighbors in the graph.
+The research literature has described this in various ways, including
+"[message passing](https://arxiv.org/abs/1704.01212)" along edges from sender
+to receiver nodes, or as a
+"[graph convolution](https://arxiv.org/abs/1609.02907)" to emphasize the use
+of the same trainable weights for updating an arbitrary number of nodes.
+"[Graph nets](https://arxiv.org/abs/1806.01261)" generalize this to an approach
+with states held for nodes, edges, and the graph as a whole.
 
-This happens over all the nodes and edges, at the same time. This process can
-be repeated for multiple rounds and allows for the propagation of features,
-hopping over graph edges. Every time a feature is propagated, it can be
-transformed by a neural network or a fixed function. Finally, classification
+TF-GNN expresses one round of state updates for a simple GNN as follows:
+
+ 1. Node states are *broadcast* onto outgoing and/or incoming edges.
+ 2. Each edge computes a value (a "message") from broadcast node states
+    and/or its own features, possibly using a neural network.
+ 3. At each node, the values of incoming (or outgoing) edges are *pooled*,
+    using a fixed function (e.g., average) or a trained attention model.
+ 4. Each node performs a *state update*, possibly using a neural network.
+
+This happens in parallel over all the nodes and edges. This process can be
+repeated for multiple rounds and allows for the propagation and combination of
+information as it flows across the graph. At every step, its representation can
+be transformed by a neural network or a fixed function. Finally, classification
 and/or regression over nodes, edges or the entire graph is possible by reading
-out the relevant state(s) and sending them through a final neural
-network, the prediction head.
+out the relevant state(s) and sending them through a final neural network, the
+prediction head.
 
 The neural networks involved have trainable weights. These are shared across
 the different locations in the graph within one round (like a convnet uses the
 same convolution kernel at each pixel), potentially even across rounds.
-As usual, backpropagation is used to compute gradients over the entire network
-(all rounds) to minimize some loss function of the predictions.
+However, heterogeneous graphs typically get separate weights for their distinct
+sets (types) of nodes and edges.
 
-There is a rapidly growing body of research literature, and practical experience
-is improving on Graph Neural Networks (GNN).
+The resulting model – encoder(s) for input features, a GNN with one or more
+rounds of state updates, and prediction head(s) – is trained end-to-end as usual
+by using backpropagation to compute gradients of some prediction loss with
+respect to the trainable weights.
 
 ## The Problem with Irregularity
 
@@ -133,7 +142,8 @@ billions of nodes) and may not fit in memory. The approach this library uses
 in the case of large graphs is to sample neighborhoods around nodes which we
 want to train over (say, nodes with associated ground truth labels), and stream
 these sampled subgraphs from the filesystem into the TensorFlow training code.
-The node of interest is the root node of the sampled subgraph.
+The node of interest is the root node of the sampled subgraph. Such an approach
+was described in the literature for [GraphSAGE](https://arxiv.org/abs/1706.02216).
 
 ## About edge direction
 
