@@ -19,7 +19,7 @@ py_strict_test(
     srcs = ["classification_test.py"],
     srcs_version = "PY3",
     tags = [
-        "no_oss",  # TODO(b/237419537) remove on tf 2.10 release
+        "tf_2_10_and_up",  # TODO(b/237419537) remove on tf 2.10 release
     ],
     deps = [
         ":classification",
@@ -68,7 +68,7 @@ py_strict_test(
     srcs = ["regression_test.py"],
     srcs_version = "PY3",
     tags = [
-        "no_oss",  # TODO(b/237419537) remove on tf 2.10 release
+        "tf_2_10_and_up",  # TODO(b/237419537) remove on tf 2.10 release
     ],
     deps = [
         ":regression",
