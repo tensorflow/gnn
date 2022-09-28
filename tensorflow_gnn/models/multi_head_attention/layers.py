@@ -257,18 +257,31 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
             per_head_channels * num_heads,
             kernel_initializer=kernel_initializer,
             kernel_regularizer=kernel_regularizer,
-            # This bias would be redundant with self._w_sender_node.
+            # This bias would be redundant with self._w_sender_node_to_key.
             use_bias=use_bias and self._w_sender_node_to_key is None,
             name="key_edge")
       else:
         self._w_sender_edge_to_key = None
 
-    self._w_value = tf.keras.layers.Dense(
-        per_head_channels * num_heads,
-        kernel_initializer=kernel_initializer,
-        kernel_regularizer=kernel_regularizer,
-        use_bias=use_bias,
-        name="value")
+    if self.takes_sender_node_input:
+      self._w_sender_node_to_value = tf.keras.layers.Dense(
+          per_head_channels * num_heads,
+          kernel_initializer=kernel_initializer,
+          kernel_regularizer=kernel_regularizer,
+          use_bias=use_bias,
+          name="value_node")
+    else:
+      self._w_sender_node_to_value = None
+    if self.takes_sender_edge_input:
+      self._w_sender_edge_to_value = tf.keras.layers.Dense(
+          per_head_channels * num_heads,
+          kernel_initializer=kernel_initializer,
+          kernel_regularizer=kernel_regularizer,
+          # This bias would be redundant with self._w_sender_node_to_value.
+          use_bias=use_bias and self._w_sender_node_to_value is None,
+          name="value_edge")
+    else:
+      self._w_sender_edge_to_value = None
 
   def get_config(self):
     return dict(
@@ -406,14 +419,17 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     # Form the values and multiply them with the attention coefficients.
     values = []
     if sender_node_input is not None:
-      values.append(broadcast_from_sender_node(sender_node_input))
+      values.append(
+          broadcast_from_sender_node(
+              self._split_heads(
+                  self._w_sender_node_to_value(sender_node_input))))
     if sender_edge_input is not None:
-      values.append(sender_edge_input)
+      values.append(
+          self._split_heads(self._w_sender_edge_to_value(sender_edge_input)))
     # [num_items, *extra_dims, num_heads, per_head_channels]
-    values = tf.concat(values, axis=-1)
+    values = tf.add_n(values)
 
-    # First project the values, then compute the weighted combination.
-    values = self._split_heads(self._w_value(values))
+    # Compute the weighted combination of the values.
     messages = values * attention_coefficients
     pooled_messages = pool_to_receiver(messages, reduce_type="sum")
 
