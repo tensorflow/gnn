@@ -148,6 +148,129 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(got_2.shape, (3, 2, 3))
     self.assertAllClose(got_2, want_2, atol=.0001)
 
+  def testAttentionActivation(self):
+    """Tests that a single-headed MHA correctly applies attention activations."""
+
+    # The same test graph as in the testBasic above.
+    gt_input = _get_test_bidi_cycle_graph(
+        tf.constant([
+            [1., 0., 0., 1.],
+            [0., 1., 0., 2.],
+            [0., 0., 1., 3.],
+        ]))
+
+    def get_conv(attention_activation=None):
+      """Constructs a MultiHeadAttentionConv with the given attention_activation."""
+
+      conv = multi_head_attention.MultiHeadAttentionConv(
+          num_heads=1,
+          per_head_channels=3,
+          receiver_tag=tfgnn.TARGET,
+          attention_activation=attention_activation,
+          activation=None,
+          score_scaling=False,
+      )
+
+      _ = conv(gt_input, edge_set_name="edges")  # Build weights.
+      weights = {v.name: v for v in conv.trainable_weights}
+      self.assertLen(weights, 6)
+
+      weights["multi_head_attention_conv/query/kernel:0"].assign(
+          # The node states times the query kernel should be:
+          #
+          # [[0., 1., 0.],
+          #  [0., 0., -1.],
+          #  [1., 0., 0.]]
+          #
+          # i.e. the second query vector has negative values, which, after
+          # activation with the `relu` function, should be all zeros.
+          [
+              [0., 1., 0.],
+              [0., 0., -1.],
+              [1., 0., 0.],
+              [0., 0., 0.],
+          ])
+      weights["multi_head_attention_conv/query/bias:0"].assign([0., 0., 0.])
+
+      weights["multi_head_attention_conv/key_node/kernel:0"].assign(
+          # The key_node kernel is chosen such that the the product with the
+          # node states is:
+          #
+          # [[-1., 0., 0.],
+          #  [0., 1., 0.],
+          #  [0., 0., 1.]]
+          #
+          # i.e. the third key vector has negative values, which, after
+          # activation with the `relu` function, should be all zeros.
+          [
+              [-1., 0., 0.],
+              [0., 1., 0.],
+              [0., 0., 1.],
+              [0., 0., 0.],
+          ])
+      weights["multi_head_attention_conv/key_node/bias:0"].assign([0., 0., 0.])
+
+      # The attention scores are computed as the product of the transformed
+      # queries and keys (with a zero diagonal since there are no self edges and
+      # hence no self-attention) and should be:
+      #
+      # [[0., 1., 0.],
+      #  [0., 0., a],
+      #  [a, 0., 0.]]
+      #
+      # where the value `a` should be `-1` if no attention activation is used,
+      # and `0` when the attention activation is set to `relu`.
+      #
+      # Attention weights are computed by applying softmax to each row except
+      # the diagonal element. Recall that
+      #    softmax([1, 0])= [e, 1] / (e + 1);
+      #    softmax([0, 0])= [1, 1] / 2, for a == 0;
+      #    softmax([0, -1]) = softmax([1, 0]) = [e, 1] / (e + 1), for a == - 1;
+      # which explains the expected values below.
+
+      weights["multi_head_attention_conv/value/kernel:0"].assign(
+          # Identity matrix such that the transformed node states are `eye(3)`.
+          [
+              [1., 0., 0.],
+              [0., 1., 0.],
+              [0., 0., 1.],
+              [0., 0., 0.],
+          ])
+      weights["multi_head_attention_conv/value/bias:0"].assign([0., 0., 0.])
+
+      return conv
+
+    with self.subTest("without_attention_activation"):
+      conv = get_conv(attention_activation=None)
+      got = conv(gt_input, edge_set_name="edges")
+
+      # Since the transformed values are just the identity matrix, we recover
+      # the attention weights for each query.
+      e = tf.math.exp(1.).numpy()
+      want = tf.constant([
+          [0., e, 1.],
+          [e, 0., 1.],
+          [1., e, 0.],
+      ]) / tf.constant(
+          e + 1., dtype=tf.float32)
+      self.assertAllEqual(got.shape, (3, 3))
+      self.assertAllClose(got, want, atol=.0001)
+
+    with self.subTest("with_attention_activation"):
+      conv = get_conv(attention_activation="relu")
+      got = conv(gt_input, edge_set_name="edges")
+
+      # Since the transformed values are just the identity matrix, we recover
+      # the attention weights for each query.
+      want = tf.constant([
+          [0., e, 1.],
+          [1., 0., 1.],
+          [1., 1., 0.],
+      ])
+      want = want / tf.reduce_sum(want, axis=-1, keepdims=True)
+      self.assertAllEqual(got.shape, (3, 3))
+      self.assertAllClose(got, want, atol=.0001)
+
   def testNoTransformKeys(self):
     """Tests that the no key transformation variant of MHA is correct."""
 
@@ -248,7 +371,11 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     """Extends testBasic with multiple attention heads."""
     # The same test graph as in the testBasic above.
     gt_input = _get_test_bidi_cycle_graph(
-        tf.constant([[1., 0., 0., 1.], [0., 1., 0., 2.], [0., 0., 1., 3.]]))
+        tf.constant([
+            [1., 0., 0., 1.],
+            [0., 1., 0., 2.],
+            [0., 0., 1., 3.],
+        ]))
 
     conv = multi_head_attention.MultiHeadAttentionConv(
         num_heads=2,

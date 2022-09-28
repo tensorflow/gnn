@@ -143,10 +143,10 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       nodes to context, it's the node's membership in a graph component that
       is dropped out.)
     attention_activation: The nonlinearity used on the transformed inputs
-      (query) before multiplying with the trained weights of the attention
-      layer. This can be specified as a Keras layer, a tf.keras.activations.*
-      function, or a string understood by tf.keras.layers.Activation().
-      Defaults to None.
+      (query, and keys if `transform_keys` is `True`) before computing the
+      attention scores. This can be specified as a Keras layer, a
+      tf.keras.activations.* function, or a string understood by
+      tf.keras.layers.Activation(). Defaults to None.
     activation: The nonlinearity applied to the final result of attention,
       specified in the same ways as attention_activation.
     kernel_initializer: Can be set to a `kernel_initializer` as understood
@@ -216,9 +216,11 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
 
     # Check for conflicting options.
     if attention_activation is not None and score_scaling:
-      warnings.warn("using both activation on transformed inputs and"
-                    "score scaling may lead to degraded accuracy,"
-                    "please consider only one of them.")
+      warnings.warn(
+          "using both an activation on transformed inputs and score scaling "
+          "may lead to degraded accuracy if the activation function restricts "
+          "the range of the values, e.g. 'tanh' which restricts the values to "
+          "the range [-1, 1], Please consider using only one of them.")
 
     # Check for valid inputs.
     if (not self.takes_sender_node_input and not self.takes_sender_edge_input):
@@ -340,12 +342,9 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     # [num_items, *extra_dims, num_heads, channels_per_head]
     # Otherwise, the shape is: [num_items, *extra_dims, num_heads, keys_width].
     assert receiver_input is not None, "__init__() should have checked this."
-    queries = broadcast_from_receiver(self._split_heads(self._w_query(
-        receiver_input)))
-
-    # Maybe add an activation to the queries.
-    if self._attention_activation is not None:
-      queries = self._attention_activation(queries)
+    queries = self._w_query(receiver_input)
+    queries = self._attention_activation(queries)
+    queries = broadcast_from_receiver(self._split_heads(queries))
 
     # Form the attention key for each head.
     # If transform_keys is ture, the pieces of keys inputs are transformed to
@@ -365,15 +364,25 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
         keys.append(tf.expand_dims(sender_edge_input, axis=-2))
       keys = tf.concat(keys, axis=-1)
     else:
-      if sender_node_input is not None:
-        keys.append(
-            broadcast_from_sender_node(
-                self._split_heads(
+      if sender_node_input is not None and sender_edge_input is None:
+        # In this special case, we can apply the attention_activation first
+        # and then broadcast its results.
+        keys = broadcast_from_sender_node(
+            self._split_heads(
+                self._attention_activation(
                     self._w_sender_node_to_key(sender_node_input))))
-      if sender_edge_input is not None:
-        keys.append(
-            self._split_heads(self._w_sender_edge_to_key(sender_edge_input)))
-      keys = tf.add_n(keys)
+      else:
+        # In the general case, the attention_activation (if any) comes last.
+        if sender_node_input is not None:
+          keys.append(
+              broadcast_from_sender_node(
+                  self._split_heads(
+                      self._w_sender_node_to_key(sender_node_input))))
+        if sender_edge_input is not None:
+          keys.append(
+              self._split_heads(self._w_sender_edge_to_key(sender_edge_input)))
+        keys = tf.add_n(keys)
+        keys = self._attention_activation(keys)
 
     # Dot-product of queries and keys to produce the attention coefficients.
     # [num_items, *extra_dims, num_heads, 1]
