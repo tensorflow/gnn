@@ -40,20 +40,23 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     # Construct a graph with three nodes 0, 1, 2, and six edges:
     # a cycle 0->1->2->0 (let's call it clockwise)
     # and the reverse cycle 0->2->1->0 (counterclockwise).
-    gt_input = _get_test_bidi_cycle_graph(tf.constant(
-        # Node states have dimension 4.
-        # The first three dimensions one-hot encode the node_id i.
-        # The fourth dimension holds a distinct payload value i+1.
-        [[1., 0., 0., 1.],
-         [0., 1., 0., 2.],
-         [0., 0., 1., 3.]]))
+    gt_input = _get_test_bidi_cycle_graph(
+        tf.constant(
+            # Node states have dimension 4.
+            # The first three dimensions one-hot encode the node_id i.
+            # The fourth dimension holds a distinct payload value i+1.
+            [
+                [1., 0., 0., 1.],
+                [0., 1., 0., 2.],
+                [0., 0., 1., 3.],
+            ]))
 
     conv = multi_head_attention.MultiHeadAttentionConv(
         num_heads=1,
         per_head_channels=3,
         receiver_tag=tfgnn.TARGET,
         activation="relu",  # Let's keep it simple.
-        )
+    )
 
     _ = conv(gt_input, edge_set_name="edges")  # Build weights.
     weights = {v.name: v for v in conv.trainable_weights}
@@ -68,10 +71,12 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
         # multiplied from the right onto batched inputs (in rows).
         #
         # For example, the query vector of node 0 is [0, 1, 0], and ...
-        [[0., 1., 0.],
-         [0., 0., 1.],
-         [1., 0., 0.],
-         [0., 0., 0.]])
+        [
+            [0., 1., 0.],
+            [0., 0., 1.],
+            [1., 0., 0.],
+            [0., 0., 0.],
+        ])
     weights["multi_head_attention_conv/query/bias:0"].assign([0., 0., 0.])
 
     log20 = tf.math.log(20.).numpy()
@@ -84,13 +89,13 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
         # query vector [0., 1., 0.] dot-product on the key vectors of node 1
         # and 2 will give \sqrt(3) * log(20) (favored) and \sqrt(3) * log(2)
         # (not favored), and the \sqrt(3) is canceled out after scaling.
-        inverse_scaling_factor *
-        [[log20, 0., log2],
-         [log2, log20, 0.],
-         [0., log2, log20],
-         [0., 0., 0.,]])
-    weights["multi_head_attention_conv/key_node/bias:0"].assign(
-        [0., 0., 0.])
+        inverse_scaling_factor * [
+            [log20, 0., log2],
+            [log2, log20, 0.],
+            [0., log2, log20],
+            [0., 0., 0.],
+        ])
+    weights["multi_head_attention_conv/key_node/bias:0"].assign([0., 0., 0.])
 
     # The attention coefficients are computed by the dot-product of transformed
     # query and key. In our specific case, for example, the attention from
@@ -102,10 +107,12 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
         # ... the value vectors of node 1 and 2, resp., are [-1, 0, 2.2]
         # and [-1, -1, 3.3], and only positive value (the fourth dimension)
         # will be kept after the final ReLU activation.
-        [[0., -1., 0.],
-         [-1., 0., 0.],
-         [-1., -1., 0.],
-         [0., 0., 1.1]])
+        [
+            [0., -1., 0.],
+            [-1., 0., 0.],
+            [-1., -1., 0.],
+            [0., 0., 1.1],
+        ])
     weights["multi_head_attention_conv/value/bias:0"].assign([0., 0., 0.])
 
     got = conv(gt_input, edge_set_name="edges")
@@ -114,9 +121,11 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     # are  10/11 * [-1, 0, 2.2]  +  1/11 * [-1, -1, 3.3].
     # The final ReLU takes out the non-positive components and leaves 2 + 0.3
     # in the last component of the first row in the resulting node states.
-    want = tf.constant([[0., 0., 2.3],  # Node 0.
-                        [0., 0., 3.1],  # Node 1.
-                        [0., 0., 1.2]])  # Node 2.
+    want = tf.constant([
+        [0., 0., 2.3],  # Node 0.
+        [0., 0., 3.1],  # Node 1.
+        [0., 0., 1.2],  # Node 2.
+    ])
     self.assertAllEqual(got.shape, (3, 3))
     self.assertAllClose(got, want, atol=.0001)
 
@@ -124,14 +133,18 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     # works in parallel on the vectors from the innermost dimension, so we can
     # repeat the previous computation and an alternative with different values
     # in the last component and reversed orientation:
-    gt_input_2 = _get_test_bidi_cycle_graph(tf.constant(
-        [[[1., 0., 0., 1.], [0., 0., 1., 3.]],
-         [[0., 1., 0., 2.], [0., 1., 0., 6.]],
-         [[0., 0., 1., 3.], [1., 0., 0., 9.]]]))
+    gt_input_2 = _get_test_bidi_cycle_graph(
+        tf.constant([
+            [[1., 0., 0., 1.], [0., 0., 1., 3.]],
+            [[0., 1., 0., 2.], [0., 1., 0., 6.]],
+            [[0., 0., 1., 3.], [1., 0., 0., 9.]],
+        ]))
     got_2 = conv(gt_input_2, edge_set_name="edges")
-    want_2 = tf.constant([[[0., 0., 2.3], [0., 0., 9.6]],
-                          [[0., 0., 3.1], [0., 0., 3.9]],
-                          [[0., 0., 1.2], [0., 0., 6.3]]])
+    want_2 = tf.constant([
+        [[0., 0., 2.3], [0., 0., 9.6]],
+        [[0., 0., 3.1], [0., 0., 3.9]],
+        [[0., 0., 1.2], [0., 0., 6.3]],
+    ])
     self.assertAllEqual(got_2.shape, (3, 2, 3))
     self.assertAllClose(got_2, want_2, atol=.0001)
 
@@ -139,10 +152,12 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     """Tests that the no key transformation variant of MHA is correct."""
 
     # The same test graph as in the testBasic above.
-    gt_input = _get_test_bidi_cycle_graph(tf.constant(
-        [[1., 0., 0., 1.],
-         [0., 1., 0., 2.],
-         [0., 0., 1., 3.]]))
+    gt_input = _get_test_bidi_cycle_graph(
+        tf.constant([
+            [1., 0., 0., 1.],
+            [0., 1., 0., 2.],
+            [0., 0., 1., 3.],
+        ]))
 
     conv = multi_head_attention.MultiHeadAttentionConv(
         num_heads=1,
@@ -150,7 +165,7 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
         receiver_tag=tfgnn.TARGET,
         activation="relu",  # Let's keep it simple.
         transform_keys=False,  # Turn off the key transformation.
-        )
+    )
 
     _ = conv(gt_input, edge_set_name="edges")  # Build weights.
     weights = {v.name: v for v in conv.trainable_weights}
@@ -171,11 +186,12 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
         #
         # For example, the query vector of node 0 is
         # inverse_scaling_factor * [0, log(20), log(2), 0], and ...
-        inverse_scaling_factor *
-        [[0., log20, log2, 0.],
-         [log2, 0., log20, 0.],
-         [log20, log2, 0., 0.],
-         [0., 0., 0., 0.]])
+        inverse_scaling_factor * [
+            [0., log20, log2, 0.],
+            [log2, 0., log20, 0.],
+            [log20, log2, 0., 0.],
+            [0., 0., 0., 0.],
+        ])
     weights["multi_head_attention_conv/query/bias:0"].assign([0., 0., 0., 0.])
 
     # The attention coefficients are computed by the dot-product of transformed
@@ -187,10 +203,12 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
         # ... the value vectors of node 1 and 2, resp., are [-1, 0, 2.2]
         # and [-1, -1, 3.3], and only positive value (the fourth dimension)
         # will be kept after the final ReLU activation.
-        [[0., -1., 0.],
-         [-1., 0., 0.],
-         [-1., -1., 0.],
-         [0., 0., 1.1]])
+        [
+            [0., -1., 0.],
+            [-1., 0., 0.],
+            [-1., -1., 0.],
+            [0., 0., 1.1],
+        ])
     weights["multi_head_attention_conv/value/bias:0"].assign([0., 0., 0.])
 
     got = conv(gt_input, edge_set_name="edges")
@@ -199,9 +217,11 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     # are  10/11 * [-1, 0, 2.2]  +  1/11 * [-1, -1, 3.3].
     # The final ReLU takes out the non-positive components and leaves 2 + 0.3
     # in the last component of the first row in the resulting node states.
-    want = tf.constant([[0., 0., 2.3],  # Node 0.
-                        [0., 0., 3.1],  # Node 1.
-                        [0., 0., 1.2]])  # Node 2.
+    want = tf.constant([
+        [0., 0., 2.3],  # Node 0.
+        [0., 0., 3.1],  # Node 1.
+        [0., 0., 1.2],  # Node 2.
+    ])
     self.assertAllEqual(got.shape, (3, 3))
     self.assertAllClose(got, want, atol=.0001)
 
@@ -209,24 +229,26 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     # works in parallel on the vectors from the innermost dimension, so we can
     # repeat the previous computation and an alternative with different values
     # in the last component and reversed orientation:
-    gt_input_2 = _get_test_bidi_cycle_graph(tf.constant(
-        [[[1., 0., 0., 1.], [0., 0., 1., 3.]],
-         [[0., 1., 0., 2.], [0., 1., 0., 6.]],
-         [[0., 0., 1., 3.], [1., 0., 0., 9.]]]))
+    gt_input_2 = _get_test_bidi_cycle_graph(
+        tf.constant([
+            [[1., 0., 0., 1.], [0., 0., 1., 3.]],
+            [[0., 1., 0., 2.], [0., 1., 0., 6.]],
+            [[0., 0., 1., 3.], [1., 0., 0., 9.]],
+        ]))
     got_2 = conv(gt_input_2, edge_set_name="edges")
-    want_2 = tf.constant([[[0., 0., 2.3], [0., 0., 9.6]],
-                          [[0., 0., 3.1], [0., 0., 3.9]],
-                          [[0., 0., 1.2], [0., 0., 6.3]]])
+    want_2 = tf.constant([
+        [[0., 0., 2.3], [0., 0., 9.6]],
+        [[0., 0., 3.1], [0., 0., 3.9]],
+        [[0., 0., 1.2], [0., 0., 6.3]],
+    ])
     self.assertAllEqual(got_2.shape, (3, 2, 3))
     self.assertAllClose(got_2, want_2, atol=.0001)
 
   def testMultihead(self):
     """Extends testBasic with multiple attention heads."""
     # The same test graph as in the testBasic above.
-    gt_input = _get_test_bidi_cycle_graph(tf.constant(
-        [[1., 0., 0., 1.],
-         [0., 1., 0., 2.],
-         [0., 0., 1., 3.]]))
+    gt_input = _get_test_bidi_cycle_graph(
+        tf.constant([[1., 0., 0., 1.], [0., 1., 0., 2.], [0., 0., 1., 3.]]))
 
     conv = multi_head_attention.MultiHeadAttentionConv(
         num_heads=2,
@@ -245,10 +267,12 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
         # in the same way as for the testBasic test above.
         # Attention head 1 uses the last three dimensions, in which we
         # now favor the clockwise incoming edges.
-        [[0., 1., 0., 0., 0., 1.],
-         [0., 0., 1., 1., 0., 0.],
-         [1., 0., 0., 0., 1., 0.],
-         [0., 0., 0., 0., 0., 0.]])
+        [
+            [0., 1., 0., 0., 0., 1.],
+            [0., 0., 1., 1., 0., 0.],
+            [1., 0., 0., 0., 1., 0.],
+            [0., 0., 0., 0., 0., 0.],
+        ])
 
     log20 = tf.math.log(20.).numpy()
     log2 = tf.math.log(2.).numpy()
@@ -258,34 +282,38 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
         # dimensions, and assign 100 and 0 to corresponding neighbors,
         # which gives weights 1 to clockwise incoming edges and weights 0
         # to counterclockwise incoming edges.
-        [[log20, 0., log2, 100., 0., 0.],
-         [log2, log20, 0., 0., 100., 0.],
-         [0., log2, log20, 0., 0., 100.],
-         [0., 0., 0., 0., 0., 0.]])
+        [
+            [log20, 0., log2, 100., 0., 0.],
+            [log2, log20, 0., 0., 100., 0.],
+            [0., log2, log20, 0., 0., 100.],
+            [0., 0., 0., 0., 0., 0.],
+        ])
 
     weights["multi_head_attention_conv/value/kernel:0"].assign(
         # no matter where the -1s are, they got eliminated by ReLU.
-        [[0., -1., 0., 0., -1., 0.],
-         [-1., 0., 0., -1., 0., 0.],
-         [-1., -1., 0., -1., -1., 0.],
-         [0., 0., 1.1, 0., 0., 1.]])
+        [
+            [0., -1., 0., 0., -1., 0.],
+            [-1., 0., 0., -1., 0., 0.],
+            [-1., -1., 0., -1., -1., 0.],
+            [0., 0., 1.1, 0., 0., 1.],
+        ])
 
     got = conv(gt_input, edge_set_name="edges")
 
     # Attention head 0 generates the first four output dimensions as in the
     # testBasic above, with weights 10/11 and 1/11,
     # Attention head 1 uses weights 0 and 1 (note the reversed preference).
-    want = tf.constant([[0., 0., 2.3, 0., 0., 3.0],
-                        [0., 0., 3.1, 0., 0., 1.0],
-                        [0., 0., 1.2, 0., 0., 2.0]])
+    want = tf.constant([
+        [0., 0., 2.3, 0., 0., 3.0],
+        [0., 0., 3.1, 0., 0., 1.0],
+        [0., 0., 1.2, 0., 0., 2.0],
+    ])
     self.assertAllEqual(got.shape, (3, 6))
     self.assertAllClose(got, want, atol=.0001)
 
-  @parameterized.named_parameters(
-      ("", ReloadModel.SKIP),
-      ("Restored", ReloadModel.SAVED_MODEL),
-      ("RestoredKeras", ReloadModel.KERAS)
-  )
+  @parameterized.named_parameters(("", ReloadModel.SKIP),
+                                  ("Restored", ReloadModel.SAVED_MODEL),
+                                  ("RestoredKeras", ReloadModel.KERAS))
   def testFullModel(self, reload_model):
     """Tests MultiHeadAttentionHomGraphUpdate in a Model with edge input."""
     # The same example as in the testBasic above, but with extra inputs
@@ -293,19 +321,21 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     gt_input = _get_test_bidi_cycle_graph(
         # Node i has value i+1 in the last component, which will be mapped
         # into the fourth component of the value.
-        tf.constant(
-            [[1., 0., 0., 1.],  # Node 0.
-             [0., 1., 0., 2.],  # Node 1.
-             [0., 0., 1., 3.]]),  # Node 2.
+        tf.constant([
+            [1., 0., 0., 1.],  # Node 0.
+            [0., 1., 0., 2.],  # Node 1.
+            [0., 0., 1., 3.],  # Node 2.
+        ]),
         # Edges out of node i have value 2*(i+1) for the clockwise edges favored
         # by attention and 3*(i+1) for the counterclockwise edges not favored.
-        tf.constant(
-            [[3.],  # Edge from node 0 (clockwise, not favored).
-             [6.],  # Edge from node 1 (clockwise, not favored).
-             [9.],  # Edge from node 2 (clockwise, not favored).
-             [2.],  # Edge from node 0 (counterclockwise, favored).
-             [6.],  # Edge from node 2 (counterclockwise, favored).
-             [4.]]))  # Edge from node 1 (counterclockwise, favored).
+        tf.constant([
+            [3.],  # Edge from node 0 (clockwise, not favored).
+            [6.],  # Edge from node 1 (clockwise, not favored).
+            [9.],  # Edge from node 2 (clockwise, not favored).
+            [2.],  # Edge from node 0 (counterclockwise, favored).
+            [6.],  # Edge from node 2 (counterclockwise, favored).
+            [4.],  # Edge from node 1 (counterclockwise, favored).
+        ]))
 
     layer = multi_head_attention.MultiHeadAttentionHomGraphUpdate(
         num_heads=1,
@@ -349,48 +379,53 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     inverse_scaling_factor = tf.math.sqrt(4.)
 
     weights["multi_head_attention/node_set_update/" +
-            "multi_head_attention_conv/query/kernel:0"].assign(
-                [[0., 1., 0., 0.],
-                 [0., 0., 1., 0.],
-                 [1., 0., 0., 0.],
-                 [0., 0., 0., 0.]])
-    weights["multi_head_attention/node_set_update/" +
-            "multi_head_attention_conv/key_edge/kernel:0"].assign(
-                # Edge values are projected to the fourth dimension. However, it
-                # will have no effects on the dot-product since the fourth
-                # dimension of the transformed query is filled with zeros.
-                [[0., 0., 0., 1.]])
-    weights["multi_head_attention/node_set_update/" +
-            "multi_head_attention_conv/key_node/kernel:0"].assign(
-                # Similar transformation as in testBasic, except adding the
-                # fourth dimension to with all zeros (placeholder for edge
-                # values).
-                inverse_scaling_factor *
-                [[log20, 0., log2, 0.],
-                 [log2, log20, 0., 0.],
-                 [0., log2, log20, 0.],
-                 [0., 0., 0., 0.]])
-    weights["multi_head_attention/node_set_update/" +
-            "multi_head_attention_conv/value/kernel:0"].assign(
-                # Edge values and node payloads are put into final components
-                # of the value space, with the same adjustment for
-                # softmax-weighting by 1/11 or 10/11.
-                [[0., 0., 0., 0.],
-                 [0., 0., 0., 0.],
-                 [0., 0., 0., 0.],
-                 [0., 0., 1.1, 0.],
-                 [0., 0., 0., 1.1]])
+            "multi_head_attention_conv/query/kernel:0"].assign([
+                [0., 1., 0., 0.],
+                [0., 0., 1., 0.],
+                [1., 0., 0., 0.],
+                [0., 0., 0., 0.],
+            ])
+    weights[
+        "multi_head_attention/node_set_update/" +
+        "multi_head_attention_conv/key_edge/kernel:0"].assign(
+            # Edge values are projected to the fourth dimension. However, it
+            # will have no effects on the dot-product since the fourth
+            # dimension of the transformed query is filled with zeros.
+            [[0., 0., 0., 1.]])
+    weights[
+        "multi_head_attention/node_set_update/" +
+        "multi_head_attention_conv/key_node/kernel:0"].assign(
+            # Similar transformation as in testBasic, except adding the
+            # fourth dimension to with all zeros (placeholder for edge
+            # values).
+            inverse_scaling_factor * [
+                [log20, 0., log2, 0.],
+                [log2, log20, 0., 0.],
+                [0., log2, log20, 0.],
+                [0., 0., 0., 0.],
+            ])
+    weights[
+        "multi_head_attention/node_set_update/" +
+        "multi_head_attention_conv/value/kernel:0"].assign(
+            # Edge values and node payloads are put into final components
+            # of the value space, with the same adjustment for
+            # softmax-weighting by 1/11 or 10/11.
+            [
+                [0., 0., 0., 0.],
+                [0., 0., 0., 0.],
+                [0., 0., 0., 0.],
+                [0., 0., 1.1, 0.],
+                [0., 0., 0., 1.1],
+            ])
 
     # Assign zeros to all the bias terms.
     weights["multi_head_attention/node_set_update/" +
-            "multi_head_attention_conv/query/bias:0"].assign(
-                [0., 0., 0., 0.])
+            "multi_head_attention_conv/query/bias:0"].assign([0., 0., 0., 0.])
     weights["multi_head_attention/node_set_update/" +
             "multi_head_attention_conv/key_node/bias:0"].assign(
                 [0., 0., 0., 0.])
     weights["multi_head_attention/node_set_update/" +
-            "multi_head_attention_conv/value/bias:0"].assign(
-                [0., 0., 0., 0.])
+            "multi_head_attention_conv/value/bias:0"].assign([0., 0., 0., 0.])
 
     # Build a Model around the Layer, possibly saved and restored.
     inputs = tf.keras.layers.Input(type_spec=gt_input.spec)
@@ -403,8 +438,8 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
         model = tf.keras.models.load_model(export_dir)
         # Check that from_config() worked, no fallback to a function trace, see
         # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-        self.assertIsInstance(model.get_layer(index=1),
-                              tfgnn.keras.layers.GraphUpdate)
+        self.assertIsInstance(
+            model.get_layer(index=1), tfgnn.keras.layers.GraphUpdate)
       else:
         model = tf.saved_model.load(export_dir)
 
@@ -416,9 +451,11 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     # input before the decimal dot and the other contribution y after.
     # The fifth column with values (2x).(3y) is from edges, with the
     # multipliers 2 and 3 used above in setting up the edge features.
-    want = tf.constant([[0., 0., 2.3, 4.9],
-                        [0., 0., 3.1, 6.3],
-                        [0., 0., 1.2, 2.6]])
+    want = tf.constant([
+        [0., 0., 2.3, 4.9],
+        [0., 0., 3.1, 6.3],
+        [0., 0., 1.2, 2.6],
+    ])
     self.assertAllEqual(got.shape, (3, 4))
     self.assertAllClose(got, want, atol=.0001)
 
@@ -439,36 +476,48 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     # the value of the target node / context.
     gt_input = tfgnn.GraphTensor.from_pieces(
         node_sets={
-            "sources": tfgnn.NodeSet.from_fields(
-                sizes=[2, 2],
-                features={tfgnn.HIDDEN_STATE: tf.constant(
-                    [[1., 0., 0., 1.],
-                     [0., 1., 0., 2.]] * 2)}),  # Repeated for both components.
-            "targets": tfgnn.NodeSet.from_fields(
-                sizes=[1, 1],
-                features={tfgnn.HIDDEN_STATE: tf.constant(
-                    [[0., 0., 1., 3.],
-                     [0., 0., 1., 4.]])}),
+            "sources":
+                tfgnn.NodeSet.from_fields(
+                    sizes=[2, 2],
+                    features={
+                        tfgnn.HIDDEN_STATE:
+                            tf.constant([
+                                [1., 0., 0., 1.],
+                                [0., 1., 0., 2.],
+                            ] * 2)  # Repeated for both components.
+                    }),
+            "targets":
+                tfgnn.NodeSet.from_fields(
+                    sizes=[1, 1],
+                    features={
+                        tfgnn.HIDDEN_STATE:
+                            tf.constant([
+                                [0., 0., 1., 3.],
+                                [0., 0., 1., 4.],
+                            ])
+                    }),
         },
         context=tfgnn.Context.from_fields(
             # Same as "targets".
-            features={tfgnn.HIDDEN_STATE: tf.constant(
-                [[0., 0., 1., 3.],
-                 [0., 0., 1., 4.]])}),
+            features={
+                tfgnn.HIDDEN_STATE:
+                    tf.constant([
+                        [0., 0., 1., 3.],
+                        [0., 0., 1., 4.],
+                    ])
+            }),
         edge_sets={
-            "edges": tfgnn.EdgeSet.from_fields(
-                sizes=[2, 2],
-                # Same as membership of "sources" in components.
-                adjacency=tfgnn.Adjacency.from_indices(
-                    ("sources", tf.constant([0, 1, 2, 3])),
-                    ("targets", tf.constant([0, 0, 1, 1]))))
+            "edges":
+                tfgnn.EdgeSet.from_fields(
+                    sizes=[2, 2],
+                    # Same as membership of "sources" in components.
+                    adjacency=tfgnn.Adjacency.from_indices(
+                        ("sources", tf.constant([0, 1, 2, 3])),
+                        ("targets", tf.constant([0, 0, 1, 1]))))
         })
 
     conv = multi_head_attention.MultiHeadAttentionConv(
-        num_heads=1,
-        per_head_channels=3,
-        activation="relu",
-        use_bias=False)
+        num_heads=1, per_head_channels=3, activation="relu", use_bias=False)
 
     # Build weights, then initialize as in testBasic.
     _ = conv(gt_input, node_set_name="sources", receiver_tag=tfgnn.CONTEXT)
@@ -480,32 +529,37 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     # Using an inverse scaling factor to cancel out the score scaling.
     inverse_scaling_factor = tf.math.sqrt(3.)
 
-    weights["multi_head_attention_conv/query/kernel:0"].assign(
-        [[0., 1., 0.],
-         [0., 0., 1.],
-         [1., 0., 0.],
-         [0., 0., 0.]])
+    weights["multi_head_attention_conv/query/kernel:0"].assign([
+        [0., 1., 0.],
+        [0., 0., 1.],
+        [1., 0., 0.],
+        [0., 0., 0.],
+    ])
     weights["multi_head_attention_conv/key_node/kernel:0"].assign(
-        inverse_scaling_factor *
-        [[log20, 0., log2],
-         [log2, log20, 0.],
-         [0., log2, log20],
-         [0., 0., 0.,]])
-    weights["multi_head_attention_conv/value/kernel:0"].assign(
-        [[0., -1., 0.],
-         [-1., 0., 0.],
-         [-1., -1., 0.],
-         [0., 0., 1.1]])
+        inverse_scaling_factor * [
+            [log20, 0., log2],
+            [log2, log20, 0.],
+            [0., log2, log20],
+            [0., 0., 0.],
+        ])
+    weights["multi_head_attention_conv/value/kernel:0"].assign([
+        [0., -1., 0.],
+        [-1., 0., 0.],
+        [-1., -1., 0.],
+        [0., 0., 1.1],
+    ])
 
     # The convolution object can be called interchangeably for convolving
     # "sources" to context, or along "edges" to "targets" with the same
     # features as context.
-    got_context = conv(gt_input, node_set_name="sources",
-                       receiver_tag=tfgnn.CONTEXT)
-    got_targets = conv(gt_input, edge_set_name="edges",
-                       receiver_tag=tfgnn.TARGET)
-    want = tf.constant([[0., 0., 1.2],  # As in testBasic for node 2.
-                        [0., 0., 1.2]])
+    got_context = conv(
+        gt_input, node_set_name="sources", receiver_tag=tfgnn.CONTEXT)
+    got_targets = conv(
+        gt_input, edge_set_name="edges", receiver_tag=tfgnn.TARGET)
+    want = tf.constant([
+        [0., 0., 1.2],  # As in testBasic for node 2.
+        [0., 0., 1.2],
+    ])
     self.assertAllClose(got_context, want, atol=.0001)
     self.assertAllClose(got_targets, want, atol=.0001)
 
@@ -514,12 +568,14 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     # Every "source" gets the same value from the sole "target" of the component
     # (so softmax reduces to a no-op), which is scaled with 1.1 by the
     # bottom-right element of value/kernel.
-    got_sources = conv(gt_input, edge_set_name="edges",
-                       receiver_tag=tfgnn.SOURCE)
-    want_sources = tf.constant([[0., 0., 3.3],
-                                [0., 0., 3.3],
-                                [0., 0., 4.4],
-                                [0., 0., 4.4]])
+    got_sources = conv(
+        gt_input, edge_set_name="edges", receiver_tag=tfgnn.SOURCE)
+    want_sources = tf.constant([
+        [0., 0., 3.3],
+        [0., 0., 3.3],
+        [0., 0., 4.4],
+        [0., 0., 4.4],
+    ])
     self.assertAllClose(got_sources, want_sources, atol=.0001)
 
   def testEdgePoolReceivers(self):
@@ -528,29 +584,43 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     # the sender features are now on the edges, not the source nodes.
     gt_input = tfgnn.GraphTensor.from_pieces(
         edge_sets={
-            "edges": tfgnn.EdgeSet.from_fields(
-                sizes=[2, 2],
-                adjacency=tfgnn.Adjacency.from_indices(
-                    ("sources", tf.constant([0, 1, 2, 3])),
-                    ("targets", tf.constant([0, 0, 1, 1]))),
-                features={tfgnn.HIDDEN_STATE: tf.constant(
-                    [[1., 0., 0., 1.],
-                     [0., 1., 0., 2.]] * 2)}),  # Repeated for both components.
+            "edges":
+                tfgnn.EdgeSet.from_fields(
+                    sizes=[2, 2],
+                    adjacency=tfgnn.Adjacency.from_indices(
+                        ("sources", tf.constant([0, 1, 2, 3])),
+                        ("targets", tf.constant([0, 0, 1, 1]))),
+                    features={
+                        tfgnn.HIDDEN_STATE:
+                            tf.constant([
+                                [1., 0., 0., 1.],
+                                [0., 1., 0., 2.],
+                            ] * 2)  # Repeated for both components.
+                    }),
         },
         node_sets={
-            "sources": tfgnn.NodeSet.from_fields(
-                sizes=[2, 2]),  # No features.
-            "targets": tfgnn.NodeSet.from_fields(
-                sizes=[1, 1],
-                features={tfgnn.HIDDEN_STATE: tf.constant(
-                    [[0., 0., 1., 3.],
-                     [0., 0., 1., 4.]])}),
+            "sources":
+                tfgnn.NodeSet.from_fields(sizes=[2, 2]),  # No features.
+            "targets":
+                tfgnn.NodeSet.from_fields(
+                    sizes=[1, 1],
+                    features={
+                        tfgnn.HIDDEN_STATE:
+                            tf.constant([
+                                [0., 0., 1., 3.],
+                                [0., 0., 1., 4.],
+                            ])
+                    }),
         },
         context=tfgnn.Context.from_fields(
             # Same as "targets".
-            features={tfgnn.HIDDEN_STATE: tf.constant(
-                [[0., 0., 1., 3.],
-                 [0., 0., 1., 4.]])}))
+            features={
+                tfgnn.HIDDEN_STATE:
+                    tf.constant([
+                        [0., 0., 1., 3.],
+                        [0., 0., 1., 4.],
+                    ])
+            }))
 
     layer = multi_head_attention.MultiHeadAttentionEdgePool(
         num_heads=1,
@@ -569,38 +639,39 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     # Using an inverse scaling factor to cancel out the score scaling.
     inverse_scaling_factor = tf.math.sqrt(3.)
 
-    weights["multi_head_attention_edge_pool/query/kernel:0"].assign(
-        [[0., 1., 0.],
-         [0., 0., 1.],
-         [1., 0., 0.],
-         [0., 0., 0.]])
+    weights["multi_head_attention_edge_pool/query/kernel:0"].assign([
+        [0., 1., 0.],
+        [0., 0., 1.],
+        [1., 0., 0.],
+        [0., 0., 0.],
+    ])
     weights["multi_head_attention_edge_pool/key_edge/kernel:0"].assign(
-        inverse_scaling_factor *
-        [[log20, 0., log2],
-         [log2, log20, 0.],
-         [0., log2, log20],
-         [0., 0., 0.,]])
-    weights["multi_head_attention_edge_pool/value/kernel:0"].assign(
-        [[0., -1., 0.],
-         [-1., 0., 0.],
-         [-1., -1., 0.],
-         [0., 0., 1.1]])
+        inverse_scaling_factor * [
+            [log20, 0., log2],
+            [log2, log20, 0.],
+            [0., log2, log20],
+            [0., 0., 0.],
+        ])
+    weights["multi_head_attention_edge_pool/value/kernel:0"].assign([
+        [0., -1., 0.],
+        [-1., 0., 0.],
+        [-1., -1., 0.],
+        [0., 0., 1.1],
+    ])
 
     # The EdgePool object can be called interchangeably for attention-pooling
     # the "edges" to context or to each component's unique node in "targets".
-    got_context = layer(gt_input, edge_set_name="edges",
-                        receiver_tag=tfgnn.CONTEXT)
-    got_targets = layer(gt_input, edge_set_name="edges",
-                        receiver_tag=tfgnn.TARGET)
-    want = tf.constant([[0., 0., 1.2],
-                        [0., 0., 1.2]])
+    got_context = layer(
+        gt_input, edge_set_name="edges", receiver_tag=tfgnn.CONTEXT)
+    got_targets = layer(
+        gt_input, edge_set_name="edges", receiver_tag=tfgnn.TARGET)
+    want = tf.constant([[0., 0., 1.2], [0., 0., 1.2]])
     self.assertAllClose(got_context, want, atol=.0001)
     self.assertAllClose(got_targets, want, atol=.0001)
 
-  @parameterized.named_parameters(
-      ("", ReloadModel.SKIP),
-      ("Restored", ReloadModel.SAVED_MODEL),
-      ("RestoredKeras", ReloadModel.KERAS))
+  @parameterized.named_parameters(("", ReloadModel.SKIP),
+                                  ("Restored", ReloadModel.SAVED_MODEL),
+                                  ("RestoredKeras", ReloadModel.KERAS))
   def testEdgeDropout(self, reload_model):
     """Tests dropout, esp. the switch between training and inference modes."""
     # Avoid flakiness.
@@ -612,16 +683,18 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     target_node_id = 7
     gt_input = tfgnn.GraphTensor.from_pieces(
         node_sets={
-            "nodes": tfgnn.NodeSet.from_fields(
-                sizes=[num_nodes],
-                features={tfgnn.HIDDEN_STATE: tf.eye(num_nodes)}),
+            "nodes":
+                tfgnn.NodeSet.from_fields(
+                    sizes=[num_nodes],
+                    features={tfgnn.HIDDEN_STATE: tf.eye(num_nodes)}),
         },
         edge_sets={
-            "edges": tfgnn.EdgeSet.from_fields(
-                sizes=[num_nodes],
-                adjacency=tfgnn.Adjacency.from_indices(
-                    ("nodes", tf.constant(list(range(num_nodes)))),
-                    ("nodes", tf.constant([target_node_id] * num_nodes))))
+            "edges":
+                tfgnn.EdgeSet.from_fields(
+                    sizes=[num_nodes],
+                    adjacency=tfgnn.Adjacency.from_indices(
+                        ("nodes", tf.constant(list(range(num_nodes)))),
+                        ("nodes", tf.constant([target_node_id] * num_nodes))))
         })
 
     # On purpose, this test is not for MultiHeadAttentionConv directly,
@@ -631,7 +704,7 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
         num_heads=1,
         per_head_channels=num_nodes,
         receiver_tag=tfgnn.TARGET,
-        edge_dropout=1./3.,  # Note here.
+        edge_dropout=1. / 3.,  # Note here.
         activation="linear",
         attention_activation="linear",
         use_bias=False)
@@ -662,8 +735,8 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
         model = tf.keras.models.load_model(export_dir)
         # Check that from_config() worked, no fallback to a function trace, see
         # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-        self.assertIsInstance(model.get_layer(index=1),
-                              tfgnn.keras.layers.GraphUpdate)
+        self.assertIsInstance(
+            model.get_layer(index=1), tfgnn.keras.layers.GraphUpdate)
       else:
         model = tf.saved_model.load(export_dir)
 
@@ -676,6 +749,7 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
       got_gt = model(gt_input, **kwargs)
       got = got_gt.node_sets["nodes"][tfgnn.HIDDEN_STATE][target_node_id]
       return [tf.reduce_min(got), tf.reduce_max(got)]
+
     self.assertAllEqual(min_max(), [1., 1.])  # Inference is the default.
     self.assertAllEqual(min_max(training=False), [1., 1.])
     self.assertAllClose(min_max(training=True), [0., 1.5])
@@ -684,18 +758,20 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
 def _get_test_bidi_cycle_graph(node_state, edge_state=None):
   return tfgnn.GraphTensor.from_pieces(
       node_sets={
-          "nodes": tfgnn.NodeSet.from_fields(
-              sizes=[3],
-              features={tfgnn.HIDDEN_STATE: node_state}),
+          "nodes":
+              tfgnn.NodeSet.from_fields(
+                  sizes=[3], features={tfgnn.HIDDEN_STATE: node_state}),
       },
       edge_sets={
-          "edges": tfgnn.EdgeSet.from_fields(
-              sizes=[6],
-              adjacency=tfgnn.Adjacency.from_indices(
-                  ("nodes", tf.constant([0, 1, 2, 0, 2, 1])),
-                  ("nodes", tf.constant([1, 2, 0, 2, 1, 0]))),
-              features=(None if edge_state is None else
-                        {tfgnn.HIDDEN_STATE: edge_state})),
+          "edges":
+              tfgnn.EdgeSet.from_fields(
+                  sizes=[6],
+                  adjacency=tfgnn.Adjacency.from_indices(
+                      ("nodes", tf.constant([0, 1, 2, 0, 2, 1])),
+                      ("nodes", tf.constant([1, 2, 0, 2, 1, 0]))),
+                  features=(None if edge_state is None else {
+                      tfgnn.HIDDEN_STATE: edge_state
+                  })),
       })
 
 
@@ -721,7 +797,7 @@ class MultiHeadAttentionMPNNGraphUpdateTest(tf.test.TestCase,
     # Node "b" receives message of dimension 6 from sender node and edge
     # in which all elements are 1+16=17. The hidden state is updated from
     # 2 to 2 + 6*17.
-    self.assertAllEqual([[2. + message_dim*17]],
+    self.assertAllEqual([[2. + message_dim * 17]],
                         graph.node_sets["b"][tfgnn.HIDDEN_STATE])
 
   def testMessageUnitsNotDivisible(self):
@@ -734,27 +810,32 @@ class MultiHeadAttentionMPNNGraphUpdateTest(tf.test.TestCase,
 def _make_test_graph_abc():
   return tfgnn.GraphTensor.from_pieces(
       node_sets={
-          "a": tfgnn.NodeSet.from_fields(
-              sizes=tf.constant([1]),
-              features={tfgnn.HIDDEN_STATE: tf.constant([[1.]])}),
-          "b": tfgnn.NodeSet.from_fields(
-              sizes=tf.constant([1]),
-              features={tfgnn.HIDDEN_STATE: tf.constant([[2.]])}),
-          "c": tfgnn.NodeSet.from_fields(
-              sizes=tf.constant([1]),
-              features={tfgnn.HIDDEN_STATE: tf.constant([[8.]])})},
+          "a":
+              tfgnn.NodeSet.from_fields(
+                  sizes=tf.constant([1]),
+                  features={tfgnn.HIDDEN_STATE: tf.constant([[1.]])}),
+          "b":
+              tfgnn.NodeSet.from_fields(
+                  sizes=tf.constant([1]),
+                  features={tfgnn.HIDDEN_STATE: tf.constant([[2.]])}),
+          "c":
+              tfgnn.NodeSet.from_fields(
+                  sizes=tf.constant([1]),
+                  features={tfgnn.HIDDEN_STATE: tf.constant([[8.]])})
+      },
       edge_sets={
-          "a->b": tfgnn.EdgeSet.from_fields(
-              sizes=tf.constant([1]),
-              adjacency=tfgnn.Adjacency.from_indices(
-                  ("a", tf.constant([0])),
-                  ("b", tf.constant([0]))),
-              features={"fab": tf.constant([[16.]])}),
-          "c->c": tfgnn.EdgeSet.from_fields(
-              sizes=tf.constant([1]),
-              adjacency=tfgnn.Adjacency.from_indices(
-                  ("c", tf.constant([0])),
-                  ("c", tf.constant([0]))))})
+          "a->b":
+              tfgnn.EdgeSet.from_fields(
+                  sizes=tf.constant([1]),
+                  adjacency=tfgnn.Adjacency.from_indices(
+                      ("a", tf.constant([0])), ("b", tf.constant([0]))),
+                  features={"fab": tf.constant([[16.]])}),
+          "c->c":
+              tfgnn.EdgeSet.from_fields(
+                  sizes=tf.constant([1]),
+                  adjacency=tfgnn.Adjacency.from_indices(
+                      ("c", tf.constant([0])), ("c", tf.constant([0]))))
+      })
 
 
 if __name__ == "__main__":
