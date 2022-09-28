@@ -28,9 +28,10 @@ from tensorflow_gnn.runner.utils import padding as padding_utils
 from tensorflow_gnn.runner.utils import strategies
 
 # Input
+PassthruDatasetProvider = datasets.PassthruDatasetProvider
+PassthruSampleDatasetsProvider = datasets.PassthruSampleDatasetsProvider
 SimpleDatasetProvider = datasets.SimpleDatasetProvider
 SimpleSampleDatasetsProvider = datasets.SimpleSampleDatasetsProvider
-
 SampleTFRecordDatasetsProvider = datasets.SampleTFRecordDatasetsProvider
 TFRecordDatasetProvider = datasets.TFRecordDatasetProvider
 
