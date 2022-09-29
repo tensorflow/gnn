@@ -25,20 +25,19 @@ from tensorflow_gnn.models import vanilla_mpnn
 
 FLAGS = flags.FLAGS
 
-# TODO(b/196880966): Update flag return values to _UPPER_SNAKE_CASE.
-_samples = flags.DEFINE_string(
+_SAMPLES = flags.DEFINE_string(
     "samples",
     None,
     "A file pattern for a TFRecord file of GraphTensors of sampled subgraphs.",
     required=True)
 
-_graph_schema = flags.DEFINE_string(
+_GRAPH_SCHEMA = flags.DEFINE_string(
     "graph_schema",
     None,
     "A filepath for the GraphSchema of the --samples.",
     required=True)
 
-_base_dir = flags.DEFINE_string(
+_BASE_DIR = flags.DEFINE_string(
     "base_dir",
     None,
     "The training and export base directory "
@@ -46,7 +45,7 @@ _base_dir = flags.DEFINE_string(
     "directory).",
     required=True)
 
-_tpu_address = flags.DEFINE_string(
+_TPU_ADDRESS = flags.DEFINE_string(
     "tpu_address",
     None,
     "An optional TPU address "
@@ -54,7 +53,7 @@ _tpu_address = flags.DEFINE_string(
     "string: TensorFlow will try to automatically resolve the Cloud TPU; if "
     "`None`: `MirroredStrategy` is used.")
 
-_paper_dim = flags.DEFINE_integer(
+_PAPER_DIM = flags.DEFINE_integer(
     "paper_dim", 512,
     "Dimensionality of dense layer applied to paper features. "
     "Set to 'None' for no dense transform."
@@ -102,11 +101,11 @@ class _SplitDatasetProvider:
 
 
 def main(_) -> None:
-  ds_provider = runner.TFRecordDatasetProvider(_samples.value)
+  ds_provider = runner.TFRecordDatasetProvider(_SAMPLES.value)
   train_ds_provider = _SplitDatasetProvider(ds_provider, "train")
   valid_ds_provider = _SplitDatasetProvider(ds_provider, "validation")
 
-  graph_schema = tfgnn.read_schema(_graph_schema.value)
+  graph_schema = tfgnn.read_schema(_GRAPH_SCHEMA.value)
   gtspec = tfgnn.create_graph_spec_from_schema_pb(graph_schema)
 
   def extract_labels(graphtensor: tfgnn.GraphTensor):
@@ -135,11 +134,11 @@ def main(_) -> None:
     if node_set_name == "institution":
       return tf.keras.layers.Embedding(6_500, 16)(node_set["hashed_id"])
     if node_set_name == "paper":
-      if _paper_dim.value is None:
+      if _PAPER_DIM.value is None:
         logging.info("Skipping dense layer for paper.")
         return node_set["feat"]
-      logging.info("Applying dense layer %d to paper.", _paper_dim.value)
-      return tf.keras.layers.Dense(_paper_dim.value)(node_set["feat"])
+      logging.info("Applying dense layer %d to paper.", _PAPER_DIM.value)
+      return tf.keras.layers.Dense(_PAPER_DIM.value)(node_set["feat"])
     if node_set_name == "author":
       return node_set["empty_state"]
     raise KeyError(f"Unexpected node_set_name='{node_set_name}'")
@@ -170,8 +169,8 @@ def main(_) -> None:
   # len(validation) == 64,879
   validation_steps = 64_879 // validation_batch_size
 
-  if _tpu_address.value is not None:
-    strategy = runner.TPUStrategy(_tpu_address.value)
+  if _TPU_ADDRESS.value is not None:
+    strategy = runner.TPUStrategy(_TPU_ADDRESS.value)
     train_padding = runner.FitOrSkipPadding(gtspec, train_ds_provider)
     valid_padding = runner.TightPadding(gtspec, train_ds_provider)
   else:
@@ -181,7 +180,7 @@ def main(_) -> None:
 
   trainer = runner.KerasTrainer(
       strategy=strategy,
-      model_dir=runner.incrementing_model_dir(_base_dir.value),
+      model_dir=runner.incrementing_model_dir(_BASE_DIR.value),
       steps_per_epoch=steps_per_epoch,
       validation_per_epoch=4,
       validation_steps=validation_steps)
