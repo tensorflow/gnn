@@ -1,11 +1,10 @@
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_binary")
+load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_binary", "pytype_strict_library")
 
 licenses(["notice"])
 
-pytype_strict_binary(
-    name = "main",
-    srcs = ["main.py"],
-    python_version = "PY3",
+pytype_strict_library(
+    name = "train_lib",
+    srcs = ["train.py"],
     deps = [
         "//third_party/py/absl:app",
         "//third_party/py/absl/flags",
@@ -15,4 +14,11 @@ pytype_strict_binary(
         "//tensorflow_gnn/models/vanilla_mpnn",
         "//tensorflow_gnn/runner",
     ],
+)
+
+pytype_strict_binary(
+    name = "train",
+    srcs = ["train.py"],
+    python_version = "PY3",
+    deps = [":train_lib"],
 )
