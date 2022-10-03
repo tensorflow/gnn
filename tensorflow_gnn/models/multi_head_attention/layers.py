@@ -399,8 +399,8 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
 
     # Dot-product of queries and keys to produce the attention coefficients.
     # [num_items, *extra_dims, num_heads, 1]
-    attention_coefficients = tf.reduce_sum(
-        queries * keys, axis=-1, keepdims=True)
+    attention_coefficients = tf.expand_dims(
+        tf.einsum("...j,...j->...", queries, keys), axis=-1)
     if self._score_scaling:
       attention_coefficients *= tf.math.rsqrt(
           tf.cast(keys.shape[-1], tf.float32))
