@@ -25,7 +25,7 @@ to open a PR without discussion.
 
 To make code changes, you need to fork the repository. You will need to setup a
 development environment and run the unit tests. This is covered in the
-[developer guide](https://github.com/tensorflow/gnn/tensorflow_gnn/docs/guide/developer.md).
+[developer guide](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/docs/guide/developer.md).
 
 ### Step 3. Create a pull request
 
