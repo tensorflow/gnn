@@ -5,6 +5,9 @@ licenses(["notice"])
 pytype_strict_library(
     name = "train_lib",
     srcs = ["train.py"],
+    visibility = [
+        ":__subpackages__",
+    ],
     deps = [
         "//third_party/py/absl:app",
         "//third_party/py/absl/flags",
