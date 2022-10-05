@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """`tf.data.Dataset` of `tfgnn.GraphTensor` methods."""
-from typing import Callable, Optional, Sequence
+from typing import Callable, List, Optional, Sequence
 
 import tensorflow as tf
 
@@ -119,7 +119,7 @@ class SimpleDatasetProvider:
 
   def get_dataset(self, context: tf.distribute.InputContext) -> tf.data.Dataset:
     """Gets a `tf.data.Dataset` by `context` per replica."""
-    filenames = sorted(tf.io.gfile.glob(self._file_pattern))
+    filenames = _sorted_glob_or_raise(self._file_pattern)
     return _process_dataset(
         tf.data.Dataset.from_tensor_slices(filenames),
         num_shards=context.num_input_pipelines,
@@ -127,6 +127,14 @@ class SimpleDatasetProvider:
         shuffle_dataset=self._shuffle_filenames,
         interleave_fn=self._interleave_fn,
         examples_shuffle_size=self._examples_shuffle_size)
+
+
+def _sorted_glob_or_raise(file_pattern: str,
+                          pattern_name="pattern") -> List[str]:
+  filenames = tf.io.gfile.glob(file_pattern)
+  if not filenames:
+    raise FileNotFoundError(f"No files match {pattern_name} {file_pattern}")
+  return sorted(filenames)
 
 
 def _process_sampled_dataset(
@@ -367,10 +375,10 @@ class SimpleSampleDatasetsProvider:
     Returns:
       A `tf.data.Dataset.`
     """
-    principal_filenames = sorted(tf.io.gfile.glob(self._principal_file_pattern))
-    extra_filenames = [
-        sorted(tf.io.gfile.glob(f)) for f in self._extra_file_patterns
-    ]
+    principal_filenames = _sorted_glob_or_raise(self._principal_file_pattern,
+                                                "principal file pattern")
+    extra_filenames = [_sorted_glob_or_raise(f, "extra file pattern")
+                       for f in self._extra_file_patterns]
     return _process_sampled_dataset(
         tf.data.Dataset.from_tensor_slices(principal_filenames),
         [tf.data.Dataset.from_tensor_slices(f) for f in extra_filenames],
