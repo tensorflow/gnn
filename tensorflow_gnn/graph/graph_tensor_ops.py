@@ -14,7 +14,7 @@
 # ==============================================================================
 """Broadcasts and pools features between node sets, edge sets and context."""
 import functools
-from typing import Any, Callable, List, Mapping, Optional, Union
+from typing import Any, Callable, Collection, List, Mapping, Optional, Union
 import tensorflow as tf
 
 from tensorflow_gnn.graph import adjacency as adj
@@ -882,9 +882,171 @@ def shuffle_scalar_components(graph_tensor: GraphTensor,
   return graph_tensor.replace_features(context, node_sets, edge_sets)
 
 
-def _shuffle_features(features: Mapping[FieldName, Field],
+def reorder_nodes(graph_tensor: GraphTensor,
+                  node_indices: Mapping[gt.NodeSetName, tf.Tensor],
+                  *,
+                  validate: bool = True) -> GraphTensor:
+  """Reorders nodes within node sets according to indices.
+
+  Args:
+    graph_tensor: A scalar GraphTensor.
+    node_indices: A mapping from node sets name to new nodes indices (positions
+      within the node set). Each index is an arbitrary permutation of
+      `tf.range(num_nodes)`, where `index[i]` is an index of an original node
+      to be placed at position `i`.
+    validate: If True, checks that `node_indices` are valid permutations.
+
+  Returns:
+    A scalar GraphTensor with randomly shuffled nodes within `node_sets`.
+
+  Raises:
+    ValueError: If `node_sets` contains non existing node set names.
+    ValueError: If indices are not `rank=1` `tf.int32` or `tf.int64` tensors.
+    InvalidArgumentError: if an index shape is not `[num_nodes]`.
+    InvalidArgumentError: if an index is not a permutation of
+      `tf.range(num_nodes)`. Only if validate is set to True.
+  """
+  gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.reorder_nodes()')
+  diff = set(node_indices.keys()) - set(graph_tensor.node_sets.keys())
+  if diff:
+    raise ValueError(f'`node_indices` contains non existing node sets: {diff}.')
+
+  node_sets, edge_sets = {}, {}
+  new_nodes_positions = {}
+  for node_set_name, node_set in graph_tensor.node_sets.items():
+    if node_set_name not in node_indices:
+      node_sets[node_set_name] = node_set
+    else:
+      indices = node_indices[node_set_name]
+      num_nodes = node_set.total_size
+      validation_ops = []
+      validation_ops.append(
+          tf.debugging.assert_equal(
+              tf.size(indices, out_type=node_set.indices_dtype),
+              num_nodes,
+              message=(f'Indices for {node_set_name}'
+                       ' must have shape `[num_nodes]`.')))
+
+      if validate:
+        segment_counts = tf.math.unsorted_segment_sum(
+            tf.ones_like(indices), indices, num_nodes)
+        validation_ops.append(
+            tf.debugging.assert_equal(
+                segment_counts, tf.ones_like(segment_counts),
+                (f'Indices for {node_set_name}'
+                 ' are not valid `tf.range(num_nodes)` permutation.')))
+
+      with tf.control_dependencies(validation_ops):
+        # Keep track of new nodes positions after shuffle as a `new_positions`
+        # tensor, where `new_positions[i]` returns index of a new node position
+        # (after shuffle) for the original node `i`. Note that we could use
+        # segment sum operation as indices are unique mapping.
+        old_positions = tf.range(num_nodes, dtype=node_set.indices_dtype)
+        new_positions = tf.math.unsorted_segment_sum(
+            old_positions, indices, num_nodes)
+
+      new_nodes_positions[node_set_name] = new_positions
+      features = tf.nest.map_structure(
+          functools.partial(tf.gather, indices=indices), node_set.features)
+      node_sets[node_set_name] = node_set.replace_features(features)
+
+  for edge_set_name, edge_set in graph_tensor.edge_sets.items():
+    if not isinstance(edge_set.adjacency, adj.HyperAdjacency):
+      raise ValueError(
+          'Expected adjacency type `tfgnn.Adjacency` or `tfgnn.HyperAdjacency`,'
+          f' got {type(edge_set.adjacency).__name__},'
+          f' edge set {edge_set_name}.')
+
+    adj_indices = edge_set.adjacency.get_indices_dict()
+    indices_update = {}
+    for node_set_tag, (node_set_name, indices) in adj_indices.items():
+      if node_set_name not in new_nodes_positions:
+        continue
+      indices_update[node_set_tag] = (
+          node_set_name,
+          tf.gather(new_nodes_positions[node_set_name], indices))
+    if not indices_update:
+      edge_sets[edge_set_name] = edge_set
+    else:
+      adj_indices.update(indices_update)
+      if isinstance(edge_set.adjacency, adj.Adjacency):
+        adjacency = adj.Adjacency.from_indices(
+            source=adj_indices[const.SOURCE],
+            target=adj_indices[const.TARGET],
+            validate=const.validate_internal_results)
+      else:
+        adjacency = adj.HyperAdjacency.from_indices(
+            adj_indices, validate=const.validate_internal_results)
+      edge_sets[edge_set_name] = gt.EdgeSet.from_fields(
+          features=edge_set.features, sizes=edge_set.sizes, adjacency=adjacency)
+
+  result = GraphTensor.from_pieces(graph_tensor.context, node_sets, edge_sets)
+
+  if const.validate_internal_results:
+    result.spec.is_compatible_with(graph_tensor.spec)
+  return result
+
+
+def shuffle_nodes(graph_tensor: GraphTensor,
+                  *,
+                  node_sets: Optional[Collection[gt.NodeSetName]] = None,
+                  seed: Optional[int] = None) -> GraphTensor:
+  """Randomly reorders nodes of given node sets, within each graph component.
+
+  The order of edges does not change; only their adjacency is modified to match
+  the new order of shuffled nodes. The order of graph components (as created
+  by `merge_graph_to_components()`) does not change, nodes are shuffled
+  separatelty within each component.
+
+  Args:
+    graph_tensor: A scalar GraphTensor.
+    node_sets: An optional collection of node sets names to shuffle. If None,
+      all node sets are shuffled.  Should not overlap with `shuffle_indices`.
+    seed: A seed for random uniform shuffle.
+
+  Returns:
+    A scalar GraphTensor with randomly shuffled nodes within `node_sets`.
+
+  Raises:
+    ValueError: If `node_sets` containes non existing node set names.
+  """
+  gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.shuffle_nodes()')
+
+  if node_sets is None:
+    target_node_sets = set(graph_tensor.node_sets.keys())
+  else:
+    target_node_sets = set(node_sets)
+    diff = target_node_sets - set(graph_tensor.node_sets.keys())
+    if diff:
+      raise ValueError(f'`node_sets` contains non existing node sets: {diff}.')
+
+  def index_shuffle_singleton(node_set: gt.NodeSet) -> tf.Tensor:
+    total_size = node_set.spec.total_size or node_set.total_size
+    return tf.random.shuffle(
+        tf.range(total_size, dtype=node_set.indices_dtype), seed=seed)
+
+  def index_shuffle_generic(node_set: gt.NodeSet) -> tf.Tensor:
+    row_ids = utils.row_lengths_to_row_ids(
+        node_set.sizes, sum_row_lengths_hint=node_set.spec.total_size)
+    return utils.segment_shuffle(row_ids, seed=seed)
+
+  if graph_tensor.spec.total_num_components == 1:
+    index_fn = index_shuffle_singleton
+  else:
+    index_fn = index_shuffle_generic
+
+  node_indices = {
+      node_set_name: index_fn(graph_tensor.node_sets[node_set_name])
+      for node_set_name in target_node_sets
+  }
+
+  return reorder_nodes(
+      graph_tensor, node_indices, validate=const.validate_internal_results)
+
+
+def _shuffle_features(features: gt.Fields,
                       *,
-                      seed: Optional[int] = None) -> Mapping[FieldName, Field]:
+                      seed: Optional[int] = None) -> gt.Fields:
   """Shuffles dense or ragged features.
 
   Args:
