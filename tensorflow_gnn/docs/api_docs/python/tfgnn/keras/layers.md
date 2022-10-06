@@ -52,7 +52,7 @@ self-loops to scalar graphs.
 
 [`class Readout`](../../tfgnn/keras/layers/Readout.md): Reads a feature out of a GraphTensor.
 
-[`class ReadoutFirstNode`](../../tfgnn/keras/layers/ReadoutFirstNode.md): Reads a feature from the first node of each graph conponent.
+[`class ReadoutFirstNode`](../../tfgnn/keras/layers/ReadoutFirstNode.md): Reads a feature from the first node of each graph component.
 
 [`class ResidualNextState`](../../tfgnn/keras/layers/ResidualNextState.md): Updates a state with a residual block.
 
