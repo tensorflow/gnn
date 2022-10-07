@@ -142,6 +142,7 @@ graph_tensor_to_values = graph_tensor_pprint.graph_tensor_to_values
 random_graph_tensor = graph_tensor_random.random_graph_tensor
 
 # Operations.
+mask_edges = graph_tensor_ops.mask_edges
 add_self_loops = graph_tensor_ops.add_self_loops
 broadcast_node_to_edges = graph_tensor_ops.broadcast_node_to_edges
 is_graph_tensor = graph_tensor_ops.is_graph_tensor
