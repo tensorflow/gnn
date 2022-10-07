@@ -263,25 +263,14 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       else:
         self._w_sender_edge_to_key = None
 
-    if self.takes_sender_node_input:
-      self._w_sender_node_to_value = tf.keras.layers.Dense(
-          per_head_channels * num_heads,
-          kernel_initializer=kernel_initializer,
-          kernel_regularizer=kernel_regularizer,
-          use_bias=use_bias,
-          name="value_node")
-    else:
-      self._w_sender_node_to_value = None
-    if self.takes_sender_edge_input:
-      self._w_sender_edge_to_value = tf.keras.layers.Dense(
-          per_head_channels * num_heads,
-          kernel_initializer=kernel_initializer,
-          kernel_regularizer=kernel_regularizer,
-          # This bias would be redundant with self._w_sender_node_to_value.
-          use_bias=use_bias and self._w_sender_node_to_value is None,
-          name="value_edge")
-    else:
-      self._w_sender_edge_to_value = None
+    # Create the tranformations for the values.
+    self._w_sender_pooled_to_value = tf.keras.layers.EinsumDense(
+        equation="...hv,hvc->...hc",
+        output_shape=(num_heads, per_head_channels),
+        bias_axes="hc" if use_bias else None,
+        kernel_initializer=kernel_initializer,
+        kernel_regularizer=kernel_regularizer,
+        name="value_pooled")
 
   def get_config(self):
     return dict(
@@ -416,29 +405,37 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       attention_coefficients = self._edge_dropout_layer(attention_coefficients,
                                                         **kwargs)
 
-    # Form the values and multiply them with the attention coefficients.
-    values = []
+    # Apply the attention coefficients to compute a weighted sum of values.
+    # Conceptually, for each head, this computes a value for each item,
+    # then forms the weighted sum, and applies an optional activation function.
+    # However, values are computed by a linear transformation, so it is
+    # mathematically equivalent to form the weighted sum first and apply the
+    # value transformation after, which reduces its number of inputs from
+    # num_items to num_receivers.
+    # TODO(b/251734617): Figure out if/when/where/how to place the
+    # `self._w_sender_pooled_to_value` transformation.
+    value_inputs = []
     if sender_node_input is not None:
-      values.append(
-          broadcast_from_sender_node(
-              self._split_heads(
-                  self._w_sender_node_to_value(sender_node_input))))
+      value_inputs.append(broadcast_from_sender_node(sender_node_input))
     if sender_edge_input is not None:
-      values.append(
-          self._split_heads(self._w_sender_edge_to_value(sender_edge_input)))
-    # [num_items, *extra_dims, num_heads, per_head_channels]
-    values = tf.add_n(values)
+      value_inputs.append(sender_edge_input)
+    # [num_items, *extra_dims, 1, input_channels]
+    value_inputs = tf.expand_dims(tf.concat(value_inputs, axis=-1), axis=-2)
 
-    # Compute the weighted combination of the values.
-    messages = values * attention_coefficients
-    pooled_messages = pool_to_receiver(messages, reduce_type="sum")
+    # Compute the weighted combination of the inputs, separately per head.
+    # [num_items, *extra_dims, num_heads, input_channels]
+    weighted_inputs = value_inputs * attention_coefficients
+    # [num_receivers, *extra_dims, num_heads, input_channels]
+    pooled_inputs = pool_to_receiver(weighted_inputs, reduce_type="sum")
 
-    # Apply the nonlinearity on the final result.
+    # Transform the pooled inputs to the pooled values.
     # [num_receivers, *extra_dims, num_heads, per_head_channels]
-    pooled_messages = self._activation(pooled_messages)
-    pooled_messages = self._merge_heads(pooled_messages)
+    pooled_values = self._w_sender_pooled_to_value(pooled_inputs)
+    pooled_values = self._activation(pooled_values)
 
-    return pooled_messages
+    # Merge heads for output.
+    pooled_values = self._merge_heads(pooled_values)
+    return pooled_values
 
   # The following helpers map back and forth between tensors with...
   #  - a separate heads dimension: shape [..., num_heads, channels_per_head],
