@@ -25,6 +25,7 @@ import tensorflow_gnn as tfgnn
 
 import datasets
 from tensorflow_gnn.examples.in_memory import int_arithmetic_sampler as ia_sampler
+from tensorflow_gnn.sampler import sampling_spec_builder
 
 
 class ToyDataset(datasets.NodeClassificationDatasetWrapper):
@@ -35,6 +36,7 @@ class ToyDataset(datasets.NodeClassificationDatasetWrapper):
         'cat': ['spider', 'rat', 'water'],
         'monkey': ['banana', 'water'],
         'cow': ['banana', 'water'],
+        'unicorn': [],
     }
 
     food_set = set()
@@ -69,6 +71,25 @@ class ToyDataset(datasets.NodeClassificationDatasetWrapper):
         }
     }
 
+  def num_classes(self) -> int:
+    return 10
+
+  def node_split(self) -> datasets.NodeSplit:
+    empty_vector = tf.zeros([0], dtype=tf.int32)
+    return datasets.NodeSplit(
+        train=tf.range(len(self.id2animal), dtype=tf.int32),
+        test=empty_vector, valid=empty_vector)
+
+  def labels(self) -> tf.Tensor:
+    return tf.ones(len(self.id2animal), dtype=tf.int32)
+
+  def test_labels(self) -> tf.Tensor:
+    return self.labels()
+
+  @property
+  def labeled_nodeset(self) -> str:
+    return 'animals'
+
   def node_counts(self) -> Mapping[tfgnn.NodeSetName, int]:
     return {'food': len(self.id2food), 'animals': len(self.id2animal)}
 
@@ -78,11 +99,11 @@ class ToyDataset(datasets.NodeClassificationDatasetWrapper):
     }
 
 
-class IntArithmeticSamplerTest(parameterized.TestCase):
+class IntArithmeticSamplerTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
-      ('WithReplacement', ia_sampler.EdgeSampling.WITH_REPLACEMENT),
-      ('WithoutReplacement', ia_sampler.EdgeSampling.WITHOUT_REPLACEMENT))
+      ('WithReplacement', ia_sampler.EdgeSampling.W_REPLACEMENT),
+      ('WithoutReplacement', ia_sampler.EdgeSampling.WO_REPLACEMENT))
   def test_sample_one_hop(self, strategy):
     toy_dataset = ToyDataset()
     sampler = ia_sampler.GraphSampler(toy_dataset)
@@ -95,7 +116,8 @@ class IntArithmeticSamplerTest(parameterized.TestCase):
     next_hop = sampler.sample_one_hop(
         tf.convert_to_tensor(source_node_ids), 'eats', sample_size=sample_size,
         sampling=strategy)
-
+    self.assertIsInstance(next_hop, tf.Tensor)
+    assert isinstance(next_hop, tf.Tensor)  # Assert needed to access `.shape`.
     self.assertEqual(next_hop.shape[0], source_node_ids.shape[0])
     self.assertEqual(next_hop.shape[1], sample_size)
 
@@ -118,14 +140,14 @@ class IntArithmeticSamplerTest(parameterized.TestCase):
       # Each node has 2 neighbors. Make sure that nothing is "sampled too much"
       self.assertGreater(min(sampled_counts.values()), sample_size // 10)
 
-      if strategy == ia_sampler.EdgeSampling.WITHOUT_REPLACEMENT:
-        # WITHOUT_REPLACEMENT is fair. It will pick each item once, then
+      if strategy == ia_sampler.EdgeSampling.WO_REPLACEMENT:
+        # WO_REPLACEMENT is fair. It will pick each item once, then
         # re-iterate (in another random order).
         self.assertEqual(min(sampled_counts.values()), sample_size // 2)
 
   @parameterized.named_parameters(
-      ('WithReplacement', ia_sampler.EdgeSampling.WITH_REPLACEMENT),
-      ('WithoutReplacement', ia_sampler.EdgeSampling.WITHOUT_REPLACEMENT))
+      ('WithReplacement', ia_sampler.EdgeSampling.W_REPLACEMENT),
+      ('WithoutReplacement', ia_sampler.EdgeSampling.WO_REPLACEMENT))
   def test_sample_two_hops(self, strategy):
     toy_dataset = ToyDataset()
     sampler = ia_sampler.GraphSampler(toy_dataset)
@@ -139,11 +161,13 @@ class IntArithmeticSamplerTest(parameterized.TestCase):
     hop1 = sampler.sample_one_hop(
         tf.convert_to_tensor(source_node_ids), 'eats', sample_size=hop1_size,
         sampling=strategy)
-
+    self.assertIsInstance(hop1, tf.Tensor)
+    assert isinstance(hop1, tf.Tensor)  # Assert needed to access `.shape`.
     hop2_size = 20
     hop2 = sampler.sample_one_hop(
         hop1, 'rev_eats', sample_size=hop2_size, sampling=strategy)
-
+    self.assertIsInstance(hop2, tf.Tensor)
+    assert isinstance(hop2, tf.Tensor)  # Assert needed to access `.shape`.
     self.assertEqual(hop1.shape, (batch_size, hop1_size))
     self.assertEqual(hop2.shape, (batch_size, hop1_size, hop2_size))
     np_edgelist = toy_dataset.eats_edgelist.numpy()
@@ -169,8 +193,8 @@ class IntArithmeticSamplerTest(parameterized.TestCase):
       # Each node has 2 neighbors. Make sure that nothing is "sampled too much"
       self.assertGreater(min(sampled_counts.values()), hop1_size // 10)
 
-      if strategy == ia_sampler.EdgeSampling.WITHOUT_REPLACEMENT:
-        # WITHOUT_REPLACEMENT is fair. It will pick each item once, then
+      if strategy == ia_sampler.EdgeSampling.WO_REPLACEMENT:
+        # WO_REPLACEMENT is fair. It will pick each item once, then
         # re-iterate (in another random order).
         self.assertEqual(min(sampled_counts.values()), hop1_size // 2)
 
@@ -185,10 +209,60 @@ class IntArithmeticSamplerTest(parameterized.TestCase):
         self.assertEmpty(
             set(sampled_hop2_counts.keys()).difference(actual_edge_set))
 
-        if strategy == ia_sampler.EdgeSampling.WITHOUT_REPLACEMENT:
+        if strategy == ia_sampler.EdgeSampling.WO_REPLACEMENT:
           max_count = max(sampled_hop2_counts.values())
           min_count = min(sampled_hop2_counts.values())
           self.assertLessEqual(max_count - min_count, 1)  # Fair sampling.
+
+  @parameterized.named_parameters(
+      ('WithReplacementWithOrphans',
+       ia_sampler.EdgeSampling.W_REPLACEMENT_W_ORPHANS),
+      ('WithoutReplacementWithoutRepeat',
+       ia_sampler.EdgeSampling.WO_REPLACEMENT_WO_REPEAT))
+  def test_sample_random_walk_tree_with_validation(self, strategy):
+    toy_dataset = ToyDataset()
+    sampler = ia_sampler.GraphSampler(toy_dataset)
+    source_node_names = ['dog', 'unicorn']
+    source_node_ids = [toy_dataset.animal2id[name]
+                       for name in source_node_names]
+    source_node_ids = np.array(source_node_ids)
+    source_node_ids = tf.convert_to_tensor(source_node_ids)
+
+    toy_graph_schema = toy_dataset.export_graph_schema()
+
+    hop1_samples = hop2_samples = 10
+    spec = sampling_spec_builder.SamplingSpecBuilder(
+        toy_graph_schema,
+        default_strategy=sampling_spec_builder.SamplingStrategy.RANDOM_UNIFORM)
+    spec = (spec.seed('animals').sample(hop1_samples, 'eats')
+            .sample(hop2_samples, 'rev_eats').to_sampling_spec())
+    walk_tree = sampler.random_walk_tree(
+        source_node_ids, spec, sampling=strategy)
+
+    # Root node contains source nodes, all of which are valid.
+    self.assertAllEqual(walk_tree.nodes, source_node_ids)
+    self.assertAllEqual(walk_tree.valid_mask,
+                        tf.ones(shape=source_node_ids.shape, dtype=tf.bool))
+    self.assertLen(walk_tree.next_steps, 1)  # Sampled one edge from root.
+    self.assertEqual(walk_tree.next_steps[0][0], 'eats')  # Sampled edge 'eats'.
+    hop1 = walk_tree.next_steps[0][1]
+
+    self.assertLen(hop1.next_steps, 1)  # Sampled one edge from hop1.
+    self.assertEqual(hop1.next_steps[0][0], 'rev_eats')
+    hop2 = hop1.next_steps[0][1]
+
+    if strategy == ia_sampler.EdgeSampling.W_REPLACEMENT_W_ORPHANS:
+      self.assertTrue(np.all(hop1.valid_mask[0]))   # dog eats some things.
+      self.assertFalse(np.any(hop1.valid_mask[1]))  # unicorn eats nothing.
+      # Validity should be propagated.
+      self.assertFalse(np.any(hop2.valid_mask[1]))
+    elif strategy == ia_sampler.EdgeSampling.WO_REPLACEMENT_WO_REPEAT:
+      self.assertTrue(np.all(hop1.valid_mask[0, :2]))   # dog eats 2 things.
+      self.assertFalse(np.any(hop1.valid_mask[0, 2:]))  # dog eats 2 things.
+      self.assertFalse(np.any(hop1.valid_mask[1]))  # unicorn eats nothing
+      # Validity should be propagated.
+      self.assertFalse(np.any(hop2.valid_mask[0, 2:]))
+      self.assertFalse(np.any(hop2.valid_mask[1]))
 
 
 if __name__ == '__main__':
