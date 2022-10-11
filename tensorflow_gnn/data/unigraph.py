@@ -362,6 +362,9 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
   """Read a unigraph node/edge/context component from a BigQuery table.
 
   Yeilds tf.Example protos of the features from the table.
+
+  **NOTE**(b/252789408): only scalar features (float, int and string) are
+    currently supported when using a BQ source.
   """
   _SUPPORTED_DTYPES = [tf.dtypes.float32, tf.dtypes.int64, tf.dtypes.string]
   _ID_COLUMN = "id"
@@ -518,6 +521,20 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
   def row_to_keyed_example(self, row: Mapping[str, Any]) -> Any:
     """Convert a single row from a BigQuery result to tf.Example.
 
+    Will extract values from the retrieved BigQuery row according to the
+    features specified by the GraphSchema. This is to support discarding
+    entries in the BQ row that are not relevant to the TFGNN model.
+
+    For node sets, it is expected that the BQ row have a column named `id`.
+    Any feature with key: 'id' in the input GraphSchema will be ignored.
+
+    For edge sets, the returned BQ row must have columns named `source` and
+    `target`. Any feature specified in the GraphSchema with key: `source` or
+    key: `target` will be ignored.
+
+    **NOTE**(b/252789408): only scalar features (float, int and string) are
+    currently supported when using a BQ source.
+
     Args:
       row: Dict[str, Any] result of a BigQuery read.
 
@@ -528,7 +545,10 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
         Tuple(source: str, target: str, example: tf.train.Example)
 
     Raises:
-      ValueError if a field name is not found in the BQ row.
+      ValueError: If a field name is not found in the BQ row.
+      ValueError: If an input feature has an unspported data type
+        (see GraphSchema and BigQuery documentation for valid data type
+        specifications).
     """
     ret_key = None
     example = Example()
@@ -539,8 +559,7 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
             f"Query result must have a column named {self._ID_COLUMN}")
 
       node_id = row[self._ID_COLUMN]
-      node_id_feature_name = _TRANSLATIONS[self._ID_COLUMN]
-      example.features.feature[node_id_feature_name].bytes_list.value.append(
+      example.features.feature[NODE_ID].bytes_list.value.append(
           node_id.encode("utf-8"))
       ret_key = [node_id]
 
@@ -571,31 +590,31 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
     else:
       raise ValueError("Row must represent at Node or Edge set.")
 
-    id_is_set = False
     for feature_name, feature in self.fset.features.items():
       # In case client encodes `id`, `source` or `target` explicitly in the
       # features specification.
       tf_feature_name = _TRANSLATIONS.get(feature_name, feature_name)
 
+      # The `id`, `source` or `target` fields should already be set, skip any
+      # user-defined feature in the input GraphSchema.
+      if tf_feature_name in {NODE_ID, SOURCE_ID, TARGET_ID}:
+        continue
+
       if feature_name not in row:
         raise ValueError(
             f"Could not find {feature_name} in query result: {row}")
 
-      # If the ID is already set, skip the explicit feature enumeration.
-      # This can happen if a table or query already contains a row named `id`.
-      if (tf_feature_name == "#id" or tf_feature_name == "id") and id_is_set:
-        continue
-      else:
-        id_is_set = True
-
+      feature_value = row.get(feature_name)
       example_feature = example.features.feature[tf_feature_name]
       if feature.dtype == tf.float32.as_datatype_enum:
-        example_feature.float_list.value.append(row[feature_name])
-      if feature.dtype == tf.int64.as_datatype_enum:
-        example_feature.int64_list.value.append(row[feature_name])
-      if feature.dtype == tf.string.as_datatype_enum:
+        example_feature.float_list.value.append(feature_value)
+      elif feature.dtype == tf.int64.as_datatype_enum:
+        example_feature.int64_list.value.append(feature_value)
+      elif feature.dtype == tf.string.as_datatype_enum:
         example_feature.bytes_list.value.append(
             row.get(feature_name, "").encode("utf-8"))
+      else:
+        raise ValueError(f"Unknown feature.dtype: {feature.dtype}")
 
     if len(ret_key) == 1:
       return ret_key[0].encode("utf-8"), example
