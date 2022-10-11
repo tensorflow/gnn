@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
+# DO NOT SUBMIT: Edit doc to talk about `make_node_classification_tf_dataset`.
+
 r"""Random tree walks to make GraphTensor of subgraphs rooted at seed nodes.
 
 The entry point is method `make_sampled_subgraphs_dataset()`, which accepts as
@@ -351,11 +354,11 @@ class GraphSampler:
 
   Sub-graphs are encoded as `GraphTensor` or tf.data.Dataset. Random walks are
   performed using `TypedWalkTree`. Input data graph must be an instance of
-  `NodeClassificationDatasetWrapper`
+  `Dataset`.
   """
 
   def __init__(self,
-               dataset: datasets.NodeClassificationDatasetWrapper,
+               dataset: datasets.Dataset,
                make_undirected: bool = False,
                ensure_self_loops: bool = False,
                reduce_memory_footprint: bool = True,
@@ -506,30 +509,6 @@ class GraphSampler:
 
     return next_nodes
 
-  def generate_subgraphs(
-      self, batch_size: int,
-      sampling_spec: sampling_spec_pb2.SamplingSpec,
-      split: str = 'train',
-      sampling=EdgeSampling.WITH_REPLACEMENT):
-    """Infinitely yields random subgraphs each rooted on node in train set."""
-    if isinstance(split, bytes):
-      split = split.decode()
-    if not isinstance(split, (tuple, list)):
-      split = (split,)
-
-    partitions = self.dataset.node_split()
-
-    node_ids = tf.concat([getattr(partitions, s) for s in split], 0)
-    queue = tf.random.shuffle(node_ids)
-
-    while True:
-      while queue.shape[0] < batch_size:
-        queue = tf.concat([queue, tf.random.shuffle(node_ids)], axis=0)
-      batch = queue[:batch_size]
-      queue = queue[batch_size:]
-      yield self.sample_sub_graph_tensor(
-          batch, sampling_spec=sampling_spec, sampling=sampling)
-
   def random_walk_tree(
       self, node_idx: tf.Tensor, sampling_spec: sampling_spec_pb2.SamplingSpec,
       sampling: EdgeSampling = EdgeSampling.WITH_REPLACEMENT) -> TypedWalkTree:
@@ -609,14 +588,52 @@ class GraphSampler:
     features = self.dataset.node_features_dicts(add_id=True)[node_set_name]
     features = {feature_name: tf.gather(feature_value, node_idx)
                 for feature_name, feature_value in features.items()}
+    return features
+
+
+class NodeClassificationGraphSampler(GraphSampler):
+  """Sampler returning subgraphs for node-classification in-memory datasets."""
+
+  def __init__(self,
+               dataset: datasets.NodeClassificationDataset,
+               **sampler_kwargs):
+    super().__init__(dataset, **sampler_kwargs)
+    self.dataset = dataset
+
+  def generate_subgraphs(
+      self, batch_size: int,
+      sampling_spec: sampling_spec_pb2.SamplingSpec,
+      split: str = 'train',
+      sampling=EdgeSampling.WITH_REPLACEMENT):
+    """Infinitely yields random subgraphs each rooted on node in train set."""
+    if isinstance(split, bytes):
+      split = split.decode()
+    if not isinstance(split, (tuple, list)):
+      split = (split,)
+
+    partitions = self.dataset.node_split()
+
+    node_ids = tf.concat([getattr(partitions, s) for s in split], 0)
+    queue = tf.random.shuffle(node_ids)
+
+    while True:
+      while queue.shape[0] < batch_size:
+        queue = tf.concat([queue, tf.random.shuffle(node_ids)], axis=0)
+      batch = queue[:batch_size]
+      queue = queue[batch_size:]
+      yield self.sample_sub_graph_tensor(
+          batch, sampling_spec=sampling_spec, sampling=sampling)
+
+  def gather_node_features_dict(self, node_set_name, node_idx):
+    features = super().gather_node_features_dict(node_set_name, node_idx)
     if node_set_name == self.dataset.labeled_nodeset:
       features['label'] = tf.gather(self.dataset.labels(), node_idx)
 
     return features
 
 
-def make_sampled_subgraphs_dataset(
-    dataset: datasets.NodeClassificationDatasetWrapper,
+def make_node_classification_tf_dataset(
+    dataset: datasets.NodeClassificationDataset,
     sampling_spec: sampling_spec_pb2.SamplingSpec,
     batch_size: int = 64,
     split='train',
@@ -624,7 +641,8 @@ def make_sampled_subgraphs_dataset(
     sampling=EdgeSampling.WITH_REPLACEMENT
     ) -> Tuple[tf.TensorSpec, tf.data.Dataset]:
   """Infinite tf.data.Dataset wrapping generate_subgraphs."""
-  subgraph_generator = GraphSampler(dataset, make_undirected=make_undirected)
+  subgraph_generator = NodeClassificationGraphSampler(
+      dataset, make_undirected=make_undirected)
   relaxed_spec = None
   for graph_tensor in subgraph_generator.generate_subgraphs(
       batch_size, split=split, sampling_spec=sampling_spec, sampling=sampling):
