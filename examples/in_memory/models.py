@@ -165,8 +165,8 @@ def make_gcn_model(
     num_classes: int, depth: int = 3, hidden_units: int = 200,
     hidden_activation: _OptionalActivation = 'relu',
     out_activation: _OptionalActivation = None,
-    kernel_regularizer: _OptionalRegularizer = None,
-    batchnorm: bool = False, dropout: float = 0) -> tf.keras.Sequential:
+    kernel_regularizer: _OptionalRegularizer = None, use_bias: bool = False,
+    dropout: float = 0) -> tf.keras.Sequential:
   """Implements GCN of Kipf & Welling (ICLR'17) as keras Model."""
   layers = []
   for i in range(depth):
@@ -178,12 +178,8 @@ def make_gcn_model(
 
     layers.append(gcn.GCNHomGraphUpdate(
         units=num_units, receiver_tag=tfgnn.SOURCE, add_self_loops=True,
-        name='gcn_layer_%i' % i, activation=None,
+        name='gcn_layer_%i' % i, activation=None, use_bias=use_bias,
         kernel_regularizer=kernel_regularizer))
-
-    if batchnorm is not None:
-      layers.append(make_map_node_features_layer(
-          tf.keras.layers.BatchNormalization(momentum=0.9)))
 
     if activation is not None:
       layers.append(make_map_node_features_layer(
