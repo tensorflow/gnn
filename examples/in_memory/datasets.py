@@ -23,17 +23,24 @@
 
 * `create_graph_schema_from_directed` creates `tfgnn.GraphSchema` proto.
 """
+import collections
 import os
 import pickle
 import sys
-from typing import Any, Mapping, MutableMapping, List, Union, Tuple, NamedTuple
+from typing import Any, Dict, List, Mapping, MutableMapping, NamedTuple, Optional, Tuple, Union
 import urllib.request
 
+import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.runners.interactive import interactive_beam as ib
 import numpy as np
 import ogb.nodeproppred
-import scipy.sparse
+import scipy
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
+from tensorflow_gnn.data import unigraph
+
+Example = tf.train.Example
 
 
 def get_ogbn_dataset(dataset_name, root_dir):
@@ -565,3 +572,63 @@ def get_dataset(dataset_name):
 def as_tensor(obj: Any) -> tf.Tensor:
   """short-hand for tf.convert_to_tensor."""
   return tf.convert_to_tensor(obj)
+
+
+class UnigraphInMemeoryDataset(NodeClassificationDatasetWrapper):
+  """Implementation of in-memory dataset loader for unigraph format."""
+
+  def __init__(self,
+               graph_schema: tfgnn.GraphSchema,
+               graph_directory: Optional[str] = None,
+               pipeline_options: Optional[PipelineOptions] = None):
+    """Constructor to represent a unigraph in memory.
+
+    Args:
+      graph_schema: A tfgnn.GraphSchema protobuf message.
+      graph_directory: Optional graph directory if the graph_schema specifies
+        relative paths.
+      pipeline_options: Optional beam pipeline options that can be passed to the
+        interactive runner. `pipeline_options` will probably not be needed.
+    """
+    self.graph_schema = graph_schema
+    self.graph_directory = graph_directory
+    self.pipeline_options = pipeline_options
+
+    # Mapping from node set name to a mapping of node id to tf.train.Example
+    # pairs.
+    self.node_features: Dict[str, Dict[bytes, tf.train.Example]] = {}
+
+    # Mapping from an edge set name to a list of [src, target] pairs
+    self.flat_edge_list: Dict[str, List[Tuple[str, str, tf.train.Example]]] = {}
+
+    with beam.Pipeline(
+        runner='InteractiveRunner', options=pipeline_options) as p:
+      graph_pcoll: Dict[str, Dict[str, beam.PCollection]] = unigraph.read_graph(
+          self.graph_schema, self.graph_directory, p)
+
+      for node_set_name, ns in graph_pcoll[tfgnn.NODES].items():
+        self.node_features[node_set_name] = {}
+        df = ib.collect(ns)
+        for node_id, example in zip(df[0], df[1]):
+          self.node_features[node_set_name][node_id] = example
+
+      for edge_set_name, es in graph_pcoll[tfgnn.EDGES].items():
+        self.flat_edge_list[edge_set_name] = []
+        df = ib.collect(es)
+        for src, target, example in zip(df[0], df[1], df[2]):
+          self.flat_edge_list[edge_set_name].append((src, target, example))
+
+  def get_adjacency_list(self) -> Dict[tfgnn.EdgeSetName, Dict[str, Example]]:
+    """Returns weighted edges as an adjacency list of nested dictionaries.
+
+    This function is useful for testing for fast access to edge features based
+    on (source, target) IDs. Beware, this function will create an object that
+    may increase memory usage.
+    """
+    adjacency_sets = collections.defaultdict(dict)
+    for edge_set_name, flat_edge_list in self.flat_edge_list.items():
+      adjacency_sets[edge_set_name] = collections.defaultdict(dict)
+      for source, target, example in flat_edge_list:
+        adjacency_sets[edge_set_name][source][target] = example
+
+    return adjacency_sets
