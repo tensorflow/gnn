@@ -25,10 +25,6 @@ pytype_strict_contrib_test(
     ],
     python_version = "PY3",
     srcs_version = "PY3ONLY",
-    tags = [
-        "manual",  # b/247993986.
-        "notap",  # b/247993986.
-    ],
     deps = [
         ":unigraph",
         "//third_party/py/apache_beam",
