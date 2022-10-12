@@ -114,19 +114,6 @@ class _SourceDistributionWithProtos(Distribution):
     return False
 
 
-def select_constraint(default, nightly=None, git_master=None):
-  """Select dependency constraint based on TFX_DEPENDENCY_SELECTOR env var."""
-  selector = os.environ.get('TFX_DEPENDENCY_SELECTOR')
-  if selector == 'UNCONSTRAINED':
-    return ''
-  elif selector == 'NIGHTLY' and nightly is not None:
-    return nightly
-  elif selector == 'GIT_MASTER' and git_master is not None:
-    return git_master
-  else:
-    return default
-
-
 def get_version():
   """Get version from version module."""
   version_path = os.path.join(os.path.dirname(__file__), 'tensorflow_gnn')
@@ -181,10 +168,11 @@ setup(
     ],
     namespace_packages=[],
     install_requires=[
-        'apache-beam',  # TODO(b/238522209) Upgrade beam dep
+        'apache-beam',
         'networkx',
         'pyarrow',
-        'tensorflow>=2.7.0',
+        'tensorflow>=2.8.0; platform_machine != "arm64" or platform_system != "Darwin"',
+        'tensorflow-macos>=2.8.0; platform_machine == "arm64" and platform_system == "Darwin"',
     ],
     python_requires='>=3.7,<4',
     packages=find_namespace_packages(
