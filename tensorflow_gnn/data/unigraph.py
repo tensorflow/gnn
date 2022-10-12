@@ -363,10 +363,12 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
 
   Yeilds tf.Example protos of the features from the table.
 
-  **NOTE**(b/252789408): only scalar features (float, int and string) are
+  **NOTE**(b/252789408): only scalar features (bool, float, int and string) are
     currently supported when using a BQ source.
   """
-  _SUPPORTED_DTYPES = [tf.dtypes.float32, tf.dtypes.int64, tf.dtypes.string]
+  _SUPPORTED_DTYPES = [
+      tf.dtypes.float32, tf.dtypes.int64, tf.dtypes.string, tf.dtypes.bool
+  ]
   _ID_COLUMN = "id"
   _SOURCE_COLUMN = "source"
   _TARGET_COLUMN = "target"
