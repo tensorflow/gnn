@@ -286,11 +286,14 @@ def run(*,
         gtspec: tfgnn.GraphTensorSpec,
         global_batch_size: int,
         epochs: int = 1,
-        drop_remainder: bool = True,
+        drop_remainder: bool = False,
         export_dirs: Optional[Sequence[str]] = None,
+        model_exporters: Optional[Sequence[ModelExporter]] = None,
         feature_processors: Optional[Sequence[GraphTensorProcessorFn]] = None,
-        valid_ds_provider: Optional[DatasetProvider] = None):
-  pass
+        valid_ds_provider: Optional[DatasetProvider] = None,
+        train_padding: Optional[GraphTensorPadding] = None,
+        valid_padding: Optional[GraphTensorPadding] = None,
+        tf_data_service_config: Optional[TFDataServiceConfig] = None):
 ```
 
 The `model_fn` is expected to take a `tfgnn.GraphTensorSpec` and return a
