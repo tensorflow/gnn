@@ -188,16 +188,22 @@ class TestReadGraph(tf.test.TestCase):
             dtype: DT_INT64
           }
         }
-        features: {
+        features {
           key: "float_feature"
           value {
               dtype: DT_FLOAT
           }
         }
-        features: {
+        features {
             key: "string_feature"
             value {
                 dtype: DT_STRING
+            }
+        }
+        features {
+            key: "bool_feature"
+            value {
+                dtype: DT_BOOL
             }
         }
         metadata {
@@ -224,12 +230,14 @@ class TestReadGraph(tf.test.TestCase):
           "id": "id1",
           "string_feature": "a",
           "float_feature": 1.0,
-          "int_feature": 2
+          "int_feature": 2,
+          "bool_feature": True
       }, {
           "id": "id2",
           "string_feature": "b",
           "int_feature": 3,
-          "float_feature": 4.0
+          "float_feature": 4.0,
+          "bool_feature": False
       }])
 
     with test_pipeline.TestPipeline() as pipeline:
@@ -277,6 +285,14 @@ class TestReadGraph(tf.test.TestCase):
                                       }
                                     }
                                   }
+                                  feature {
+                                      key: "bool_feature"
+                                      value {
+                                        int64_list {
+                                          value: 1
+                                        }
+                                      }
+                                  }
                               }""", tf.train.Example())),
                          (b"id2",
                           text_format.Parse(
@@ -312,6 +328,14 @@ class TestReadGraph(tf.test.TestCase):
                                         value: "b"
                                       }
                                     }
+                                  }
+                                  feature {
+                                      key: "bool_feature"
+                                      value {
+                                          int64_list {
+                                              value: 0
+                                          }
+                                      }
                                   }
                                 }""", tf.train.Example()))]))
 

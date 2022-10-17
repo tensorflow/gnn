@@ -610,8 +610,9 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
       example_feature = example.features.feature[tf_feature_name]
       if feature.dtype == tf.float32.as_datatype_enum:
         example_feature.float_list.value.append(feature_value)
-      elif feature.dtype == tf.int64.as_datatype_enum:
-        example_feature.int64_list.value.append(feature_value)
+      elif (feature.dtype == tf.int64.as_datatype_enum or
+            feature.dtype == tf.bool.as_datatype_enum):
+        example_feature.int64_list.value.append(int(feature_value))
       elif feature.dtype == tf.string.as_datatype_enum:
         example_feature.bytes_list.value.append(
             row.get(feature_name, "").encode("utf-8"))
