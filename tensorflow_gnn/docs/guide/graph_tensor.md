@@ -70,13 +70,13 @@ graph = tfgnn.GraphTensor.from_pieces(
        "cites": tfgnn.EdgeSet.from_fields(
            sizes=tf.constant([3]),
            adjacency=tfgnn.Adjacency.from_indices(
-               source=("paper", [1, 2, 2]),
-               target=("paper", [0, 0, 1]))),
+               source=("paper", tf.constant([1, 2, 2])),
+               target=("paper", tf.constant([0, 0, 1])))),
        "writes": tfgnn.EdgeSet.from_fields(
            sizes=tf.constant([7]),
            adjacency=tfgnn.Adjacency.from_indices(
-               source=("author", [0, 0, 1, 1, 2, 2, 3]),
-               target=("paper",  [0, 1, 0, 1, 1, 2, 2])))})
+               source=("author", tf.constant([0, 0, 1, 1, 2, 2, 3])),
+               target=("paper",  tf.constant([0, 1, 0, 1, 1, 2, 2]))))})
 ```
 
 The node sets are simply containers of features, plus size information.
