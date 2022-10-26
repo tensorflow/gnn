@@ -29,23 +29,20 @@ is named "edges", then you can create the sampling spec proto as:
 schema = tfgnn.GraphSchema()
 schema.edge_sets['edges'].source = s.edge_sets['edges'].target = 'nodes'
 
-proto = (SamplingSpecBuilder(schema)
-          .seed('nodes').sample(10, 'edges').sample(5, 'edges')
-          .to_sampling_spec())
+proto = (SamplingSpecBuilder(schema).seed('nodes').sample(10, 'edges')
+         .sample(5, 'edges').build())
 
 # Since graph homogeneous (i.e., only one edge type and node type), then you may
 # skip the edge-set and node-set names, and call as:
-proto = (SamplingSpecBuilder(schema).seed().sample(10).sample(5)
-         .to_sampling_spec())
+proto = SamplingSpecBuilder(schema).seed().sample(10).sample(5).build()
 
 # Since above example samples from same edge type, you can pass a list as the
 # second argument.
 proto = (SamplingSpecBuilder(schema)
-         .seed('nodes').sample('edges', [10, 5]).to_sampling_spec())
+         .seed('nodes').sample('edges', [10, 5]).build())
 
 # Or alternatively,
-proto = (tfgnn.SamplingSpecBuilder(schema).seed().sample([10, 5])
-         .to_sampling_spec())
+proto = tfgnn.SamplingSpecBuilder(schema).seed().sample([10, 5]).build()
 ```
 
 The above spec is instructing to start at:
@@ -62,7 +59,7 @@ E.g., if you consider citation datasets, you can make a SamplingSpec proto as:
 ```
 proto = (SamplingSpecBuilder(schema)
           .seed('author').sample('writes', 10).sample('cited_by', 5)
-          .to_sampling_spec())
+          .build())
 ```
 
 This samples, starting from author node, 10 papers written by author, and for
@@ -81,10 +78,10 @@ path1 = builder.sample('cited_by', 5)
 path2 = builder.sample('written_by', 3).sample('writes')
 
 proto = (tfgnn.SamplingSpecBuilder.Join([path1, path2]).sample('cited_by', 10)
-         .to_sampling_spec())
+         .build())
 
 # The above `Join()` can be made less verbose with:
-proto = path1.Join([path2]).sample('cited_by', 10).to_sampling_spec()
+proto = path1.Join([path2]).sample('cited_by', 10).build()
 ```
 
 This merges together the papers written by author, and written by co-authors,
@@ -151,7 +148,7 @@ class SamplingSpecBuilder(object):
 
   proto = (SamplingSpecBuilder(schema)
            .seed('nodes').sample('edges', 10).sample('edges', 5)
-           .to_sampling_spec())
+           .build())
   ```
   The above spec is instructing to start at:
     - Nodes of type set name "nodes", then,
@@ -163,7 +160,7 @@ class SamplingSpecBuilder(object):
   ```
   proto = (SamplingSpecBuilder(schema)
            .seed('author').sample('writes', 10).sample('cited_by', 5)
-           .to_sampling_spec())
+           .build())
   ```
   This samples, starting from author node, 10 papers written by author, and for
   each paper, 10 papers citing it.
@@ -213,6 +210,10 @@ class SamplingSpecBuilder(object):
     return step
 
   def to_sampling_spec(self) -> sampling_spec_pb2.SamplingSpec:
+    """DEPRECATED: use `build` instead."""
+    return self.build()
+
+  def build(self) -> sampling_spec_pb2.SamplingSpec:
     """Creates new SamplingSpec that is built at this moment."""
     spec = sampling_spec_pb2.SamplingSpec()
 
@@ -288,8 +289,12 @@ class _SamplingStep(object):
     self.strategy = strategy if strategy else builder.default_strategy
     if parent: self.parents.append(parent)
 
+  def build(self) -> sampling_spec_pb2.SamplingSpec:
+    return self.builder.build()
+
   def to_sampling_spec(self) -> sampling_spec_pb2.SamplingSpec:
-    return self.builder.to_sampling_spec()
+    """DEPRECATED: use `build` instead."""
+    return self.build()
 
   def sample(self, sample_size: Union[int, List[int]],
              edge_set_name: Optional[str] = None,
