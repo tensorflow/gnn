@@ -82,7 +82,7 @@ class DeepGraphInfomax:
     pactivations = submodel(submodel.input)
 
     # Negative activations: shuffling, model application and readout
-    shuffled = tfgnn.shuffle_scalar_components(model.input)
+    shuffled = tfgnn.shuffle_features_globally(model.input)
     nactivations = tfgnn.keras.layers.ReadoutFirstNode(
         node_set_name=self._node_set_name,
         feature_name=self._state_name)(model(shuffled))

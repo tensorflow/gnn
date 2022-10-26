@@ -157,7 +157,7 @@ gather_first_node = graph_tensor_ops.gather_first_node
 get_registered_reduce_operation_names = (
     graph_tensor_ops.get_registered_reduce_operation_names)
 register_reduce_operation = graph_tensor_ops.register_reduce_operation
-shuffle_scalar_components = graph_tensor_ops.shuffle_scalar_components
+shuffle_features_globally = graph_tensor_ops.shuffle_features_globally
 combine_values = graph_tensor_ops.combine_values
 reorder_nodes = graph_tensor_ops.reorder_nodes
 shuffle_nodes = graph_tensor_ops.shuffle_nodes

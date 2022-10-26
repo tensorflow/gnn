@@ -971,20 +971,30 @@ def is_graph_tensor(value: Any) -> bool:
   return isinstance(value, (GraphTensor, GraphKerasTensor))
 
 
-def shuffle_scalar_components(graph_tensor: GraphTensor,
+def shuffle_features_globally(graph_tensor: GraphTensor,
                               *,
                               seed: Optional[int] = None) -> GraphTensor:
-  """Shuffles context, node set and edge set features across components.
+  """Shuffles context, node set and edge set features of a scalar GraphTensor.
 
   Args:
     graph_tensor: A scalar GraphTensor.
     seed: A seed for random uniform shuffle.
 
   Returns:
-    A scalar GraphTensor with its component's features shuffled.
+    A scalar GraphTensor `result` with the same graph structure as the input,
+    but randomly shuffled feature tensors. More precisely, the result satisfies
+    `result.node_sets[ns][ft][i] = graph_tensor.node_sets[ns][ft][sigma(i)]`
+    for all node set names `ns`, all feature names `ft` and all indices `i`
+    in `range(n)`, where `n` is the total_size of the node set and `sigma`
+    is a permutation of `range(n)`. Moreover, the result satisfies the
+    the analogous equations for all features of all edge sets and the context.
+    The permutation `sigma` is drawn uniformly at random, independently for
+    each graph piece and each feature(!). That is, separate features are
+    permuted differently, and features on any one item (edge, node, component)
+    can form combinations not seen on an input item.
   """
   gt.check_scalar_graph_tensor(graph_tensor,
-                               'tfgnn.shuffle_scalar_components()')
+                               'tfgnn.shuffle_features_globally()')
 
   context = _shuffle_features(graph_tensor.context.features, seed=seed)
   node_sets, edge_sets = {}, {}

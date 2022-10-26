@@ -684,7 +684,7 @@ class ShuffleOpsTest(tf.test.TestCase, parameterized.TestCase):
               },
           }),
   ])
-  def testShuffleScalarComponents(
+  def testShuffleFeaturesGlobally(
       self,
       description: str,
       context: gt.Context,
@@ -696,7 +696,7 @@ class ShuffleOpsTest(tf.test.TestCase, parameterized.TestCase):
         context,
         {'node': node_set},
         {'edge': edge_set})
-    shuffled = ops.shuffle_scalar_components(graph, seed=8191)
+    shuffled = ops.shuffle_features_globally(graph, seed=8191)
 
     for fname, expected in expected_fields.get(gt.Context, {}).items():
       self.assertAllEqual(expected, shuffled.context.features[fname])
