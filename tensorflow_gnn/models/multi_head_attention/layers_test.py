@@ -32,7 +32,9 @@ class ReloadModel(int, enum.Enum):
 
 class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
 
-  def testBasic(self):
+  @parameterized.named_parameters(("", False),
+                                  ("TransformAfter", True))
+  def testBasic(self, transform_values_after_pooling):
     """Tests that a single-headed MHA is correct given predefined weights."""
     # NOTE: Many following tests use minor variations of the explicit
     # construction of weights and results introduced here.
@@ -56,6 +58,7 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
         per_head_channels=3,
         receiver_tag=tfgnn.TARGET,
         activation="relu",  # Let's keep it simple.
+        transform_values_after_pooling=transform_values_after_pooling,
     )
 
     _ = conv(gt_input, edge_set_name="edges")  # Build weights.
@@ -103,18 +106,30 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     # Likewise, the attention from node 0 to node 2 has a pre-softmax score
     # log(2). The two scores become 10/11 and 1/11 after softmax.
 
-    weights["multi_head_attention_conv/value_pooled/kernel:0"].assign(
-        # ... the value vectors of node 1 and 2, resp., are [-1, 0, 2.2]
-        # and [-1, -1, 3.3], and only positive value (the fourth dimension)
-        # will be kept after the final ReLU activation.
-        [[
-            [0., -1., 0.],
-            [-1., 0., 0.],
-            [-1., -1., 0.],
-            [0., 0., 1.1],
-        ]])
-    weights["multi_head_attention_conv/value_pooled/bias:0"].assign(
-        [[0., 0., 0.]])
+    if not transform_values_after_pooling:
+      weights["multi_head_attention_conv/value_node/kernel:0"].assign(
+          # ... the value vectors of node 1 and 2, resp., are [-1, 0, 2.2]
+          # and [-1, -1, 3.3], and only positive value (the fourth dimension)
+          # will be kept after the final ReLU activation.
+          [
+              [0., -1., 0.],
+              [-1., 0., 0.],
+              [-1., -1., 0.],
+              [0., 0., 1.1],
+          ])
+      weights["multi_head_attention_conv/value_node/bias:0"].assign(
+          [0., 0., 0.])
+    else:
+      # Same weights, but as Einsum kernel "hvc".
+      weights["multi_head_attention_conv/value_pooled/kernel:0"].assign(
+          [[
+              [0., -1., 0.],
+              [-1., 0., 0.],
+              [-1., -1., 0.],
+              [0., 0., 1.1],
+          ]])
+      weights["multi_head_attention_conv/value_pooled/bias:0"].assign(
+          [[0., 0., 0.]])
 
     got = conv(gt_input, edge_set_name="edges")
 
@@ -231,16 +246,16 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
       #    softmax([0, -1]) = softmax([1, 0]) = [e, 1] / (e + 1), for a == - 1;
       # which explains the expected values below.
 
-      weights["multi_head_attention_conv/value_pooled/kernel:0"].assign(
+      weights["multi_head_attention_conv/value_node/kernel:0"].assign(
           # Identity matrix such that the transformed node states are `eye(3)`.
-          [[
+          [
               [1., 0., 0.],
               [0., 1., 0.],
               [0., 0., 1.],
               [0., 0., 0.],
-          ]])
-      weights["multi_head_attention_conv/value_pooled/bias:0"].assign(
-          [[0., 0., 0.]])
+          ])
+      weights["multi_head_attention_conv/value_node/bias:0"].assign(
+          [0., 0., 0.])
 
       return conv
 
@@ -326,18 +341,17 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     # score in the testBasic above. For example, node 0 favors node 1 (10/11)
     # and does not favor node 2 (1/11).
 
-    weights["multi_head_attention_conv/value_pooled/kernel:0"].assign(
+    weights["multi_head_attention_conv/value_node/kernel:0"].assign(
         # ... the value vectors of node 1 and 2, resp., are [-1, 0, 2.2]
         # and [-1, -1, 3.3], and only positive value (the fourth dimension)
         # will be kept after the final ReLU activation.
-        [[
+        [
             [0., -1., 0.],
             [-1., 0., 0.],
             [-1., -1., 0.],
             [0., 0., 1.1],
-        ]])
-    weights["multi_head_attention_conv/value_pooled/bias:0"].assign(
-        [[0., 0., 0.]])
+        ])
+    weights["multi_head_attention_conv/value_node/bias:0"].assign([0., 0., 0.])
 
     got = conv(gt_input, edge_set_name="edges")
 
@@ -372,7 +386,9 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(got_2.shape, (3, 2, 3))
     self.assertAllClose(got_2, want_2, atol=.0001)
 
-  def testMultihead(self):
+  @parameterized.named_parameters(("", False),
+                                  ("TransformAfter", True))
+  def testMultihead(self, transform_values_after_pooling):
     """Extends testBasic with multiple attention heads."""
     # The same test graph as in the testBasic above.
     gt_input = _get_test_bidi_cycle_graph(
@@ -388,7 +404,9 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
         receiver_tag=tfgnn.TARGET,
         activation="relu",
         use_bias=False,  # Don't create /bias variables.
-        score_scaling=False)  # Disable score scaling.
+        score_scaling=False,  # Disable score scaling.
+        transform_values_after_pooling=transform_values_after_pooling,
+    )
 
     _ = conv(gt_input, edge_set_name="edges")  # Build weights.
     weights = {v.name: v for v in conv.trainable_weights}
@@ -421,22 +439,27 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
             [0., 0., 0., 0., 0., 0.],
         ])
 
-    weights["multi_head_attention_conv/value_pooled/kernel:0"].assign(
-        # no matter where the -1s are, they got eliminated by ReLU.
-        [
-            [
-                [0., -1., 0.],
-                [-1., 0., 0.],
-                [-1., -1., 0.],
-                [0., 0., 1.1],
-            ],
-            [
-                [0., -1., 0.],
-                [-1., 0., 0.],
-                [-1., -1., 0.],
-                [0., 0., 1.],
-            ],
-        ])
+    if not transform_values_after_pooling:
+      # No matter where the -1s are, they got eliminated by ReLU.
+      weights["multi_head_attention_conv/value_node/kernel:0"].assign([
+          [0., -1., 0., 0., -1., 0.],
+          [-1., 0., 0., -1., 0., 0.],
+          [-1., -1., 0., -1., -1., 0.],
+          [0., 0., 1.1, 0., 0., 1.],
+      ])
+    else:
+      # Same weights, but as Einsum kernel with axes "hvc".
+      weights["multi_head_attention_conv/value_pooled/kernel:0"].assign([[
+          [0., -1., 0.],
+          [-1., 0., 0.],
+          [-1., -1., 0.],
+          [0., 0., 1.1],
+      ], [
+          [0., -1., 0.],
+          [-1., 0., 0.],
+          [-1., -1., 0.],
+          [0., 0., 1.],
+      ]])
 
     got = conv(gt_input, edge_set_name="edges")
 
@@ -451,10 +474,14 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(got.shape, (3, 6))
     self.assertAllClose(got, want, atol=.0001)
 
-  @parameterized.named_parameters(("", ReloadModel.SKIP),
-                                  ("Restored", ReloadModel.SAVED_MODEL),
-                                  ("RestoredKeras", ReloadModel.KERAS))
-  def testFullModel(self, reload_model):
+  @parameterized.named_parameters(
+      ("", ReloadModel.SKIP, False),
+      ("TransformAfter", ReloadModel.SKIP, True),
+      ("Restored", ReloadModel.SAVED_MODEL, False),
+      ("RestoredTransformAfter", ReloadModel.SAVED_MODEL, True),
+      ("RestoredKeras", ReloadModel.KERAS, False),
+      ("RestoredKerasTransformAfter", ReloadModel.KERAS, True))
+  def testFullModel(self, reload_model, transform_values_after_pooling):
     """Tests MultiHeadAttentionHomGraphUpdate in a Model with edge input."""
     # The same example as in the testBasic above, but with extra inputs
     # from edges.
@@ -485,11 +512,15 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
         attention_activation="relu",
         kernel_initializer="zeros",
         kernel_regularizer=tf.keras.regularizers.L2(0.05),  # Add a regularizer.
+        transform_values_after_pooling=transform_values_after_pooling,
     )
 
     _ = layer(gt_input)  # Build weights.
     weights = {v.name: v for v in layer.trainable_weights}
-    self.assertLen(weights, 7)
+    if not transform_values_after_pooling:
+      self.assertLen(weights, 8)
+    else:
+      self.assertLen(weights, 7)
 
     # Check the initial weights.
     self.assertAllClose(
@@ -507,11 +538,23 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
                 "multi_head_attention_conv/key_node/kernel:0"],
         tf.zeros((4, 4)),
         atol=.0001)
-    self.assertAllClose(
-        weights["multi_head_attention/node_set_update/" +
-                "multi_head_attention_conv/value_pooled/kernel:0"],
-        tf.zeros((1, 5, 4)),
-        atol=.0001)
+    if not transform_values_after_pooling:
+      self.assertAllClose(
+          weights["multi_head_attention/node_set_update/" +
+                  "multi_head_attention_conv/value_edge/kernel:0"],
+          tf.zeros((1, 4)),
+          atol=.0001)
+      self.assertAllClose(
+          weights["multi_head_attention/node_set_update/" +
+                  "multi_head_attention_conv/value_node/kernel:0"],
+          tf.zeros((4, 4)),
+          atol=.0001)
+    else:
+      self.assertAllClose(
+          weights["multi_head_attention/node_set_update/" +
+                  "multi_head_attention_conv/value_pooled/kernel:0"],
+          tf.zeros((1, 5, 4)),
+          atol=.0001)
 
     log20 = tf.math.log(20.).numpy()
     log2 = tf.math.log(2.).numpy()
@@ -546,24 +589,41 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
             ])
     # Edge values and node payloads are put into final components of the value
     # space, with the same adjustment for softmax-weighting by 1/11 or 10/11.
-    weights["multi_head_attention/node_set_update/" +
-            "multi_head_attention_conv/value_pooled/kernel:0"].assign([[
-                [0., 0., 0., 0.],
-                [0., 0., 0., 0.],
-                [0., 0., 0., 0.],
-                [0., 0., 1.1, 0.],
-                [0., 0., 0., 1.1],
-            ]])
+    if not transform_values_after_pooling:
+      weights["multi_head_attention/node_set_update/" +
+              "multi_head_attention_conv/value_node/kernel:0"].assign([
+                  [0., 0., 0., 0.],
+                  [0., 0., 0., 0.],
+                  [0., 0., 0., 0.],
+                  [0., 0., 1.1, 0.],
+              ])
+      weights["multi_head_attention/node_set_update/" +
+              "multi_head_attention_conv/value_edge/kernel:0"].assign(
+                  [[0., 0., 0., 1.1]])
+    else:
+      weights["multi_head_attention/node_set_update/" +
+              "multi_head_attention_conv/value_pooled/kernel:0"].assign([[
+                  [0., 0., 0., 0.],
+                  [0., 0., 0., 0.],
+                  [0., 0., 0., 0.],
+                  [0., 0., 1.1, 0.],
+                  [0., 0., 0., 1.1],
+              ]])
 
     # Assign zeros to all the bias terms.
     weights["multi_head_attention/node_set_update/" +
             "multi_head_attention_conv/query/bias:0"].assign([0., 0., 0., 0.])
-    weights["multi_head_attention/node_set_update/" +
-            "multi_head_attention_conv/key_node/bias:0"].assign(
-                [0., 0., 0., 0.])
-    weights["multi_head_attention/node_set_update/" +
-            "multi_head_attention_conv/value_pooled/bias:0"].assign(
-                [[0., 0., 0., 0.]])
+    if not transform_values_after_pooling:
+      weights["multi_head_attention/node_set_update/" +
+              "multi_head_attention_conv/key_node/bias:0"].assign(
+                  [0., 0., 0., 0.])
+      weights["multi_head_attention/node_set_update/" +
+              "multi_head_attention_conv/value_node/bias:0"].assign(
+                  [0., 0., 0., 0.])
+    else:
+      weights["multi_head_attention/node_set_update/" +
+              "multi_head_attention_conv/value_pooled/bias:0"].assign(
+                  [[0., 0., 0., 0.]])
 
     # Build a Model around the Layer, possibly saved and restored.
     inputs = tf.keras.layers.Input(type_spec=gt_input.spec)
@@ -680,12 +740,12 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
             [0., log2, log20],
             [0., 0., 0.],
         ])
-    weights["multi_head_attention_conv/value_pooled/kernel:0"].assign([[
+    weights["multi_head_attention_conv/value_node/kernel:0"].assign([
         [0., -1., 0.],
         [-1., 0., 0.],
         [-1., -1., 0.],
         [0., 0., 1.1],
-    ]])
+    ])
 
     # The convolution object can be called interchangeably for convolving
     # "sources" to context, or along "edges" to "targets" with the same
@@ -766,7 +826,8 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
         attention_activation="relu",
         use_bias=False)
 
-    # Build weights, then initialize analogous to testConvolutionReceivers.
+    # Build weights, then initialize analogous to testConvolutionReceivers,
+    # with "value_edge" instead of "value_node".
     _ = layer(gt_input, edge_set_name="edges", receiver_tag=tfgnn.CONTEXT)
     weights = {v.name: v for v in layer.trainable_weights}
     self.assertLen(weights, 3)
@@ -789,12 +850,12 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
             [0., log2, log20],
             [0., 0., 0.],
         ])
-    weights["multi_head_attention_edge_pool/value_pooled/kernel:0"].assign([[
+    weights["multi_head_attention_edge_pool/value_edge/kernel:0"].assign([
         [0., -1., 0.],
         [-1., 0., 0.],
         [-1., -1., 0.],
         [0., 0., 1.1],
-    ]])
+    ])
 
     # The EdgePool object can be called interchangeably for attention-pooling
     # the "edges" to context or to each component's unique node in "targets".
@@ -858,8 +919,8 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
             "multi_head_attention_conv/key_node/kernel:0"].assign(
                 num_nodes * tf.eye(num_nodes))
     weights["multi_head_attention/node_set_update/" +
-            "multi_head_attention_conv/value_pooled/kernel:0"].assign(
-                [num_nodes * tf.eye(num_nodes)])
+            "multi_head_attention_conv/value_node/kernel:0"].assign(
+                num_nodes * tf.eye(num_nodes))
 
     # Build a Model around the Layer, possibly saved and restored.
     inputs = tf.keras.layers.Input(type_spec=gt_input.spec)
