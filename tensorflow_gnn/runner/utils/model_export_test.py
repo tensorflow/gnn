@@ -106,7 +106,7 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
       model: tf.keras.Model,
       output_names: Any):
     export_dir = self.create_tempdir()
-    exporter = model_export.KerasModelExporter(output_names)
+    exporter = model_export.KerasModelExporter(output_names=output_names)
     exporter.save(None, model, export_dir)
 
     saved_model = tf.saved_model.load(export_dir)

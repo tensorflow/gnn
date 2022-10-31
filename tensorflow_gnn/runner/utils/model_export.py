@@ -45,7 +45,9 @@ class KerasModelExporter:
   """Exports a Keras model (with Keras API) via tf.keras.models.save_model."""
 
   def __init__(self,
-               output_names: Optional[Any] = None):
+               *,
+               output_names: Optional[Any] = None,
+               subdirectory: Optional[str] = None):
     """Captures the args shared across `save(...)` calls.
 
     Args:
@@ -58,8 +60,11 @@ class KerasModelExporter:
         that corresponding atom with its original name). Renamed atoms are
         packed into the structure of `output_names`: in this way, `dict(...)`
         keys of a model output can also be renamed.
+      subdirectory: An optional subdirectory, if set: models are exported to
+        `os.path.join(export_dir, subdirectory).`
     """
     self._output_names = output_names
+    self._subdirectory = subdirectory
 
   def save(self,
            preprocess_model: Optional[tf.keras.Model],
@@ -82,6 +87,8 @@ class KerasModelExporter:
     if self._output_names is not None:
       output = _rename_output(model.output, self._output_names)
       model = tf.keras.Model(model.input, output)
+    if self._subdirectory:
+      export_dir = os.path.join(export_dir, self._subdirectory)
     tf.keras.models.save_model(model, export_dir)
 
 
@@ -135,8 +142,8 @@ class SubmoduleExporter:
       raise ValueError(
           f"Submodule ({submodel}) is neither a Keras Model nor Layer`")
 
-    if self._subdirectory:
-      export_dir = os.path.join(export_dir, self._subdirectory)
+    exporter = KerasModelExporter(
+        output_names=self._output_names,
+        subdirectory=self._subdirectory)
 
-    exporter = KerasModelExporter(self._output_names)
     exporter.save(preprocess_model, submodel, export_dir)
