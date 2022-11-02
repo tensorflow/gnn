@@ -55,7 +55,7 @@ algorithms that trickle information between nodes have been around for decades.
 But how do we use graphs with neural networks?
 
 A Graph Neural Network (GNN) maintains a vector of floating-point numbers for
-each node, called the node state, which is similar to the vector of neuron
+each node, called the *node state*, which is similar to the vector of neuron
 activations in a classic neural network. The input features of each node are
 transformed into its initial state. The specifics of this transformation
 can vary a lot, ranging from a simple normalization and encoding (as required
@@ -138,20 +138,22 @@ substantially).
 ## Scaling Up
 
 In practice, many graphs are very large (e.g., a large social network may have
-billions of nodes) and may not fit in memory. The approach this library uses
-in the case of large graphs is to sample neighborhoods around nodes which we
-want to train over (say, nodes with associated ground truth labels), and stream
-these sampled subgraphs from the filesystem into the TensorFlow training code.
-The node of interest is the root node of the sampled subgraph. Such an approach
-was described in the literature for [GraphSAGE](https://arxiv.org/abs/1706.02216).
+billions of nodes) and may not fit in memory. The approach this library uses in
+the case of large graphs is to sample neighborhoods around nodes which we want
+to train over (say, nodes with associated ground truth labels), and stream these
+sampled subgraphs from the filesystem into the TensorFlow training code. The
+node of interest is the *root* node of the sampled subgraph. Such an approach
+was described in the literature for
+[GraphSAGE](https://arxiv.org/abs/1706.02216).
 
 ## About edge direction
 
 A `tfgnn.GraphTensor` (whether in memory or serialized) stores *directed* edges,
-connecting a *source* to a *target* node. By convention, GraphTensors that
-represent sampled subgraphs have their edges directed away from the root.
-That is to say, the edge's source endpoint was found before the edge itself,
-and then the sampling has proceeded from source to target.
+connecting a *source* to a *target* node. The source node and target node
+are the endpoints of the edge. By convention, GraphTensors that represent
+sampled subgraphs have their edges directed away from the root. That is to say,
+the edge's source endpoint was found before the edge itself, and then the
+sampling has proceeded from source to target.
 
 However, **a GNN model can use edges in either direction**: the user can select
 either the source or target node as the *receiver node* of a convolution
