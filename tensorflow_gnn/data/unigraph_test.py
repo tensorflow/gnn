@@ -50,6 +50,33 @@ class TestUnigraph(tf.test.TestCase):
     assertFormat("csv", "/path/to/file.csv@10")
     assertFormat("csv", "/path/to/file.csv-?????-of-00010")
 
+_EXPECTED_CSV_SIZES = {"creditcard": 36,
+                       "customer": 24,
+                       "owns_card": 24,
+                       "paid_with": 48,
+                       "transaction": 48}
+
+_CUSTOMER_IDS = b"""
+  1876448 1372437 1368305 1974494 1257724 1758057 1531660 1489311 1407706
+  196838 1195675 1659366 1499004 1344333 1443888 1108778 175583 1251872
+  1493851 1599418 1768701 1549489 1879799 125454
+""".split()
+
+_OWNS_CARDS_SRC_IDS = b"""
+  1876448 1372437 1368305 1974494 1257724 1758057 1531660 1489311 1407706
+  196838 1195675 1659366 1499004 1344333 1443888 1108778 175583 1251872
+  1493851 1599418 1768701 1549489 1879799 125454
+""".split()
+
+_OWNS_CARDS_TGT_IDS = b"""
+  16827485386298040 11470379189154620 11163838768727470 16011471358128450
+  18569067217418250 17396883707513070 14844931107602160 1238474857489384
+  11290312140467510 17861046738135650 8878522895102384 13019350102369400
+  11470379189154620 16283233487191600 9991040399813057 14912408563871390
+  11290312140467510 12948957000457930 3549061668422198 9991040399813057
+  18362223127059380 1238474857489384 18569067217418250 18526138896540830
+""".split()
+
 
 class TestReadGraph(tf.test.TestCase):
 
@@ -67,12 +94,9 @@ class TestReadGraph(tf.test.TestCase):
     schema, colls = unigraph.read_graph_and_schema(
         path.join(self.resource_dir, "graph.pbtxt"), pipeline)
 
-    expected_sizes = {"creditcard": 36,
-                      "customer": 24,
-                      "": 1,  # Context set.
-                      "owns_card": 24,
-                      "paid_with": 48,
-                      "transaction": 48}
+    expected_sizes = dict(_EXPECTED_CSV_SIZES)
+    expected_sizes[""] = 1  # Context set.
+
     for stype, sname, _ in tfgnn.iter_sets(schema):
       util.assert_that(
           (colls[stype][sname]
@@ -87,12 +111,7 @@ class TestReadGraph(tf.test.TestCase):
              | unigraph.ReadTable(filename, "csv")
              | beam.Map(unigraph.get_node_ids)
              | beam.Keys())
-    customer_ids = b"""
-      1876448 1372437 1368305 1974494 1257724 1758057 1531660 1489311 1407706
-      196838 1195675 1659366 1499004 1344333 1443888 1108778 175583 1251872
-      1493851 1599418 1768701 1549489 1879799 125454
-    """.split()
-    util.assert_that(pcoll, util.equal_to(customer_ids))
+    util.assert_that(pcoll, util.equal_to(_CUSTOMER_IDS))
     pipeline.run()
 
   def test_read_edge_set(self):
@@ -103,22 +122,9 @@ class TestReadGraph(tf.test.TestCase):
              | beam.Map(unigraph.get_edge_ids))
     source_coll = (pcoll | beam.Map(lambda item: item[0]))
     target_coll = (pcoll | beam.Map(lambda item: item[1]))
-    source_ids = b"""
-      1876448 1372437 1368305 1974494 1257724 1758057 1531660 1489311 1407706
-      196838 1195675 1659366 1499004 1344333 1443888 1108778 175583 1251872
-      1493851 1599418 1768701 1549489 1879799 125454
-    """.split()
-    target_ids = b"""
-      16827485386298040 11470379189154620 11163838768727470 16011471358128450
-      18569067217418250 17396883707513070 14844931107602160 1238474857489384
-      11290312140467510 17861046738135650 8878522895102384 13019350102369400
-      11470379189154620 16283233487191600 9991040399813057 14912408563871390
-      11290312140467510 12948957000457930 3549061668422198 9991040399813057
-      18362223127059380 1238474857489384 18569067217418250 18526138896540830
-    """.split()
-    util.assert_that(source_coll, util.equal_to(source_ids),
+    util.assert_that(source_coll, util.equal_to(_OWNS_CARDS_SRC_IDS),
                      label="AssertSource")
-    util.assert_that(target_coll, util.equal_to(target_ids),
+    util.assert_that(target_coll, util.equal_to(_OWNS_CARDS_TGT_IDS),
                      label="AssertTarget")
     pipeline.run()
 
@@ -845,6 +851,49 @@ class TestReadGraph(tf.test.TestCase):
           graph["nodes"]["customers"],
           util.equal_to(expected_graph["nodes"]["customers"]),
           label="customers")
+
+
+def deep_dict_value_map(fn, d, depth=2):
+  if depth == 0:
+    return fn(d)
+  return {k: deep_dict_value_map(fn, v, depth - 1) for k, v in d.items()}
+
+
+class TestDictStreams(tf.test.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    self.resource_dir = test_utils.get_resource_dir("testdata/heterogeneous")
+
+  def test_read_csv(self):
+    graph_streams = unigraph.DictStreams.iter_graph_via_path(
+        path.join(self.resource_dir, "graph.pbtxt"))
+    graph_lists = deep_dict_value_map(list, graph_streams)
+
+    for node_set_name, items in graph_lists["nodes"].items():
+      self.assertLen(items, _EXPECTED_CSV_SIZES[node_set_name])
+    for edge_set_name, items in graph_lists["edges"].items():
+      self.assertLen(items, _EXPECTED_CSV_SIZES[edge_set_name])
+
+  def test_read_node_set(self):
+    filename = path.join(self.resource_dir, "customer.csv")
+    stream = unigraph.DictStreams.iter_records_from_filepattern(filename)
+    stream = map(unigraph.get_node_ids, stream)
+
+    actual_keys = [key for key, value in stream]
+    self.assertSetEqual(set(actual_keys), set(_CUSTOMER_IDS))
+
+  def test_read_edge_set(self):
+    filename = path.join(self.resource_dir, "owns_card.csv")
+    stream = unigraph.DictStreams.iter_records_from_filepattern(filename)
+    stream = map(unigraph.get_edge_ids, stream)
+    actual_src_ids, actual_tgt_ids, unused_examples = zip(*stream)
+    set_ids = set([(src, tgt)
+                   for src, tgt in zip(actual_src_ids, actual_tgt_ids)])
+    expected_set_ids = set(
+        [(src, tgt)
+         for src, tgt in zip(_OWNS_CARDS_SRC_IDS, _OWNS_CARDS_TGT_IDS)])
+    self.assertSetEqual(set_ids, expected_set_ids)
 
 
 if __name__ == "__main__":
