@@ -50,7 +50,6 @@ pytype_strict_contrib_test(
     name = "hparams_vizier_test",
     srcs = ["hparams_vizier_test.py"],
     python_version = "PY3",
-    tags = ["no_oss"],  # b/254806045
     deps = [
         ":hparams_vizier",
         "//:expect_vizier_service_pyvizier_installed",
