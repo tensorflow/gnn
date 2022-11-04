@@ -30,7 +30,7 @@ import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
 import datasets
-from tensorflow_gnn.examples.in_memory import int_arithmetic_sampler
+from tensorflow_gnn.examples.in_memory import int_arithmetic_sampler as ia_sampler
 import models
 import reader_utils
 from tensorflow_gnn.sampler import sampling_spec_builder
@@ -58,15 +58,15 @@ flags.DEFINE_integer('batch_size', 200,
 
 
 def main(unused_argv):
-  dataset_wrapper = datasets.get_dataset(FLAGS.dataset)
-  num_classes = dataset_wrapper.num_classes()
+  dataset = datasets.get_dataset(FLAGS.dataset)
+  assert isinstance(dataset, datasets.NodeClassificationDataset)
+  num_classes = dataset.num_classes()
   model_kwargs = json.loads(FLAGS.model_kwargs_json)
   prefers_undirected, model = models.make_model_by_name(
       FLAGS.model, num_classes, l2_coefficient=FLAGS.l2_regularization,
       model_kwargs=model_kwargs)
 
-  graph_schema = dataset_wrapper.export_graph_schema(
-      make_undirected=prefers_undirected)
+  graph_schema = dataset.graph_schema(make_undirected=prefers_undirected)
   type_spec = tfgnn.create_graph_spec_from_schema_pb(graph_schema)
 
   input_graph = tf.keras.layers.Input(type_spec=type_spec)
@@ -94,20 +94,20 @@ def main(unused_argv):
   # Subgraph samples for training.
   train_sampling_spec = (sampling_spec_builder.SamplingSpecBuilder(graph_schema)
                          .seed().sample([3, 3]).to_sampling_spec())
-  _, train_dataset = int_arithmetic_sampler.make_sampled_subgraphs_dataset(
-      dataset_wrapper, sampling_spec=train_sampling_spec,
+  _, train_dataset = ia_sampler.make_node_classification_tf_dataset(
+      dataset, sampling_spec=train_sampling_spec,
       batch_size=FLAGS.batch_size,
-      sampling=int_arithmetic_sampler.EdgeSampling.WITH_REPLACEMENT,
+      sampling=ia_sampler.EdgeSampling.WITH_REPLACEMENT,
       make_undirected=prefers_undirected)
 
   train_labels_dataset = train_dataset.map(
       functools.partial(reader_utils.pair_graphs_with_labels, num_classes))
 
   # Subgraph samples for validation.
-  _, validation_ds = int_arithmetic_sampler.make_sampled_subgraphs_dataset(
-      dataset_wrapper, sampling_spec=train_sampling_spec,
+  _, validation_ds = ia_sampler.make_node_classification_tf_dataset(
+      dataset, sampling_spec=train_sampling_spec,
       batch_size=FLAGS.batch_size,
-      sampling=int_arithmetic_sampler.EdgeSampling.WITHOUT_REPLACEMENT,
+      sampling=ia_sampler.EdgeSampling.WITHOUT_REPLACEMENT,
       split='valid', make_undirected=prefers_undirected)
   validation_ds = validation_ds.map(
       functools.partial(reader_utils.pair_graphs_with_labels, num_classes))
@@ -123,7 +123,7 @@ def main(unused_argv):
       validation_steps=10,
       validation_freq=FLAGS.eval_every)
 
-  test_graph = dataset_wrapper.export_to_graph_tensor(
+  test_graph = dataset.as_graph_tensor(
       split='test', make_undirected=prefers_undirected)
   test_graph, test_labels = reader_utils.pair_graphs_with_labels(
       num_classes, test_graph)
