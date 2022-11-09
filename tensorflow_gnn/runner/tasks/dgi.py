@@ -13,14 +13,95 @@
 # limitations under the License.
 # ==============================================================================
 """An implementation of Deep Graph Infomax: https://arxiv.org/abs/1809.10341."""
-from typing import Callable, Optional, Sequence
+from typing import Any, Callable, Mapping, Optional, Sequence, Tuple
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
 
+@tf.keras.utils.register_keras_serializable(package="GNN")
+class AddLossDeepGraphInfomax(tf.keras.layers.Layer):
+  """"A bilinear layer with losses and metrics for Deep Graph Infomax."""
+
+  def __init__(self, units: int):
+    """Builds the bilinear layer weights.
+
+    Args:
+      units: Units for the bilinear layer.
+    """
+    super().__init__()
+    self._bilinear = tf.keras.layers.Dense(units, use_bias=False)
+
+  def get_config(self) -> Mapping[Any, Any]:
+    """Returns the config of the layer.
+
+    A layer config is a Python dictionary (serializable) containing the
+    configuration of a layer. The same layer can be reinstantiated later
+    (without its trained weights) from this configuration.
+    """
+    return dict(
+        units=self._bilinear.units,
+        **super().get_config())
+
+  def call(self, inputs: Tuple[tf.Tensor, tf.Tensor]) -> tf.Tensor:
+    """Returns clean representations after adding a Deep Graph Infomax loss.
+
+    Clean representations are the unmanipulated, original model output.
+
+    Args:
+      inputs: A tuple of (clean, corrupted) representations for Deep Graph
+        Infomax.
+
+    Returns:
+      The clean representations: the first item of the `inputs` tuple.
+    """
+    y_clean, y_corrupted = inputs
+    # Summary
+    summary = tf.math.reduce_mean(y_clean, axis=0, keepdims=True)
+    # Clean losses and metrics
+    logits_clean = tf.matmul(y_clean, self._bilinear(summary), transpose_b=True)
+    self.add_loss(tf.keras.losses.BinaryCrossentropy(
+        from_logits=True,
+        name="binary_crossentropy_clean")(
+            tf.ones_like(logits_clean),
+            logits_clean))
+    self.add_metric(
+        tf.keras.metrics.binary_crossentropy(
+            tf.ones_like(logits_clean),
+            logits_clean,
+            from_logits=True),
+        name="binary_crossentropy_clean")
+    self.add_metric(
+        tf.keras.metrics.binary_accuracy(
+            tf.ones_like(logits_clean),
+            logits_clean),
+        name="binary_accuracy_clean")
+    # Corrupted losses and metrics
+    logits_corrupted = tf.matmul(
+        y_corrupted,
+        self._bilinear(summary),
+        transpose_b=True)
+    self.add_loss(tf.keras.losses.BinaryCrossentropy(
+        from_logits=True,
+        name="binary_crossentropy_corrupted")(
+            tf.zeros_like(logits_corrupted),
+            logits_corrupted))
+    self.add_metric(
+        tf.keras.metrics.binary_crossentropy(
+            tf.zeros_like(logits_corrupted),
+            logits_corrupted,
+            from_logits=True),
+        name="binary_crossentropy_corrupted")
+    self.add_metric(
+        tf.keras.metrics.binary_accuracy(
+            tf.zeros_like(logits_corrupted),
+            logits_corrupted),
+        name="binary_accuracy_corrupted")
+    return y_clean
+
+
 class DeepGraphInfomax:
-  """Deep Graph Infomax.
+  """A Task for training with the Deep Graph Infomax loss.
 
   Deep Graph Infomax is an unsupervised loss that attempts to learn a bilinear
   layer capable of discriminating between positive examples (any input
@@ -32,10 +113,11 @@ class DeepGraphInfomax:
   learn latent representations informed primarily by a nodes neighborhood
   attributes (vs. its structure).
 
-  This task can adapt a `tf.keras.Model` with single `GraphTensor` input and a
-  single `GraphTensor`  output. The adapted `tf.keras.Model` head is for binary
-  classification on the pseudo-labels (positive or negative) for Deep Graph
-  Infomax.
+  This task can adapt a `tf.keras.Model` with a single, scalar `GraphTensor`
+  input and a single, scalar `GraphTensor`  output. The adapted `tf.keras.Model`
+  head has--as its output--any latent, root node (according to `node_set_name`
+  and `state_name`) represenations. The unsupervised loss is added to the model
+  by adding a Layer that calls `tf.keras.Layer.add_loss().`
 
   For more information, see: https://arxiv.org/abs/1809.10341.
   """
@@ -45,6 +127,13 @@ class DeepGraphInfomax:
                *,
                state_name: str = tfgnn.HIDDEN_STATE,
                seed: Optional[int] = None):
+    """Captures arguments for the task.
+
+    Args:
+      node_set_name: The node set for activations.
+      state_name: The state name of any activations.
+      seed: A seed for corrupted representations.
+    """
     self._state_name = state_name
     self._node_set_name = node_set_name
     self._seed = seed
@@ -59,8 +148,9 @@ class DeepGraphInfomax:
       model: A `tf.keras.Model` to be adapted.
 
     Returns:
-      A `tf.keras.Model` with output logits for Deep Graph Infomax, i.e.: a
-      positive logit and a negative logit for each example in a batch.
+      A `tf.keras.Model` with clean representation output from Deep Graph
+      Infomax. The unsupervised loss is added to the model
+      via `tf.keras.Model.add_loss.`
     """
     if not tfgnn.is_graph_tensor(model.input):
       raise ValueError(f"Expected a GraphTensor, received {model.input}")
@@ -68,65 +158,40 @@ class DeepGraphInfomax:
     if not tfgnn.is_graph_tensor(model.output):
       raise ValueError(f"Expected a GraphTensor, received {model.output}")
 
-    # Positive activations: readout
-    readout = tfgnn.keras.layers.ReadoutFirstNode(
+    # Clean representations: readout
+    y_clean = tfgnn.keras.layers.ReadoutFirstNode(
         node_set_name=self._node_set_name,
-        feature_name=self._state_name,
-        name="embeddings")(model.output)
+        feature_name=self._state_name)(model.output)
 
-    # A submodel with DeepGraphInfomax embeddings only as output
-    submodel = tf.keras.Model(
-        model.input,
-        readout,
-        name="DeepGraphInfomaxEmbeddings")
-    pactivations = submodel(submodel.input)
-
-    # Negative activations: shuffling, model application and readout
+    # Corrupted representations: shuffling, model application and readout
     shuffled = tfgnn.shuffle_features_globally(model.input)
-    nactivations = tfgnn.keras.layers.ReadoutFirstNode(
+    y_corrupted = tfgnn.keras.layers.ReadoutFirstNode(
         node_set_name=self._node_set_name,
         feature_name=self._state_name)(model(shuffled))
 
-    # Summary and bilinear layer
-    summary = tf.math.reduce_mean(pactivations, axis=0, keepdims=True)
-    bilinear = tf.keras.layers.Dense(summary.get_shape()[-1], use_bias=False)
+    return tf.keras.Model(
+        model.input,
+        AddLossDeepGraphInfomax(
+            y_clean.get_shape()[-1])((y_clean, y_corrupted)))
 
-    # Positive and negative logits
-    plogits = tf.matmul(pactivations, bilinear(summary), transpose_b=True)
-    nlogits = tf.matmul(nactivations, bilinear(summary), transpose_b=True)
-
-    # Combined logits
-    logits = tf.keras.layers.Concatenate(name="logits")((plogits, nlogits))
-
-    return tf.keras.Model(model.input, logits)
-
-  def preprocessors(self) -> Sequence[Callable[..., tf.data.Dataset]]:
-    """Create labels--i.e., (positive, negative)--for Deep Graph Infomax.
-
-    The Deep Graph Infomax implementation here groups postives and negatives
-    across the inner dim (vs. the batch dim): pseudo-label generation takes the
-    same form.
-
-    Returns:
-      A `Callable` that takes an input `tf.data.Dataset` and returns the same
-      but with pseudo-labels zipped.
-    """
-    def pseudolabels(gt):
-      num_components = gt.num_components
-      y = tf.tile(tf.constant([[1, 0]], dtype=tf.int32), [num_components, 1])
-      return gt, y
-    def fn(ds):
-      return ds.map(
-          pseudolabels,
-          deterministic=False,
-          num_parallel_calls=tf.data.experimental.AUTOTUNE)
-    return (fn,)
+  def preprocess(self, gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
+    """Returns the input GraphTensor."""
+    return gt
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    """Sparse categorical crossentropy loss."""
-    return (tf.keras.losses.BinaryCrossentropy(from_logits=True),)
+    """Returns an empty losses tuple.
+
+    Loss signatures are according to `tf.keras.losses.Loss,` here: no losses
+    are returned because they have been added to the model via
+    `tf.keras.Layer.add_loss.`
+    """
+    return tuple()
 
   def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    """Sparse categorical metrics."""
-    return (tf.keras.metrics.BinaryCrossentropy(from_logits=True),
-            tf.keras.metrics.BinaryAccuracy())
+    """Returns an empty metrics tuple.
+
+    Metric signatures are according to `tf.keras.metrics.Metric,` here: no
+    metrics are returned because they have been added to the model via
+    `tf.keras.Layer.add_metric.`
+    """
+    return tuple()

@@ -13,8 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for dgi."""
-import functools
-
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
@@ -76,48 +74,39 @@ class DeepGraphInfomaxTest(tf.test.TestCase):
               tfgnn.HIDDEN_STATE: h_next
           }})
 
-    return tf.keras.Model(inputs=inputs, outputs=graph)
+    return tf.keras.Model(inputs, graph)
 
-  def test_head(self):
-    model = self.task.adapt(self.build_model())
-    logits = model(tfgnn.random_graph_tensor(self.gtspec))
+  def test_adapt(self):
+    model = self.build_model()
+    adapted = self.task.adapt(model)
 
-    # Model output should have inner dim == 2: one logit for positives and
-    # one logit for negatives
-    self.assertAllEqual(logits.shape, (1, 2))
+    gt = tfgnn.random_graph_tensor(self.gtspec)
+    # Output should be y_clean (i.e., root node representation)
+    expected = tfgnn.keras.layers.ReadoutFirstNode(
+        node_set_name="node",
+        feature_name=tfgnn.HIDDEN_STATE)(model(gt))
+    actual = adapted(gt)
+
+    self.assertAllClose(actual, expected)
 
   def test_fit(self):
     gt = tfgnn.random_graph_tensor(self.gtspec)
-    xs = tf.data.Dataset.from_tensors(gt).repeat(8)
-    ys = tf.data.Dataset.from_tensors([1., 0.]).repeat()
-    ds = tf.data.Dataset.zip((xs, ys))
-    ds = ds.batch(4).map(lambda x, y: (x.merge_batch_to_components(), y))
-
-    model = self.task.adapt(self.build_model())
-    model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=True))
-    model.fit(ds)
-
-  def test_embeddings_submodule(self):
-    model = self.task.adapt(self.build_model())
-    dgi_embeddings_model = [
-        m for m in model.submodules if m.name == "DeepGraphInfomaxEmbeddings"
-    ]
-    self.assertLen(dgi_embeddings_model, 1)
-    embeddings = dgi_embeddings_model[0](tfgnn.random_graph_tensor(self.gtspec))
-    self.assertAllEqual(embeddings.shape, (1, 8))
-
-  def test_preprocessors(self):
-    gt = tfgnn.random_graph_tensor(self.gtspec)
     ds = tf.data.Dataset.from_tensors(gt).repeat(8)
-    ds = functools.reduce(lambda acc, x: x(acc), self.task.preprocessors(), ds)
+    ds = ds.batch(2).map(tfgnn.GraphTensor.merge_batch_to_components)
 
-    for x, y in ds:
-      self.assertAllEqual(
-          x.node_sets["node"].features[tfgnn.HIDDEN_STATE],
-          gt.node_sets["node"].features[tfgnn.HIDDEN_STATE])
-      self.assertAllEqual(
-          y,
-          tf.constant([[1, 0]], dtype=tf.int32))
+    model = self.task.adapt(self.build_model())
+    model.compile()
+
+    def get_loss():
+      values = model.evaluate(ds)
+      return dict(zip(model.metrics_names, values))["loss"]
+
+    before = get_loss()
+    model.fit(ds)
+    after = get_loss()
+
+    self.assertAllClose(before, 250.42036, rtol=1e-04, atol=1e-04)
+    self.assertAllClose(after, 13.18533, rtol=1e-04, atol=1e-04)
 
   def test_protocol(self):
     self.assertIsInstance(dgi.DeepGraphInfomax, orchestration.Task)
