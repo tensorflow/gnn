@@ -89,6 +89,7 @@ RootNodeMeanSquaredLogScaledError = regression.RootNodeMeanSquaredLogScaledError
 # Training
 KerasTrainer = keras_fit.KerasTrainer
 KerasTrainerOptions = keras_fit.KerasTrainerOptions
+KerasTrainerCheckpointOptions = keras_fit.KerasTrainerCheckpointOptions
 
 # Model templates
 ModelFromInitAndUpdates = model_templates.ModelFromInitAndUpdates
