@@ -110,6 +110,8 @@ class KerasTrainer:
 
     if checkpoint_options is None:
       checkpoint_options = KerasTrainerCheckpointOptions()
+
+    if checkpoint_options.checkpoint_dir is None:
       checkpoint_options.checkpoint_dir = os.path.join(model_dir, "ckpnt")
 
     if backup_dir is None:
