@@ -23,14 +23,17 @@ import tensorflow_gnn as tfgnn
 class AddLossDeepGraphInfomax(tf.keras.layers.Layer):
   """"A bilinear layer with losses and metrics for Deep Graph Infomax."""
 
-  def __init__(self, units: int):
+  def __init__(self, units: int, global_batch_size: int, **kwargs):
     """Builds the bilinear layer weights.
 
     Args:
       units: Units for the bilinear layer.
+      global_batch_size: Global batch size to compute the average loss.
+      **kwargs: Extra arguments needed for serialization.
     """
-    super().__init__()
+    super().__init__(**kwargs)
     self._bilinear = tf.keras.layers.Dense(units, use_bias=False)
+    self._global_batch_size = global_batch_size
 
   def get_config(self) -> Mapping[Any, Any]:
     """Returns the config of the layer.
@@ -58,13 +61,19 @@ class AddLossDeepGraphInfomax(tf.keras.layers.Layer):
     y_clean, y_corrupted = inputs
     # Summary
     summary = tf.math.reduce_mean(y_clean, axis=0, keepdims=True)
+    per_replica_batch_size = (
+        self._global_batch_size //
+        tf.distribute.get_strategy().num_replicas_in_sync)
     # Clean losses and metrics
     logits_clean = tf.matmul(y_clean, self._bilinear(summary), transpose_b=True)
-    self.add_loss(tf.keras.losses.BinaryCrossentropy(
+    loss_clean = tf.keras.losses.BinaryCrossentropy(
         from_logits=True,
-        name="binary_crossentropy_clean")(
-            tf.ones_like(logits_clean),
-            logits_clean))
+        name="binary_crossentropy_clean",
+        reduction=tf.keras.losses.Reduction.NONE)
+    self.add_loss(
+        tf.nn.compute_average_loss(
+            loss_clean(tf.ones_like(logits_clean), logits_clean),
+            global_batch_size=per_replica_batch_size))
     self.add_metric(
         tf.keras.metrics.binary_crossentropy(
             tf.ones_like(logits_clean),
@@ -81,11 +90,14 @@ class AddLossDeepGraphInfomax(tf.keras.layers.Layer):
         y_corrupted,
         self._bilinear(summary),
         transpose_b=True)
-    self.add_loss(tf.keras.losses.BinaryCrossentropy(
+    loss_corrupted = tf.keras.losses.BinaryCrossentropy(
         from_logits=True,
-        name="binary_crossentropy_corrupted")(
-            tf.zeros_like(logits_corrupted),
-            logits_corrupted))
+        name="binary_crossentropy_corrupted",
+        reduction=tf.keras.losses.Reduction.NONE)
+    self.add_loss(
+        tf.nn.compute_average_loss(
+            loss_corrupted(tf.zeros_like(logits_corrupted), logits_corrupted),
+            global_batch_size=per_replica_batch_size))
     self.add_metric(
         tf.keras.metrics.binary_crossentropy(
             tf.zeros_like(logits_corrupted),
@@ -125,18 +137,21 @@ class DeepGraphInfomax:
   def __init__(self,
                node_set_name: str,
                *,
+               global_batch_size: int,
                state_name: str = tfgnn.HIDDEN_STATE,
                seed: Optional[int] = None):
     """Captures arguments for the task.
 
     Args:
       node_set_name: The node set for activations.
+      global_batch_size: Global batch size(not per-replica) for the training.
       state_name: The state name of any activations.
       seed: A seed for corrupted representations.
     """
     self._state_name = state_name
     self._node_set_name = node_set_name
     self._seed = seed
+    self._global_batch_size = global_batch_size
 
   def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
     """Adapt a `tf.keras.Model` for Deep Graph Infomax.
@@ -164,15 +179,16 @@ class DeepGraphInfomax:
         feature_name=self._state_name)(model.output)
 
     # Corrupted representations: shuffling, model application and readout
-    shuffled = tfgnn.shuffle_features_globally(model.input)
+    shuffled = tfgnn.shuffle_features_globally(model.input, seed=self._seed)
     y_corrupted = tfgnn.keras.layers.ReadoutFirstNode(
         node_set_name=self._node_set_name,
         feature_name=self._state_name)(model(shuffled))
 
     return tf.keras.Model(
         model.input,
-        AddLossDeepGraphInfomax(
-            y_clean.get_shape()[-1])((y_clean, y_corrupted)))
+        AddLossDeepGraphInfomax(y_clean.get_shape()[-1],
+                                self._global_batch_size)(
+                                    (y_clean, y_corrupted)))
 
   def preprocess(self, gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
     """Returns the input GraphTensor."""
