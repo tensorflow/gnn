@@ -47,7 +47,8 @@ class KerasModelExporter:
   def __init__(self,
                *,
                output_names: Optional[Any] = None,
-               subdirectory: Optional[str] = None):
+               subdirectory: Optional[str] = None,
+               include_preprocessing: bool = True):
     """Captures the args shared across `save(...)` calls.
 
     Args:
@@ -62,9 +63,11 @@ class KerasModelExporter:
         keys of a model output can also be renamed.
       subdirectory: An optional subdirectory, if set: models are exported to
         `os.path.join(export_dir, subdirectory).`
+      include_preprocessing: Whether to include any `preprocess_model.`
     """
     self._output_names = output_names
     self._subdirectory = subdirectory
+    self._include_preprocessing = include_preprocessing
 
   def save(self,
            preprocess_model: Optional[tf.keras.Model],
@@ -82,7 +85,7 @@ class KerasModelExporter:
       model: A `tf.keras.Model` to save.
       export_dir: A destination directory for the model.
     """
-    if preprocess_model is not None:
+    if preprocess_model is not None and self._include_preprocessing:
       model = model_utils.chain_first_output(preprocess_model, model)
     if self._output_names is not None:
       output = _rename_output(model.output, self._output_names)
@@ -99,7 +102,8 @@ class SubmoduleExporter:
                submodule_name: str,
                *,
                output_names: Optional[Any] = None,
-               subdirectory: Optional[str] = None):
+               subdirectory: Optional[str] = None,
+               include_preprocessing: bool = False):
     """Captures the args shared across `save(...)` calls.
 
     Args:
@@ -107,10 +111,12 @@ class SubmoduleExporter:
       output_names: The names for output Tensor(s), see: `KerasModelExporter.`
       subdirectory: An optional subdirectory, if set: submodules are exported
         to `os.path.join(export_dir, subdirectory).`
+      include_preprocessing: Whether to include any `preprocess_model.`
     """
     self._output_names = output_names
     self._subdirectory = subdirectory
     self._submodule_name = submodule_name
+    self._include_preprocessing = include_preprocessing
 
   def save(self,
            preprocess_model: tf.keras.Model,
@@ -144,6 +150,7 @@ class SubmoduleExporter:
 
     exporter = KerasModelExporter(
         output_names=self._output_names,
-        subdirectory=self._subdirectory)
+        subdirectory=self._subdirectory,
+        include_preprocessing=self._include_preprocessing)
 
     exporter.save(preprocess_model, submodel, export_dir)
