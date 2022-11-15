@@ -14,7 +14,7 @@
 # ==============================================================================
 """Classification tasks."""
 import abc
-from typing import Callable, Optional, Sequence, Union
+from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -38,12 +38,17 @@ class _FromLogitsMixIn(tf.keras.metrics.Metric):
         tf.nn.sigmoid(y_pred) if self._from_logits else y_pred,
         sample_weight)
 
+  def get_config(self) -> Mapping[Any, Any]:
+    return dict(from_logits=self._from_logits, **super().get_config())
 
-class _Precision(_FromLogitsMixIn, tf.keras.metrics.Precision):
+
+@tf.keras.utils.register_keras_serializable(package="GNN")
+class FromLogitsPrecision(_FromLogitsMixIn, tf.keras.metrics.Precision):
   pass
 
 
-class _Recall(_FromLogitsMixIn, tf.keras.metrics.Recall):
+@tf.keras.utils.register_keras_serializable(package="GNN")
+class FromLogitsRecall(_FromLogitsMixIn, tf.keras.metrics.Recall):
   pass
 
 
@@ -54,10 +59,7 @@ class _PerClassMetricMixIn(tf.keras.metrics.Metric):
   incompatible with tf.keras.metrics.Precision.
   """
 
-  def __init__(self,
-               class_id: int,
-               *args,
-               **kwargs) -> None:
+  def __init__(self, class_id: int, *args, **kwargs) -> None:
     super().__init__(*args, **kwargs)
     self._class_id = class_id
 
@@ -70,12 +72,17 @@ class _PerClassMetricMixIn(tf.keras.metrics.Metric):
         (tf.argmax(y_pred, -1) == self._class_id),
         sample_weight)
 
+  def get_config(self) -> Mapping[Any, Any]:
+    return dict(class_id=self._class_id, **super().get_config())
 
-class _PerClassPrecision(_PerClassMetricMixIn, tf.keras.metrics.Precision):
+
+@tf.keras.utils.register_keras_serializable(package="GNN")
+class PerClassPrecision(_PerClassMetricMixIn, tf.keras.metrics.Precision):
   pass
 
 
-class _PerClassRecall(_PerClassMetricMixIn, tf.keras.metrics.Recall):
+@tf.keras.utils.register_keras_serializable(package="GNN")
+class PerClassRecall(_PerClassMetricMixIn, tf.keras.metrics.Recall):
   pass
 
 
@@ -133,8 +140,8 @@ class _BinaryClassification(_Classification):
     return (tf.keras.losses.BinaryCrossentropy(from_logits=True),)
 
   def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return (_Precision(from_logits=True),
-            _Recall(from_logits=True),
+    return (FromLogitsPrecision(from_logits=True),
+            FromLogitsRecall(from_logits=True),
             tf.keras.metrics.AUC(from_logits=True, name="auc_roc"),
             tf.keras.metrics.AUC(curve="PR", from_logits=True, name="auc_pr"),
             tf.keras.metrics.BinaryAccuracy(),
@@ -175,9 +182,9 @@ class _MulticlassClassification(_Classification):
     if self._per_class_statistics:
       for i, class_name in enumerate(self._class_names):
         metric_objs.append(
-            _PerClassPrecision(class_id=i, name=f"precision_for_{class_name}"))
+            PerClassPrecision(class_id=i, name=f"precision_for_{class_name}"))
         metric_objs.append(
-            _PerClassRecall(class_id=i, name=f"recall_for_{class_name}"))
+            PerClassRecall(class_id=i, name=f"recall_for_{class_name}"))
     return metric_objs
 
 
