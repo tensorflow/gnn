@@ -1183,6 +1183,14 @@ def _shuffle_features(features: gt.Fields,
     A mapping FieldName to Field with Field shuffled across its outer dimension.
   """
 
+  def maybe_set_seed(f):
+    def wrapper(*args, **kwargs):
+      if seed is not None:
+        tf.random.set_seed(seed)
+      return f(*args, **kwargs)
+    return wrapper
+
+  @maybe_set_seed
   def _shuffle(feature_name):
     feature_value = features[feature_name]
     if utils.is_dense_tensor(feature_value):
