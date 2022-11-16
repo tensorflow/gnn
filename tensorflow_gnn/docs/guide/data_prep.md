@@ -476,8 +476,10 @@ files are minimal:
 *   Edge sets are required to provide two special string columns: **source** and
     **target**, defining the origin and destination of the edge. Edge rows may
     also contain features, such as weight (or anything else).
-*   Context sets have no special requirement, this is for a table of data
-    applying to the entire graph (and rarely used).
+*   Context sets have no special requirement, this is for any data applying to
+    entire sampled subgraphs. Common uses include storing sampled subgraph labels or
+    properties common to all sampled nodes (e.g., a gravitational constant in a physics
+    simulation).
 
 This format is kept as simple and flexible on purpose. See `unigraph.py` in the
 source code for an Apache Beam reader library that can be used to read those
