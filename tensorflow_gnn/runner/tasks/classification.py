@@ -118,8 +118,9 @@ class _Classification(abc.ABC):
         name="logits")(activations)  # Name seen in SignatureDef.
     return tf.keras.Model(model.inputs, logits)
 
-  def preprocessors(self) -> Sequence[Callable[..., tf.data.Dataset]]:
-    return tuple()
+  @abc.abstractmethod
+  def preprocess(self, gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
+    raise NotImplementedError()
 
   @abc.abstractmethod
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
@@ -135,6 +136,9 @@ class _BinaryClassification(_Classification):
 
   def __init__(self, *args, units: int = 1, **kwargs):
     super().__init__(units, *args, **kwargs)
+
+  def preprocess(self, gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
+    return gt
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     return (tf.keras.losses.BinaryCrossentropy(from_logits=True),)
@@ -168,6 +172,9 @@ class _MulticlassClassification(_Classification):
     else:
       self._class_names = class_names
     self._per_class_statistics = per_class_statistics
+
+  def preprocess(self, gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
+    return gt
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     """Sparse categorical crossentropy loss."""

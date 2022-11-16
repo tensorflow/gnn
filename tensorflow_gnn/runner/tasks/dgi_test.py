@@ -13,8 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for dgi."""
-import functools
-
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
@@ -106,10 +104,9 @@ class DeepGraphInfomaxTest(tf.test.TestCase):
     embeddings = dgi_embeddings_model[0](tfgnn.random_graph_tensor(self.gtspec))
     self.assertAllEqual(embeddings.shape, (1, 8))
 
-  def test_preprocessors(self):
+  def test_preprocessor(self):
     gt = tfgnn.random_graph_tensor(self.gtspec)
-    ds = tf.data.Dataset.from_tensors(gt).repeat(8)
-    ds = functools.reduce(lambda acc, x: x(acc), self.task.preprocessors(), ds)
+    ds = tf.data.Dataset.from_tensors(gt).repeat(8).map(self.task.preprocess)
 
     for x, y in ds:
       self.assertAllEqual(

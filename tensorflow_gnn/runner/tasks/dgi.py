@@ -13,10 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 """An implementation of Deep Graph Infomax: https://arxiv.org/abs/1809.10341."""
-from typing import Callable, Optional, Sequence
+from typing import Callable, Optional, Sequence, Tuple
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
+
+Field = tfgnn.Field
+GraphTensor = tfgnn.GraphTensor
 
 
 class DeepGraphInfomax:
@@ -100,27 +103,11 @@ class DeepGraphInfomax:
 
     return tf.keras.Model(model.input, logits)
 
-  def preprocessors(self) -> Sequence[Callable[..., tf.data.Dataset]]:
-    """Create labels--i.e., (positive, negative)--for Deep Graph Infomax.
-
-    The Deep Graph Infomax implementation here groups postives and negatives
-    across the inner dim (vs. the batch dim): pseudo-label generation takes the
-    same form.
-
-    Returns:
-      A `Callable` that takes an input `tf.data.Dataset` and returns the same
-      but with pseudo-labels zipped.
-    """
-    def pseudolabels(gt):
-      num_components = gt.num_components
-      y = tf.tile(tf.constant([[1, 0]], dtype=tf.int32), [num_components, 1])
-      return gt, y
-    def fn(ds):
-      return ds.map(
-          pseudolabels,
-          deterministic=False,
-          num_parallel_calls=tf.data.experimental.AUTOTUNE)
-    return (fn,)
+  def preprocess(self, gt: GraphTensor) -> Tuple[GraphTensor, Field]:
+    """Create labels--i.e., (positive, negative)--for Deep Graph Infomax."""
+    num_components = gt.num_components
+    y = tf.tile(tf.constant([[1, 0]], dtype=tf.int32), (num_components, 1))
+    return gt, y
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     """Sparse categorical crossentropy loss."""

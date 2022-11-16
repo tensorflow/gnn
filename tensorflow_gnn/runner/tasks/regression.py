@@ -54,8 +54,8 @@ class _Regression(abc.ABC):
         name="logits")(activations)  # Name seen in SignatureDef.
     return tf.keras.Model(model.inputs, logits)
 
-  def preprocessors(self) -> Sequence[Callable[..., tf.data.Dataset]]:
-    return tuple()
+  def preprocess(self, gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
+    return gt
 
   @abc.abstractmethod
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
