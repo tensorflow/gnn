@@ -53,27 +53,27 @@ class FromLogitsRecall(_FromLogitsMixIn, tf.keras.metrics.Recall):
 
 
 class _PerClassMetricMixIn(tf.keras.metrics.Metric):
-  """Mixin for `tf.keras.metrics.Metric` with a class_id option.
+  """Mixin for `tf.keras.metrics.Metric` with a sparse_class_id option.
 
   This Mixin is needed because ground truths come as class id integer, which is
   incompatible with tf.keras.metrics.Precision.
   """
 
-  def __init__(self, class_id: int, *args, **kwargs) -> None:
+  def __init__(self, sparse_class_id: int, *args, **kwargs) -> None:
     super().__init__(*args, **kwargs)
-    self._class_id = class_id
+    self._sparse_class_id = sparse_class_id
 
   def update_state(self,
                    y_true: tf.Tensor,
                    y_pred: tf.Tensor,
                    sample_weight: Optional[tf.Tensor] = None) -> None:
     return super().update_state(
-        (y_true == self._class_id),
-        (tf.argmax(y_pred, -1) == self._class_id),
+        (y_true == self._sparse_class_id),
+        (tf.argmax(y_pred, -1) == self._sparse_class_id),
         sample_weight)
 
   def get_config(self) -> Mapping[Any, Any]:
-    return dict(class_id=self._class_id, **super().get_config())
+    return dict(sparse_class_id=self._sparse_class_id, **super().get_config())
 
 
 @tf.keras.utils.register_keras_serializable(package="GNN")
@@ -189,9 +189,13 @@ class _MulticlassClassification(_Classification):
     if self._per_class_statistics:
       for i, class_name in enumerate(self._class_names):
         metric_objs.append(
-            PerClassPrecision(class_id=i, name=f"precision_for_{class_name}"))
+            PerClassPrecision(
+                sparse_class_id=i,
+                name=f"precision_for_{class_name}"))
         metric_objs.append(
-            PerClassRecall(class_id=i, name=f"recall_for_{class_name}"))
+            PerClassRecall(
+                sparse_class_id=i,
+                name=f"recall_for_{class_name}"))
     return metric_objs
 
 
