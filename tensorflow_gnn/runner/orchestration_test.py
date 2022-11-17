@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for orchestraion."""
+"""Tests for orchestration."""
 import os
 from typing import Sequence
 
