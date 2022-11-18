@@ -170,6 +170,7 @@ setup(
     install_requires=[
         'apache-beam',
         'google-vizier>=0.0.13',
+        'ml-collections',
         'networkx',
         'pyarrow',
         'tensorflow>=2.8.0; platform_machine != "arm64" or platform_system != "Darwin"',

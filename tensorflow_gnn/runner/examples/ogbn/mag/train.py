@@ -14,11 +14,13 @@
 # ==============================================================================
 """An e2e training example for OGBN-MAG."""
 import functools
-from typing import Mapping, Optional, Sequence
+from typing import Any, Callable, Mapping, Optional, Sequence
 
 from absl import app
 from absl import flags
 from absl import logging
+from ml_collections import config_dict
+from ml_collections import config_flags
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -73,25 +75,6 @@ _RESTORE_BEST_WEIGHTS = flags.DEFINE_boolean(
     "By default, exports the trained model from the end of the training. "
     "If set, exports the trained model with the best validation result.")
 
-_PAPER_DIM = flags.DEFINE_integer(
-    "paper_dim", 512,
-    "Dimensionality of dense layer applied to paper features. "
-    "Set to '0' for no dense transform.")
-
-_DROPOUT_RATE = flags.DEFINE_float(
-    "dropout_rate", 0.2,
-    "Controls the dropout applied to hidden states of the GNN. "
-    "Leave at default zero to disable dropout.")
-
-_L2_REGULARIZATION = flags.DEFINE_float(
-    "l2_regularization", 6e-6,
-    "The coefficient of the L2 regularization loss.")
-
-_USE_LAYER_NORMALIZATION = flags.DEFINE_boolean(
-    "use_layer_normalization", True,
-    "By default, no normalization is applied within the GNN. "
-    "If set, layer normalization is applied after each GraphUpdate.")
-
 _LEARNING_RATE_SCHEDULE = flags.DEFINE_enum(
     "lr_schedule", "cosine_decay", ["constant", "cosine_decay"],
     "The learning rate schedule for the optimizer.")
@@ -99,6 +82,46 @@ _LEARNING_RATE_SCHEDULE = flags.DEFINE_enum(
 _LEARNING_RATE = flags.DEFINE_float(
     "learning_rate", 1e-3,
     "The initial learning rate of the learning rate schedule.")
+
+_PAPER_DIM = flags.DEFINE_integer(
+    "paper_dim", 512,
+    "Dimensionality of dense layer applied to paper features. "
+    "Set to '0' for no dense transform.")
+
+
+# The GNN model used by this script is configured by a ConfigDict
+# (see https://github.com/google/ml_collections).
+# The following function defines the available configuration options
+# and their default values. The subsequent config_flags definition
+# allows users to override them from the command line, for example,
+# --config.gnn.vanilla_gnn.dropout_rate = 0.1
+def get_config_dict() -> config_dict.ConfigDict:
+  """The default config that users can override with --config.foo=bar."""
+  cfg = config_dict.ConfigDict()
+  cfg.gnn = config_dict.ConfigDict()
+  cfg.gnn.type = "vanilla_mpnn"
+  # For each supported gnn.type="foo", there is a config gnn.foo for that type's
+  # GraphUpdate class, overridden with the defaults for this training.
+  cfg.gnn.vanilla_gnn = vanilla_mpnn.graph_update_get_config_dict()
+  cfg.gnn.vanilla_gnn.units = 128
+  cfg.gnn.vanilla_gnn.message_dim = 128
+  cfg.gnn.vanilla_gnn.receiver_tag = tfgnn.SOURCE
+  cfg.gnn.vanilla_gnn.dropout_rate = 0.2
+  cfg.gnn.vanilla_gnn.l2_regularization = 6e-6
+  cfg.gnn.vanilla_gnn.use_layer_normalization = True
+  cfg.lock()
+  return cfg
+
+_CONFIG = config_flags.DEFINE_config_dict("config", get_config_dict())
+
+
+def _graph_update_from_config(
+    cfg: config_dict.ConfigDict) -> tf.keras.layers.Layer:
+  """Returns one instance of the configured GraphUpdate layer."""
+  if cfg.gnn.type == "vanilla_mpnn":
+    return vanilla_mpnn.graph_update_from_config_dict(cfg.gnn.vanilla_gnn)
+  else:
+    raise ValueError(f"Unknown gnn.type: {cfg.gnn.type}")
 
 
 # The following helper lets us filter a single input dataset by OGBN-MAG's
@@ -150,8 +173,7 @@ def main(
     *,
     extra_keras_callbacks:
         Optional[Sequence[tf.keras.callbacks.Callback]] = None,
-    extra_dataset_formats:
-        Optional[Mapping[str, runner.SimpleDatasetProvider]] = None,
+    extra_dataset_formats: Optional[Mapping[str, Callable[[str], Any]]] = None,
 ) -> None:
   if len(args) > 1:
     raise app.UsageError("Too many command-line arguments.")
@@ -207,14 +229,8 @@ def main(
     graph = tfgnn.keras.layers.MapFeatures(
         node_sets_fn=set_initial_node_states)(graph)
     for _ in range(4):
-      graph = vanilla_mpnn.VanillaMPNNGraphUpdate(
-          units=128,
-          message_dim=128,
-          receiver_tag=tfgnn.SOURCE,
-          l2_regularization=_L2_REGULARIZATION.value,
-          dropout_rate=_DROPOUT_RATE.value,
-          use_layer_normalization=_USE_LAYER_NORMALIZATION.value,
-      )(graph)
+      graph_update = _graph_update_from_config(_CONFIG.value)
+      graph = graph_update(graph)
     return tf.keras.Model(inputs, graph)
 
   task = runner.RootNodeMulticlassClassification(

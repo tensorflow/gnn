@@ -19,6 +19,7 @@ pytype_strict_library(
         ":users",
     ],
     deps = [
+        ":config_dict",
         ":layers",
     ],
 )
@@ -62,6 +63,29 @@ pytype_strict_library(
     srcs = ["layers.py"],
     srcs_version = "PY3",
     deps = [
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+    ],
+)
+
+pytype_strict_library(
+    name = "config_dict",
+    srcs = ["config_dict.py"],
+    deps = [
+        ":layers",
+        "//third_party/py/ml_collections/config_dict",
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+tf_py_test(
+    name = "config_dict_test",
+    srcs = ["config_dict_test.py"],
+    python_version = "PY3",
+    srcs_version = "PY3",
+    deps = [
+        ":config_dict",
+        ":layers",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
     ],

@@ -25,9 +25,13 @@ This model ties together some simple convolutions from the TF-GNN core library,
 so it does not define any Conv class by itself.
 """
 
+from tensorflow_gnn.models.vanilla_mpnn import config_dict
 from tensorflow_gnn.models.vanilla_mpnn import layers
 
 VanillaMPNNGraphUpdate = layers.VanillaMPNNGraphUpdate
+graph_update_get_config_dict = config_dict.graph_update_get_config_dict
+graph_update_from_config_dict = config_dict.graph_update_from_config_dict
 
 # Prune imported module symbols so they're not accessible implicitly.
+del config_dict
 del layers
