@@ -44,8 +44,8 @@ def add_params_regularization(search_space: vz.SearchSpace) -> None:
   # go/pyvizier also lets you add conditional params.
   root = search_space.root
   root.add_discrete_param(
-      "dropout_rate", [.0, .1, .2, .3, .4, .5],
+      "dropout_rate", [.1, .2, .3],
       scale_type=vz.ScaleType.LINEAR)
   root.add_float_param(
-      "l2_regularization", 5e-7, 5e-4,
+      "l2_regularization", 1e-6, 1e-4,
       scale_type=vz.ScaleType.LOG)

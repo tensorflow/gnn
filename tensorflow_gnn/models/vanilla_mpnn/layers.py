@@ -31,6 +31,7 @@ def VanillaMPNNGraphUpdate(  # To be called like a class initializer.  pylint: d
     dropout_rate: float = 0.0,
     kernel_initializer: Union[
         None, str, tf.keras.initializers.Initializer] = "glorot_uniform",
+    use_layer_normalization: bool = False,
 ) -> tf.keras.layers.Layer:
   r"""Returns a GraphUpdate layer for a Vanilla MPNN.
 
@@ -76,14 +77,16 @@ def VanillaMPNNGraphUpdate(  # To be called like a class initializer.  pylint: d
       new node state.
     kernel_initializer: Can be set to a `kerner_initializer` as understood
       by `tf.keras.layers.Dense` etc.
+    use_layer_normalization: Flag to determine whether to apply layer
+      normalization to the new node state.
 
   Returns:
     A GraphUpdate layer for use on a scalar GraphTensor with
     `tfgnn.HIDDEN_STATE` features on the node sets.
   """
-  def dense(units):  # pylint: disable=invalid-name
+  def dense(units, *, use_layer_normalization=False):  # pylint: disable=invalid-name
     regularizer = tf.keras.regularizers.l2(l2_regularization)
-    return tf.keras.Sequential([
+    result = tf.keras.Sequential([
         tf.keras.layers.Dense(
             units,
             activation="relu",
@@ -93,6 +96,9 @@ def VanillaMPNNGraphUpdate(  # To be called like a class initializer.  pylint: d
             kernel_regularizer=regularizer,
             bias_regularizer=regularizer),
         tf.keras.layers.Dropout(dropout_rate)])
+    if use_layer_normalization:
+      result.add(tf.keras.layers.LayerNormalization())
+    return result
 
   # pylint: disable=g-long-lambda
   gnn_builder = tfgnn.keras.ConvGNNBuilder(
@@ -100,6 +106,6 @@ def VanillaMPNNGraphUpdate(  # To be called like a class initializer.  pylint: d
           dense(message_dim), reduce_type, receiver_tag=receiver_tag,
           sender_edge_feature=edge_feature),
       lambda node_set_name: tfgnn.keras.layers.NextStateFromConcat(
-          dense(units)),
+          dense(units, use_layer_normalization=use_layer_normalization)),
       receiver_tag=receiver_tag)
   return gnn_builder.Convolve(node_set_names)

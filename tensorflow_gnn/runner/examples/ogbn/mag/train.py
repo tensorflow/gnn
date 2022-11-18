@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """An e2e training example for OGBN-MAG."""
+import functools
 from typing import Mapping, Optional, Sequence
 
 from absl import app
@@ -78,13 +79,26 @@ _PAPER_DIM = flags.DEFINE_integer(
     "Set to '0' for no dense transform.")
 
 _DROPOUT_RATE = flags.DEFINE_float(
-    "dropout_rate", 0.1,
+    "dropout_rate", 0.2,
     "Controls the dropout applied to hidden states of the GNN. "
     "Leave at default zero to disable dropout.")
 
 _L2_REGULARIZATION = flags.DEFINE_float(
-    "l2_regularization", 5e-4,
+    "l2_regularization", 6e-6,
     "The coefficient of the L2 regularization loss.")
+
+_USE_LAYER_NORMALIZATION = flags.DEFINE_boolean(
+    "use_layer_normalization", True,
+    "By default, no normalization is applied within the GNN. "
+    "If set, layer normalization is applied after each GraphUpdate.")
+
+_LEARNING_RATE_SCHEDULE = flags.DEFINE_enum(
+    "lr_schedule", "cosine_decay", ["constant", "cosine_decay"],
+    "The learning rate schedule for the optimizer.")
+
+_LEARNING_RATE = flags.DEFINE_float(
+    "learning_rate", 1e-3,
+    "The initial learning rate of the learning rate schedule.")
 
 
 # The following helper lets us filter a single input dataset by OGBN-MAG's
@@ -199,6 +213,7 @@ def main(
           receiver_tag=tfgnn.SOURCE,
           l2_regularization=_L2_REGULARIZATION.value,
           dropout_rate=_DROPOUT_RATE.value,
+          use_layer_normalization=_USE_LAYER_NORMALIZATION.value,
       )(graph)
     return tf.keras.Model(inputs, graph)
 
@@ -212,6 +227,20 @@ def main(
 
   # len(validation) == 64,879
   validation_steps = 64_879 // validation_batch_size
+
+  # Determine learning rate schedule
+  if _LEARNING_RATE_SCHEDULE.value == "cosine_decay":
+    learning_rate = tf.keras.optimizers.schedules.CosineDecay(
+        _LEARNING_RATE.value, steps_per_epoch*_EPOCHS.value)
+  elif _LEARNING_RATE_SCHEDULE.value == "constant":
+    learning_rate = _LEARNING_RATE.value
+  else:
+    raise ValueError(
+        f"Learning rate schedule '{_LEARNING_RATE_SCHEDULE.value}' not defined")
+
+  # Optimizer Function
+  optimizer_fn = functools.partial(tf.keras.optimizers.Adam,
+                                   learning_rate=learning_rate)
 
   if _TPU_ADDRESS.value is not None:
     strategy = runner.TPUStrategy(_TPU_ADDRESS.value)
@@ -237,7 +266,7 @@ def main(
       train_ds_provider=train_ds_provider,
       train_padding=train_padding,
       model_fn=model_fn,
-      optimizer_fn=tf.keras.optimizers.Adam,
+      optimizer_fn=optimizer_fn,
       epochs=_EPOCHS.value,
       trainer=trainer,
       task=task,
