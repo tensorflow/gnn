@@ -261,7 +261,7 @@ def main(
   if _TPU_ADDRESS.value is not None:
     strategy = runner.TPUStrategy(_TPU_ADDRESS.value)
     train_padding = runner.FitOrSkipPadding(gtspec, train_ds_provider)
-    valid_padding = runner.TightPadding(gtspec, train_ds_provider)
+    valid_padding = runner.TightPadding(gtspec, valid_ds_provider)
   else:
     strategy = tf.distribute.MirroredStrategy()
     train_padding = None
