@@ -493,9 +493,9 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
       raise ValueError("Must provide BigQuerySource table_spec or query.")
 
     if bq.read_method == graph_schema_pb2.BigQuery.EXPORT:
-      bq_args["method"] = beam.io.ReadFromBigQuery.Method.EXPORT
+      bq_args["method"] = "EXPORT"
     elif bq.read_method == graph_schema_pb2.BigQuery.DIRECT_READ:
-      bq_args["method"] = beam.io.ReadFromBigQuery.Method.DIRECT_READ
+      bq_args["method"] = "DIRECT_READ"
 
     return bq_args
 
