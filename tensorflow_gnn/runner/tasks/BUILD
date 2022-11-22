@@ -18,9 +18,6 @@ py_strict_test(
     name = "classification_test",
     srcs = ["classification_test.py"],
     srcs_version = "PY3",
-    tags = [
-        "tf_2_10_and_up",  # TODO(b/237419537) remove on tf 2.10 release
-    ],
     deps = [
         ":classification",
         "//:expect_absl_installed",
@@ -67,9 +64,6 @@ py_strict_test(
     name = "regression_test",
     srcs = ["regression_test.py"],
     srcs_version = "PY3",
-    tags = [
-        "tf_2_10_and_up",  # TODO(b/237419537) remove on tf 2.10 release
-    ],
     deps = [
         ":regression",
         "//:expect_absl_installed",
