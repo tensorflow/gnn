@@ -260,8 +260,15 @@ def main(
 
   if _TPU_ADDRESS.value is not None:
     strategy = runner.TPUStrategy(_TPU_ADDRESS.value)
-    train_padding = runner.FitOrSkipPadding(gtspec, train_ds_provider)
-    valid_padding = runner.TightPadding(gtspec, valid_ds_provider)
+    # Update `min_nodes_per_component.` Default requirement of at least one node
+    # from each node set in input is sufficient but more than necessary.
+    # The condition that each graph component must contain at least one "paper"
+    # node is sufficient.
+    min_nodes_per_component = {"paper": 1}
+    train_padding = runner.FitOrSkipPadding(gtspec, train_ds_provider,
+                                            min_nodes_per_component)
+    valid_padding = runner.TightPadding(gtspec, valid_ds_provider,
+                                        min_nodes_per_component)
   else:
     strategy = tf.distribute.MirroredStrategy()
     train_padding = None
