@@ -460,7 +460,7 @@ def app_main(argv):
   logging.info("Schema read and validated.")
 
   run_sample_graph_pipeline(
-      FLAGS.graph_schema,
+      schema,
       spec,
       FLAGS.edge_aggregation_method,
       output_pattern=FLAGS.output_samples,
