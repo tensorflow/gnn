@@ -450,17 +450,14 @@ def app_main(argv):
   logging.info("Sampling Specification:\n %s", spec)
 
   # Read the schema and validate it.
-  graph_schema_filename = unigraph.find_schema_filename(FLAGS.schema_filename)
+  graph_schema_filename = unigraph.find_schema_filename(FLAGS.graph_schema)
   graph_root_path = os.path.dirname(graph_schema_filename)
   logging.info("Reading schema from: %s", graph_schema_filename)
   schema = tfgnn.read_schema(graph_schema_filename)
+  logging.info("Graph Schema:\n %s", schema)
+  logging.info("Validating schema...")
   validate_schema(schema)
   logging.info("Schema read and validated.")
-
-  with tf.io.gfile.GFile(FLAGS.schema_filename) as schema_file:
-    schema = text_format.Parse(schema_file.read(),
-                               unigraph.graph_schema_pb2.GraphSchema())
-  logging.info("Graph Schema:\n %s", schema)
 
   run_sample_graph_pipeline(
       FLAGS.graph_schema,
