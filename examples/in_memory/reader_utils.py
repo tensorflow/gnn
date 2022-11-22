@@ -54,7 +54,7 @@ def readout_groundtruth_labels(
   return tf.one_hot(labels, num_classes)
 
 
-def pair_graphs_with_labels(
+def pop_labels_from_graph(
     num_classes: int, graph_tensor: tfgnn.GraphTensor,
     node_set_name: str = tfgnn.NODES, node_label_feature_name: str = 'label'):
   """Returns pair (`graph_tensor` without labels, seed nodes one-hot labels)."""
@@ -68,3 +68,6 @@ def pair_graphs_with_labels(
       node_sets={node_set_name: features})
 
   return graph_nolabels, seed_y
+
+# Backward-compatibility.
+pair_graphs_with_labels = pop_labels_from_graph
