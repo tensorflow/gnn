@@ -414,9 +414,6 @@ def define_flags():
       "output_samples", None,
       "Output file with serialized graph tensor Example protos.")
 
-  flags.DEFINE_bool("direct", False,
-                    "Use the direct runner that will only work locally.")
-
   runner_choices = [_DIRECT_RUNNER, _DATAFLOW_RUNNER]
   # Placeholder for Google-internal pipeline runner
   flags.DEFINE_enum(
