@@ -43,7 +43,7 @@ flags.DEFINE_string('model', 'GCN',
 flags.DEFINE_string('model_kwargs_json', '{}',
                     'JSON object encoding model arguments')
 flags.DEFINE_integer('eval_every', 10, 'Eval every this many steps.')
-flags.DEFINE_float('learning_rate', 1e-3, 'Learning rate.')
+flags.DEFINE_float('learning_rate', 1e-2, 'Learning rate.')
 flags.DEFINE_float('l2_regularization', 1e-5,
                    'L2 Regularization for (non-bias) weights.')
 flags.DEFINE_integer('steps', 101,
@@ -56,16 +56,22 @@ flags.DEFINE_bool('train_on_validation', False,
 
 
 def main(unused_argv):
-  dataset_wrapper = datasets.get_dataset(FLAGS.dataset)
-  num_classes = dataset_wrapper.num_classes()
+  graph_data = datasets.get_in_memory_graph_data(FLAGS.dataset)
+  assert isinstance(graph_data, datasets.NodeClassificationGraphData)
+  num_classes = graph_data.num_classes()
   model_kwargs = json.loads(FLAGS.model_kwargs_json)
   prefers_undirected, model = models.make_model_by_name(
       FLAGS.model, num_classes, l2_coefficient=FLAGS.l2_regularization,
       model_kwargs=model_kwargs)
+  graph_data = graph_data.with_undirected_edges(prefers_undirected)
 
-  graph_schema = datasets.create_graph_schema_from_directed(
-      dataset_wrapper, make_undirected=prefers_undirected)
+  graph_schema = graph_data.graph_schema()  # Without labels.
   type_spec = tfgnn.create_graph_spec_from_schema_pb(graph_schema)
+
+  # We want graph tensor with labels on nodes. However, function
+  # reader_utils.pop_labels_from_graph() pops the labels, before feeding them
+  # into model.
+  graph_data = graph_data.with_labels_as_features(True)
 
   input_graph = tf.keras.layers.Input(type_spec=type_spec)
   graph = input_graph
@@ -91,35 +97,37 @@ def main(unused_argv):
 
   train_split = ['train']
   if FLAGS.train_on_validation:
-    train_split.append('valid')
-  train_dataset = dataset_wrapper.iterate_once(
-      split='train', make_undirected=prefers_undirected)
-  train_labels_dataset = train_dataset.map(
-      functools.partial(reader_utils.pair_graphs_with_labels, num_classes))
+    train_split.append('validation')
+
+  train_dataset = tf.data.Dataset.from_tensors(
+      graph_data.with_split(train_split).as_graph_tensor())
+  train_dataset = train_dataset.map(
+      functools.partial(reader_utils.pop_labels_from_graph, num_classes))
 
   # Similarly for validation.
-  valid_split = 'test' if FLAGS.train_on_validation else 'valid'
-  validation_ds = dataset_wrapper.iterate_once(
-      split=valid_split, make_undirected=prefers_undirected)
+  valid_split = 'test' if FLAGS.train_on_validation else 'validation'
+  validation_ds = tf.data.Dataset.from_tensors(
+      graph_data.with_split(valid_split).as_graph_tensor())
   validation_ds = validation_ds.map(
-      functools.partial(reader_utils.pair_graphs_with_labels, num_classes))
+      functools.partial(reader_utils.pop_labels_from_graph, num_classes))
 
   validation_repeated_ds = validation_ds.repeat()
 
+  start_alsologtostderr = FLAGS.alsologtostderr
   FLAGS.alsologtostderr = True  # To print accuracy and training progress.
   keras_model.fit(
-      train_labels_dataset, epochs=FLAGS.steps,
+      train_dataset, epochs=FLAGS.steps,
       validation_data=validation_repeated_ds, validation_steps=1,
-      validation_freq=FLAGS.eval_every)
+      validation_freq=FLAGS.eval_every, verbose=1)
 
-  test_graph = dataset_wrapper.export_to_graph_tensor(
-      split='test', make_undirected=prefers_undirected)
-  test_graph, test_labels = reader_utils.pair_graphs_with_labels(
+  test_graph = (graph_data.with_split('test').with_labels_as_features(True)
+                .as_graph_tensor())
+  test_graph, test_labels = reader_utils.pop_labels_from_graph(
       num_classes, test_graph)
-  accuracy = (tf.argmax(keras_model(test_graph), 1) ==
-              tf.argmax(test_labels, 1)).numpy().mean()
-
-  print('Final test accuracy=%f' % accuracy)
+  accuracy = (tf.argmax(keras_model(test_graph), -1) ==
+              tf.argmax(test_labels, -1)).numpy().mean()
+  FLAGS.alsologtostderr = start_alsologtostderr
+  print('\n\n  ****** \n\n Final test accuracy=%f \n\n' % accuracy)
 
 if __name__ == '__main__':
   app.run(main)

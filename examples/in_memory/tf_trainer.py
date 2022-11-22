@@ -15,7 +15,7 @@
 """Sample script for full-batch (entire graph) training of tfgnn model on OGBN.
 
 This script runs end-to-end, i.e., requiring no pre- or post-processing scripts.
-It holds the dataset in-memory, and processes the entire graph at each step. It
+It holds the graph in-memory, and processes the entire graph at each step. It
 uses barebones tensorflow.
 
 By default, script runs on 'ogbn-arxiv'. You substitute with another
@@ -59,19 +59,25 @@ flags.DEFINE_bool('train_on_validation', False,
 
 
 def main(unused_argv):
-  dataset_wrapper = datasets.get_dataset(FLAGS.dataset)
-  num_classes = dataset_wrapper.num_classes()
+  graph_data = datasets.get_in_memory_graph_data(FLAGS.dataset)
+  assert isinstance(graph_data, datasets.NodeClassificationGraphData)
+  num_classes = graph_data.num_classes()
   model_kwargs = json.loads(FLAGS.model_kwargs_json)
   prefers_undirected, model = models.make_model_by_name(
       FLAGS.model, num_classes, l2_coefficient=FLAGS.l2_regularization,
       model_kwargs=model_kwargs)
+  graph_data = graph_data.with_undirected_edges(prefers_undirected)
+
+  # We want graph tensor with labels on nodes. However, function
+  # reader_utils.pop_labels_from_graph() pops the labels, before feeding them
+  # into model.
+  graph_data = graph_data.with_labels_as_features(True)
 
   train_split = ['train']
   if FLAGS.train_on_validation:
-    train_split.append('valid')
-  graph_tensor = dataset_wrapper.export_to_graph_tensor(
-      split=train_split, make_undirected=prefers_undirected)
-  graph_tensor, seed_y = reader_utils.pair_graphs_with_labels(
+    train_split.append('validation')
+  graph_tensor = graph_data.with_split(train_split).as_graph_tensor()
+  graph_tensor, seed_y = reader_utils.pop_labels_from_graph(
       num_classes, graph_tensor)
 
   # Since datasets.py imports features with feature name 'feat', extract it as
@@ -88,7 +94,7 @@ def main(unused_argv):
   def train_step():
     with tf.GradientTape() as tape:
       # Model output.
-      model_out_graph_tensor = model(graph_tensor)
+      model_out_graph_tensor = model(graph_tensor, training=True)
       seed_logits = reader_utils.readout_seed_node_features(
           model_out_graph_tensor)
       # Compare with ground-truth.
@@ -101,26 +107,24 @@ def main(unused_argv):
     gradients = tape.gradient(loss, model.trainable_variables)
     opt.apply_gradients(zip(gradients, model.trainable_variables))
 
-  valid_split = 'test' if FLAGS.train_on_validation else 'valid'
-  valid_graph = dataset_wrapper.export_to_graph_tensor(
-      split=valid_split, make_undirected=prefers_undirected)
-  valid_graph, valid_y = reader_utils.pair_graphs_with_labels(
+  valid_split = 'test' if FLAGS.train_on_validation else 'validation'
+  valid_graph = graph_data.with_split(valid_split).as_graph_tensor()
+  valid_graph, valid_y = reader_utils.pop_labels_from_graph(
       num_classes, valid_graph)
   valid_graph = tfgnn.keras.layers.MapFeatures(node_sets_fn=init_node_state)(
       valid_graph)
 
-  test_graph = dataset_wrapper.export_to_graph_tensor(
-      split='test', make_undirected=prefers_undirected)
-  test_graph, test_y = reader_utils.pair_graphs_with_labels(
+  test_graph = graph_data.with_split('test').as_graph_tensor()
+  test_graph, test_y = reader_utils.pop_labels_from_graph(
       num_classes, test_graph)
   test_graph = tfgnn.keras.layers.MapFeatures(node_sets_fn=init_node_state)(
       test_graph)
 
   def estimate_validation_accuracy(y=valid_y, graph=valid_graph):
-    graph = model(graph)
+    graph = model(graph, training=False)
     predictions = tf.argmax(
-        reader_utils.readout_seed_node_features(graph), axis=1)
-    labels = tf.argmax(y, axis=1)
+        reader_utils.readout_seed_node_features(graph), axis=-1)
+    labels = tf.argmax(y, axis=-1)
     is_correct_mask_np = (labels == predictions).numpy()
 
     return is_correct_mask_np.mean()
