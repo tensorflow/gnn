@@ -18,7 +18,7 @@ of the tutorial will be based on TF-GNN.
 
 ### Schedule
 
-| Time (EST)  | Speaker            | Style    | Topic  |
+| Time (CST)  | Speaker            | Style    | Topic  |
 | ----------: |:---------------:   | :-----:  | :----- |
 | 9:30        | Bryan Perozzi      | slides   | **Introduction:** Welcome and introduction. |
 | 9:40        | Sami Abu-El-Haija  | slides   | **Background:** Recap of Graph Neural Networks (GNNs) and problems they solve.  |
