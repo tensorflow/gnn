@@ -34,7 +34,6 @@ from absl import logging
 import apache_beam as beam
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.data import unigraph
@@ -432,15 +431,9 @@ def app_main(argv):
   """
   FLAGS = flags.FLAGS  # pylint: disable=invalid-name
   pipeline_args = argv[1:]
+  logging.info("output_samples: %s", FLAGS.output_samples)
   logging.info("Additional pipeline args: %s", pipeline_args)
   pipeline_options = PipelineOptions(pipeline_args)
-
-  # Make sure remote workers have access to variables/imports in the global
-  # namespace.
-  if FLAGS.runner == _DATAFLOW_RUNNER:
-    pipeline_options.view_as(SetupOptions).save_main_session = True
-
-  logging.info("output_samples: %s", FLAGS.output_samples)
 
   with tf.io.gfile.GFile(FLAGS.sampling_spec) as spec_file:
     spec = text_format.Parse(spec_file.read(), sampling_spec_pb2.SamplingSpec())
