@@ -89,7 +89,6 @@ Returns a TypeSpec instance based on the serialized proto.
 Do NOT override for custom non-TF types.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Args</th></tr>
@@ -314,7 +313,6 @@ Allows variable number of graph nodes, edges or/and graph components.
 Calling with all default parameters keeps the spec unchanged.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Args</th></tr>
@@ -344,7 +342,6 @@ if True, allows a variable number of edges in each edge set.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Returns</th></tr>
@@ -357,7 +354,6 @@ Relaxed compatible graph tensor spec.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Raises</th></tr>

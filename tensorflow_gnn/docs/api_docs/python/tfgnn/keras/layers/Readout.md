@@ -56,7 +56,6 @@ assert value == graph_tensor.edge_sets["edge"]["value"]
 ```
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
@@ -97,7 +96,6 @@ tfgnn.HIDDEN_STATE will be read.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call args</h2></th></tr>

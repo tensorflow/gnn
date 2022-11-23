@@ -17,11 +17,9 @@ Parse a schema from text-formatted protos.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.parse_schema(
-    schema_text: str
+    schema_text: Union[bytes, str]
 ) -> <a href="../tfgnn/GraphSchema.md"><code>tfgnn.GraphSchema</code></a>
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
 

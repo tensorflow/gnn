@@ -127,7 +127,6 @@ not`graph_piece.spec.total_size`, which breaks the dependency chain of
 KerasTensors.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
@@ -167,7 +166,6 @@ for every edge set.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call args</h2></th></tr>
@@ -185,7 +183,6 @@ taken from the GraphTensorSpec of the first input.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call returns</h2></th></tr>

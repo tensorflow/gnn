@@ -29,3 +29,9 @@ so it does not define any Conv class by itself.
 
 [`VanillaMPNNGraphUpdate(...)`](./vanilla_mpnn/VanillaMPNNGraphUpdate.md):
 Returns a GraphUpdate layer for a Vanilla MPNN.
+
+[`graph_update_from_config_dict(...)`](./vanilla_mpnn/graph_update_from_config_dict.md):
+Returns a VanillaMPNNGraphUpdate initialized from `cfg`.
+
+[`graph_update_get_config_dict(...)`](./vanilla_mpnn/graph_update_get_config_dict.md):
+Returns ConfigDict for graph_update_from_config_dict() with defaults.

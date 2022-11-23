@@ -36,7 +36,6 @@ which allows advanced users to adjust the updates to the GraphTensorSpec
 of the input (which EdgeSets and NodeSets even exist).
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
@@ -94,7 +93,6 @@ be saved.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call result</h2></th></tr>

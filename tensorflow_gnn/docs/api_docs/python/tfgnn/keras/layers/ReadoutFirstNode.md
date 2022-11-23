@@ -39,7 +39,6 @@ first node may be arbitrary -- or nonexistant, in which case this operation
 must not be used and may raise an error at runtime.)
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
@@ -63,7 +62,6 @@ tfgnn.HIDDEN_STATE will be read.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call args</h2></th></tr>

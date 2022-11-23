@@ -99,7 +99,13 @@ Raises ValueError unless there is exactly one node set and edge set.
 
 [`create_graph_spec_from_schema_pb(...)`](./tfgnn/create_graph_spec_from_schema_pb.md): Converts a graph schema proto message to a scalar GraphTensorSpec.
 
+[`create_schema_pb_from_graph_spec(...)`](./tfgnn/create_schema_pb_from_graph_spec.md):
+Converts scalar GraphTensorSpec to a graph schema proto message.
+
 [`dataset_filter_with_summary(...)`](./tfgnn/dataset_filter_with_summary.md): Dataset filter with a summary for the fraction of dataset elements removed.
+
+[`dataset_from_generator(...)`](./tfgnn/dataset_from_generator.md): Creates
+dataset from generator of any nest of scalar graph pieces.
 
 [`find_tight_size_constraints(...)`](./tfgnn/find_tight_size_constraints.md): Returns smallest possible size constraints that allow dataset padding.
 
@@ -125,6 +131,9 @@ Raises ValueError unless there is exactly one node set and edge set.
 
 [`learn_fit_or_skip_size_constraints(...)`](./tfgnn/learn_fit_or_skip_size_constraints.md): Learns the optimal size constraints for the fixed size batching with retry.
 
+[`mask_edges(...)`](./tfgnn/mask_edges.md): Creates a GraphTensor after applying
+edge_mask over the specified edge-set.
+
 [`pad_to_total_sizes(...)`](./tfgnn/pad_to_total_sizes.md): Pads graph tensor to the total sizes by inserting fake graph components.
 
 [`parse_example(...)`](./tfgnn/parse_example.md): Parses a batch of serialized Example protos into a single `GraphTensor`.
@@ -148,13 +157,20 @@ or edges to context.
 
 [`register_reduce_operation(...)`](./tfgnn/register_reduce_operation.md): Register a new reduction operation for pooling.
 
+[`reorder_nodes(...)`](./tfgnn/reorder_nodes.md): Reorders nodes within node
+sets according to indices.
+
 [`reverse_tag(...)`](./tfgnn/reverse_tag.md): Flips tfgnn.SOURCE to tfgnn.TARGET and vice versa.
 
 [`satisfies_size_constraints(...)`](./tfgnn/satisfies_size_constraints.md): Returns whether the input `graph_tensor` satisfies `total_sizes`.
 
 [`satisfies_total_sizes(...)`](./tfgnn/satisfies_size_constraints.md): Returns whether the input `graph_tensor` satisfies `total_sizes`.
 
-[`shuffle_scalar_components(...)`](./tfgnn/shuffle_scalar_components.md): Shuffles context, node set and edge set features across components.
+[`shuffle_features_globally(...)`](./tfgnn/shuffle_features_globally.md):
+Shuffles context, node set and edge set features of a scalar GraphTensor.
+
+[`shuffle_nodes(...)`](./tfgnn/shuffle_nodes.md): Randomly reorders nodes of
+given node sets, within each graph component.
 
 [`softmax(...)`](./tfgnn/softmax.md): Computes softmax over a many-to-one relationship in a GraphTensor.
 
@@ -255,7 +271,7 @@ TARGET_NAME<a id="TARGET_NAME"></a>
 **version**<a id="__version__"></a>
 </td>
 <td>
-`'0.3.0.dev1'`
+`'0.4.0.dev1'`
 </td>
 </tr>
 </table>

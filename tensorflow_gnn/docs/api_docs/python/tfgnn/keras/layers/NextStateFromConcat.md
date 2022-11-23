@@ -29,7 +29,6 @@ This layer flattens all inputs into a list (forgetting their origin),
 concatenates them and sends them through a user-supplied feed-forward network.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
@@ -46,7 +45,6 @@ into the new state.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call returns</h2></th></tr>

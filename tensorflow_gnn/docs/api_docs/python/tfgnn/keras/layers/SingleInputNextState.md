@@ -28,7 +28,6 @@ an EdgeSetUpdate, it replaces the edge_state with the incident node set's input.
 For a ContextUpdate, it replaces the context state with a single node set input.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call returns</h2></th></tr>
