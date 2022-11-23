@@ -211,7 +211,7 @@ def convert_samples_to_examples(
 
   def filter_by_prefix(prefix: str, group: Dict[str, Any]) -> Dict[str, Any]:
     return {
-        key.removeprefix(prefix): value
+        key[len(prefix):]: value
         for key, value in group.items()
         if key.startswith(prefix)
     }
