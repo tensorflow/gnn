@@ -31,7 +31,7 @@ import pyarrow
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.data import unigraph
-import datasets
+from tensorflow_gnn.experimental.in_memory import datasets
 import tqdm
 
 Example = tf.train.Example

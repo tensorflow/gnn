@@ -16,7 +16,7 @@
 
 import tensorflow as tf
 from tensorflow_gnn.data import unigraph
-from tensorflow_gnn.examples.in_memory import unigraph_data
+from tensorflow_gnn.experimental.in_memory import unigraph_data
 from tensorflow_gnn.utils import test_utils
 
 from google.protobuf import text_format

@@ -8,6 +8,7 @@ package(default_visibility = [
     "//tensorflow_gnn/compat:__subpackages__",
     "//tensorflow_gnn/converters:__subpackages__",
     "//tensorflow_gnn/examples:__subpackages__",
+    "//tensorflow_gnn/experimental:__subpackages__",
     "//tensorflow_gnn/graph:__subpackages__",
     "//tensorflow_gnn/keras:__subpackages__",
 ])

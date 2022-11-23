@@ -40,7 +40,7 @@ For node classification tasks, the following are also provided:
 
 ```
 # Load the graph data.
-import datasets
+from tensorflow_gnn.examples.in_memory import datasets
 graph_dataset_name = 'ogbn-arxiv'  # or {ogbn-*, cora, citeseer, pubmed}
 inmem_ds = datasets.get_in_memory_graph_data(dataset_name)
 
@@ -207,8 +207,8 @@ import numpy as np
 import scipy.sparse as ssp
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
-import datasets
-import reader_utils
+from tensorflow_gnn.experimental.in_memory import datasets
+from tensorflow_gnn.experimental.in_memory import reader_utils
 from tensorflow_gnn.graph import tensor_utils as utils
 from tensorflow_gnn.sampler import sampling_spec_pb2
 

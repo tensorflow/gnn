@@ -23,8 +23,8 @@ import scipy.sparse
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
-import datasets
-from tensorflow_gnn.examples.in_memory import int_arithmetic_sampler as ia_sampler
+from tensorflow_gnn.experimental.in_memory import datasets
+from tensorflow_gnn.experimental.in_memory import int_arithmetic_sampler as ia_sampler
 from tensorflow_gnn.sampler import sampling_spec_builder
 
 
