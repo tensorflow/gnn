@@ -231,7 +231,7 @@ def convert_samples_to_examples(
       raise ValueError("Sampling from multiple seed node sets is not supported,"
                        f" seed node sets {sorted(seeds.keys())}.")
     seed_ids: Iterable[bytes] = next(iter(seeds.values()))
-    context = Features()
+    context = tf.train.Features()
     assert "sample_id" in schema.context.features, schema
     context.feature["sample_id"].bytes_list.value.append(sample_id)
     assert "seed_id" in schema.context.features, schema
