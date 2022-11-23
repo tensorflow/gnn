@@ -18,4 +18,16 @@ of the tutorial will be based on TF-GNN.
 
 ### Schedule
 
+| Time (EST)  | Speaker            | Style    | Topic  |
+| ----------: |:---------------:   | :-----:  | :----- |
+| 9:30        | Bryan Perozzi      | slides   | **Introduction:** Welcome and introduction. |
+| 9:40        | Sami Abu-El-Haija  | slides   | **Background:** Recap of Graph Neural Networks (GNNs) and problems they solve.  |
+| 10:00       | Sami Abu-El-Haija  | hands-on | **Tutorial 1:** Running TF-GNN on one machine. |
+| 10:20       |                    |          | **Break**  |
+| 10:30       | Neslihan Bulut     | slides   | **Modeling Guide**: Building blocks and modeling guidelines for crafting advanced custom GNN architectures. |
+| 10:50       | Neslihan Bulut     | hands-on | **Tutorial 2:** Implementing custom models, using TF-GNN’s modeling building blocks. |
+| 11:20       |                    |          | **Break**  |
+| 11:30       | Brandon Mayer      | slides   | **Run at scale:** Challenges and solutions for running-at-scale |
+| 11:50       | Brandon Mayer      | hands-on | **Tutorial 3:** Running TF-GNN at industry scale over large graphs. |
+
 ### Material
