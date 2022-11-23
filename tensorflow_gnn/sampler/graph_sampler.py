@@ -217,7 +217,8 @@ def convert_samples_to_examples(
 
   def convert_to_tf_example(schema: tfgnn.GraphSchema, sample_id: SampleId,
                             group: Dict[str, Any]) -> Example:
-
+    import tensorflow as tf  # pylint: disable=reimported,g-import-not-at-top,redefined-outer-name
+    from tensorflow_gnn.sampler import subgraph  # pylint: disable=reimported,g-import-not-at-top,redefined-outer-name
     seeds: Dict[tfgnn.NodeSetName, Iterable[NodeId]] = (
         filter_by_prefix("seeds/", group))
     node_sets: Dict[tfgnn.NodeSetName, Dict[NodeId, Features]] = {
