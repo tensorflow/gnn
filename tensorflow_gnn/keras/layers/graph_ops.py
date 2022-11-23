@@ -548,7 +548,7 @@ class Pool(BroadcastPoolBase):
 
   Init args:
     tag: Can be set to one of tfgnn.SOURCE, tfgnn.TARGET or tfgnn.CONTEXT
-      to select the receiver/
+      to select the receiver.
     reduce_type: Can be set to any name from
       tfgnn.get_registered_reduce_operation_names().
     edge_set_name: If set, the feature will be pooled from this edge set
