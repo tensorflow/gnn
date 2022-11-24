@@ -94,7 +94,7 @@ _PAPER_DIM = flags.DEFINE_integer(
 # The following function defines the available configuration options
 # and their default values. The subsequent config_flags definition
 # allows users to override them from the command line, for example,
-# --config.gnn.vanilla_gnn.dropout_rate = 0.1
+# --config.gnn.vanilla_mpnn.dropout_rate = 0.1
 def get_config_dict() -> config_dict.ConfigDict:
   """The default config that users can override with --config.foo=bar."""
   cfg = config_dict.ConfigDict()
@@ -102,13 +102,13 @@ def get_config_dict() -> config_dict.ConfigDict:
   cfg.gnn.type = "vanilla_mpnn"
   # For each supported gnn.type="foo", there is a config gnn.foo for that type's
   # GraphUpdate class, overridden with the defaults for this training.
-  cfg.gnn.vanilla_gnn = vanilla_mpnn.graph_update_get_config_dict()
-  cfg.gnn.vanilla_gnn.units = 128
-  cfg.gnn.vanilla_gnn.message_dim = 128
-  cfg.gnn.vanilla_gnn.receiver_tag = tfgnn.SOURCE
-  cfg.gnn.vanilla_gnn.dropout_rate = 0.2
-  cfg.gnn.vanilla_gnn.l2_regularization = 6e-6
-  cfg.gnn.vanilla_gnn.use_layer_normalization = True
+  cfg.gnn.vanilla_mpnn = vanilla_mpnn.graph_update_get_config_dict()
+  cfg.gnn.vanilla_mpnn.units = 128
+  cfg.gnn.vanilla_mpnn.message_dim = 128
+  cfg.gnn.vanilla_mpnn.receiver_tag = tfgnn.SOURCE
+  cfg.gnn.vanilla_mpnn.dropout_rate = 0.2
+  cfg.gnn.vanilla_mpnn.l2_regularization = 6e-6
+  cfg.gnn.vanilla_mpnn.use_layer_normalization = True
   cfg.lock()
   return cfg
 
@@ -119,7 +119,7 @@ def _graph_update_from_config(
     cfg: config_dict.ConfigDict) -> tf.keras.layers.Layer:
   """Returns one instance of the configured GraphUpdate layer."""
   if cfg.gnn.type == "vanilla_mpnn":
-    return vanilla_mpnn.graph_update_from_config_dict(cfg.gnn.vanilla_gnn)
+    return vanilla_mpnn.graph_update_from_config_dict(cfg.gnn.vanilla_mpnn)
   else:
     raise ValueError(f"Unknown gnn.type: {cfg.gnn.type}")
 
