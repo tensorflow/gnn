@@ -3,15 +3,16 @@
 ## <p align="center">**NeurIPS'22 Tutorial**</p>
 ### <p align="center">Monday, November 28th</p>
 <p align="center">9:30 a.m. - 12:25 p.m. CST</p>
-<h3 align="center"> <a href=https://neurips.cc/Expo/Conferences/2022/workshop/63090>Schedule and Livestream Link</a></h3>
+<h3 align="center"> <a href=https://neurips.cc/Expo/Conferences/2022/workshop/63090>🎥 Schedule and Livestream Link 🎥</a></h3>
 
 ### Motivation
 
 Graphs are general data structures that can represent information from a variety
 of domains (social, biomedical, online transactions, and many more). Graph
-Neural Networks (GNNs) are quickly becoming the de-facto Machine Learning models
-for learning from graph data and inferring missing information (such as
-predicting labels of nodes or imputing missing edges).
+Neural Networks (GNNs) are an exciting way to use graph structured data inside
+neural network models that have recently exploded in popularity. However,
+implementing GNNs and running GNNs on large (and complex) datasets still raises
+a number of challenges for machine learning platforms.
 
 #### Goals
 
