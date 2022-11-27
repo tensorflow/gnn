@@ -169,7 +169,6 @@ setup(
     namespace_packages=[],
     install_requires=[
         'apache-beam',
-        'google-vizier>=0.0.13',
         'ml-collections',
         'networkx',
         'pyarrow',
