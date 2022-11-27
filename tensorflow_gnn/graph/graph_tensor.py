@@ -14,6 +14,8 @@
 # ==============================================================================
 """The GraphTensor composite tensor and its pieces."""
 
+from __future__ import annotations
+
 import abc
 import collections.abc
 from typing import Any, Callable, cast, Dict, Mapping, Optional, Sequence, Union
