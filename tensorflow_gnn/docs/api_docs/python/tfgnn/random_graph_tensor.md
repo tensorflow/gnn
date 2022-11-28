@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_random.py#L132-L225">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_random.py#L146-L239">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Generate a graph tensor from a schema, with random features.
 
@@ -39,25 +37,25 @@ Generate a graph tensor from a schema, with random features.
 
 <tr>
 <td>
-`spec`
+`spec`<a id="spec"></a>
 </td>
 <td>
 A GraphTensorSpec instance that describes the graph tensor.
 </td>
 </tr><tr>
 <td>
-`sample_dict`
+`sample_dict`<a id="sample_dict"></a>
 </td>
 <td>
 A dict of (set-type, set-name, field-name) to list-of-values to
 sample from. The intended purpose is to generate random values that are
 more realistic, more representative of what the actual dataset will
-contain. You can provide such If the values aren't provided for a feature,
+contain. You can provide such if the values aren't provided for a feature,
 random features are inserted of the right type.
 </td>
 </tr><tr>
 <td>
-`row_lengths_range`
+`row_lengths_range`<a id="row_lengths_range"></a>
 </td>
 <td>
 Minimum and maximum values for each row lengths in a
@@ -65,14 +63,14 @@ ragged range.
 </td>
 </tr><tr>
 <td>
-`row_splits_dtype`
+`row_splits_dtype`<a id="row_splits_dtype"></a>
 </td>
 <td>
 Data type for row splits.
 </td>
 </tr><tr>
 <td>
-`validate`
+`validate`<a id="validate"></a>
 </td>
 <td>
 If true, then use assertions to check that the arguments form a
@@ -81,8 +79,6 @@ they must be checked for each tensor value.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

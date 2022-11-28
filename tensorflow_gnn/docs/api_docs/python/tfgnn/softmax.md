@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/normalization_ops.py#L12-L77">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/normalization_ops.py#L26-L91">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Computes softmax over a many-to-one relationship in a GraphTensor.
 
@@ -49,14 +47,14 @@ For non-scalar values, the softmax function is applied element-wise.
 
 <tr>
 <td>
-`graph_tensor`
+`graph_tensor`<a id="graph_tensor"></a>
 </td>
 <td>
 A scalar GraphTensor.
 </td>
 </tr><tr>
 <td>
-`per_tag`
+`per_tag`<a id="per_tag"></a>
 </td>
 <td>
 tfgnn.CONTEXT for normalization per graph component, or an incident
@@ -65,7 +63,7 @@ common incident node.
 </td>
 </tr><tr>
 <td>
-`edge_set_name`
+`edge_set_name`<a id="edge_set_name"></a>
 </td>
 <td>
 The name of the edge set on which values are normalized
@@ -73,7 +71,7 @@ Exactly one of edge_set_name and node_set_name must be set.
 </td>
 </tr><tr>
 <td>
-`node_set_name`
+`node_set_name`<a id="node_set_name"></a>
 </td>
 <td>
 The name of the node set on which values are normalized,
@@ -81,14 +79,14 @@ allowed only if per_tag is <a href="../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</co
 </td>
 </tr><tr>
 <td>
-`feature_value`
+`feature_value`<a id="feature_value"></a>
 </td>
 <td>
 A ragged or dense tensor with the value; cf. feature_name.
 </td>
 </tr><tr>
 <td>
-`feature_name`
+`feature_name`<a id="feature_name"></a>
 </td>
 <td>
 The name of the feature to be used as input value.
@@ -97,8 +95,6 @@ Exactly one of feature_value or feature_name must be set.
 </tr>
 </table>
 
-
-
 <!-- Tabular view -->
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
@@ -106,7 +102,7 @@ Exactly one of feature_value or feature_name must be set.
 
 <tr>
 <td>
-`ValueError`
+`ValueError`<a id="ValueError"></a>
 </td>
 <td>
 if `graph_tensor` does not contain an edge set or node set
@@ -114,8 +110,6 @@ of the given name.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

@@ -77,6 +77,63 @@ def row_lengths_to_row_ids(
   return result[:sum_row_lengths]
 
 
+def segment_shuffle(segment_ids: tf.Tensor,
+                    *,
+                    seed: Optional[int] = None) -> tf.Tensor:
+  """Returns global random permutation that respects segment boundaries.
+
+  XLA compatible.
+
+  NOTE: this implementation is based on `tf.argsort()`. Because TF argsort
+  returns `tf.int32` indices, it is required that the total number of values in
+  all segments, `N = tf.size(segment_ids)`, is `N <= tf.dtypes.int32.max`.
+  Although this sorting-based implementation results in O(N log N) complexity,
+  in practice it is significantly faster compared to `tf.map_fn()` because the
+  latter is not vectorized.
+
+  Args:
+    segment_ids: rank-1 tensor of dtype int32 or int64 with sorted segment ids.
+    seed: A Python integer. Used to create a random seed for shuffle.
+
+  Returns:
+    A tensor `result` with the same shape and dtype as `segment_ids` such that
+    `lambda i: result[i]` is a permutation of [0, N) that was drawn uniformly at
+    random from the set of all permutations that satisfy
+    `segment_ids[result[i]] == segment_ids[i]` for all `i`.
+
+  Raises:
+    ValueError: if `segment_ids` has `rank != 1` or has not integer type.
+    InvalidArgumentError: if `segment_ids` are not sorted in ascending order.
+    InvalidArgumentError: if `segment_ids` size is greater than
+      `tf.dtypes.int32.max`.
+  """
+
+  segment_ids = tf.convert_to_tensor(segment_ids)
+  if segment_ids.shape.rank != 1:
+    raise ValueError('`segment_ids` must have rank=1,'
+                     f' got {segment_ids.shape.rank}.')
+  if segment_ids.dtype not in (tf.int32, tf.int64):
+    raise ValueError('`segment_ids` must have dtype tf.int32 or tf.int64,'
+                     f' got {segment_ids.dtype}.')
+
+  num_values = outer_dimension_size(segment_ids)
+
+  validation_ops = [
+      tf.debugging.assert_less_equal(
+          num_values, tf.dtypes.int32.max, '`values` with dimension 0 size > '
+          f' {tf.dtypes.int32.max} is currently not suported.'),
+      tf.debugging.assert_greater_equal(
+          segment_ids[1:], segment_ids[:-1],
+          '`segment_ids` must be sorted in ascending order.')
+  ]
+  with tf.control_dependencies(validation_ops):
+    shuffled_indices = tf.random.shuffle(
+        tf.range(num_values, dtype=segment_ids.dtype), seed=seed)
+    shuffled_segment_ids = tf.gather(segment_ids, shuffled_indices)
+    restores_segments_positions = tf.argsort(shuffled_segment_ids, stable=True)
+    return tf.gather(shuffled_indices, restores_segments_positions)
+
+
 def flatten_indices(indices: tf.Tensor, indices_row_lengths: tf.Tensor,
                     values_row_lengths: tf.Tensor) -> tf.Tensor:
   """Changes ragged values indices from row-local to global.

@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L372-L420">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L387-L435">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -44,14 +44,14 @@ pool_edges_to_node, pool_nodes_to_context or pool_edges_to_context.
 
 <tr>
 <td>
-`graph_tensor`
+`graph_tensor`<a id="graph_tensor"></a>
 </td>
 <td>
 A scalar GraphTensor.
 </td>
 </tr><tr>
 <td>
-`to_tag`
+`to_tag`<a id="to_tag"></a>
 </td>
 <td>
 Values are pooled to context if this is <a href="../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a> or to the
@@ -59,14 +59,14 @@ incident node on each edge with this tag.
 </td>
 </tr><tr>
 <td>
-`edge_set_name`
+`edge_set_name`<a id="edge_set_name"></a>
 </td>
 <td>
 The name of the edge set from which values are pooled.
 </td>
 </tr><tr>
 <td>
-`node_set_name`
+`node_set_name`<a id="node_set_name"></a>
 </td>
 <td>
 The name of the node set from which values are pooled.
@@ -75,7 +75,7 @@ node_set_name must be set.
 </td>
 </tr><tr>
 <td>
-`reduce_type`
+`reduce_type`<a id="reduce_type"></a>
 </td>
 <td>
 As for the underlying pool_*() function: a pooling operation
@@ -83,14 +83,14 @@ name. Defaults to 'sum'.
 </td>
 </tr><tr>
 <td>
-`feature_value`
+`feature_value`<a id="feature_value"></a>
 </td>
 <td>
 As for the underlying pool_*() function.
 </td>
 </tr><tr>
 <td>
-`feature_name`
+`feature_name`<a id="feature_name"></a>
 </td>
 <td>
 As for the underlying pool_*() function.

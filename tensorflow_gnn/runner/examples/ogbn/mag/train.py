@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """An e2e training example for OGBN-MAG."""
+from typing import Mapping, Optional, Sequence
+
 from absl import app
 from absl import flags
 from absl import logging
@@ -25,20 +27,26 @@ from tensorflow_gnn.models import vanilla_mpnn
 
 FLAGS = flags.FLAGS
 
-# TODO(b/196880966): Update flag return values to _UPPER_SNAKE_CASE.
-_samples = flags.DEFINE_string(
+_SAMPLES_FORMAT = flags.DEFINE_string(
+    "samples_format",
+    "tfrecord",
+    "Indicates the file format for --samples.")
+
+_SAMPLES = flags.DEFINE_string(
     "samples",
     None,
-    "A file pattern for a TFRecord file of GraphTensors of sampled subgraphs.",
+    "A file pattern for a sharded file of GraphTensors of sampled subgraphs. "
+    "The file's container format must be as given by --samples_format, which "
+    f"defaults to {_SAMPLES_FORMAT.default}",
     required=True)
 
-_graph_schema = flags.DEFINE_string(
+_GRAPH_SCHEMA = flags.DEFINE_string(
     "graph_schema",
     None,
     "A filepath for the GraphSchema of the --samples.",
     required=True)
 
-_base_dir = flags.DEFINE_string(
+_BASE_DIR = flags.DEFINE_string(
     "base_dir",
     None,
     "The training and export base directory "
@@ -46,7 +54,7 @@ _base_dir = flags.DEFINE_string(
     "directory).",
     required=True)
 
-_tpu_address = flags.DEFINE_string(
+_TPU_ADDRESS = flags.DEFINE_string(
     "tpu_address",
     None,
     "An optional TPU address "
@@ -54,11 +62,29 @@ _tpu_address = flags.DEFINE_string(
     "string: TensorFlow will try to automatically resolve the Cloud TPU; if "
     "`None`: `MirroredStrategy` is used.")
 
-_paper_dim = flags.DEFINE_integer(
+_EPOCHS = flags.DEFINE_integer(
+    "epochs", 5,
+    "Training runs this many times over the dataset.")
+
+_RESTORE_BEST_WEIGHTS = flags.DEFINE_boolean(
+    "restore_best_weights",
+    False,
+    "By default, exports the trained model from the end of the training. "
+    "If set, exports the trained model with the best validation result.")
+
+_PAPER_DIM = flags.DEFINE_integer(
     "paper_dim", 512,
     "Dimensionality of dense layer applied to paper features. "
-    "Set to 'None' for no dense transform."
-)
+    "Set to '0' for no dense transform.")
+
+_DROPOUT_RATE = flags.DEFINE_float(
+    "dropout_rate", 0.1,
+    "Controls the dropout applied to hidden states of the GNN. "
+    "Leave at default zero to disable dropout.")
+
+_L2_REGULARIZATION = flags.DEFINE_float(
+    "l2_regularization", 5e-4,
+    "The coefficient of the L2 regularization loss.")
 
 
 # The following helper lets us filter a single input dataset by OGBN-MAG's
@@ -100,19 +126,37 @@ class _SplitDatasetProvider:
     dataset = self._delegate.get_dataset(context)
     return dataset.filter(_is_in_split(self._split_name))
 
+_DEFAULT_DATASET_FORMATS = {
+    "tfrecord": runner.TFRecordDatasetProvider,
+}
 
-def main(_) -> None:
-  ds_provider = runner.TFRecordDatasetProvider(_samples.value)
+
+def main(
+    args,
+    *,
+    extra_keras_callbacks:
+        Optional[Sequence[tf.keras.callbacks.Callback]] = None,
+    extra_dataset_formats:
+        Optional[Mapping[str, runner.SimpleDatasetProvider]] = None,
+) -> None:
+  if len(args) > 1:
+    raise app.UsageError("Too many command-line arguments.")
+
+  dataset_formats = _DEFAULT_DATASET_FORMATS.copy()
+  if extra_dataset_formats is not None:
+    dataset_formats.update(extra_dataset_formats)
+  ds_provider = dataset_formats[_SAMPLES_FORMAT.value](_SAMPLES.value)
   train_ds_provider = _SplitDatasetProvider(ds_provider, "train")
   valid_ds_provider = _SplitDatasetProvider(ds_provider, "validation")
 
-  graph_schema = tfgnn.read_schema(_graph_schema.value)
+  graph_schema = tfgnn.read_schema(_GRAPH_SCHEMA.value)
   gtspec = tfgnn.create_graph_spec_from_schema_pb(graph_schema)
 
   def extract_labels(graphtensor: tfgnn.GraphTensor):
     labels = tfgnn.keras.layers.ReadoutFirstNode(
         node_set_name="paper",
         feature_name="labels")(graphtensor)
+    graphtensor = graphtensor.remove_features(node_sets={"paper": ["labels"]})
     return graphtensor, labels
 
   def drop_all_features(_, **unused_kwargs):
@@ -135,11 +179,11 @@ def main(_) -> None:
     if node_set_name == "institution":
       return tf.keras.layers.Embedding(6_500, 16)(node_set["hashed_id"])
     if node_set_name == "paper":
-      if _paper_dim.value is None:
+      if not _PAPER_DIM.value:
         logging.info("Skipping dense layer for paper.")
         return node_set["feat"]
-      logging.info("Applying dense layer %d to paper.", _paper_dim.value)
-      return tf.keras.layers.Dense(_paper_dim.value)(node_set["feat"])
+      logging.info("Applying dense layer %d to paper.", _PAPER_DIM.value)
+      return tf.keras.layers.Dense(_PAPER_DIM.value)(node_set["feat"])
     if node_set_name == "author":
       return node_set["empty_state"]
     raise KeyError(f"Unexpected node_set_name='{node_set_name}'")
@@ -153,8 +197,8 @@ def main(_) -> None:
           units=128,
           message_dim=128,
           receiver_tag=tfgnn.SOURCE,
-          l2_regularization=5e-4,
-          dropout_rate=0.1,
+          l2_regularization=_L2_REGULARIZATION.value,
+          dropout_rate=_DROPOUT_RATE.value,
       )(graph)
     return tf.keras.Model(inputs, graph)
 
@@ -162,7 +206,6 @@ def main(_) -> None:
       node_set_name="paper",
       num_classes=349)
 
-  epochs = 5
   global_batch_size = 128
   validation_batch_size = 32
   steps_per_epoch = 629_571 // global_batch_size  # len(train) == 629,571
@@ -170,8 +213,8 @@ def main(_) -> None:
   # len(validation) == 64,879
   validation_steps = 64_879 // validation_batch_size
 
-  if _tpu_address.value is not None:
-    strategy = runner.TPUStrategy(_tpu_address.value)
+  if _TPU_ADDRESS.value is not None:
+    strategy = runner.TPUStrategy(_TPU_ADDRESS.value)
     train_padding = runner.FitOrSkipPadding(gtspec, train_ds_provider)
     valid_padding = runner.TightPadding(gtspec, train_ds_provider)
   else:
@@ -181,17 +224,21 @@ def main(_) -> None:
 
   trainer = runner.KerasTrainer(
       strategy=strategy,
-      model_dir=runner.incrementing_model_dir(_base_dir.value),
+      model_dir=runner.incrementing_model_dir(_BASE_DIR.value),
+      callbacks=extra_keras_callbacks,
       steps_per_epoch=steps_per_epoch,
-      validation_per_epoch=4,
-      validation_steps=validation_steps)
+      validation_steps=validation_steps,
+      restore_best_weights=_RESTORE_BEST_WEIGHTS.value,
+      checkpoint_every_n_steps=("epoch" if _RESTORE_BEST_WEIGHTS.value
+                                else "never"),
+  )
 
   runner.run(
       train_ds_provider=train_ds_provider,
       train_padding=train_padding,
       model_fn=model_fn,
       optimizer_fn=tf.keras.optimizers.Adam,
-      epochs=epochs,
+      epochs=_EPOCHS.value,
       trainer=trainer,
       task=task,
       gtspec=gtspec,

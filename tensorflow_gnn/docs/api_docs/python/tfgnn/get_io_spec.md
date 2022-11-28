@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_io.py#L118-L213">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_io.py#L132-L227">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Returns tf.io parsing features for `GraphTensorSpec` type spec.
 
@@ -47,14 +45,14 @@ routine directly, which handles this process for you.)
 
 <tr>
 <td>
-`spec`
+`spec`<a id="spec"></a>
 </td>
 <td>
 A graph tensor type specification.
 </td>
 </tr><tr>
 <td>
-`prefix`
+`prefix`<a id="prefix"></a>
 </td>
 <td>
 An optional prefix string over all the features. You may use
@@ -62,7 +60,7 @@ this if you are encoding other data in the same protocol buffer.
 </td>
 </tr><tr>
 <td>
-`validate`
+`validate`<a id="validate"></a>
 </td>
 <td>
 A boolean indicating whether or not to validate that the input
@@ -70,8 +68,6 @@ fields form a valid `GraphTensor`. Defaults to `True`.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_utils.py#L53-L104">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_utils.py#L67-L121">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Converts a graph schema proto message to a scalar GraphTensorSpec.
 
@@ -34,6 +32,9 @@ requirements, that accompanies each `GraphTensor` instance and fulfills much
 of the same goal. This function converts the proto to the corresponding type
 spec.
 
+It is guranteed that the output graph spec is compatible with the input graph
+schema (as `tfgnn.check_compatible_with_schema_pb()`.)
+
 <!-- Tabular view -->
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
@@ -41,14 +42,14 @@ spec.
 
 <tr>
 <td>
-`schema`
+`schema`<a id="schema"></a>
 </td>
 <td>
 An instance of the graph schema proto message.
 </td>
 </tr><tr>
 <td>
-`indices_dtype`
+`indices_dtype`<a id="indices_dtype"></a>
 </td>
 <td>
 A `tf.dtypes.DType` for GraphTensor edge set source and
@@ -56,8 +57,6 @@ target indices, node and edge sets sizes.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

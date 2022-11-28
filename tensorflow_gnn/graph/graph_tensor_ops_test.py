@@ -14,6 +14,7 @@
 # ==============================================================================
 """Tests for gt.GraphTensor extension type (go/tf-gnn-api)."""
 
+import collections
 import functools
 from typing import Mapping, Union
 
@@ -683,7 +684,7 @@ class ShuffleOpsTest(tf.test.TestCase, parameterized.TestCase):
               },
           }),
   ])
-  def testShuffleScalarComponents(
+  def testShuffleFeaturesGlobally(
       self,
       description: str,
       context: gt.Context,
@@ -695,7 +696,7 @@ class ShuffleOpsTest(tf.test.TestCase, parameterized.TestCase):
         context,
         {'node': node_set},
         {'edge': edge_set})
-    shuffled = ops.shuffle_scalar_components(graph, seed=8191)
+    shuffled = ops.shuffle_features_globally(graph, seed=8191)
 
     for fname, expected in expected_fields.get(gt.Context, {}).items():
       self.assertAllEqual(expected, shuffled.context.features[fname])
@@ -1043,6 +1044,664 @@ class SelfLoopsTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(offset_nodes, sum(node_sizes))
     self.assertAllEqual(offset_edges, sum(edge_sizes))
     self.assertAllEqual(offset_new_edges, sum(expected_edge_sizes))
+
+
+class ReorderNodesTest(tf.test.TestCase, parameterized.TestCase):
+  _heterogeneous = gt.GraphTensor.from_pieces(
+      node_sets={
+          'A':
+              gt.NodeSet.from_fields(
+                  sizes=[2, 2], features={
+                      's': ['a', 'b', 'c', 'd'],
+                  }),
+          'B':
+              gt.NodeSet.from_fields(
+                  sizes=[2, 1], features={
+                      's': ['x', 'y', 'z'],
+                  }),
+      },
+      edge_sets={
+          'A->B':
+              gt.EdgeSet.from_fields(
+                  sizes=[2, 2],
+                  adjacency=adj.Adjacency.from_indices(
+                      source=('A', [0, 1, 2, 3]),
+                      target=('B', [0, 1, 2, 0]),
+                  )),
+      })
+
+  def testEmpty(self):
+    graph = gt.GraphTensor.from_pieces(
+        node_sets={'node': gt.NodeSet.from_fields(sizes=[0], features={})})
+
+    result = ops.reorder_nodes(graph,
+                               {'node': tf.convert_to_tensor([], tf.int32)})
+    self.assertEqual(list(result.edge_sets.keys()), [])
+    self.assertEqual(list(result.node_sets.keys()), ['node'])
+    self.assertEmpty(result.node_sets['node'].features)
+    self.assertEmpty(result.context.features)
+    self.assertAllEqual(result.node_sets['node'].sizes, [0])
+
+  @parameterized.named_parameters([('adjacency',
+                                    adj.Adjacency.from_indices(
+                                        source=('node', [0, 2, 1]),
+                                        target=('node', [0, 1, 2]),
+                                    )),
+                                   ('hyper_adjacency',
+                                    adj.HyperAdjacency.from_indices({
+                                        const.SOURCE: ('node', [0, 2, 1]),
+                                        const.TARGET: ('node', [0, 1, 2]),
+                                    }))])
+  def testFeaturesReorder(self, adjacency):
+    graph = gt.GraphTensor.from_pieces(
+        context=gt.Context.from_fields(features={'s': ['x']}),
+        node_sets={
+            'node':
+                gt.NodeSet.from_fields(
+                    sizes=[3],
+                    features={
+                        's': ['a', 'b', 'c'],
+                        'v': [[1, 2], [3, 4], [5, 6]],
+                        'r': as_ragged([[], [1], [2, 3]]),
+                    })
+        },
+        edge_sets={
+            'edge':
+                gt.EdgeSet.from_fields(
+                    sizes=[3], adjacency=adjacency, features={'s': [1, 2, 3]}),
+        })
+
+    result = ops.reorder_nodes(graph, {'node': [1, 2, 0]})
+    self.assertAllEqual(result.context['s'], ['x'])
+
+    edge_set = result.edge_sets['edge']
+    self.assertAllEqual(edge_set.sizes, [3])
+    self.assertAllEqual(edge_set['s'], [1, 2, 3])
+    self.assertAllEqual(edge_set.adjacency[const.SOURCE], [2, 1, 0])
+    self.assertAllEqual(edge_set.adjacency[const.TARGET], [2, 0, 1])
+
+    node_set = result.node_sets['node']
+    self.assertAllEqual(node_set.sizes, [3])
+    self.assertAllEqual(node_set['s'], ['b', 'c', 'a'])
+    self.assertAllEqual(node_set['v'], [[3, 4], [5, 6], [1, 2]])
+    self.assertAllEqual(node_set['r'], as_ragged([[1], [2, 3], []]))
+
+  @parameterized.parameters([
+      dict(permutations={
+          'A': [0, 1, 2, 3],
+          'B': [0, 1, 2]
+      }),
+      dict(permutations={'A': [0, 1, 2, 3]}),
+      dict(permutations={'B': [0, 1, 2]}),
+      dict(permutations={})
+  ])
+  def testNoPermutation(self, permutations):
+    graph = self._heterogeneous
+    result = ops.reorder_nodes(graph, permutations)
+    self.assertAllEqual(result.node_sets['A']['s'], graph.node_sets['A']['s'])
+    self.assertAllEqual(result.node_sets['B']['s'], graph.node_sets['B']['s'])
+    self.assertAllEqual(result.edge_sets['A->B'].adjacency.source,
+                        graph.edge_sets['A->B'].adjacency.source)
+    self.assertAllEqual(result.edge_sets['A->B'].adjacency.target,
+                        graph.edge_sets['A->B'].adjacency.target)
+
+  def testPermutations(self):
+    graph = self._heterogeneous
+    result = ops.reorder_nodes(graph, {'A': [3, 2, 1, 0]})
+    self.assertAllEqual(result.node_sets['A'].sizes, [2, 2])
+    self.assertAllEqual(result.node_sets['A']['s'], ['d', 'c', 'b', 'a'])
+    self.assertAllEqual(result.node_sets['B'].sizes, [2, 1])
+    self.assertAllEqual(result.node_sets['B']['s'], ['x', 'y', 'z'])
+    self.assertAllEqual(result.edge_sets['A->B'].sizes, [2, 2])
+    self.assertAllEqual(result.edge_sets['A->B'].adjacency.source, [3, 2, 1, 0])
+    self.assertAllEqual(result.edge_sets['A->B'].adjacency.target, [0, 1, 2, 0])
+
+    result = ops.reorder_nodes(graph, {'B': [0, 2, 1]})
+    self.assertAllEqual(result.node_sets['A']['s'], ['a', 'b', 'c', 'd'])
+    self.assertAllEqual(result.node_sets['B']['s'], ['x', 'z', 'y'])
+    self.assertAllEqual(result.edge_sets['A->B'].adjacency.source, [0, 1, 2, 3])
+    self.assertAllEqual(result.edge_sets['A->B'].adjacency.target, [0, 2, 1, 0])
+
+    result = ops.reorder_nodes(graph, {'A': [2, 3, 0, 1], 'B': [2, 0, 1]})
+    self.assertAllEqual(result.node_sets['A']['s'], ['c', 'd', 'a', 'b'])
+    self.assertAllEqual(result.node_sets['B']['s'], ['z', 'x', 'y'])
+    self.assertAllEqual(result.edge_sets['A->B'].adjacency.source, [2, 3, 0, 1])
+    self.assertAllEqual(result.edge_sets['A->B'].adjacency.target, [1, 2, 0, 1])
+
+
+_SEED = 42
+
+
+class ShuffleNodesTest(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.named_parameters([('adjacency',
+                                    adj.Adjacency.from_indices(
+                                        source=('node', [1, 0, 0]),
+                                        target=('node', [0, 1, 0]),
+                                    )),
+                                   ('hyper_adjacency',
+                                    adj.HyperAdjacency.from_indices({
+                                        const.SOURCE: ('node', [1, 0, 0]),
+                                        const.TARGET: ('node', [0, 1, 0]),
+                                    }))])
+  def testSingletonHomogeneous(self, adjacency):
+    graph = gt.GraphTensor.from_pieces(
+        context=gt.Context.from_fields(features={'s': ['x']}),
+        node_sets={
+            'node':
+                gt.NodeSet.from_fields(
+                    sizes=[2],
+                    features={
+                        's': ['a', 'b'],
+                        'v': [[1, 2], [3, 4]],
+                        'r': as_ragged([[1], [2, 3]]),
+                    })
+        },
+        edge_sets={
+            'edge':
+                gt.EdgeSet.from_fields(
+                    sizes=[3], adjacency=adjacency, features={'s': [1, 2, 3]}),
+        })
+    a_first_count = 0
+    for _ in range(30):
+      result = ops.shuffle_nodes(graph, seed=_SEED)
+      self.assertAllEqual(result.context['s'], ['x'])
+      edge_set = result.edge_sets['edge']
+      self.assertAllEqual(edge_set.features['s'], [1, 2, 3])
+
+      features = result.node_sets['node'].features
+      if features['s'][0] == 'a':
+        a_first_count += 1
+        self.assertAllEqual(features['s'], ['a', 'b'])
+        self.assertAllEqual(features['v'], [[1, 2], [3, 4]])
+        self.assertAllEqual(features['r'], as_ragged([[1], [2, 3]]))
+        self.assertAllEqual(edge_set.adjacency[const.SOURCE], [1, 0, 0])
+        self.assertAllEqual(edge_set.adjacency[const.TARGET], [0, 1, 0])
+      else:
+        self.assertAllEqual(features['s'], ['b', 'a'])
+        self.assertAllEqual(features['v'], [[3, 4], [1, 2]])
+        self.assertAllEqual(features['r'], as_ragged([[2, 3], [1]]))
+        self.assertAllEqual(edge_set.adjacency[const.SOURCE], [0, 1, 1])
+        self.assertAllEqual(edge_set.adjacency[const.TARGET], [1, 0, 1])
+
+    self.assertBetween(a_first_count, 1, 29)
+
+  @parameterized.parameters([
+      dict(node_sets=()),
+      dict(node_sets=('1')),
+      dict(node_sets=('2')),
+      dict(node_sets=('1', '2')),
+      dict(node_sets=None)
+  ])
+  def testSingletonHeterogeneous(self, node_sets):
+    graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            '1': gt.NodeSet.from_fields(sizes=[2], features={
+                's': ['a', 'b'],
+            }),
+            '2': gt.NodeSet.from_fields(sizes=[2], features={
+                's': ['x', 'y'],
+            }),
+        },
+        edge_sets={
+            'edge':
+                gt.EdgeSet.from_fields(
+                    sizes=[3],
+                    adjacency=adj.Adjacency.from_indices(
+                        source=('1', [1, 0, 0]),
+                        target=('2', [0, 1, 0]),
+                    )),
+        })
+    counts = collections.Counter()
+    for _ in range(30):
+      result = ops.shuffle_nodes(graph, node_sets=node_sets, seed=_SEED)
+      case = (result.node_sets['1'].features['s'][0].numpy().decode(),
+              result.node_sets['2'].features['s'][0].numpy().decode())
+      counts[case] += 1
+
+      adjacency = result.edge_sets['edge'].adjacency
+      if case[0] == 'a':
+        self.assertAllEqual(adjacency.source, [1, 0, 0])
+      else:
+        self.assertAllEqual(adjacency.source, [0, 1, 1])
+      if case[1] == 'x':
+        self.assertAllEqual(adjacency.target, [0, 1, 0])
+      else:
+        self.assertAllEqual(adjacency.target, [1, 0, 1])
+
+    if node_sets is None:
+      node_sets = ('1', '2')
+
+    if '1' in node_sets:
+      self.assertBetween(counts[('b', 'x')], 1, 29, msg=str(counts))
+      self.assertBetween(counts[('a', 'x')], 1, 29)
+    else:
+      self.assertEqual(counts[('b', 'x')], 0)
+      self.assertEqual(counts[('b', 'y')], 0)
+
+    if '2' in node_sets:
+      self.assertBetween(counts[('a', 'y')], 1, 29)
+      self.assertBetween(counts[('a', 'x')], 1, 29)
+    else:
+      self.assertEqual(counts[('a', 'y')], 0)
+      self.assertEqual(counts[('b', 'y')], 0)
+
+  def testMultipleComponents(self):
+    graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            'node':
+                gt.NodeSet.from_fields(
+                    sizes=[2, 2], features={
+                        's': [1, 2, 3, 4],
+                    })
+        },
+        edge_sets={
+            'edge':
+                gt.EdgeSet.from_fields(
+                    sizes=[2, 2],
+                    adjacency=adj.Adjacency.from_indices(
+                        source=('node', [1, 0, 2, 3]),
+                        target=('node', [0, 1, 3, 2]),
+                    ),
+                    features={'s': [1, 2, 3]}),
+        })
+    unique_permutations = set()
+    for _ in range(30):
+      result = ops.shuffle_nodes(graph, seed=_SEED)
+      permutation = tuple(result.node_sets['node'].features['s'].numpy())
+      unique_permutations.add(permutation)
+      adjacency = result.edge_sets['edge'].adjacency
+      if permutation == (1, 2, 3, 4):
+        self.assertAllEqual(adjacency.source, [1, 0, 2, 3])
+        self.assertAllEqual(adjacency.target, [0, 1, 3, 2])
+      elif permutation == (2, 1, 3, 4):
+        self.assertAllEqual(adjacency.source, [0, 1, 2, 3])
+        self.assertAllEqual(adjacency.target, [1, 0, 3, 2])
+      elif permutation == (1, 2, 4, 3):
+        self.assertAllEqual(adjacency.source, [1, 0, 3, 2])
+        self.assertAllEqual(adjacency.target, [0, 1, 2, 3])
+      elif permutation == (2, 1, 4, 3):
+        self.assertAllEqual(adjacency.source, [0, 1, 3, 2])
+        self.assertAllEqual(adjacency.target, [1, 0, 2, 3])
+      else:
+        assert False, permutation
+
+    self.assertLen(unique_permutations, 4)
+
+
+class EdgeMaskingTest(tf.test.TestCase, parameterized.TestCase):
+  """Tests for edge-masking operations over a scalar GraphTensor."""
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='EdgeSetWVariousFeatures',
+          graph=gt.GraphTensor.from_pieces(
+              node_sets={
+                  'a':
+                      gt.NodeSet.from_fields(
+                          features={'f': as_tensor([1., 2.])},
+                          sizes=as_tensor([2])),
+                  'b':
+                      gt.NodeSet.from_fields(features={}, sizes=as_tensor([4])),
+              },
+              edge_sets={
+                  'a->b':
+                      gt.EdgeSet.from_fields(
+                          features={
+                              'f': as_tensor([1., 2., 3.]),
+                              'r': as_ragged([[4., 5.], [], [1., 2., 3.]])
+                          },
+                          sizes=as_tensor([3]),
+                          adjacency=adj.Adjacency.from_indices(
+                              ('a', as_tensor([0, 1, 1])),
+                              ('b', as_tensor([0, 1, 3])),
+                          )),
+              }),
+          mask=tf.convert_to_tensor([True, True, False]),
+          edge_set_name='a->b',
+          masked_edge_set_name='masked_a->b',
+          expected=gt.GraphTensor.from_pieces(
+              node_sets={
+                  'a':
+                      gt.NodeSet.from_fields(
+                          features={'f': as_tensor([1., 2.])},
+                          sizes=as_tensor([2])),
+                  'b':
+                      gt.NodeSet.from_fields(features={}, sizes=as_tensor([4])),
+              },
+              edge_sets={
+                  'a->b':
+                      gt.EdgeSet.from_fields(
+                          features={
+                              'f': as_tensor([1., 2.]),
+                              'r': as_ragged([[4., 5.], []])
+                          },
+                          sizes=as_tensor([2]),
+                          adjacency=adj.Adjacency.from_indices(
+                              ('a', as_tensor([0, 1])),
+                              ('b', as_tensor([0, 1])),
+                          )),
+                  'masked_a->b':
+                      gt.EdgeSet.from_fields(
+                          features={
+                              'f': as_tensor([3.]),
+                              'r': as_ragged([[1., 2., 3.]])
+                          },
+                          sizes=as_tensor([1]),
+                          adjacency=adj.Adjacency.from_indices(
+                              ('a', as_tensor([1])),
+                              ('b', as_tensor([3])),
+                          ))
+              })),
+      dict(
+          testcase_name='EdgeSetWMultiComponents',
+          graph=gt.GraphTensor.from_pieces(
+              node_sets={
+                  'a':
+                      gt.NodeSet.from_fields(
+                          features={'f': as_tensor([1., 2., 7., 19., 13.])},
+                          sizes=as_tensor([3, 2])),
+                  'b':
+                      gt.NodeSet.from_fields(
+                          features={}, sizes=as_tensor([4, 2])),
+              },
+              edge_sets={
+                  'a->b':
+                      gt.EdgeSet.from_fields(
+                          features={
+                              'f':
+                                  as_tensor([1., 2., 3., 4., 7.]),
+                              'r':
+                                  as_ragged([[4., 5.], [], [1., 2., 3.], [3.],
+                                             [9., 0., 1.]])
+                          },
+                          sizes=as_tensor([3, 2]),
+                          adjacency=adj.Adjacency.from_indices(
+                              ('a', as_tensor([0, 1, 1, 3, 4])),
+                              ('b', as_tensor([0, 1, 3, 4, 5])),
+                          )),
+              }),
+          mask=tf.convert_to_tensor([True, True, False, True, False]),
+          edge_set_name='a->b',
+          masked_edge_set_name='masked_a->b',
+          expected=gt.GraphTensor.from_pieces(
+              node_sets={
+                  'a':
+                      gt.NodeSet.from_fields(
+                          features={'f': as_tensor([1., 2., 7., 19., 13.])},
+                          sizes=as_tensor([3, 2])),
+                  'b':
+                      gt.NodeSet.from_fields(
+                          features={}, sizes=as_tensor([4, 2])),
+              },
+              edge_sets={
+                  'a->b':
+                      gt.EdgeSet.from_fields(
+                          features={
+                              'f': as_tensor([1., 2., 4.]),
+                              'r': as_ragged([[4., 5.], [], [3.]])
+                          },
+                          sizes=as_tensor([2, 1]),
+                          adjacency=adj.Adjacency.from_indices(
+                              ('a', as_tensor([0, 1, 3])),
+                              ('b', as_tensor([0, 1, 4])),
+                          )),
+                  'masked_a->b':
+                      gt.EdgeSet.from_fields(
+                          features={
+                              'f': as_tensor([3., 7.]),
+                              'r': as_ragged([[1., 2., 3.], [9., 0., 1.]])
+                          },
+                          sizes=as_tensor([1, 1]),
+                          adjacency=adj.Adjacency.from_indices(
+                              ('a', as_tensor([1, 4])),
+                              ('b', as_tensor([3, 5])),
+                          ))
+              })),
+      dict(
+          testcase_name='ZeroEdgesMaskedOut',
+          graph=gt.GraphTensor.from_pieces(
+              node_sets={
+                  'a':
+                      gt.NodeSet.from_fields(
+                          features={'f': as_tensor([1., 2.])},
+                          sizes=as_tensor([2])),
+                  'b':
+                      gt.NodeSet.from_fields(features={}, sizes=as_tensor([4])),
+              },
+              edge_sets={
+                  'a->b':
+                      gt.EdgeSet.from_fields(
+                          features={
+                              'f': as_tensor([1., 2., 3.]),
+                              'r': as_ragged([[4., 5.], [], [1., 2., 3.]])
+                          },
+                          sizes=as_tensor([3]),
+                          adjacency=adj.Adjacency.from_indices(
+                              ('a', as_tensor([0, 1, 1])),
+                              ('b', as_tensor([0, 1, 3])),
+                          )),
+              }),
+          mask=tf.convert_to_tensor([True, True, True]),
+          edge_set_name='a->b',
+          masked_edge_set_name='masked_a->b',
+          expected=gt.GraphTensor.from_pieces(
+              node_sets={
+                  'a':
+                      gt.NodeSet.from_fields(
+                          features={'f': as_tensor([1., 2.])},
+                          sizes=as_tensor([2])),
+                  'b':
+                      gt.NodeSet.from_fields(features={}, sizes=as_tensor([4])),
+              },
+              edge_sets={
+                  'a->b':
+                      gt.EdgeSet.from_fields(
+                          features={
+                              'f': as_tensor([1., 2., 3.]),
+                              'r': as_ragged([[4., 5.], [], [1., 2., 3.]])
+                          },
+                          sizes=as_tensor([3]),
+                          adjacency=adj.Adjacency.from_indices(
+                              ('a', as_tensor([0, 1, 1])),
+                              ('b', as_tensor([0, 1, 3])),
+                          )),
+                  'masked_a->b':
+                      gt.EdgeSet.from_fields(
+                          features={
+                              'f': as_tensor([]),
+                              'r': as_ragged([])
+                          },
+                          sizes=as_tensor([0]),
+                          adjacency=adj.Adjacency.from_indices(
+                              ('a', as_tensor([], dtype=tf.int32)),
+                              ('b', as_tensor([], dtype=tf.int32)),
+                          ))
+              })),
+      dict(
+          testcase_name='AllEdgesMaskedOut',
+          graph=gt.GraphTensor.from_pieces(
+              node_sets={
+                  'a':
+                      gt.NodeSet.from_fields(
+                          features={'f': as_tensor([1., 2.])},
+                          sizes=as_tensor([2])),
+                  'b':
+                      gt.NodeSet.from_fields(features={}, sizes=as_tensor([4])),
+              },
+              edge_sets={
+                  'a->b':
+                      gt.EdgeSet.from_fields(
+                          features={
+                              'f': as_tensor([1., 2., 3.]),
+                              'r': as_ragged([[4., 5.], [], [1., 2., 3.]])
+                          },
+                          sizes=as_tensor([3]),
+                          adjacency=adj.Adjacency.from_indices(
+                              ('a', as_tensor([0, 1, 1])),
+                              ('b', as_tensor([0, 1, 3])),
+                          )),
+              }),
+          mask=tf.convert_to_tensor([False, False, False]),
+          edge_set_name='a->b',
+          masked_edge_set_name='masked_a->b',
+          expected=gt.GraphTensor.from_pieces(
+              node_sets={
+                  'a':
+                      gt.NodeSet.from_fields(
+                          features={'f': as_tensor([1., 2.])},
+                          sizes=as_tensor([2])),
+                  'b':
+                      gt.NodeSet.from_fields(features={}, sizes=as_tensor([4])),
+              },
+              edge_sets={
+                  'a->b':
+                      gt.EdgeSet.from_fields(
+                          features={
+                              'f': as_tensor([]),
+                              'r': as_ragged([])
+                          },
+                          sizes=as_tensor([0]),
+                          adjacency=adj.Adjacency.from_indices(
+                              ('a', as_tensor([], dtype=tf.int32)),
+                              ('b', as_tensor([], dtype=tf.int32)),
+                          )),
+                  'masked_a->b':
+                      gt.EdgeSet.from_fields(
+                          features={
+                              'f': as_tensor([1., 2., 3.]),
+                              'r': as_ragged([[4., 5.], [], [1., 2., 3.]])
+                          },
+                          sizes=as_tensor([3]),
+                          adjacency=adj.Adjacency.from_indices(
+                              ('a', as_tensor([0, 1, 1])),
+                              ('b', as_tensor([0, 1, 3])),
+                          ))
+              })),
+      dict(
+          testcase_name='EmptyNodesAndMask',
+          graph=gt.GraphTensor.from_pieces(
+              node_sets={
+                  'a':
+                      gt.NodeSet.from_fields(features={}, sizes=as_tensor([0])),
+                  'b':
+                      gt.NodeSet.from_fields(features={}, sizes=as_tensor([0])),
+              },
+              edge_sets={
+                  'a->b':
+                      gt.EdgeSet.from_fields(
+                          features={
+                              'f': as_tensor([]),
+                              'r': as_ragged([])
+                          },
+                          sizes=as_tensor([0]),
+                          adjacency=adj.Adjacency.from_indices(
+                              ('a', as_tensor([], dtype=tf.int32)),
+                              ('b', as_tensor([], dtype=tf.int32)),
+                          )),
+              }),
+          mask=tf.convert_to_tensor([], dtype=tf.bool),
+          edge_set_name='a->b',
+          masked_edge_set_name='masked_a->b',
+          expected=gt.GraphTensor.from_pieces(
+              node_sets={
+                  'a':
+                      gt.NodeSet.from_fields(features={}, sizes=as_tensor([0])),
+                  'b':
+                      gt.NodeSet.from_fields(features={}, sizes=as_tensor([0])),
+              },
+              edge_sets={
+                  'a->b':
+                      gt.EdgeSet.from_fields(
+                          features={
+                              'f': as_tensor([]),
+                              'r': as_ragged([])
+                          },
+                          sizes=as_tensor([0]),
+                          adjacency=adj.Adjacency.from_indices(
+                              ('a', as_tensor([], dtype=tf.int32)),
+                              ('b', as_tensor([], dtype=tf.int32)),
+                          )),
+                  'masked_a->b':
+                      gt.EdgeSet.from_fields(
+                          features={
+                              'f': as_tensor([]),
+                              'r': as_ragged([])
+                          },
+                          sizes=as_tensor([0]),
+                          adjacency=adj.Adjacency.from_indices(
+                              ('a', as_tensor([], dtype=tf.int32)),
+                              ('b', as_tensor([], dtype=tf.int32)),
+                          ))
+              })))
+  def test(self, graph, mask, edge_set_name, masked_edge_set_name, expected):
+    actual = ops.mask_edges(graph, edge_set_name, mask, masked_edge_set_name)
+
+    for node_set_name in [*expected.node_sets, *actual.node_sets]:
+      self.assertAllEqual(actual.node_sets[node_set_name].sizes,
+                          expected.node_sets[node_set_name].sizes)
+      self.assertAllEqual(actual.node_sets[node_set_name].features,
+                          expected.node_sets[node_set_name].features)
+    for edge_set_name in [*expected.edge_sets, *actual.edge_sets]:
+      tf.print(actual.edge_sets[edge_set_name])
+      self.assertAllEqual(actual.edge_sets[edge_set_name].sizes,
+                          expected.edge_sets[edge_set_name].sizes)
+      self.assertAllEqual(actual.edge_sets[edge_set_name].features,
+                          expected.edge_sets[edge_set_name].features)
+      self.assertAllEqual(actual.edge_sets[edge_set_name].adjacency.source,
+                          expected.edge_sets[edge_set_name].adjacency.source)
+      self.assertAllEqual(actual.edge_sets[edge_set_name].adjacency.target,
+                          expected.edge_sets[edge_set_name].adjacency.target)
+
+  def testNonExistent(self):
+    graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            'nodes':
+                gt.NodeSet.from_fields(
+                    features={'f': as_tensor([1., 2.])}, sizes=as_tensor([2])),
+        },
+        edge_sets={
+            'edges':
+                gt.EdgeSet.from_fields(
+                    features={
+                        'f': as_tensor([1., 2., 3.]),
+                        'r': as_ragged([[4., 5.], [], [1., 2., 3.]])
+                    },
+                    sizes=as_tensor([3]),
+                    adjacency=adj.Adjacency.from_indices(
+                        ('a', as_tensor([0, 1, 1])),
+                        ('b', as_tensor([0, 1, 3])),
+                    )),
+        })
+    with self.assertRaisesRegex(
+        ValueError,
+        r'Please ensure edge_set_name: a->b exists as an edge-set.*'):
+      ops.mask_edges(graph, 'a->b', as_tensor([True, False]), 'edges')
+
+  def testError(self):
+    graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            'nodes':
+                gt.NodeSet.from_fields(
+                    features={'f': as_tensor([1., 2.])}, sizes=as_tensor([2])),
+        },
+        edge_sets={
+            'edges':
+                gt.EdgeSet.from_fields(
+                    features={
+                        'f': as_tensor([1., 2., 3.]),
+                        'r': as_ragged([[4., 5.], [], [1., 2., 3.]])
+                    },
+                    sizes=as_tensor([3]),
+                    adjacency=adj.Adjacency.from_indices(
+                        ('a', as_tensor([0, 1, 1])),
+                        ('b', as_tensor([0, 1, 3])),
+                    )),
+        })
+    with self.assertRaisesRegex(
+        tf.errors.InvalidArgumentError,
+        r'boolean_edge_mask should have the same shape with the adjacency.*'):
+      ops.mask_edges(graph, 'edges', as_tensor([True, False]), 'masked')
 
 
 if __name__ == '__main__':

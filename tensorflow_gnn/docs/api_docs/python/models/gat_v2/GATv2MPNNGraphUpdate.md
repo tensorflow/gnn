@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gat_v2/layers.py#L414-L503">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gat_v2/layers.py#L487-L581">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -21,6 +21,7 @@ Returns a GraphUpdate layer for message passing with GATv2 pooling.
     units: int,
     message_dim: int,
     num_heads: int,
+    heads_merge_type: str = &#x27;concat&#x27;,
     receiver_tag: tfgnn.IncidentNodeOrContextTag,
     node_set_names: Optional[Collection[tfgnn.NodeSetName]] = None,
     edge_feature: Optional[tfgnn.FieldName] = None,
@@ -50,14 +51,14 @@ pooled messages.
 
 <tr>
 <td>
-`units`
+`units`<a id="units"></a>
 </td>
 <td>
 The dimension of output hidden states for each node.
 </td>
 </tr><tr>
 <td>
-`message_dim`
+`message_dim`<a id="message_dim"></a>
 </td>
 <td>
 The dimension of messages (attention values) computed on
@@ -65,7 +66,7 @@ each edge.  Must be divisible by `num_heads`.
 </td>
 </tr><tr>
 <td>
-`num_heads`
+`num_heads`<a id="num_heads"></a>
 </td>
 <td>
 The number of attention heads used by GATv2. `message_dim`
@@ -73,7 +74,15 @@ must be divisible by this number.
 </td>
 </tr><tr>
 <td>
-`receiver_tag`
+`heads_merge_type`<a id="heads_merge_type"></a>
+</td>
+<td>
+"concat" or "mean". Gets passed to GATv2Conv, which uses
+it to combine all heads into layer's output.
+</td>
+</tr><tr>
+<td>
+`receiver_tag`<a id="receiver_tag"></a>
 </td>
 <td>
 one of `tfgnn.TARGET` or `tfgnn.SOURCE`, to select the
@@ -81,7 +90,7 @@ incident node of each edge that receives the message.
 </td>
 </tr><tr>
 <td>
-`node_set_names`
+`node_set_names`<a id="node_set_names"></a>
 </td>
 <td>
 The names of node sets to update. If unset, updates all
@@ -89,7 +98,7 @@ that are on the receiving end of any edge set.
 </td>
 </tr><tr>
 <td>
-`edge_feature`
+`edge_feature`<a id="edge_feature"></a>
 </td>
 <td>
 Can be set to a feature name of the edge set to select
@@ -98,7 +107,7 @@ this input.
 </td>
 </tr><tr>
 <td>
-`l2_regularization`
+`l2_regularization`<a id="l2_regularization"></a>
 </td>
 <td>
 The coefficient of L2 regularization for weights and
@@ -106,7 +115,7 @@ biases.
 </td>
 </tr><tr>
 <td>
-`edge_dropout_rate`
+`edge_dropout_rate`<a id="edge_dropout_rate"></a>
 </td>
 <td>
 The edge dropout rate applied during attention pooling
@@ -114,14 +123,14 @@ of edges.
 </td>
 </tr><tr>
 <td>
-`state_dropout_rate`
+`state_dropout_rate`<a id="state_dropout_rate"></a>
 </td>
 <td>
 The dropout rate applied to the resulting node states.
 </td>
 </tr><tr>
 <td>
-`attention_activation`
+`attention_activation`<a id="attention_activation"></a>
 </td>
 <td>
 The nonlinearity used on the transformed inputs
@@ -133,7 +142,7 @@ of `alpha=0.2`.
 </td>
 </tr><tr>
 <td>
-`conv_activation`
+`conv_activation`<a id="conv_activation"></a>
 </td>
 <td>
 The nonlinearity applied to the result of attention on one
@@ -141,7 +150,7 @@ edge set, specified in the same ways as attention_activation.
 </td>
 </tr><tr>
 <td>
-`activation`
+`activation`<a id="activation"></a>
 </td>
 <td>
 The nonlinearity applied to the new node states computed by
@@ -149,7 +158,7 @@ this graph update.
 </td>
 </tr><tr>
 <td>
-`kernel_initializer`
+`kernel_initializer`<a id="kernel_initializer"></a>
 </td>
 <td>
 Can be set to a `kerner_initializer` as understood

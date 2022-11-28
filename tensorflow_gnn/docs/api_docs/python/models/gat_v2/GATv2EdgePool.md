@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gat_v2/layers.py#L292-L343">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gat_v2/layers.py#L361-L412">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -48,14 +48,14 @@ NOTE: This layer cannot pool node states. For that, use
 
 <tr>
 <td>
-`num_heads`
+`num_heads`<a id="num_heads"></a>
 </td>
 <td>
 The number of attention heads.
 </td>
 </tr><tr>
 <td>
-`per_head_channels`
+`per_head_channels`<a id="per_head_channels"></a>
 </td>
 <td>
 The number of channels for each attention head. This
@@ -63,7 +63,7 @@ means that the final output size will be per_head_channels * num_heads.
 </td>
 </tr><tr>
 <td>
-`receiver_tag`
+`receiver_tag`<a id="receiver_tag"></a>
 </td>
 <td>
 The results of attention are aggregated for this graph piece.
@@ -76,7 +76,7 @@ If left unset, the tag must be passed when calling the layer.
 </td>
 </tr><tr>
 <td>
-`receiver_feature`
+`receiver_feature`<a id="receiver_feature"></a>
 </td>
 <td>
 By default, the default state feature of the receiver
@@ -85,7 +85,7 @@ selected by setting this argument.
 </td>
 </tr><tr>
 <td>
-`sender_feature`
+`sender_feature`<a id="sender_feature"></a>
 </td>
 <td>
 By default, the default state feature of the edge set is
@@ -94,7 +94,7 @@ selected by setting this argument.
 </td>
 </tr><tr>
 <td>
-`**kwargs`
+`**kwargs`<a id="**kwargs"></a>
 </td>
 <td>
 Any other option for GATv2Conv, except sender_node_feature,

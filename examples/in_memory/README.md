@@ -52,7 +52,7 @@ python3 tf_trainer.py --dataset=ogbn-arxiv
 To replicate the GCN paper [[3]](#3), you can run as:
 
 ```sh
-python3 tf_trainer.py --dataset=cora --model=GCN --model_kwargs_json='{"batchnorm":true, "dropout": 0.8, "hidden_units": 32, "depth": 2}' --l2_regularization=1e-3 --steps=500
+python3 tf_trainer.py --dataset=cora --model=GCN --model_kwargs_json='{"dropout": 0.8, "hidden_units": 32, "depth": 2, "use_bias": false}' --l2_regularization=1e-2 --steps=500
 ```
 
 You can replace the `--dataset=cora` value with `pubmed` or `citeseer`.

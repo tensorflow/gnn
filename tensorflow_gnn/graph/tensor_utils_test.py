@@ -14,9 +14,12 @@
 # ==============================================================================
 """Tests for tensor_utils."""
 
+import math
+from absl.testing import parameterized
 import numpy as np
 import tensorflow as tf
 from tensorflow_gnn.graph import tensor_utils as utils
+
 
 as_tensor = tf.convert_to_tensor
 as_ragged = tf.ragged.constant
@@ -263,6 +266,50 @@ class TensorUtilsTest(tf.test.TestCase):
     value = tf.RaggedTensor.from_row_lengths(
         value, tf.ones([value.nrows()], value.row_splits.dtype))
     self.assertAllEqual(utils.pad_to_nrows(value, 2, ''), value)
+
+
+_SEED = 42
+
+
+class RaggedShuffleTest(tf.test.TestCase, parameterized.TestCase):
+
+  def testEmpty(self):
+    result = utils.segment_shuffle(
+        tf.convert_to_tensor([], tf.int32), seed=_SEED)
+    self.assertAllEqual(result, tf.convert_to_tensor([], tf.int32))
+
+  def testDeterminism(self):
+    tf.random.set_seed(_SEED)
+    result1 = utils.segment_shuffle([0, 0, 1, 1], seed=_SEED)
+    for _ in range(30):
+      tf.random.set_seed(_SEED)
+      result2 = utils.segment_shuffle([0, 0, 1, 1], seed=_SEED)
+      self.assertAllEqual(result1, result2)
+
+  @parameterized.parameters(_SEED, None)
+  def testRespectsSegmentIds(self, seed):
+    segment_ids = [1, 1, 1, 2, 2, 3, 5, 5, 5, 7]
+    for _ in range(30):
+      result = utils.segment_shuffle(segment_ids, seed=seed)
+      self.assertAllEqual(tf.sort(result[0:3]), [0, 1, 2])
+      self.assertAllEqual(tf.sort(result[3:5]), [3, 4])
+      self.assertAllEqual(tf.sort(result[5:6]), [5])
+      self.assertAllEqual(tf.sort(result[6:9]), [6, 7, 8])
+      self.assertAllEqual(tf.sort(result[9:10]), [9])
+
+  @parameterized.parameters(7, 61)
+  def testDistribution(self, seed):
+    segment_ids = [0, 0, 1, 1, 1, 2, 2, 2, 2]
+    distr = [0] * len(segment_ids)
+    for _ in range(1_000):
+      result = utils.segment_shuffle(
+          tf.convert_to_tensor(segment_ids, tf.int32), seed=seed)
+      distr[result[3].numpy()] += 1
+    distr = tf.cast(distr, tf.float32) / 1_000.0
+    std = math.sqrt(0.333 * 0.667 / 1_000.0)
+    self.assertAllEqual(distr[:2], [0., 0.])
+    self.assertAllClose(distr[2:5], [0.333] * 3, atol=5. * std, rtol=0.0)
+    self.assertAllEqual(distr[5:], [0., 0., 0., 0.])
 
 
 if __name__ == '__main__':

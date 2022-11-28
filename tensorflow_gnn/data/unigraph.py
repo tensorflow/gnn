@@ -25,19 +25,31 @@ Supported file formats include:
 # Placeholder for Google-internal file support docstring
 """
 
+
 import csv
+import functools
 import hashlib
 import os
+import queue
 import re
-from typing import Any, Callable, Dict, List, Mapping, Optional, Text, Tuple, Union
+import threading
+from typing import Any, Callable, Dict, List, Mapping, Optional, Text, Tuple, Union, Iterable
+
 from absl import logging
 import apache_beam as beam
+import pyarrow
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.proto import graph_schema_pb2
-
 # Placeholder for Google-internal record file format pipeline import
 # Placeholder for Google-internal sorted string file format pipeline import
+
+try:
+  # pytype: disable=import-error
+  import google.cloud.bigquery_storage_v1 as bq_storage  # pylint: disable=g-import-not-at-top
+  # pytype: enable=import-error
+except ImportError:
+  bq_storage = None
 
 
 # Special constant column names required to be present in the node and edge
@@ -291,6 +303,13 @@ def read_graph(
   return pcoll_dict
 
 
+def is_edge_reversed(schema_edge_set: graph_schema_pb2.EdgeSet):
+  for kv in schema_edge_set.metadata.extra:
+    if kv.key == "edge_type" and kv.value == "reversed":
+      return True
+  return False
+
+
 class ReadUnigraphPieceFromFile(beam.PTransform):
   """Read a unigraph node/edge/context component from a file.
 
@@ -330,11 +349,8 @@ class ReadUnigraphPieceFromFile(beam.PTransform):
 
     self.converters = build_converter_from_schema(self.fset.features)
 
-    self.reversed = False
     if isinstance(fset, graph_schema_pb2.EdgeSet):
-      for kv in fset.metadata.extra:
-        if kv.key == "edge_type" and kv.value == "reversed":
-          self.edge_reversed = True
+      self.reversed = is_edge_reversed(fset)
 
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
     if self.fset_type == tfgnn.NODES:
@@ -358,15 +374,31 @@ class ReadUnigraphPieceFromFile(beam.PTransform):
           f"Unknown Unigraph component {self.fset_type}, {self.fset_name}.")
 
 
+def _to_bytes(x: Union[str, bytes, pyarrow.StringScalar]) -> bytes:
+  if isinstance(x, bytes):
+    return x
+  elif isinstance(x, str):
+    return x.encode("utf-8")
+  elif isinstance(x, pyarrow.StringScalar):
+    return _to_bytes(x.as_py())
+  else:
+    raise TypeError("_to_bytes cannot handle type %s" % str(type(x)))
+
+
 class ReadUnigraphPieceFromBigQuery(beam.PTransform):
   """Read a unigraph node/edge/context component from a BigQuery table.
 
   Yeilds tf.Example protos of the features from the table.
+
+  **NOTE**(b/252789408): only scalar features (bool, float, int and string) are
+    currently supported when using a BQ source.
   """
-  _SUPPORTED_DTYPES = [tf.dtypes.float32, tf.dtypes.int64, tf.dtypes.string]
-  _ID_COLUMN = "id"
-  _SOURCE_COLUMN = "source"
-  _TARGET_COLUMN = "target"
+  _SUPPORTED_DTYPES = [
+      tf.dtypes.float32, tf.dtypes.int64, tf.dtypes.string, tf.dtypes.bool
+  ]
+  ID_COLUMN = "id"
+  SOURCE_COLUMN = "source"
+  TARGET_COLUMN = "target"
 
   def __init__(
       self,
@@ -401,11 +433,8 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
       raise ValueError("NodeSet does not specify a BigQuery table.")
 
     # Only used for edge sets
-    self.edge_reversed = False
-    if isinstance(self.fset, graph_schema_pb2.EdgeSet):
-      for kv in fset.metadata.extra:
-        if kv.key == "edge_type" and kv.value == "reversed":
-          self.edge_reversed = True
+    self.edge_reversed = (isinstance(self.fset, graph_schema_pb2.EdgeSet) and
+                          is_edge_reversed(self.fset))
 
     self.bq = fset.metadata.bigquery
     self.sfx = self.stage_name_suffix(self.fset_name, self.fset)
@@ -515,11 +544,39 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
 
     return sfx
 
-  def row_to_keyed_example(self, row: Mapping[str, Any]) -> Any:
+  def _row_to_keyed_example(self, row: Mapping[str, Any]) -> Any:
+    return ReadUnigraphPieceFromBigQuery.row_to_keyed_example(
+        row, self.fset, edge_reversed=self.edge_reversed)
+
+  @staticmethod
+  def row_to_keyed_example(
+      row: Mapping[str, Any],
+      fset: Union[graph_schema_pb2.NodeSet, graph_schema_pb2.EdgeSet],
+      edge_reversed=False, output_bq_row=False) -> Any:
     """Convert a single row from a BigQuery result to tf.Example.
+
+    Will extract values from the retrieved BigQuery row according to the
+    features specified by the GraphSchema. This is to support discarding
+    entries in the BQ row that are not relevant to the TFGNN model.
+
+    For node sets, it is expected that the BQ row have a column named `id`.
+    Any feature with key: 'id' in the input GraphSchema will be ignored.
+
+    For edge sets, the returned BQ row must have columns named `source` and
+    `target`. Any feature specified in the GraphSchema with key: `source` or
+    key: `target` will be ignored.
+
+    **NOTE**(b/252789408): only scalar features (float, int and string) are
+    currently supported when using a BQ source.
 
     Args:
       row: Dict[str, Any] result of a BigQuery read.
+      fset: Schema for NodeSet or EdgeSet.
+      edge_reversed: Applicable if `isinstance(fset, graph_schema_pb2.EdgeSet)`.
+        If set, edges would be reversed. Specifically, the return would be
+        tuple (target, source, example).
+      output_bq_row: If set, then output tuple[-1] would be BigQuery row.
+        Otherwise (default), then output tuple[-1] will be `tf.Example`.
 
     Returns:
       If the input fset is a graph_schema_pb2.NodeSet, returns
@@ -528,78 +585,100 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
         Tuple(source: str, target: str, example: tf.train.Example)
 
     Raises:
-      ValueError if a field name is not found in the BQ row.
+      ValueError: If a field name is not found in the BQ row.
+      ValueError: If an input feature has an unspported data type
+        (see GraphSchema and BigQuery documentation for valid data type
+        specifications).
     """
     ret_key = None
-    example = Example()
+    cls = ReadUnigraphPieceFromBigQuery  # for short
 
-    if isinstance(self.fset, graph_schema_pb2.NodeSet):
-      if self._ID_COLUMN not in row.keys():
+    if isinstance(fset, graph_schema_pb2.NodeSet):
+      if cls.ID_COLUMN not in row.keys():
         raise ValueError(
-            f"Query result must have a column named {self._ID_COLUMN}")
+            f"Query result must have a column named {cls.ID_COLUMN}")
 
-      node_id = row[self._ID_COLUMN]
-      node_id_feature_name = _TRANSLATIONS[self._ID_COLUMN]
-      example.features.feature[node_id_feature_name].bytes_list.value.append(
-          node_id.encode("utf-8"))
+      node_id = row[cls.ID_COLUMN]
       ret_key = [node_id]
 
-    elif isinstance(self.fset, graph_schema_pb2.EdgeSet):
-      if self._SOURCE_COLUMN not in row.keys():
+    elif isinstance(fset, graph_schema_pb2.EdgeSet):
+      if cls.SOURCE_COLUMN not in row.keys():
         raise ValueError(
-            f"Query result must have a column named {self._SOURCE_COLUMN}")
-      if self._TARGET_COLUMN not in row.keys():
+            f"Query result must have a column named {cls.SOURCE_COLUMN}")
+      if cls.TARGET_COLUMN not in row.keys():
         raise ValueError(
-            f"Query result must have a column named {self._TARGET_COLUMN}")
+            f"Query result must have a column named {cls.TARGET_COLUMN}")
 
-      if self.edge_reversed:
-        source_id = row[self._TARGET_COLUMN]
-        target_id = row[self._SOURCE_COLUMN]
+      if edge_reversed:
+        source_id = row[cls.TARGET_COLUMN]
+        target_id = row[cls.SOURCE_COLUMN]
       else:
-        source_id = row[self._SOURCE_COLUMN]
-        target_id = row[self._TARGET_COLUMN]
-
-      source_feature_name = _TRANSLATIONS[self._SOURCE_COLUMN]
-      target_feature_name = _TRANSLATIONS[self._TARGET_COLUMN]
-
-      example.features.feature[source_feature_name].bytes_list.value.append(
-          source_id.encode("utf-8"))
-      example.features.feature[target_feature_name].bytes_list.value.append(
-          target_id.encode("utf-8"))
+        source_id = row[cls.SOURCE_COLUMN]
+        target_id = row[cls.TARGET_COLUMN]
 
       ret_key = [source_id, target_id]
     else:
       raise ValueError("Row must represent at Node or Edge set.")
 
-    for feature_name, feature in self.fset.features.items():
-      # In case client encodes `id`, `source` or `target` explicitly in the
-      # features specification.
-      tf_feature_name = _TRANSLATIONS.get(feature_name, feature_name)
+    if output_bq_row:
+      output_record = row
+    else:
+      output_record = example = Example()
+      if isinstance(fset, graph_schema_pb2.NodeSet):
+        example.features.feature[NODE_ID].bytes_list.value.append(
+            _to_bytes(node_id))
+      elif isinstance(fset, graph_schema_pb2.EdgeSet):
+        source_feature_name = _TRANSLATIONS[cls.SOURCE_COLUMN]
+        target_feature_name = _TRANSLATIONS[cls.TARGET_COLUMN]
 
-      if feature_name not in row:
-        raise ValueError(
-            f"Could not find {feature_name} in query result: {row}")
+        example.features.feature[source_feature_name].bytes_list.value.append(
+            _to_bytes(source_id))
+        example.features.feature[target_feature_name].bytes_list.value.append(
+            _to_bytes(target_id))
 
-      example_feature = example.features.feature[tf_feature_name]
-      if feature.dtype == tf.float32.as_datatype_enum:
-        example_feature.float_list.value.append(row[feature_name])
-      if feature.dtype == tf.int64.as_datatype_enum:
-        example_feature.int64_list.value.append(row[feature_name])
-      if feature.dtype == tf.string.as_datatype_enum:
-        example_feature.bytes_list.value.append(
-            row.get(feature_name, "").encode("utf-8"))
+      for feature_name, feature in fset.features.items():
+        # In case client encodes `id`, `source` or `target` explicitly in the
+        # features specification.
+        tf_feature_name = _TRANSLATIONS.get(feature_name, feature_name)
+
+        # The `id`, `source` or `target` fields should already be set, skip any
+        # user-defined feature in the input GraphSchema.
+        if tf_feature_name in {NODE_ID, SOURCE_ID, TARGET_ID}:
+          continue
+
+        if feature_name not in row.keys():
+          raise ValueError(
+              f"Could not find {feature_name} in query result: {row}")
+
+        feature_value = row.get(feature_name)
+        example_feature = example.features.feature[tf_feature_name]
+        try:
+          if feature.dtype == tf.float32.as_datatype_enum:
+            example_feature.float_list.value.append(float(feature_value))
+          elif feature.dtype == tf.bool.as_datatype_enum:
+            example_feature.int64_list.value.append(int(feature_value))
+          elif feature.dtype == tf.int64.as_datatype_enum:
+            example_feature.int64_list.value.append(int(feature_value))
+          elif feature.dtype == tf.string.as_datatype_enum:
+            example_feature.bytes_list.value.append(
+                str(row.get(feature_name, "")).encode("utf-8"))
+          else:
+            raise ValueError(f"Unknown feature.dtype: {feature.dtype}")
+        except Exception as exc:
+          raise TypeError(f"Feature {feature_name} registered as dtype "
+                          f"{feature} but receieved {feature_value}") from exc
 
     if len(ret_key) == 1:
-      return ret_key[0].encode("utf-8"), example
+      return _to_bytes(ret_key[0]), output_record
     else:
-      return ret_key[0].encode("utf-8"), ret_key[1].encode("utf-8"), example
+      return _to_bytes(ret_key[0]), _to_bytes(ret_key[1]), output_record
 
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
     result = (
         pcoll
         | f"{self.sfx}" >> self._bigquery_reader(**self.bq_args)
-        |
-        f"RowToKeyedExamples/{self.sfx}" >> beam.Map(self.row_to_keyed_example))
+        | f"RowToKeyedExamples/{self.sfx}"
+        >> beam.Map(self._row_to_keyed_example))
     if self.bq.reshuffle:
       result = result | f"Reshuffle/{self.sfx}" >> beam.Reshuffle()
     return result
@@ -698,23 +777,13 @@ class WriteTable(beam.PTransform):
           "Format not supported: {}".format(self.file_format))
 
 
-def csv_line_to_example(line: str,
-                        header: List[str],
-                        check_row_length: bool = True,
-                        converters: Optional[Converters] = None) -> Example:
-  """Convert a single CSV line row to a Example proto."""
-
-  # Reuse the CSV module to handle quotations properly. Unfortunately csv reader
-  # objects aren't pickleable, so this is less than ideal.
-  row = next(iter(csv.reader([line])))
-  if check_row_length:
-    if len(row) != len(header):
-      raise ValueError("Invalid row length: {} != {} from header: '{}'".format(
-          len(row), len(header), header))
-
+def _csv_fields_to_example(
+    fields_and_values: Iterable[Tuple[str, Any]],
+    converters: Optional[Converters] = None) -> Example:
+  """Converts CSV fields and values, `to tf.Example`."""
   # Convert to an example.
   example = Example()
-  for field_name, value in zip(header, row):
+  for field_name, value in fields_and_values:
     field_name = _TRANSLATIONS.get(field_name, field_name)
     feature = example.features.feature[field_name]
 
@@ -727,3 +796,306 @@ def csv_line_to_example(line: str,
     else:
       feature.bytes_list.value.append(value.encode("utf8"))
   return example
+
+
+def csv_line_to_example(line: str,
+                        header: List[str],
+                        check_row_length: bool = True,
+                        converters: Optional[Converters] = None) -> Example:
+  """Converts CSV fields and values, `to tf.Example`."""
+  # Reuse the CSV module to handle quotations properly. Unfortunately csv reader
+  # objects aren't pickleable, so this is less than ideal.
+  row = next(iter(csv.reader([line])))
+  if check_row_length:
+    if len(row) != len(header):
+      raise ValueError("Invalid row length: {} != {} from header: '{}'".format(
+          len(row), len(header), header))
+  return _csv_fields_to_example(zip(header, row), converters)
+
+
+def read_schema(schema_file: str) -> tfgnn.GraphSchema:
+  graph_dir = os.path.dirname(schema_file)
+  graph_schema = tfgnn.read_schema(schema_file)
+  for unused_type, unused_set_name, feats in tfgnn.iter_sets(graph_schema):
+    if feats.HasField("metadata") and feats.metadata.HasField("filename"):
+      feats.metadata.filename = os.path.join(graph_dir, feats.metadata.filename)
+  return graph_schema
+
+
+_BQ_CLIENT_SINGLETON = None
+
+
+def _get_bq_singleton_client():
+  """Returns singleton instance of `bq_storage.BigQueryReadClient`."""
+  if bq_storage is None:
+    raise ImportError("Could not `import google.cloud.bigquery_storage_v1`. "
+                      "To use BigQuery, make sure it is available and/or "
+                      "linked into your binary.")
+  global _BQ_CLIENT_SINGLETON
+  if _BQ_CLIENT_SINGLETON is None:
+    _BQ_CLIENT_SINGLETON = bq_storage.BigQueryReadClient()
+  return _BQ_CLIENT_SINGLETON
+
+
+class DictStreams:
+  """Provide methods for streaming Unigraph artifacts (nodes and edges).
+
+  All `Iterable` instances stream read and map records on-the-fly. E.g., using
+  files (tfrecord file, CSV file), or BigQuery tables.
+
+  High-level functions are `iter_edges_via_*`, `iter_nodes_via_*`, and
+  `iter_graph_via_*`. Input can be path to text proto of `GraphSchema` using,
+  e.g., `read_nodes_via_path(path_to_pbtxt)`, or via instance of `GraphSchema`,
+  e.g., `read_nodes_via_schema(unigraph.read_schema(path_to_pbtxt))`.
+
+    * read_nodes_via_*: return dict, with each node-set-name being a key, and
+      values being streams of (node ID, tf.Example containing features).
+    * read_edges_via_*: return dict, with each edge-set-name being a key, and
+      values being streams of (src ID, tgt ID, tf.Example containing features).
+    * read_graph_via_*: Invokes above two methods and combines them to return
+      `{'tfgnn.NODES': read_nodes_via_*() , 'tfgnn.NODES': read_edges_via_*()}`.
+
+  `GraphSchema` is expected to configure the data source through the `metadata`
+  attribute of `node_sets` and `edge_sets`. For example, `metadata` attribute
+  can have `filename` attribute populated (with path to .csv, .tfrecord, etc),
+  or can have `bigquery` attribute populated (e.g., populating `table_spec`).
+  """
+
+  @staticmethod
+  def iter_tfrecord_examples(
+      file_path: str,
+      unused_fset: Optional[
+          Union[graph_schema_pb2.NodeSet, graph_schema_pb2.EdgeSet]] = None
+      ) -> Iterable[Example]:
+    """Yields `tf.Example` from tfrecord file."""
+    for example in tf.data.TFRecordDataset(file_path):
+      yield Example.FromString(example.numpy())
+
+  @staticmethod
+  def iter_csv_examples(
+      file_path: str,
+      fset: Optional[
+          Union[graph_schema_pb2.NodeSet, graph_schema_pb2.EdgeSet]] = None
+      ) -> Iterable[Example]:
+    """Yields `tf.Example` from CSV files."""
+    if fset is not None:
+      converters = build_converter_from_schema(fset.features)
+    else:
+      converters = None
+    csv_records = csv.DictReader(gfile.GFile(file_path, "r"))
+    for csv_record in csv_records:
+      yield _csv_fields_to_example(csv_record.items(), converters=converters)
+
+  @staticmethod
+  def fn_iter_from_file(file_format) -> Callable[
+      [str, Union[None, graph_schema_pb2.NodeSet, graph_schema_pb2.EdgeSet]],
+      Iterable[Example]]:
+    return {
+        # Iterator for Google-internal data file type.
+        "csv": DictStreams.iter_csv_examples,
+        "tfrecord": DictStreams.iter_tfrecord_examples,
+        # "capacitor": lambda path, fset: raise ValueError("Not implemented")
+        # "recordio": lambda path, fset: raise ValueError("Not implemented")
+    }[file_format]
+
+  @staticmethod
+  def iter_records_from_filepattern(
+      filepattern: str,
+      fset: Optional[
+          Union[graph_schema_pb2.NodeSet, graph_schema_pb2.EdgeSet]] = None
+      ) -> Iterable[Example]:
+    """Yields records from SSTables and other data sources."""
+    file_format = guess_file_format(filepattern)
+    filepattern = expand_sharded_pattern(filepattern)
+    files = gfile.glob(filepattern)
+
+    if not files:
+      error_str = "No files found for pattern: (%s)." % filepattern
+      if not filepattern.startswith("/"):
+        error_str += (" You can read GraphSchema using unigraph.read_schema(), "
+                      "which converts relative paths to absolute paths.")
+      raise ValueError(error_str)
+
+    for filename in files:
+      iterator = DictStreams.fn_iter_from_file(file_format)
+      for record in iterator(filename, fset):
+        yield record
+
+  @staticmethod
+  def iter_records_from_bigquery(
+      bq_schema: tfgnn.proto.graph_schema_pb2.BigQuery) -> Iterable[
+          Dict[str, pyarrow.Scalar]]:
+    """Yields records from BigQuery."""
+    # NOTE: Does not work if .sql is used -- proto uses "oneof".
+    table_spec = bq_schema.table_spec
+    if bq_schema.HasField("sql"):
+      raise NotImplementedError(
+          "Currently, we do not accept SQL statements.")
+      # NOTE: this can be implemented as:
+      #     from google.cloud import bigquery
+      #     client = bigquery.Client(project=table_spec.project)
+      #     query_iterator = client.query(sql_query)
+      #     records = query_iterator.result(page_size=100_000)
+
+    assert table_spec.project
+    assert table_spec.dataset and table_spec.table
+
+    client = _get_bq_singleton_client()
+
+    session = client.create_read_session(
+        parent="projects/" + table_spec.project,
+        read_session=bq_storage.types.ReadSession(
+            data_format=bq_storage.types.DataFormat.ARROW,
+            table="/".join((
+                "projects", table_spec.project, "datasets", table_spec.dataset,
+                "tables", table_spec.table))),
+        max_stream_count=10)
+
+    row_iterators = [client.read_rows(stream.name).rows(session)
+                     for stream in session.streams]
+    records = ParallelMergingIterator(row_iterators)
+    return records.iter_all()
+
+  @staticmethod
+  def iter_nodes_via_path(schema_file_or_dir: str) ->  Dict[
+      str, Iterable[Tuple[bytes, Example]]]:
+    return DictStreams.iter_nodes_via_schema(
+        read_schema(find_schema_filename(schema_file_or_dir)))
+
+  @staticmethod
+  def iter_nodes_via_schema(schema: tfgnn.GraphSchema) -> Dict[
+      str, Iterable[Tuple[bytes, Example]]]:
+    """Dict of node-set-name to iterator (node ID, `tf.Example`).
+
+    Args:
+      schema (tfgnn.GraphSchema): Every `schema.node_sets`, with attribute
+        `metadata`, will appear in output. The stream of `tf.Example` will
+        contain features, as configured in node set schema.
+
+    Returns:
+      dict with keys=node-set names; values=stream of node IDs to `tf.Example`.
+    """
+    dict_streams = {}
+    for node_set_name, node_schema in schema.node_sets.items():
+      if not node_schema.HasField("metadata"):
+        continue
+      if node_schema.metadata.HasField("filename"):
+        records = DictStreams.iter_records_from_filepattern(
+            node_schema.metadata.filename, node_schema)
+        records = map(get_node_ids, records)
+      elif node_schema.metadata.HasField("bigquery"):
+        records = DictStreams.iter_records_from_bigquery(
+            node_schema.metadata.bigquery)
+        extract_example_fn = functools.partial(
+            ReadUnigraphPieceFromBigQuery.row_to_keyed_example,
+            fset=node_schema, output_bq_row=True)
+        records = map(extract_example_fn, records)
+
+      dict_streams[node_set_name] = records
+
+    return dict_streams
+
+  @staticmethod
+  def iter_edges_via_path(schema_file_or_dir: str) ->  Dict[
+      str, Iterable[Tuple[bytes, bytes, Example]]]:
+    return DictStreams.iter_edges_via_schema(
+        read_schema(find_schema_filename(schema_file_or_dir)))
+
+  @staticmethod
+  def iter_edges_via_schema(schema: tfgnn.GraphSchema) -> Dict[
+      str, Iterable[Tuple[bytes, bytes, Example]]]:
+    """EdgeSetName to iterator of tuple(source ID, target ID, `tf.Example`)."""
+    dict_streams = {}
+    for edge_set_name, edge_schema in schema.edge_sets.items():
+      if not edge_schema.HasField("metadata"):
+        continue
+      is_reversed = is_edge_reversed(edge_schema)
+      if edge_schema.metadata.HasField("filename"):
+        records = DictStreams.iter_records_from_filepattern(
+            edge_schema.metadata.filename, edge_schema)
+        records = map(
+            functools.partial(get_edge_ids, edge_reversed=is_reversed), records)
+      elif edge_schema.metadata.HasField("bigquery"):
+        records = DictStreams.iter_records_from_bigquery(
+            edge_schema.metadata.bigquery)
+        extract_example_fn = functools.partial(
+            ReadUnigraphPieceFromBigQuery.row_to_keyed_example,
+            fset=edge_schema, edge_reversed=is_reversed, output_bq_row=True)
+        records = map(extract_example_fn, records)
+
+      dict_streams[edge_set_name] = records
+    return dict_streams
+
+  @staticmethod
+  def iter_graph_via_path(schema_file_or_dir) -> Dict[
+      str, Dict[
+          str, Union[
+              Iterable[Tuple[bytes, bytes, Example]],
+              Iterable[Tuple[bytes, Example]]]]]:
+    return DictStreams.iter_graph_via_schema(
+        read_schema(find_schema_filename(schema_file_or_dir)))
+
+  @staticmethod
+  def iter_graph_via_schema(schema: tfgnn.GraphSchema) -> Dict[
+      str, Dict[
+          str, Union[
+              Iterable[Tuple[bytes, bytes, Example]],
+              Iterable[Tuple[bytes, Example]]]]]:
+    return {
+        tfgnn.NODES: DictStreams.iter_nodes_via_schema(schema),
+        tfgnn.EDGES: DictStreams.iter_edges_via_schema(schema),
+    }
+
+
+class ParallelMergingIterator:
+  """Combines multiple `ReadRowsIterable` iterators into one stream.
+
+  It uses multi-threading. Each iterator will be read in a different thread. The
+  method `iter_all()` runs in main thread, pooling information from the various
+  threads. Threads write to synchronized `queue.Queue`, form which, main thread
+  reads.
+  """
+
+  def __init__(self, iterators: List[Any]):
+    """Initializes thread-safe queue without starting threads.
+
+    Method `iter_all()` kicks-off the threads.
+
+    Args:
+      iterators (List[bq_storage.reader.ReadRowsIterable]): list of iteratbles
+        that will be read, each on a different thread.
+    """
+    self._iterators = iterators
+    self.threads_started = False
+    self.queue = queue.Queue(len(iterators))  # Thread-safe.
+    self.threads_started = False
+    self._cur_page = None
+
+  def iter_all(self) -> Iterable[Dict[str, pyarrow.Scalar]]:
+    """Yields all rows in all constructor `iterators`, in arbitrary order."""
+    self._maybe_start_threads()
+    finished_threads = set()
+    while len(finished_threads) < len(self._iterators):
+      valid_page, page = self.queue.get()
+      if not valid_page:
+        finished_threads.add(page)
+        continue
+
+      for record in page:
+        yield record
+
+  def _maybe_start_threads(self):
+    if self.threads_started:
+      return
+    self.finished_threads = set()
+    for i in range(len(self._iterators)):
+      threading.Thread(
+          target=functools.partial(self.populate_queue, i),
+          daemon=True).start()
+    self.threads_started = True
+
+  def populate_queue(self, iterator_index: int):
+    iterator = self._iterators[iterator_index]
+    for page in iterator.pages:
+      self.queue.put((True, page))
+    self.queue.put((False, iterator_index))

@@ -1438,20 +1438,20 @@ def check_scalar_singleton_graph_tensor(graph: Union[GraphTensor,
          ' components.'))
 
 
-def _fields_from_fieldorfields(
+def _fields_and_size_from_fieldorfields(
     features: FieldOrFields,
     default_feature_name: FieldName,
-):
+) -> tuple[Fields, Optional[Union[int, tf.Tensor]]]:
   """Returns a mapping from a default feature name if needed."""
   if isinstance(features, collections.abc.Mapping):
-    keys = features.keys()
-    count = features[next(keys)].shape[0:1]
+    num_entities = tf.stack(
+        [utils.outer_dimension_size(_get_indicative_feature(features))])
   elif features is None:
-    count, features = None, {}
+    features, num_entities = {}, None
   else:
-    count = features.shape[0:1]
+    num_entities = tf.stack([utils.outer_dimension_size(features)])
     features = {default_feature_name: features}
-  return features, count
+  return features, num_entities
 
 
 def homogeneous(
@@ -1496,17 +1496,20 @@ def homogeneous(
   if node_features is None and node_set_sizes is None:
     raise ValueError('node_set_sizes must be provided if node_features is not')
 
-  node_features, num_nodes = _fields_from_fieldorfields(node_features,
-                                                        HIDDEN_STATE)
-  edge_features, _ = _fields_from_fieldorfields(edge_features, HIDDEN_STATE)
-  context_features, _ = _fields_from_fieldorfields(context_features,
-                                                   HIDDEN_STATE)
+  if tf.rank(source) != 1 or tf.rank(target) != 1:
+    raise ValueError('source and target must be rank-1 dense tensors')
+
+  node_features, num_nodes = _fields_and_size_from_fieldorfields(
+      node_features, HIDDEN_STATE)
+  edge_features, _ = _fields_and_size_from_fieldorfields(
+      edge_features, HIDDEN_STATE)
+  context_features, _ = _fields_and_size_from_fieldorfields(
+      context_features, HIDDEN_STATE)
 
   num_edges = tf.shape(source)
-  node_sizes = (
-      num_nodes if node_set_sizes is None else node_set_sizes)
-  edge_sizes = (
-      num_edges if edge_set_sizes is None else edge_set_sizes)
+  node_sizes = (num_nodes if node_set_sizes is None else node_set_sizes)
+  edge_sizes = (num_edges if edge_set_sizes is None else edge_set_sizes)
+
   return GraphTensor.from_pieces(
       node_sets={
           node_set_name:

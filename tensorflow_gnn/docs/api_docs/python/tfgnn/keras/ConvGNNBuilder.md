@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/builders.py#L15-L128">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/builders.py#L29-L142">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -60,28 +60,50 @@ model = tf.keras.models.Sequential([
 ])
 ```
 
-#### Init args:
+<!-- Tabular view -->
 
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
 
-* <b>`convolutions_factory`</b>: called as
-  `convolutions_factory(edge_set_name, receiver_tag=receiver_tag)`
-  to return the convolution layer for the edge set towards the specified
-  receiver. The `receiver_tag` kwarg is omitted from the call if it is
-  omitted from the init args (but that usage is deprecated).
-* <b>`nodes_next_state_factory`</b>: called as
-  `nodes_next_state_factory(node_set_name)` to return the next-state layer
-  for the respectve NodeSetUpdate.
-* <b>`receiver_tag`</b>: Set this to <a href="../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a> or <a href="../../tfgnn.md#SOURCE"><code>tfgnn.SOURCE</code></a> to choose which
-  incident node of each edge receives the convolution result.
-  DEPRECATED: This used to be optional and effectively default to TARGET.
-  New code is expected to set it in any case.
-
+<tr>
+<td>
+`convolutions_factory`<a id="convolutions_factory"></a>
+</td>
+<td>
+called as
+`convolutions_factory(edge_set_name, receiver_tag=receiver_tag)`
+to return the convolution layer for the edge set towards the specified
+receiver. The `receiver_tag` kwarg is omitted from the call if it is
+omitted from the init args (but that usage is deprecated).
+</td>
+</tr><tr>
+<td>
+`nodes_next_state_factory`<a id="nodes_next_state_factory"></a>
+</td>
+<td>
+called as
+`nodes_next_state_factory(node_set_name)` to return the next-state layer
+for the respectve NodeSetUpdate.
+</td>
+</tr><tr>
+<td>
+`receiver_tag`<a id="receiver_tag"></a>
+</td>
+<td>
+Set this to <a href="../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a> or <a href="../../tfgnn.md#SOURCE"><code>tfgnn.SOURCE</code></a> to choose which
+incident node of each edge receives the convolution result.
+DEPRECATED: This used to be optional and effectively default to TARGET.
+New code is expected to set it in any case.
+</td>
+</tr>
+</table>
 
 ## Methods
 
 <h3 id="Convolve"><code>Convolve</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/builders.py#L77-L128">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/builders.py#L91-L142">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">

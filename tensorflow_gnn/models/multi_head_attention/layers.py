@@ -143,10 +143,10 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       nodes to context, it's the node's membership in a graph component that
       is dropped out.)
     attention_activation: The nonlinearity used on the transformed inputs
-      (query) before multiplying with the trained weights of the attention
-      layer. This can be specified as a Keras layer, a tf.keras.activations.*
-      function, or a string understood by tf.keras.layers.Activation().
-      Defaults to None.
+      (query, and keys if `transform_keys` is `True`) before computing the
+      attention scores. This can be specified as a Keras layer, a
+      tf.keras.activations.* function, or a string understood by
+      tf.keras.layers.Activation(). Defaults to None.
     activation: The nonlinearity applied to the final result of attention,
       specified in the same ways as attention_activation.
     kernel_initializer: Can be set to a `kernel_initializer` as understood
@@ -160,6 +160,12 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     score_scaling: If true, the attention scores are divided by the square root
       of the dimension of keys (i.e., per_head_channels if transform_keys=True,
       else whatever the dimension of combined sender inputs is).
+    transform_values_after_pooling: By default, each attention head applies
+      the value transformation, then pools with attention coefficients.
+      Setting this option pools inputs with attention coefficients, then applies
+      the transformation. This is mathematically equivalent but can be faster
+      or slower to compute, depending on the platform and the dataset.
+      IMPORANT: Toggling this option breaks checkpoint compatibility.
   """
 
   def __init__(
@@ -181,6 +187,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
                                 tf.keras.regularizers.Regularizer] = None,
       transform_keys: bool = True,
       score_scaling: bool = True,
+      transform_values_after_pooling: bool = False,
       **kwargs):
     kwargs.setdefault("name", "multi_head_attention_conv")
     super().__init__(
@@ -216,13 +223,14 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
 
     # Check for conflicting options.
     if attention_activation is not None and score_scaling:
-      warnings.warn("using both activation on transformed inputs and"
-                    "score scaling may lead to degraded accuracy,"
-                    "please consider only one of them.")
+      warnings.warn(
+          "using both an activation on transformed inputs and score scaling "
+          "may lead to degraded accuracy if the activation function restricts "
+          "the range of the values, e.g. 'tanh' which restricts the values to "
+          "the range [-1, 1], Please consider using only one of them.")
 
     # Check for valid inputs.
-    if (not self.takes_sender_node_input and
-        not self.takes_sender_edge_input):
+    if (not self.takes_sender_node_input and not self.takes_sender_edge_input):
       raise ValueError("MultiHeadAttentionConv initialized with no inputs.")
 
     self._attention_activation = tf.keras.activations.get(attention_activation)
@@ -231,6 +239,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     self._kernel_regularizer = tf.keras.regularizers.get(kernel_regularizer)
     self._transform_keys = transform_keys
     self._score_scaling = score_scaling
+    self._transform_values_after_pooling = transform_values_after_pooling
 
     # The creation of queries transfomations is deferred to the first call of
     # `Convolve()` (see there).
@@ -256,18 +265,40 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
             per_head_channels * num_heads,
             kernel_initializer=kernel_initializer,
             kernel_regularizer=kernel_regularizer,
-            # This bias would be redundant with self._w_sender_node.
+            # This bias would be redundant with self._w_sender_node_to_key.
             use_bias=use_bias and self._w_sender_node_to_key is None,
             name="key_edge")
       else:
         self._w_sender_edge_to_key = None
 
-    self._w_value = tf.keras.layers.Dense(
-        per_head_channels * num_heads,
-        kernel_initializer=kernel_initializer,
-        kernel_regularizer=kernel_regularizer,
-        use_bias=use_bias,
-        name="value")
+    if not self._transform_values_after_pooling:
+      if self.takes_sender_node_input:
+        self._w_sender_node_to_value = tf.keras.layers.Dense(
+            per_head_channels * num_heads,
+            kernel_initializer=kernel_initializer,
+            kernel_regularizer=kernel_regularizer,
+            use_bias=use_bias,
+            name="value_node")
+      else:
+        self._w_sender_node_to_value = None
+      if self.takes_sender_edge_input:
+        self._w_sender_edge_to_value = tf.keras.layers.Dense(
+            per_head_channels * num_heads,
+            kernel_initializer=kernel_initializer,
+            kernel_regularizer=kernel_regularizer,
+            # This bias would be redundant with self._w_sender_node_to_value.
+            use_bias=use_bias and self._w_sender_node_to_value is None,
+            name="value_edge")
+      else:
+        self._w_sender_edge_to_value = None
+    else:
+      self._w_sender_pooled_to_value = tf.keras.layers.EinsumDense(
+          equation="...hv,hvc->...hc",
+          output_shape=(num_heads, per_head_channels),
+          bias_axes="hc" if use_bias else None,
+          kernel_initializer=kernel_initializer,
+          kernel_regularizer=kernel_regularizer,
+          name="value_pooled")
 
   def get_config(self):
     return dict(
@@ -275,27 +306,39 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
         per_head_channels=self._per_head_channels,
         use_bias=self._use_bias,
         edge_dropout=self._edge_dropout,
+        # All forms of activation functions can be returned as-is:
+        # - A Keras Layer is serialized and deserialized recursively through
+        #   its own get_config/from config methods. It's best to not try and
+        #   simulate that recursive process here.
+        # - A str with a name may be passed to __init__, but __init__ anyways
+        #   calls .get() to turn it into a function from tf.keras.activations.*.
+        # - A function from tf.keras.activations.* is automatically serialized
+        #   and deserialized as its name, and then converted to a function by
+        #   __init__. (Activation functions that require to save a hparam,
+        #  such as LeakyReLU, are Layer objects, not functions.)
         attention_activation=self._attention_activation,
         activation=self._activation,
+        # Regularizers and initializers need explicit serialization here
+        # (and deserialization in __init__ via .get()) due to b/238163789.
         kernel_initializer=tf.keras.initializers.serialize(
-            self._kernel_initializer
-        ),
-        kernel_regularizer=tf.keras.regularizers.serialize(  # b/238163789
-            self._kernel_regularizer
-        ),
+            self._kernel_initializer),
+        kernel_regularizer=tf.keras.regularizers.serialize(
+            self._kernel_regularizer),
         transform_keys=self._transform_keys,
         score_scaling=self._score_scaling,
+        transform_values_after_pooling=self._transform_values_after_pooling,
         **super().get_config())
 
-  def convolve(self, *,
+  def convolve(self,
+               *,
                sender_node_input: Optional[tf.Tensor],
                sender_edge_input: Optional[tf.Tensor],
                receiver_input: Optional[tf.Tensor],
                broadcast_from_sender_node: Callable[[tf.Tensor], tf.Tensor],
                broadcast_from_receiver: Callable[[tf.Tensor], tf.Tensor],
                pool_to_receiver: Callable[..., tf.Tensor],
-               extra_receiver_ops: Optional[
-                   Mapping[str, Callable[..., Any]]] = None,
+               extra_receiver_ops: Optional[Mapping[str, Callable[...,
+                                                                  Any]]] = None,
                **kwargs) -> tf.Tensor:
 
     # Determine the width of transformed queries and create transfomations.
@@ -330,12 +373,9 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     # [num_items, *extra_dims, num_heads, channels_per_head]
     # Otherwise, the shape is: [num_items, *extra_dims, num_heads, keys_width].
     assert receiver_input is not None, "__init__() should have checked this."
-    queries = broadcast_from_receiver(self._split_heads(self._w_query(
-        receiver_input)))
-
-    # Maybe add an activation to the queries.
-    if self._attention_activation is not None:
-      queries = self._attention_activation(queries)
+    queries = self._w_query(receiver_input)
+    queries = self._attention_activation(queries)
+    queries = broadcast_from_receiver(self._split_heads(queries))
 
     # Form the attention key for each head.
     # If transform_keys is ture, the pieces of keys inputs are transformed to
@@ -352,22 +392,33 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
             tf.expand_dims(
                 broadcast_from_sender_node(sender_node_input), axis=-2))
       if sender_edge_input is not None:
-        keys.append(
-            tf.expand_dims(sender_edge_input, axis=-2))
+        keys.append(tf.expand_dims(sender_edge_input, axis=-2))
       keys = tf.concat(keys, axis=-1)
     else:
-      if sender_node_input is not None:
-        keys.append(broadcast_from_sender_node(
-            self._split_heads(self._w_sender_node_to_key(sender_node_input))))
-      if sender_edge_input is not None:
-        keys.append(self._split_heads(
-            self._w_sender_edge_to_key(sender_edge_input)))
-      keys = tf.add_n(keys)
+      if sender_node_input is not None and sender_edge_input is None:
+        # In this special case, we can apply the attention_activation first
+        # and then broadcast its results.
+        keys = broadcast_from_sender_node(
+            self._split_heads(
+                self._attention_activation(
+                    self._w_sender_node_to_key(sender_node_input))))
+      else:
+        # In the general case, the attention_activation (if any) comes last.
+        if sender_node_input is not None:
+          keys.append(
+              broadcast_from_sender_node(
+                  self._split_heads(
+                      self._w_sender_node_to_key(sender_node_input))))
+        if sender_edge_input is not None:
+          keys.append(
+              self._split_heads(self._w_sender_edge_to_key(sender_edge_input)))
+        keys = tf.add_n(keys)
+        keys = self._attention_activation(keys)
 
     # Dot-product of queries and keys to produce the attention coefficients.
     # [num_items, *extra_dims, num_heads, 1]
-    attention_coefficients = tf.reduce_sum(
-        queries * keys, axis=-1, keepdims=True)
+    attention_coefficients = tf.expand_dims(
+        tf.einsum("...j,...j->...", queries, keys), axis=-1)
     if self._score_scaling:
       attention_coefficients *= tf.math.rsqrt(
           tf.cast(keys.shape[-1], tf.float32))
@@ -383,26 +434,60 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       attention_coefficients = self._edge_dropout_layer(attention_coefficients,
                                                         **kwargs)
 
-    # Form the values and multiply them with the attention coefficients.
-    values = []
-    if sender_node_input is not None:
-      values.append(broadcast_from_sender_node(sender_node_input))
-    if sender_edge_input is not None:
-      values.append(sender_edge_input)
-    # [num_items, *extra_dims, num_heads, per_head_channels]
-    values = tf.concat(values, axis=-1)
-
-    # First project the values, then compute the weighted combination.
-    values = self._split_heads(self._w_value(values))
-    messages = values * attention_coefficients
-    pooled_messages = pool_to_receiver(messages, reduce_type="sum")
+    # Compute the pooled values by
+    #   * transforming the inputs and
+    #   * computing their weighted sum according to the attention coefficents.
+    # These two operations are linear, so, mathematically, they can be applied
+    # in either order. It depends on input/output dimensions, the ratio of
+    # num_items to num_receivers and the platform which one is faster.
+    if not self._transform_values_after_pooling:
+      # Option 1: First transform the inputs, then pool the values.
+      # The transformation is split into the terms for node inputs and edge
+      # inputs, so that each node input is transformed once before broadcasting.
+      #
+      # Compute the transformed inputs.
+      # [num_items, *extra_dims, num_heads, per_head_channels]
+      value_terms = []
+      if sender_node_input is not None:
+        value_terms.append(
+            broadcast_from_sender_node(
+                self._split_heads(
+                    self._w_sender_node_to_value(sender_node_input))))
+      if sender_edge_input is not None:
+        value_terms.append(
+            self._split_heads(self._w_sender_edge_to_value(sender_edge_input)))
+      values = tf.add_n(value_terms)
+      # Compute the weighed sum.
+      # [num_receivers, *extra_dims, num_heads, per_head_channels]
+      weighted_values = values * attention_coefficients
+      pooled_values = pool_to_receiver(weighted_values, reduce_type="sum")
+    else:
+      # Option 2: First pool the inputs, then apply the value transformation.
+      # This reduces the number of transformations from num_items to
+      # num_receivers.
+      #
+      # Collect the inputs for each item (same for all heads).
+      # [num_items, *extra_dims, 1, input_channels]
+      input_parts = []
+      if sender_node_input is not None:
+        input_parts.append(broadcast_from_sender_node(sender_node_input))
+      if sender_edge_input is not None:
+        input_parts.append(sender_edge_input)
+      value_inputs = tf.expand_dims(tf.concat(input_parts, axis=-1), axis=-2)
+      # Compute the weighed sum.
+      # [num_receivers, *extra_dims, num_heads, input_channels]
+      weighted_inputs = value_inputs * attention_coefficients
+      pooled_inputs = pool_to_receiver(weighted_inputs, reduce_type="sum")
+      # Apply the transformation.
+      # [num_receivers, *extra_dims, num_heads, per_head_channels]
+      pooled_values = self._w_sender_pooled_to_value(pooled_inputs)
 
     # Apply the nonlinearity on the final result.
-    # [num_receivers, *extra_dims, num_heads, per_head_channels]
-    pooled_messages = self._activation(pooled_messages)
-    pooled_messages = self._merge_heads(pooled_messages)
+    pooled_values = self._activation(pooled_values)
+    # Merge heads for output.
+    pooled_values = self._merge_heads(pooled_values)
 
-    return pooled_messages
+    return pooled_values
 
   # The following helpers map back and forth between tensors with...
   #  - a separate heads dimension: shape [..., num_heads, channels_per_head],
@@ -425,11 +510,10 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
 
   def _merge_heads(self, tensor):
     num_merged = 2
-    extra_dims = tensor.shape[1 : -num_merged]  # Possibly empty.
+    extra_dims = tensor.shape[1:-num_merged]  # Possibly empty.
     merged_dims = tensor.shape[-num_merged:]
     if not extra_dims.is_fully_defined() or not merged_dims.is_fully_defined():
-      raise ValueError(
-          f"Unexpected unknown dimensions in shape {tensor.shape}")
+      raise ValueError(f"Unexpected unknown dimensions in shape {tensor.shape}")
     new_shape = (-1, *extra_dims, merged_dims.num_elements())
     return tf.reshape(tensor, new_shape)
 
@@ -461,20 +545,19 @@ def MultiHeadAttentionEdgePool(
     per_head_channels: The number of channels for each attention head. This
       means that the final output size will be per_head_channels * num_heads.
     receiver_tag: The results of attention are aggregated for this graph piece.
-      If set to `tfgnn.CONTEXT`, the layer can be called for an edge set or
-      node set.
-      If set to an IncidentNodeTag (e.g., `tfgnn.SOURCE` or `tfgnn.TARGET`),
-      the layer can be called for an edge set and will aggregate results at
-      the specified endpoint of the edges.
-      If left unset, the tag must be passed when calling the layer.
-    receiver_feature: By default, the default state feature of the receiver
-      is used to compute the attention query. A different feature name can be
+      If set to `tfgnn.CONTEXT`, the layer can be called for an edge set or node
+      set. If set to an IncidentNodeTag (e.g., `tfgnn.SOURCE` or
+      `tfgnn.TARGET`), the layer can be called for an edge set and will
+      aggregate results at the specified endpoint of the edges. If left unset,
+      the tag must be passed when calling the layer.
+    receiver_feature: By default, the default state feature of the receiver is
+      used to compute the attention query. A different feature name can be
       selected by setting this argument.
     sender_feature: By default, the default state feature of the edge set is
       used to compute the attention values. A different feature name can be
       selected by setting this argument.
-    **kwargs: Any other option for MultiHeadAttentionConv,
-      except sender_node_feature, which is set to None.
+    **kwargs: Any other option for MultiHeadAttentionConv, except
+      sender_node_feature, which is set to None.
   """
   if kwargs.pop("sender_node_feature", None) is not None:
     raise TypeError(
@@ -525,6 +608,7 @@ def MultiHeadAttentionHomGraphUpdate(
     name: Optionally, a name for the layer returned.
     **kwargs: Any optional arguments to MultiHeadAttentionConv, see there.
   """
+
   # Build a GraphUpdate for the target node set of the given edge_set_name.
   # That needs to be deferred until we see a GraphTensorSpec that tells us
   # the node_set_name.
@@ -535,15 +619,23 @@ def MultiHeadAttentionHomGraphUpdate(
     node_set_name = spec.edge_sets_spec[
         edge_set_name].adjacency_spec.node_set_name(receiver_tag)
     node_set_updates = {
-        node_set_name: tfgnn.keras.layers.NodeSetUpdate(
-            {edge_set_name: MultiHeadAttentionConv(
-                num_heads=num_heads, per_head_channels=per_head_channels,
-                receiver_tag=receiver_tag,
-                sender_node_feature=feature_name, receiver_feature=feature_name,
-                **kwargs)},
-            next_state=tfgnn.keras.layers.SingleInputNextState(),
-            node_input_feature=feature_name)}
+        node_set_name:
+            tfgnn.keras.layers.NodeSetUpdate(
+                {
+                    edge_set_name:
+                        MultiHeadAttentionConv(
+                            num_heads=num_heads,
+                            per_head_channels=per_head_channels,
+                            receiver_tag=receiver_tag,
+                            sender_node_feature=feature_name,
+                            receiver_feature=feature_name,
+                            **kwargs)
+                },
+                next_state=tfgnn.keras.layers.SingleInputNextState(),
+                node_input_feature=feature_name)
+    }
     return dict(node_sets=node_set_updates)
+
   return tfgnn.keras.layers.GraphUpdate(
       deferred_init_callback=deferred_init_callback, name=name)
 
@@ -564,7 +656,7 @@ def MultiHeadAttentionMPNNGraphUpdate(  # To be called like a class initializer.
     activation: Union[str, Callable[..., Any]] = "relu",
     kernel_initializer: Union[
         None, str, tf.keras.initializers.Initializer] = "glorot_uniform",
-    ) -> tf.keras.layers.Layer:
+) -> tf.keras.layers.Layer:
   """Returns a GraphUpdate layer for message passing with MultiHeadAttention pooling.
 
   The returned layer performs one round of message passing between the nodes
@@ -577,33 +669,32 @@ def MultiHeadAttentionMPNNGraphUpdate(  # To be called like a class initializer.
 
   Args:
     units: The dimension of output hidden states for each node.
-    message_dim: The dimension of messages (attention values) computed on
-      each edge.  Must be divisible by `num_heads`.
+    message_dim: The dimension of messages (attention values) computed on each
+      edge.  Must be divisible by `num_heads`.
     num_heads: The number of attention heads used by MultiHeadAttention.
       `message_dim` must be divisible by this number.
     receiver_tag: one of `tfgnn.TARGET` or `tfgnn.SOURCE`, to select the
       incident node of each edge that receives the message.
-    node_set_names: The names of node sets to update. If unset, updates all
-      that are on the receiving end of any edge set.
-    edge_feature: Can be set to a feature name of the edge set to select
-      it as an input feature. By default, this set to `None`, which disables
-      this input.
+    node_set_names: The names of node sets to update. If unset, updates all that
+      are on the receiving end of any edge set.
+    edge_feature: Can be set to a feature name of the edge set to select it as
+      an input feature. By default, this set to `None`, which disables this
+      input.
     l2_regularization: The coefficient of L2 regularization for weights and
       biases.
-    edge_dropout_rate: The edge dropout rate applied during attention pooling
-      of edges.
+    edge_dropout_rate: The edge dropout rate applied during attention pooling of
+      edges.
     state_dropout_rate: The dropout rate applied to the resulting node states.
-    attention_activation: The nonlinearity used on the transformed inputs
-      before multiplying with the trained weights of the attention layer.
-      This can be specified as a Keras layer, a tf.keras.activations.*
-      function, or a string understood by tf.keras.layers.Activation().
-      Defaults to None.
+    attention_activation: The nonlinearity used on the transformed inputs before
+      multiplying with the trained weights of the attention layer. This can be
+      specified as a Keras layer, a tf.keras.activations.* function, or a string
+      understood by tf.keras.layers.Activation(). Defaults to None.
     conv_activation: The nonlinearity applied to the result of attention on one
       edge set, specified in the same ways as attention_activation.
-    activation: The nonlinearity applied to the new node states computed by
-      this graph update.
-    kernel_initializer: Can be set to a `kerner_initializer` as understood
-      by `tf.keras.layers.Dense` etc.
+    activation: The nonlinearity applied to the new node states computed by this
+      graph update.
+    kernel_initializer: Can be set to a `kerner_initializer` as understood by
+      `tf.keras.layers.Dense` etc.
 
   Returns:
     A GraphUpdate layer for use on a scalar GraphTensor with
@@ -625,15 +716,19 @@ def MultiHeadAttentionMPNNGraphUpdate(  # To be called like a class initializer.
             bias_initializer="zeros",
             kernel_regularizer=regularizer,
             bias_regularizer=regularizer),
-        tf.keras.layers.Dropout(state_dropout_rate)])
+        tf.keras.layers.Dropout(state_dropout_rate)
+    ])
 
   # pylint: disable=g-long-lambda
   gnn_builder = tfgnn.keras.ConvGNNBuilder(
       lambda edge_set_name, receiver_tag: MultiHeadAttentionConv(
-          num_heads=num_heads, per_head_channels=per_head_channels,
-          edge_dropout=edge_dropout_rate, receiver_tag=receiver_tag,
+          num_heads=num_heads,
+          per_head_channels=per_head_channels,
+          edge_dropout=edge_dropout_rate,
+          receiver_tag=receiver_tag,
           sender_edge_feature=edge_feature,
-          attention_activation=attention_activation, activation=conv_activation,
+          attention_activation=attention_activation,
+          activation=conv_activation,
           kernel_initializer=kernel_initializer),
       lambda node_set_name: tfgnn.keras.layers.NextStateFromConcat(
           dense(units)),

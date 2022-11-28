@@ -35,6 +35,26 @@ class KerasTrainerOptions:
   enable_check_numerics: bool = False
 
 
+@dataclasses.dataclass
+class KerasTrainerCheckpointOptions:
+  """Provides Keras Checkpointing related configuration options.
+
+  Attributes:
+    checkpoint_dir: Directory path to save checkpoint files.
+    best_checkpoint: Filename for the best checkpoint.
+    latest_checkpoint: Filename for the latest checkpoint.
+  """
+  checkpoint_dir: Optional[str] = None
+  best_checkpoint: str = "best"
+  latest_checkpoint: str = "latest"
+
+  def best_checkpoint_filepath(self) -> str:
+    return os.path.join(self.checkpoint_dir, self.best_checkpoint)
+
+  def latest_checkpoint_filepath(self) -> str:
+    return os.path.join(self.checkpoint_dir, self.latest_checkpoint)
+
+
 class KerasTrainer:
   """Trains using the `tf.keras.Model.fit` training loop."""
 
@@ -43,7 +63,7 @@ class KerasTrainer:
       strategy: tf.distribute.Strategy,
       *,
       model_dir: str,
-      ckpts_dir: Optional[str] = None,
+      checkpoint_options: Optional[KerasTrainerCheckpointOptions] = None,
       backup_dir: Optional[str] = None,
       steps_per_epoch: Optional[int] = None,
       validation_steps: Optional[int] = None,
@@ -58,8 +78,9 @@ class KerasTrainer:
     Args:
       strategy: A `tf.distribute.Strategy.`
       model_dir: A model directory for summaries.
-      ckpts_dir: An optional directory for checkpoints, if unset;
-        `os.path.join(model_dir, "ckpts")` is used.
+      checkpoint_options: An optional configuration for checkpointing related
+        configs. If checkpoint_options.checkpoint_dir is unset;
+        `os.path.join(model_dir, "ckpnt")` is used.
       backup_dir: An optional directory for backup, if unset;
         `(os.path.join(model_dir, "backup"),)` is used.
       steps_per_epoch: An optional steps per epoch, if unspecified: epochs are
@@ -87,15 +108,18 @@ class KerasTrainer:
       raise ValueError("`restore_best_weights` requires a "
                        "`checkpoint_every_n_steps` other than \"never\"")
 
-    if ckpts_dir is None:
-      ckpts_dir = os.path.join(model_dir, "ckpts")
+    if checkpoint_options is None:
+      checkpoint_options = KerasTrainerCheckpointOptions()
+
+    if checkpoint_options.checkpoint_dir is None:
+      checkpoint_options.checkpoint_dir = os.path.join(model_dir, "ckpnt")
 
     if backup_dir is None:
       backup_dir = os.path.join(model_dir, "backup")
 
     self._strategy = strategy
     self._model_dir = model_dir
-    self._ckpts_dir = ckpts_dir
+    self._checkpoint_options = checkpoint_options
     self._backup_dir = backup_dir
     self._steps_per_epoch = steps_per_epoch
     self._validation_steps = validation_steps
@@ -215,12 +239,12 @@ class KerasTrainer:
     if checkpoint_every_n_steps != "never":
       callbacks += [
           tf.keras.callbacks.ModelCheckpoint(
-              filepath=os.path.join(self._ckpts_dir, "latest"),
+              filepath=self._checkpoint_options.latest_checkpoint_filepath(),
               save_best_only=False,
               save_weights_only=True,
               save_freq=checkpoint_every_n_steps),
           tf.keras.callbacks.ModelCheckpoint(
-              filepath=os.path.join(self._ckpts_dir, "best"),
+              filepath=self._checkpoint_options.best_checkpoint_filepath(),
               save_best_only=True,
               save_weights_only=True,
               save_freq="epoch")
@@ -256,7 +280,6 @@ class KerasTrainer:
         callbacks=callbacks)
 
     if self._restore_best_weights:
-      model.load_weights(os.path.join(self._ckpts_dir, "best"))
+      model.load_weights(self._checkpoint_options.best_checkpoint_filepath())
 
     return model
-

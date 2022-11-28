@@ -25,7 +25,6 @@ ReadoutFirstNode = graph_ops.ReadoutFirstNode
 
 AnyToAnyConvolutionBase = convolution_base.AnyToAnyConvolutionBase
 SimpleConv = convolutions.SimpleConv
-SimpleConvolution = SimpleConv  # Deprecated alias.
 
 NextStateFromConcat = next_state.NextStateFromConcat
 ResidualNextState = next_state.ResidualNextState

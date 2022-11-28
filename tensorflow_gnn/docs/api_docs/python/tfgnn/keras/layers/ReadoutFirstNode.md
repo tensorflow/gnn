@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L170-L253">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L206-L289">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Reads a feature from the first node of each graph conponent.
 
@@ -40,23 +38,61 @@ reads out the information it has accumulated there. (In other node sets, the
 first node may be arbitrary -- or nonexistant, in which case this operation
 must not be used and may raise an error at runtime.)
 
-#### Init args:
+<!-- Tabular view -->
 
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
 
-* <b>`node_set_name`</b>: If set, the feature will be read from this node set.
-* <b>`feature_name`</b>: The name of the feature to read. If unset (also in call),
-  tfgnn.HIDDEN_STATE will be read.
+<tr>
+<td>
+`node_set_name`<a id="node_set_name"></a>
+</td>
+<td>
+If set, the feature will be read from this node set.
+</td>
+</tr><tr>
+<td>
+`feature_name`<a id="feature_name"></a>
+</td>
+<td>
+The name of the feature to read. If unset (also in call),
+tfgnn.HIDDEN_STATE will be read.
+</td>
+</tr>
+</table>
 
+<!-- Tabular view -->
 
-#### Call args:
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Call args</h2></th></tr>
 
-
-* <b>`graph`</b>: The scalar GraphTensor to read from.
-* <b>`node_set_name`</b>: Same meaning as for init. Must be passed to init, or to call,
-  or to both (with the same value).
-* <b>`feature_name`</b>: Same meaning as for init. If passed to both, the value must
-  be the same. If passed to neither, tfgnn.HIDDEN_STATE is used.
-
+<tr>
+<td>
+`graph`<a id="graph"></a>
+</td>
+<td>
+The scalar GraphTensor to read from.
+</td>
+</tr><tr>
+<td>
+`node_set_name`<a id="node_set_name"></a>
+</td>
+<td>
+Same meaning as for init. Must be passed to init, or to call,
+or to both (with the same value).
+</td>
+</tr><tr>
+<td>
+`feature_name`<a id="feature_name"></a>
+</td>
+<td>
+Same meaning as for init. If passed to both, the value must
+be the same. If passed to neither, tfgnn.HIDDEN_STATE is used.
+</td>
+</tr>
+</table>
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -80,19 +116,10 @@ context feature.
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>
 
-<tr>
-<td>
-`feature_name`
-</td>
-<td>
-Returns the feature_name argument to init, or None if unset.
-</td>
-</tr><tr>
-<td>
-`location`
-</td>
-<td>
-Returns a dict with the kwarg to init that selected the feature location.
+<tr> <td> `feature_name`<a id="feature_name"></a> </td> <td> Returns the
+feature_name argument to init, or None if unset. </td> </tr><tr> <td>
+`location`<a id="location"></a> </td> <td> Returns a dict with the kwarg to init
+that selected the feature location.
 
 </td>
 </tr>

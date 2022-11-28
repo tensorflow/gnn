@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/convolution_base.py#L14-L378">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/convolution_base.py#L28-L392">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Convenience base class for convolutions to nodes or to context.
 
@@ -148,58 +146,35 @@ attention to incident edges, or to all nodes/edges in a graph component.
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
-<tr>
-<td>
-`receiver_tag`
-</td>
-<td>
-one of <a href="../../../tfgnn.md#SOURCE"><code>tfgnn.SOURCE</code></a>, <a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a> or <a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>.
-The results are aggregated for this graph piece.
-If set to <a href="../../../tfgnn.md#SOURCE"><code>tfgnn.SOURCE</code></a> or <a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a>, the layer can be called for
-an edge set and will aggregate results at the specified endpoint of the
-edges.
-If set to <a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>, the layer can be called for an edge set or a
-node set and will aggregate results for context (per graph component).
-If left unset for init, the tag must be passed at call time.
-</td>
-</tr><tr>
-<td>
-`receiver_feature`
-</td>
-<td>
-The name of the feature that is read from the receiver
-graph piece and passed as convolve(receiver_input=...).
-</td>
-</tr><tr>
-<td>
-`sender_node_feature`
-</td>
-<td>
-The name of the feature that is read from the sender
-nodes, if any, and passed as convolve(sender_node_input=...).
-NOTICE this must be `None` for use with `receiver_tag=tfgnn.CONTEXT`
-on an edge set, or for pooling from edges without sender node states.
-</td>
-</tr><tr>
-<td>
-`sender_edge_feature`
-</td>
-<td>
-The name of the feature that is read from the sender
-edges, if any, and passed as convolve(sender_edge_input=...).
-NOTICE this must not be `None` for use with `receiver_tag=tfgnn.CONTEXT`
-on an edge set.
-</td>
-</tr><tr>
-<td>
-`extra_receiver_ops`
-</td>
-<td>
-A str-keyed dictionary of Python callables that are
-wrapped to bind some arguments and then passed on to `convolve()`.
-Sample usage: `extra_receiver_ops={"softmax": tfgnn.softmax}`.
-The values passed in this dict must be callable as follows, with two
-positional arguments:
+<tr> <td> `receiver_tag`<a id="receiver_tag"></a> </td> <td> one of
+<a href="../../../tfgnn.md#SOURCE"><code>tfgnn.SOURCE</code></a>,
+<a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a> or
+<a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>. The results
+are aggregated for this graph piece. If set to
+<a href="../../../tfgnn.md#SOURCE"><code>tfgnn.SOURCE</code></a> or
+<a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a>, the layer can
+be called for an edge set and will aggregate results at the specified endpoint
+of the edges. If set to
+<a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>, the layer
+can be called for an edge set or a node set and will aggregate results for
+context (per graph component). If left unset for init, the tag must be passed at
+call time. </td> </tr><tr> <td> `receiver_feature`<a id="receiver_feature"></a>
+</td> <td> The name of the feature that is read from the receiver graph piece
+and passed as convolve(receiver_input=...). </td> </tr><tr> <td>
+`sender_node_feature`<a id="sender_node_feature"></a> </td> <td> The name of the
+feature that is read from the sender nodes, if any, and passed as
+convolve(sender_node_input=...). NOTICE this must be `None` for use with
+`receiver_tag=tfgnn.CONTEXT` on an edge set, or for pooling from edges without
+sender node states. </td> </tr><tr> <td>
+`sender_edge_feature`<a id="sender_edge_feature"></a> </td> <td> The name of the
+feature that is read from the sender edges, if any, and passed as
+convolve(sender_edge_input=...). NOTICE this must not be `None` for use with
+`receiver_tag=tfgnn.CONTEXT` on an edge set. </td> </tr><tr> <td>
+`extra_receiver_ops`<a id="extra_receiver_ops"></a> </td> <td> A str-keyed
+dictionary of Python callables that are wrapped to bind some arguments and then
+passed on to `convolve()`. Sample usage: `extra_receiver_ops={"softmax":
+tfgnn.softmax}`. The values passed in this dict must be callable as follows,
+with two positional arguments:
 
 ```python
 f(graph, receiver_tag, node_set_name=..., feature_value=..., ...)
@@ -221,7 +196,7 @@ arguments are forwarded.
 </td>
 </tr><tr>
 <td>
-`**kwargs`
+`**kwargs`<a id="**kwargs"></a>
 </td>
 <td>
 Forwarded to the base class tf.keras.layers.Layer.
@@ -236,21 +211,21 @@ Forwarded to the base class tf.keras.layers.Layer.
 
 <tr>
 <td>
-`takes_receiver_input`
+`takes_receiver_input`<a id="takes_receiver_input"></a>
 </td>
 <td>
 If `False`, all calls to convolve() will get `receiver_input=None`.
 </td>
 </tr><tr>
 <td>
-`takes_sender_edge_input`
+`takes_sender_edge_input`<a id="takes_sender_edge_input"></a>
 </td>
 <td>
 If `False`, all calls to convolve() will get `sender_edge_input=None`.
 </td>
 </tr><tr>
 <td>
-`takes_sender_node_input`
+`takes_sender_node_input`<a id="takes_sender_node_input"></a>
 </td>
 <td>
 If `False`, all calls to convolve() will get `sender_node_input=None`.
@@ -258,13 +233,12 @@ If `False`, all calls to convolve() will get `sender_node_input=None`.
 </tr>
 </table>
 
-
-
 ## Methods
 
 <h3 id="convolve"><code>convolve</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/convolution_base.py#L321-L378">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/convolution_base.py#L335-L392">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>@abc.abstractmethod</code>

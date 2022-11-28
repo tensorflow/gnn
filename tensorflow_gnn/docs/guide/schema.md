@@ -102,7 +102,8 @@ Here is an example of a purely hypothetical graph schema: let's assume we have a
 public video content platform, where users can view videos that have been
 aggregated through public channels. We would like to classify whether some of
 these channels are hosting egregiously abusive content violating the platform's
-policy rules. Let's build a graph with three types of nodes:
+policy rules. Let's call our imaginary project "Project Takedown." We build a
+graph with three types of nodes:
 
   * `"user"`: Represents an end user watching videos.
   * `"video"`: Represents content watched by users.
@@ -121,11 +122,12 @@ example is the wrong way around.
 
 ![takedown schema diagram](images/takedown_schema_diagram.svg)
 
-The model will propagate information from users through the videos that they
-watched aggregated to the channels that contain them, and leverage similarity
-information between users watching similar videos, in order to build a
-classification model on top of the channel embedding. Let's call our imaginary
-project "Project Takedown." The full graph schema developed in the sequel is
+The GNN model will propagate information from different users through the videos
+that they watched, to the channels that contain the corresponding videos, while
+leveraging the similarity information between users watching similar videos. The
+information from various incoming edges is aggregated to obtain the embedding of
+a channel. A classification model then operates on top of the channel embedding
+to perform prediction. The full graph schema developed in the sequel is
 available
 [here](https://github.com/tensorflow/gnn/blob/main/examples/schemas/takedown.pbtxt).
 
@@ -214,11 +216,11 @@ node_sets {
 
 For each video, we will provide the following features:
 
-  * `"title"`": The title of the video, converted to a bag of words, as a list
-    of strings. Note that each video will have a title with a different number
-    of words, so we must indicate that the dimension of those video features
-    will be ragged; this is done by using -1 in the shape. When parsed by
-    TensorFlow, this feature will come out as a `tf.RaggedTensor`.
+*   `"title"`: The title of the video, converted to a bag of words, as a list of
+    strings. Note that each video will have a title with a different number of
+    words, so we must indicate that the dimension of those video features will
+    be ragged; this is done by using -1 in the shape. When parsed by TensorFlow,
+    this feature will come out as a `tf.RaggedTensor`.
 
   * `"days_since_upload"`: The number of days since the video was uploaded, as
     a single number. This is a scalar feature. A common minor mistake is to
@@ -458,7 +460,7 @@ We provide a tool for doing that. This can be useful for two reasons:
     preparation job to produce encoded tensorflow.Example protos, it is useful
     to inspect correct examples of those encodings. We hope to provide more
     support to produce encodings of graphs from code, but it is always possible
-    to generate the encoding yourself (see other document on this topic).
+    to generate the encoding yourself (see [Input pipeline](input_pipeline.md)).
 
 2.  To get started implementing model code. If you want to get started
     implementing a model right away, it is useful to be able to ingest data into

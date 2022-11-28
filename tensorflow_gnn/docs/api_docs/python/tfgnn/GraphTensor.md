@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L586-L1093">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L681-L1188">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 A composite tensor for heterogeneous directed graphs with features.
 
@@ -85,7 +83,7 @@ must index the same graphs, the item dimension must correspond to the same
 item (graph component, node or edge) within the same graph piece (context,
 node set or edge set).
 
-RULE: 'None' always denotes ragged or outer most field dimension. Uniform
+RULE: 'None' always denotes ragged or outermost field dimension. Uniform
 dimensions must have a fixed size that is given in the dimension.
 
 In particular this rule implies that if a feature has `tf.Tensor` type its
@@ -173,14 +171,14 @@ dimension, not a graph dimension.) In all other cases, the type of the field
 
 <tr>
 <td>
-`data`
+`data`<a id="data"></a>
 </td>
 <td>
 Nest of Field or subclasses of GraphPieceBase.
 </td>
 </tr><tr>
 <td>
-`spec`
+`spec`<a id="spec"></a>
 </td>
 <td>
 A subclass of GraphPieceSpecBase with a `_data_spec` that matches
@@ -188,7 +186,7 @@ A subclass of GraphPieceSpecBase with a `_data_spec` that matches
 </td>
 </tr><tr>
 <td>
-`validate`
+`validate`<a id="validate"></a>
 </td>
 <td>
 if set, checks that data and spec are aligned, compatible and
@@ -197,77 +195,36 @@ supported.
 </tr>
 </table>
 
-
-
-
-
 <!-- Tabular view -->
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>
 
-<tr>
-<td>
-`context`
-</td>
-<td>
-The graph context.
-</td>
-</tr><tr>
-<td>
-`edge_sets`
-</td>
-<td>
-A read-only mapping from node set name to the node set.
-</td>
-</tr><tr>
-<td>
-`indices_dtype`
-</td>
-<td>
-The integer type to represent ragged splits.
-</td>
-</tr><tr>
-<td>
-`node_sets`
-</td>
-<td>
-A read-only mapping from node set name to the node set.
-</td>
-</tr><tr>
-<td>
-`num_components`
-</td>
-<td>
-The number of graph components for each graph.
-</td>
-</tr><tr>
-<td>
-`rank`
-</td>
-<td>
-The rank of this Tensor. Guaranteed not to be `None`.
-</td>
-</tr><tr>
-<td>
-`shape`
-</td>
-<td>
-A possibly-partial shape specification for this Tensor.
+<tr> <td> `context`<a id="context"></a> </td> <td> The graph context. </td>
+</tr><tr> <td> `edge_sets`<a id="edge_sets"></a> </td> <td> A read-only mapping
+from node set name to the node set. </td> </tr><tr> <td>
+`indices_dtype`<a id="indices_dtype"></a> </td> <td> The integer type to
+represent ragged splits. </td> </tr><tr> <td> `node_sets`<a id="node_sets"></a>
+</td> <td> A read-only mapping from node set name to the node set. </td>
+</tr><tr> <td> `num_components`<a id="num_components"></a> </td> <td> The number
+of graph components for each graph. </td> </tr><tr> <td> `rank`<a id="rank"></a>
+</td> <td> The rank of this Tensor. Guaranteed not to be `None`. </td> </tr><tr>
+<td> `shape`<a id="shape"></a> </td> <td> A possibly-partial shape specification
+for this Tensor.
 
 The returned `TensorShape` is guaranteed to have a known rank, but the
 individual dimension sizes may be unknown.
 </td>
 </tr><tr>
 <td>
-`spec`
+`spec`<a id="spec"></a>
 </td>
 <td>
 The public type specification of this tensor.
 </td>
 </tr><tr>
 <td>
-`total_num_components`
+`total_num_components`<a id="total_num_components"></a>
 </td>
 <td>
 The total number of graph components.
@@ -275,13 +232,12 @@ The total number of graph components.
 </tr>
 </table>
 
-
-
 ## Methods
 
 <h3 id="from_pieces"><code>from_pieces</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L726-L758">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L821-L853">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>@classmethod</code>
@@ -297,7 +253,8 @@ Constructs a new `GraphTensor` from context, node sets and edge sets.
 
 <h3 id="merge_batch_to_components"><code>merge_batch_to_components</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L760-L845">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L855-L940">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>merge_batch_to_components() -> 'GraphTensor'
@@ -377,7 +334,8 @@ A scalar (rank 0) graph tensor.
 
 <h3 id="remove_features"><code>remove_features</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L988-L1079">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1083-L1174">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>remove_features(
@@ -489,7 +447,8 @@ input graph tensor.
 
 <h3 id="replace_features"><code>replace_features</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L887-L986">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L982-L1081">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>replace_features(
@@ -617,7 +576,8 @@ tensor.
 
 <h3 id="set_shape"><code>set_shape</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L290-L296">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L304-L310">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>set_shape(

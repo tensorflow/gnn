@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L477-L593">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L513-L629">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Pools a GraphTensor feature.
 
@@ -65,34 +63,96 @@ supply missing values, but they are not allowed to contradict initialization
 arguments.
 The feature name can be left unset to select tfgnn.HIDDEN_STATE.
 
-#### Init args:
+<!-- Tabular view -->
 
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
 
-* <b>`tag`</b>: Can be set to one of tfgnn.SOURCE, tfgnn.TARGET or tfgnn.CONTEXT
-  to select the receiver/
-* <b>`reduce_type`</b>: Can be set to any name from
-  tfgnn.get_registered_reduce_operation_names().
-* <b>`edge_set_name`</b>: If set, the feature will be pooled from this edge set
-  to the given receiver `tag`. Mutually exclusive with node_set_name.
-* <b>`node_set_name`</b>: If set, the feature will be pooled from this node set.
-  The `tag` must be CONTEXT. Mutually exclusive with edge_set_name.
-* <b>`feature_name`</b>: The name of the feature to read. If unset (also in call),
-  the default state feature will be read.
+<tr>
+<td>
+`tag`<a id="tag"></a>
+</td>
+<td>
+Can be set to one of tfgnn.SOURCE, tfgnn.TARGET or tfgnn.CONTEXT
+to select the receiver/
+</td>
+</tr><tr>
+<td>
+`reduce_type`<a id="reduce_type"></a>
+</td>
+<td>
+Can be set to any name from
+tfgnn.get_registered_reduce_operation_names().
+</td>
+</tr><tr>
+<td>
+`edge_set_name`<a id="edge_set_name"></a>
+</td>
+<td>
+If set, the feature will be pooled from this edge set
+to the given receiver `tag`. Mutually exclusive with node_set_name.
+</td>
+</tr><tr>
+<td>
+`node_set_name`<a id="node_set_name"></a>
+</td>
+<td>
+If set, the feature will be pooled from this node set.
+The `tag` must be CONTEXT. Mutually exclusive with edge_set_name.
+</td>
+</tr><tr>
+<td>
+`feature_name`<a id="feature_name"></a>
+</td>
+<td>
+The name of the feature to read. If unset (also in call),
+the default state feature will be read.
+</td>
+</tr>
+</table>
 
+<!-- Tabular view -->
 
-#### Call args:
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Call args</h2></th></tr>
 
-
-* <b>`graph`</b>: The scalar GraphTensor to read from.
-* <b>`reduce_type`</b>: Same meaning as for init. Must be passed to init, or to call,
-  or to both (with the same value).
-* <b>`tag`</b>: Same meaning as for init. Must be passed to init, or to call,
+<tr>
+<td>
+`graph`<a id="graph"></a>
+</td>
+<td>
+The scalar GraphTensor to read from.
+</td>
+</tr><tr>
+<td>
+`reduce_type`<a id="reduce_type"></a>
+</td>
+<td>
+Same meaning as for init. Must be passed to init, or to call,
+or to both (with the same value).
+</td>
+</tr><tr>
+<td>
+`tag`<a id="tag"></a>
+</td>
+<td>
+Same meaning as for init. Must be passed to init, or to call,
   or to both (with the same value).
 edge_set_name, node_set_name: Same meaning as for init. One of them must
   be passed to init, or to call, or to both (with the same value).
-* <b>`feature_name`</b>: Same meaning as for init. If passed to both, the value must
-  be the same. If passed to neither, tfgnn.HIDDEN_STATE is used.
-
+</td>
+</tr><tr>
+<td>
+`feature_name`<a id="feature_name"></a>
+</td>
+<td>
+Same meaning as for init. If passed to both, the value must
+be the same. If passed to neither, tfgnn.HIDDEN_STATE is used.
+</td>
+</tr>
+</table>
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -117,34 +177,31 @@ A tensor with the pooled feature value.
 
 <tr>
 <td>
-`feature_name`
+`feature_name`<a id="feature_name"></a>
 </td>
 <td>
 Returns the feature_name argument to init, or None if unset.
 </td>
 </tr><tr>
 <td>
-`location`
+`location`<a id="location"></a>
 </td>
 <td>
 Returns dict of kwarg to init with the node or edge set name.
 </td>
 </tr><tr>
 <td>
-`reduce_type`
+`reduce_type`<a id="reduce_type"></a>
 </td>
 <td>
 Returns the reduce_type argument to init, or None if unset.
 </td>
 </tr><tr>
 <td>
-`tag`
+`tag`<a id="tag"></a>
 </td>
 <td>
 Returns the tag argument to init, or None if unset.
 </td>
 </tr>
 </table>
-
-
-

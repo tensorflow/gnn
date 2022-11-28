@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L574-L725">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L588-L739">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -93,7 +93,7 @@ Beyond the original GraphSAGE, this class supports:
 
 <tr>
 <td>
-`units`
+`units`<a id="units"></a>
 </td>
 <td>
 Number of output units for the linear transformation applied to the
@@ -101,7 +101,7 @@ node feature.
 </td>
 </tr><tr>
 <td>
-`use_bias`
+`use_bias`<a id="use_bias"></a>
 </td>
 <td>
 If true a bias term will be added to the linear transformations
@@ -109,7 +109,7 @@ for the self node feature.
 </td>
 </tr><tr>
 <td>
-`dropout_rate`
+`dropout_rate`<a id="dropout_rate"></a>
 </td>
 <td>
 Can be set to a dropout rate that will be applied to the
@@ -117,7 +117,7 @@ node feature.
 </td>
 </tr><tr>
 <td>
-`feature_name`
+`feature_name`<a id="feature_name"></a>
 </td>
 <td>
 The feature name of node states; defaults to
@@ -125,7 +125,7 @@ The feature name of node states; defaults to
 </td>
 </tr><tr>
 <td>
-`l2_normalize`
+`l2_normalize`<a id="l2_normalize"></a>
 </td>
 <td>
 If enabled l2 normalization will be applied to node state
@@ -133,7 +133,7 @@ vectors.
 </td>
 </tr><tr>
 <td>
-`combine_type`
+`combine_type`<a id="combine_type"></a>
 </td>
 <td>
 Can be set to "sum" or "concat". The default "sum" recovers
@@ -144,7 +144,7 @@ Setting this to "concat" concatenates the results of the transformations
 </td>
 </tr><tr>
 <td>
-`activation`
+`activation`<a id="activation"></a>
 </td>
 <td>
 The nonlinearity applied to the concatenated or added node
@@ -154,7 +154,7 @@ by `tf.keras.layers.Activation()`. Defaults to relu.
 </td>
 </tr><tr>
 <td>
-`**kwargs`
+`**kwargs`<a id="**kwargs"></a>
 </td>
 <td>
 Forwarded to the base class tf.keras.layers.Layer.

@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/padding_ops.py#L16-L166">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/padding_ops.py#L30-L180">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Pads graph tensor to the total sizes by inserting fake graph components.
 
@@ -55,14 +53,14 @@ the future).
 
 <tr>
 <td>
-`graph_tensor`
+`graph_tensor`<a id="graph_tensor"></a>
 </td>
 <td>
 scalar graph tensor (rank=0) to pad.
 </td>
 </tr><tr>
 <td>
-`size_constraints`
+`size_constraints`<a id="size_constraints"></a>
 </td>
 <td>
 target total sizes for each graph piece. Must define the
@@ -75,7 +73,7 @@ against this constraint.
 </td>
 </tr><tr>
 <td>
-`padding_values`
+`padding_values`<a id="padding_values"></a>
 </td>
 <td>
 optional mapping from a context, node set or edge set
@@ -84,7 +82,7 @@ specified for some feature, its type 'zero' is used (as in `tf.zeros()`).
 </td>
 </tr><tr>
 <td>
-`validate`
+`validate`<a id="validate"></a>
 </td>
 <td>
 If true, then use assertions to check that the input graph tensor
@@ -94,8 +92,6 @@ each input value.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -121,14 +117,14 @@ for padding.
 
 <tr>
 <td>
-`ValueError`
+`ValueError`<a id="ValueError"></a>
 </td>
 <td>
 if input parameters are invalid.
 </td>
 </tr><tr>
 <td>
-`tf.errors.InvalidArgumentError`
+`tf.errors.InvalidArgumentError`<a id="tf.errors.InvalidArgumentError"></a>
 </td>
 <td>
 if input graph tensor could not be padded to
@@ -137,4 +133,3 @@ the `min_nodes_per_component`
 </td>
 </tr>
 </table>
-

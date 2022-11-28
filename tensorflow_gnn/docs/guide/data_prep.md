@@ -502,7 +502,7 @@ The sampler is configured by providing three files:
     nodes of interest at which to seed the sampling. This defines the points
     where the sampler will gather a neighborhood for training, testing and/or
     inference. This file can be in any of the supported `Universal Graph Format`
-    table formats. If this is not provided, very node specified in the `seed_op`
+    table formats. If this is not provided, every node specified in the `seed_op`
     node set will be used as a sampling seed.
 
 Upon completion, the sampler will output files with **serialized
@@ -855,8 +855,8 @@ must match (a Dataflow constraint). Using docker locally to start (or even to
 develop) ensures the execution environment of the host exactly matches the
 environment of the Dataflow worker machines.
 
-Let the root of the local TF-GNN repo be `TFGNN` and the name of the GCP
-project be represented as `GOOGLE_CLOUD_PROEJCT`. The following commands build
+Let the root of the local TF-GNN repo be `TFGNN_REPO` and the name of the GCP
+project be represented as `GOOGLE_CLOUD_PROJECT`. The following commands build
 the TF-GNN docker image and pushes it to GCR.
 
 ```shell
@@ -938,7 +938,7 @@ docker run -v ~/.config/gcloud:/root/.config/gcloud \
 ```
 
 The `-v ~/.config/gcloud:/root/.config/gcloud` argument injects the host's
-`~/.condig/gcloud` directory into the chrooted filesystem of the spawned
+`~/.config/gcloud` directory into the chrooted filesystem of the spawned
 container at `/root/.config/gcloud`. The `-e` arguments define environment
 variables, in the context of the running container, that specify the GCP project
 name and the location (again, relative to the container filesystem) of the

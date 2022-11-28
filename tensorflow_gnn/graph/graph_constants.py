@@ -30,11 +30,6 @@ NODES = 'nodes'
 EDGES = 'edges'
 SetType = str  # A value of CONTEXT, NODES or EDGES.
 
-# Integer tags for selecting the specific endpoints of an edge in a
-# HyperAdjacency.
-SOURCE = 0
-TARGET = 1
-
 # Name of the implicitly-defined set size feature, source and target index
 # features, for serialization.
 SIZE_NAME = '#size'
@@ -59,6 +54,11 @@ INDEX_KEY_PREFIX = '#index.'
 # these are SOURCE and TARGET, by convention. Other or additional
 # numbers can be used, e.g., for hypergraphs.
 IncidentNodeTag = int
+
+# Integer tags for selecting the specific endpoints of an edge in a
+# HyperAdjacency.
+SOURCE: IncidentNodeTag = 0
+TARGET: IncidentNodeTag = 1
 
 # Generic pool and broadcast ops allow the special case tfgnn.CONTEXT (a str)
 # in addition to pooling from or broadcasting to tfgnn.SOURCE and tfgnn.TARGET.

@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/padding_ops.py#L169-L193">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/padding_ops.py#L183-L207">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Returns whether the input `graph_tensor` satisfies `total_sizes`.
 
@@ -44,22 +42,20 @@ Returns whether the input `graph_tensor` satisfies `total_sizes`.
 
 <tr>
 <td>
-`graph_tensor`
+`graph_tensor`<a id="graph_tensor"></a>
 </td>
 <td>
 a graph tensor to check against target total sizes.
 </td>
 </tr><tr>
 <td>
-`total_sizes`
+`total_sizes`<a id="total_sizes"></a>
 </td>
 <td>
 target total sizes for each graph piece.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

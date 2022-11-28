@@ -343,6 +343,37 @@ class HomogeneousTest(tu.GraphTensorTestBase):
               },
           ),
       ),
+      (
+          'homogeneous_single_component_named_features',
+          gt.homogeneous(
+              source=tf.constant([0, 3, 4, 5]),
+              target=tf.constant([1, 2, 6, 4]),
+              node_features={'onehots': tf.eye(7)},
+              edge_features={'floats': tf.ones([4, 3])},
+              context_features={'labels': tf.zeros(5)},
+          ),
+          gt.GraphTensor.from_pieces(
+              context=gt.Context.from_fields(
+                  features={'labels': tf.zeros(5)},
+                  sizes=tf.constant([1])),
+              node_sets={
+                  const.NODES:
+                      gt.NodeSet.from_fields(
+                          features={'onehots': tf.eye(7)},
+                          sizes=tf.constant([7]))
+              },
+              edge_sets={
+                  const.EDGES:
+                      gt.EdgeSet.from_fields(
+                          features={'floats': tf.ones([4, 3])},
+                          sizes=tf.constant([4]),
+                          adjacency=adj.Adjacency.from_indices(
+                              source=(const.NODES, tf.constant([0, 3, 4, 5])),
+                              target=(const.NODES, tf.constant([1, 2, 6, 4])),
+                          )),
+              },
+          ),
+      ),
   )
   def testHomogeneous(self, actual, expected):
     """Tests for homogeneous()."""

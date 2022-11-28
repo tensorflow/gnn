@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L23-L167">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L37-L181">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Stores how (hyper-)edges connect tuples of nodes from incident node sets.
 
@@ -49,14 +47,14 @@ The HyperAdjacency is a composite tensor.
 
 <tr>
 <td>
-`data`
+`data`<a id="data"></a>
 </td>
 <td>
 Nest of Field or subclasses of GraphPieceBase.
 </td>
 </tr><tr>
 <td>
-`spec`
+`spec`<a id="spec"></a>
 </td>
 <td>
 A subclass of GraphPieceSpecBase with a `_data_spec` that matches
@@ -64,7 +62,7 @@ A subclass of GraphPieceSpecBase with a `_data_spec` that matches
 </td>
 </tr><tr>
 <td>
-`validate`
+`validate`<a id="validate"></a>
 </td>
 <td>
 if set, checks that data and spec are aligned, compatible and
@@ -73,42 +71,23 @@ supported.
 </tr>
 </table>
 
-
-
-
-
 <!-- Tabular view -->
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>
 
-<tr>
-<td>
-`indices_dtype`
-</td>
-<td>
-The integer type to represent ragged splits.
-</td>
-</tr><tr>
-<td>
-`rank`
-</td>
-<td>
-The rank of this Tensor. Guaranteed not to be `None`.
-</td>
-</tr><tr>
-<td>
-`shape`
-</td>
-<td>
-A possibly-partial shape specification for this Tensor.
+<tr> <td> `indices_dtype`<a id="indices_dtype"></a> </td> <td> The integer type
+to represent ragged splits. </td> </tr><tr> <td> `rank`<a id="rank"></a> </td>
+<td> The rank of this Tensor. Guaranteed not to be `None`. </td> </tr><tr> <td>
+`shape`<a id="shape"></a> </td> <td> A possibly-partial shape specification for
+this Tensor.
 
 The returned `TensorShape` is guaranteed to have a known rank, but the
 individual dimension sizes may be unknown.
 </td>
 </tr><tr>
 <td>
-`spec`
+`spec`<a id="spec"></a>
 </td>
 <td>
 The public type specification of this tensor.
@@ -116,13 +95,12 @@ The public type specification of this tensor.
 </tr>
 </table>
 
-
-
 ## Methods
 
 <h3 id="from_indices"><code>from_indices</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L43-L124">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L57-L138">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>@classmethod</code>
@@ -220,7 +198,8 @@ inferred from the passed `indices` values.
 
 <h3 id="get_indices_dict"><code>get_indices_dict</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L134-L141">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L148-L155">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>get_indices_dict() -> Dict[IncidentNodeTag, Tuple[NodeSetName, Field]]
@@ -231,7 +210,8 @@ Returns copy of indices as a dictionary.
 
 <h3 id="node_set_name"><code>node_set_name</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L130-L132">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L144-L146">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>node_set_name(
@@ -244,7 +224,8 @@ Returns a node set name for the given node set tag.
 
 <h3 id="set_shape"><code>set_shape</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L290-L296">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L304-L310">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>set_shape(
@@ -257,7 +238,8 @@ Enforce the common prefix shape on all the contained features.
 
 <h3 id="__getitem__"><code>__getitem__</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L126-L128">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L140-L142">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>__getitem__(

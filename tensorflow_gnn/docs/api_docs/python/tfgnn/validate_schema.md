@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_validation.py#L34-L56">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_validation.py#L48-L70">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Validates the correctness of a graph schema instance.
 
@@ -39,15 +37,13 @@ shapes are fully-defined, ensures set name references are found, etc.
 
 <tr>
 <td>
-`schema`
+`schema`<a id="schema"></a>
 </td>
 <td>
 An instance of the graph schema.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -71,11 +67,10 @@ Render those to your favorite stream (or ignore).
 
 <tr>
 <td>
-`ValidationError`
+`ValidationError`<a id="ValidationError"></a>
 </td>
 <td>
 If a validation check fails.
 </td>
 </tr>
 </table>
-

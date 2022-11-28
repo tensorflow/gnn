@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/batching_utils.py#L239-L603">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/batching_utils.py#L257-L621">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Learns the optimal size constraints for the fixed size batching with retry.
 
@@ -96,14 +94,14 @@ only in 1:1000_000 cases. It is >40% more efficient to reserve space only for
 
 <tr>
 <td>
-`dataset`
+`dataset`<a id="dataset"></a>
 </td>
 <td>
 dataset of graph tensors that is intended to be batched.
 </td>
 </tr><tr>
 <td>
-`batch_size`
+`batch_size`<a id="batch_size"></a>
 </td>
 <td>
 the target batch size(s). Could be a single positive integer
@@ -112,7 +110,7 @@ requested value.
 </td>
 </tr><tr>
 <td>
-`min_nodes_per_component`
+`min_nodes_per_component`<a id="min_nodes_per_component"></a>
 </td>
 <td>
 mapping from a node set name to a minimum number of
@@ -120,7 +118,7 @@ nodes in each graph component. Defaults to 0.
 </td>
 </tr><tr>
 <td>
-`success_ratio`
+`success_ratio`<a id="success_ratio"></a>
 </td>
 <td>
 the target probability(s) that a random batch of graph tensor
@@ -133,14 +131,14 @@ infinity, the 1 ratio corresponds to the "almost surely satisfies" event.
 </td>
 </tr><tr>
 <td>
-`sample_size`
+`sample_size`<a id="sample_size"></a>
 </td>
 <td>
 the number of the first dataset examples to use for inference.
 </td>
 </tr><tr>
 <td>
-`num_thresholds`
+`num_thresholds`<a id="num_thresholds"></a>
 </td>
 <td>
 the number of quantiles to use to approximate probability
@@ -148,8 +146,6 @@ distributions.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

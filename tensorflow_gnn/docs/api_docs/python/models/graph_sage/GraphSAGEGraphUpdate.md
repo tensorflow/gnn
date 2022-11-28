@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L458-L571">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L472-L585">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -49,7 +49,7 @@ edge_set_name_list for the specified node_set_name node.
 
 <tr>
 <td>
-`units`
+`units`<a id="units"></a>
 </td>
 <td>
 Number of output units of the linear transformation applied to both
@@ -57,7 +57,7 @@ final aggregated sender node features as well as the self node feature.
 </td>
 </tr><tr>
 <td>
-`hidden_units`
+`hidden_units`<a id="hidden_units"></a>
 </td>
 <td>
 Number of output units to be configure for GraphSAGE pooling
@@ -65,7 +65,7 @@ type convolution only.
 </td>
 </tr><tr>
 <td>
-`receiver_tag`
+`receiver_tag`<a id="receiver_tag"></a>
 </td>
 <td>
 Either one of `tfgnn.SOURCE` or `tfgnn.TARGET`. The results of
@@ -75,7 +75,7 @@ results at the specified endpoint of the edges.
 </td>
 </tr><tr>
 <td>
-`node_set_names`
+`node_set_names`<a id="node_set_names"></a>
 </td>
 <td>
 A set (or convertible container) of node_set_names for which
@@ -86,7 +86,7 @@ set.
 </td>
 </tr><tr>
 <td>
-`reduce_type`
+`reduce_type`<a id="reduce_type"></a>
 </td>
 <td>
 An aggregation operation name. Supported list of aggregation
@@ -94,7 +94,7 @@ operators can be found at `tfgnn.get_registered_reduce_operation_names()`.
 </td>
 </tr><tr>
 <td>
-`use_pooling`
+`use_pooling`<a id="use_pooling"></a>
 </td>
 <td>
 If enabled, <a href="../graph_sage/GraphSAGEPoolingConv.md"><code>graph_sage.GraphSAGEPoolingConv</code></a> will be used,
@@ -103,7 +103,7 @@ provided edges.
 </td>
 </tr><tr>
 <td>
-`use_bias`
+`use_bias`<a id="use_bias"></a>
 </td>
 <td>
 If true a bias term will be added to the linear transformations
@@ -111,7 +111,7 @@ for the incident node features as well as for the self node feature.
 </td>
 </tr><tr>
 <td>
-`dropout_rate`
+`dropout_rate`<a id="dropout_rate"></a>
 </td>
 <td>
 Can be set to a dropout rate that will be applied to both
@@ -119,7 +119,7 @@ incident node features as well as the self node feature.
 </td>
 </tr><tr>
 <td>
-`l2_normalize`
+`l2_normalize`<a id="l2_normalize"></a>
 </td>
 <td>
 If enabled l2 normalization will be applied to final node
@@ -127,7 +127,7 @@ states.
 </td>
 </tr><tr>
 <td>
-`combine_type`
+`combine_type`<a id="combine_type"></a>
 </td>
 <td>
 Can be set to "sum" or "concat". If it's specified as concat
@@ -136,7 +136,7 @@ node state will be added with the sender node features.
 </td>
 </tr><tr>
 <td>
-`activation`
+`activation`<a id="activation"></a>
 </td>
 <td>
 The nonlinearity applied to the concatenated or added node state
@@ -146,7 +146,7 @@ layer, a tf.keras.activations.* function, or a string understood by
 </td>
 </tr><tr>
 <td>
-`feature_name`
+`feature_name`<a id="feature_name"></a>
 </td>
 <td>
 The feature name of node states; defaults to
@@ -154,14 +154,14 @@ The feature name of node states; defaults to
 </td>
 </tr><tr>
 <td>
-`name`
+`name`<a id="name"></a>
 </td>
 <td>
 Optionally, a name for the layer returned.
 </td>
 </tr><tr>
 <td>
-`**kwargs`
+`**kwargs`<a id="**kwargs"></a>
 </td>
 <td>
 Any optional arguments to <a href="../graph_sage/GraphSAGEPoolingConv.md"><code>graph_sage.GraphSAGEPoolingConv</code></a>,

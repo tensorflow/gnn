@@ -13,25 +13,38 @@
 # limitations under the License.
 # ==============================================================================
 """`tf.data.Dataset` of `tfgnn.GraphTensor` methods."""
-from typing import Callable, Optional, Sequence
+from typing import Callable, List, Optional, Sequence
 
 import tensorflow as tf
 
 
-def _get_dataset(
-    file_pattern: str,
+def _process_dataset(
+    dataset: tf.data.Dataset,
     *,
     num_shards: int,
     index: int,
-    shuffle_filenames: bool = False,
+    shuffle_dataset: bool = False,
     interleave_fn: Callable[..., tf.data.Dataset],
     examples_shuffle_size: Optional[int] = None) -> tf.data.Dataset:
-  """Gets a `tf.data.Dataset` with sharding, interleaving, shuffling and prefetching."""
-  filenames = sorted(tf.io.gfile.glob(file_pattern))
-  dataset = tf.data.Dataset.from_tensor_slices(filenames)
+  """Implements `SimpleDatasetsProvider.get_dataset(...)`.
+
+  Args:
+    dataset: A `tf.data.Dataset` to process.
+    num_shards: The number of shards operating in parallel.
+    index: The worker index.
+    shuffle_dataset: If enabled, shuffle the dataset before applying the
+      `interleave_fn.` NOTE: if enabled, `dataset` must be of known, finite
+      cardinality.
+    interleave_fn: A function that takes a dataset element and returns a
+      `tf.data.Dataset.`
+    examples_shuffle_size: An optional buffer size for example shuffling.
+
+  Returns:
+    A processed `tf.data.Dataset.`
+  """
   # Shard first before running any randomization operators (e.g. shuffle)
   dataset = dataset.shard(num_shards, index)
-  if shuffle_filenames:
+  if shuffle_dataset:
     dataset = dataset.shuffle(dataset.cardinality())
   dataset = dataset.interleave(
       interleave_fn,
@@ -40,6 +53,33 @@ def _get_dataset(
   if examples_shuffle_size is not None:
     dataset = dataset.shuffle(examples_shuffle_size)
   return dataset.prefetch(tf.data.AUTOTUNE)
+
+
+class PassthruDatasetProvider:
+  """Builds a `tf.data.Dataset` from a pass thru dataset.
+
+  Passes any `dataset` thru: omitting any sharding. For detailed documentation,
+  see the filename dataset provider complement: `SimpleDatasetsProvider.`
+  """
+
+  def __init__(self,
+               dataset: tf.data.Dataset,
+               *,
+               shuffle_datasets: bool = False,
+               examples_shuffle_size: Optional[int] = None):
+    self._dataset = dataset
+    self._shuffle_datasets = shuffle_datasets
+    self._examples_shuffle_size = examples_shuffle_size
+
+  def get_dataset(self, _: tf.distribute.InputContext) -> tf.data.Dataset:
+    """Gets a `tf.data.Dataset` omitting any input context."""
+    return _process_dataset(
+        self._dataset,
+        num_shards=1,
+        index=0,
+        shuffle_dataset=self._shuffle_datasets,
+        interleave_fn=lambda x: x,
+        examples_shuffle_size=self._examples_shuffle_size)
 
 
 class SimpleDatasetProvider:
@@ -79,18 +119,27 @@ class SimpleDatasetProvider:
 
   def get_dataset(self, context: tf.distribute.InputContext) -> tf.data.Dataset:
     """Gets a `tf.data.Dataset` by `context` per replica."""
-    return _get_dataset(
-        self._file_pattern,
+    filenames = _sorted_glob_or_raise(self._file_pattern)
+    return _process_dataset(
+        tf.data.Dataset.from_tensor_slices(filenames),
         num_shards=context.num_input_pipelines,
         index=context.input_pipeline_id,
-        shuffle_filenames=self._shuffle_filenames,
+        shuffle_dataset=self._shuffle_filenames,
         interleave_fn=self._interleave_fn,
         examples_shuffle_size=self._examples_shuffle_size)
 
 
-def _get_sampled_dataset(
-    principal_file_pattern: str,
-    extra_file_patterns: Sequence[str],
+def _sorted_glob_or_raise(file_pattern: str,
+                          pattern_name="pattern") -> List[str]:
+  filenames = tf.io.gfile.glob(file_pattern)
+  if not filenames:
+    raise FileNotFoundError(f"No files match {pattern_name} {file_pattern}")
+  return sorted(filenames)
+
+
+def _process_sampled_dataset(
+    principal_dataset: tf.data.Dataset,
+    extra_datasets: Sequence[tf.data.Dataset],
     principal_weight: Optional[float] = None,
     extra_weights: Optional[Sequence[float]] = None,
     *,
@@ -101,7 +150,7 @@ def _get_sampled_dataset(
     # `principal_cardinality_per_shard` < `principal_cardinality`).
     principal_cardinality: Optional[int] = None,
     fixed_cardinality: bool = False,
-    shuffle_filenames: bool = False,
+    shuffle_dataset: bool = False,
     interleave_fn: Callable[..., tf.data.Dataset],
     examples_shuffle_size: Optional[int] = None) -> tf.data.Dataset:
   """Implements `SimpleSampleDatasetsProvider.get_dataset(...)`."""
@@ -118,19 +167,19 @@ def _get_sampled_dataset(
     msg = "`principal_cardinality` is required with `fixed_cardinality`"
     raise ValueError(msg)
 
-  def dataset_fn(file_pattern):
-    return _get_dataset(
-        file_pattern,
+  def dataset_fn(dataset):
+    return _process_dataset(
+        dataset,
         num_shards=num_shards,
         index=index,
-        shuffle_filenames=shuffle_filenames,
+        shuffle_dataset=shuffle_dataset,
         interleave_fn=interleave_fn,
         examples_shuffle_size=examples_shuffle_size)
 
   if fixed_cardinality:
     datasets = [
-        *(dataset_fn(p).repeat() for p in extra_file_patterns),
-        dataset_fn(principal_file_pattern).repeat()
+        *(dataset_fn(p).repeat() for p in extra_datasets),
+        dataset_fn(principal_dataset).repeat()
     ]
     sampled_dataset = tf.data.Dataset.sample_from_datasets(
         datasets,
@@ -145,10 +194,10 @@ def _get_sampled_dataset(
         # `sample_from_datasets` produces a dataset that reports infinite
         # cardinality if any of the underlying datasets are of infinite
         # cardinality: repeat the datasets `tf.int64.max` times instead.
-        *(dataset_fn(p).repeat(count) for p in extra_file_patterns),
+        *(dataset_fn(p).repeat(count) for p in extra_datasets),
         # If there are `weights`, the `principal_weight` comes last,
         # so the principal dataset has to be in the same place.
-        dataset_fn(principal_file_pattern)
+        dataset_fn(principal_dataset)
     ]
     sampled_dataset = tf.data.Dataset.sample_from_datasets(
         datasets,
@@ -158,10 +207,57 @@ def _get_sampled_dataset(
   return sampled_dataset.prefetch(tf.data.AUTOTUNE)
 
 
+class PassthruSampleDatasetsProvider:
+  """Builds a sampled `tf.data.Dataset` from multiple pass thru datasets.
+
+  Passes any `principal_dataset` and `extra_datasets` thru: omitting any
+  sharding. For detailed documentation, see the filename dataset provider
+  complement: `SimpleSampleDatasetsProvider.`
+  """
+
+  def __init__(self,
+               principal_dataset: tf.data.Dataset,
+               extra_datasets: Sequence[tf.data.Dataset],
+               principal_weight: Optional[float] = None,
+               extra_weights: Optional[Sequence[float]] = None,
+               *,
+               principal_cardinality: Optional[int] = None,
+               fixed_cardinality: bool = False,
+               shuffle_dataset: bool = False,
+               examples_shuffle_size: Optional[int] = None):
+    self._principal_dataset = principal_dataset
+    self._extra_datasets = extra_datasets
+    self._principal_weight = principal_weight
+    self._extra_weights = extra_weights
+    self._principal_cardinality = principal_cardinality
+    self._fixed_cardinality = fixed_cardinality
+    self._shuffle_dataset = shuffle_dataset
+    if examples_shuffle_size is not None:
+      denominator = len(extra_datasets) + 1
+      self._examples_shuffle_size = examples_shuffle_size // denominator
+    else:
+      self._examples_shuffle_size = None
+
+  def get_dataset(self, _: tf.distribute.InputContext) -> tf.data.Dataset:
+    """Gets a sampled `tf.data.Dataset` omitting any input context."""
+    return _process_sampled_dataset(
+        self._principal_dataset,
+        self._extra_datasets,
+        self._principal_weight,
+        self._extra_weights,
+        num_shards=1,
+        index=0,
+        principal_cardinality=self._principal_cardinality,
+        fixed_cardinality=self._fixed_cardinality,
+        shuffle_dataset=self._shuffle_dataset,
+        interleave_fn=lambda x: x,
+        examples_shuffle_size=self._examples_shuffle_size)
+
+
 class SimpleSampleDatasetsProvider:
   """Builds a sampling `tf.data.Dataset` from a multiple file patterns.
 
-  For complete explanations regarding sampling see `_get_sampled_dataset()`.
+  For complete explanations regarding sampling see `_process_sampled_dataset()`.
 
   This `SimpleSampleDatasetsProvider` builds a `tf.data.Dataset` as follows:
    - The filenames matching the given `principal_file_pattern` and
@@ -279,16 +375,20 @@ class SimpleSampleDatasetsProvider:
     Returns:
       A `tf.data.Dataset.`
     """
-    return _get_sampled_dataset(
-        self._principal_file_pattern,
-        self._extra_file_patterns,
+    principal_filenames = _sorted_glob_or_raise(self._principal_file_pattern,
+                                                "principal file pattern")
+    extra_filenames = [_sorted_glob_or_raise(f, "extra file pattern")
+                       for f in self._extra_file_patterns]
+    return _process_sampled_dataset(
+        tf.data.Dataset.from_tensor_slices(principal_filenames),
+        [tf.data.Dataset.from_tensor_slices(f) for f in extra_filenames],
         self._principal_weight,
         self._extra_weights,
         num_shards=context.num_input_pipelines,
         index=context.input_pipeline_id,
         principal_cardinality=self._principal_cardinality,
         fixed_cardinality=self._fixed_cardinality,
-        shuffle_filenames=self._shuffle_filenames,
+        shuffle_dataset=self._shuffle_filenames,
         interleave_fn=self._interleave_fn,
         examples_shuffle_size=self._examples_shuffle_size)
 

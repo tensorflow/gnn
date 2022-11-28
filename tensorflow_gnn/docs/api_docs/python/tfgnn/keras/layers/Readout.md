@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L12-L141">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L26-L155">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Reads a feature out of a GraphTensor.
 
@@ -57,28 +55,72 @@ value = readout(graph_tensor, edge_set_name="edges")
 assert value == graph_tensor.edge_sets["edge"]["value"]
 ```
 
-#### Init args:
+<!-- Tabular view -->
 
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
 
-* <b>`edge_set_name`</b>: If set, the feature will be read from this edge set.
-  Mutually exclusive with node_set_name and from_context.
-* <b>`node_set_name`</b>: If set, the feature will be read from this node set.
-  Mutually exclusive with edge_set_name and from_context.
-* <b>`from_context`</b>: If true, the feature will be read from the context.
-  Mutually exclusive with edge_set_name and node_set_name.
-* <b>`feature_name`</b>: The name of the feature to read. If unset (also in call),
-  tfgnn.HIDDEN_STATE will be read.
+<tr>
+<td>
+`edge_set_name`<a id="edge_set_name"></a>
+</td>
+<td>
+If set, the feature will be read from this edge set.
+Mutually exclusive with node_set_name and from_context.
+</td>
+</tr><tr>
+<td>
+`node_set_name`<a id="node_set_name"></a>
+</td>
+<td>
+If set, the feature will be read from this node set.
+Mutually exclusive with edge_set_name and from_context.
+</td>
+</tr><tr>
+<td>
+`from_context`<a id="from_context"></a>
+</td>
+<td>
+If true, the feature will be read from the context.
+Mutually exclusive with edge_set_name and node_set_name.
+</td>
+</tr><tr>
+<td>
+`feature_name`<a id="feature_name"></a>
+</td>
+<td>
+The name of the feature to read. If unset (also in call),
+tfgnn.HIDDEN_STATE will be read.
+</td>
+</tr>
+</table>
 
+<!-- Tabular view -->
 
-#### Call args:
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Call args</h2></th></tr>
 
-
-* <b>`graph`</b>: The GraphTensor to read from.
+<tr>
+<td>
+`graph`<a id="graph"></a>
+</td>
+<td>
+The GraphTensor to read from.
 edge_set_name, node_set_name, from_context: Same meaning as for init. One of
   them must be passed to init, or to call, or to both (with the same value).
-* <b>`feature_name`</b>: Same meaning as for init. If passed to both, the value must
-  be the same. If passed to neither, tfgnn.HIDDEN_STATE is used.
-
+</td>
+</tr><tr>
+<td>
+`feature_name`<a id="feature_name"></a>
+</td>
+<td>
+Same meaning as for init. If passed to both, the value must
+be the same. If passed to neither, tfgnn.HIDDEN_STATE is used.
+</td>
+</tr>
+</table>
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -101,19 +143,10 @@ The tensor with the selected feature.
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>
 
-<tr>
-<td>
-`feature_name`
-</td>
-<td>
-Returns the feature_name argument to init, or None if unset.
-</td>
-</tr><tr>
-<td>
-`location`
-</td>
-<td>
-Returns a dict with the kwarg to init that selected the feature location.
+<tr> <td> `feature_name`<a id="feature_name"></a> </td> <td> Returns the
+feature_name argument to init, or None if unset. </td> </tr><tr> <td>
+`location`<a id="location"></a> </td> <td> Returns a dict with the kwarg to init
+that selected the feature location.
 
 The result contains the keyword argument and value passed to `__init__()`
 that selects the location from which the layer's output feature is read,

@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L340-L390">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L386-L460">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 A type spec for <a href="../tfgnn/Adjacency.md"><code>tfgnn.Adjacency</code></a>.
 
@@ -41,71 +39,25 @@ Inherits From: [`HyperAdjacencySpec`](../tfgnn/HyperAdjacencySpec.md)
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>
 
-<tr>
-<td>
-`indices_dtype`
-</td>
-<td>
-The integer type to represent ragged splits.
-</td>
-</tr><tr>
-<td>
-`rank`
-</td>
-<td>
-The rank of the GraphPiece. Guaranteed not to be `None`.
-</td>
-</tr><tr>
-<td>
-`shape`
-</td>
-<td>
-A possibly-partial shape specification of the GraphPiece.
+<tr> <td> `indices_dtype`<a id="indices_dtype"></a> </td> <td> The integer type
+to represent ragged splits. </td> </tr><tr> <td> `rank`<a id="rank"></a> </td>
+<td> The rank of the GraphPiece. Guaranteed not to be `None`. </td> </tr><tr>
+<td> `shape`<a id="shape"></a> </td> <td> A possibly-partial shape specification
+of the GraphPiece.
 
 The returned `TensorShape` is guaranteed to have a known rank, but the
-individual dimension sizes may be unknown.
-</td>
-</tr><tr>
-<td>
-`source`
-</td>
-<td>
+individual dimension sizes may be unknown. </td> </tr><tr> <td>
+`source`<a id="source"></a> </td> <td>
 
-</td>
-</tr><tr>
-<td>
-`source_name`
-</td>
-<td>
-Returns the node set name for source nodes.
-</td>
-</tr><tr>
-<td>
-`target`
-</td>
-<td>
+</td> </tr><tr> <td> `source_name`<a id="source_name"></a> </td> <td> Returns
+the node set name for source nodes. </td> </tr><tr> <td>
+`target`<a id="target"></a> </td> <td>
 
-</td>
-</tr><tr>
-<td>
-`target_name`
-</td>
-<td>
-Returns the node set name for target nodes.
-</td>
-</tr><tr>
-<td>
-`total_size`
-</td>
-<td>
-The total number of edges if known.
-</td>
-</tr><tr>
-<td>
-`value_type`
-</td>
-<td>
-The Python type for values that are compatible with this TypeSpec.
+</td> </tr><tr> <td> `target_name`<a id="target_name"></a> </td> <td> Returns
+the node set name for target nodes. </td> </tr><tr> <td>
+`total_size`<a id="total_size"></a> </td> <td> The total number of edges if
+known. </td> </tr><tr> <td> `value_type`<a id="value_type"></a> </td> <td> The
+Python type for values that are compatible with this TypeSpec.
 
 In particular, all values that are compatible with this TypeSpec must be an
 instance of this type.
@@ -117,9 +69,60 @@ instance of this type.
 
 ## Methods
 
+<h3 id="experimental_as_proto"><code>experimental_as_proto</code></h3>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>experimental_as_proto() -> struct_pb2.TypeSpecProto
+</code></pre>
+
+Returns a proto representation of the TypeSpec instance.
+
+Do NOT override for custom non-TF types.
+
+<h3 id="experimental_from_proto"><code>experimental_from_proto</code></h3>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>@classmethod</code>
+<code>experimental_from_proto(
+    proto: struct_pb2.TypeSpecProto
+) -> 'TypeSpec'
+</code></pre>
+
+Returns a TypeSpec instance based on the serialized proto.
+
+Do NOT override for custom non-TF types.
+
+<!-- Tabular view -->
+
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Args</th></tr>
+
+<tr>
+<td>
+`proto`
+</td>
+<td>
+Proto generated using 'experimental_as_proto'.
+</td>
+</tr>
+</table>
+
+<h3 id="experimental_type_proto"><code>experimental_type_proto</code></h3>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>@classmethod</code>
+<code>experimental_type_proto() -> Type[struct_pb2.TypeSpecProto]
+</code></pre>
+
+Returns the type of proto associated with TypeSpec serialization.
+
+Do NOT override for custom non-TF types.
+
 <h3 id="from_incident_node_sets"><code>from_incident_node_sets</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L344-L368">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L390-L414">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>@classmethod</code>
@@ -184,7 +187,8 @@ A `AdjacencySpec` TypeSpec.
 
 <h3 id="from_value"><code>from_value</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L481-L484">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L495-L498">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>@classmethod</code>
@@ -198,7 +202,8 @@ Extension Types API: Factory method.
 
 <h3 id="get_index_specs_dict"><code>get_index_specs_dict</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L224-L231">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L238-L245">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>get_index_specs_dict() -> Dict[IncidentNodeTag, Tuple[NodeSetName, FieldSpec]]
@@ -359,7 +364,8 @@ and `other`.
 
 <h3 id="node_set_name"><code>node_set_name</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L233-L235">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L247-L249">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>node_set_name(
@@ -369,6 +375,66 @@ and `other`.
 
 Returns a node set name for the given node set tag.
 
+<h3 id="relax"><code>relax</code></h3>
+
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L438-L460">View
+source</a>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>relax(
+    *, num_edges: bool = False
+) -> 'AdjacencySpec'
+</code></pre>
+
+Allows variable number of graph edges.
+
+Calling with all default parameters keeps the spec unchanged.
+
+<!-- Tabular view -->
+
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Args</th></tr>
+
+<tr>
+<td>
+`num_edges`
+</td>
+<td>
+if True, allows a variable number of edges in each edge set.
+If False, returns spec unchanged.
+</td>
+</tr>
+</table>
+
+<!-- Tabular view -->
+
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Returns</th></tr>
+<tr class="alt">
+<td colspan="2">
+Relaxed compatible spec.
+</td>
+</tr>
+
+</table>
+
+<!-- Tabular view -->
+
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Raises</th></tr>
+
+<tr>
+<td>
+`ValueError`
+</td>
+<td>
+if adjacency is not scalar (rank > 0).
+</td>
+</tr>
+</table>
 
 <h3 id="__eq__"><code>__eq__</code></h3>
 
@@ -383,7 +449,8 @@ Return self==value.
 
 <h3 id="__getitem__"><code>__getitem__</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L220-L222">View source</a>
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/adjacency.py#L234-L236">View
+source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>__getitem__(

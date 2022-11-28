@@ -70,6 +70,9 @@ similar to `tf.TensorSpec`. For example, a `FieldSpec` describes an instance of
 
 ## Functions
 
+[`add_self_loops(...)`](./tfgnn/add_self_loops.md): Adds self-loops for edge
+with name `edge_set_name` EVEN if already exist.
+
 [`assert_constraints(...)`](./tfgnn/assert_constraints.md): Validate the shape constaints of a graph's features at runtime.
 
 [`assert_satisfies_size_constraints(...)`](./tfgnn/assert_satisfies_size_constraints.md): Raises InvalidArgumentError if graph_tensor exceeds size_constraints.
@@ -108,7 +111,13 @@ Raises ValueError unless there is exactly one node set and edge set.
 
 [`graph_tensor_to_values(...)`](./tfgnn/graph_tensor_to_values.md): Convert an eager `GraphTensor` to a mapping of mappings of PODTs.
 
+[`homogeneous(...)`](./tfgnn/homogeneous.md): Constructs a homogeneous
+`GraphTensor` with node features and one edge_set.
+
 [`is_graph_tensor(...)`](./tfgnn/is_graph_tensor.md): Returns whether `value` is a GraphTensor (possibly wrapped for Keras).
+
+[`is_ragged_tensor(...)`](./tfgnn/is_ragged_tensor.md): Returns whether a tensor
+(TF or Keras) is a RaggedTensor.
 
 [`iter_features(...)`](./tfgnn/iter_features.md): Utility function to iterate over the features of a graph schema.
 
@@ -243,11 +252,10 @@ TARGET_NAME<a id="TARGET_NAME"></a>
 </td>
 </tr><tr>
 <td>
-__version__<a id="__version__"></a>
+**version**<a id="__version__"></a>
 </td>
 <td>
-`'0.2.0.dev1'`
+`'0.3.0.dev1'`
 </td>
 </tr>
 </table>
-

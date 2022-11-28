@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L436-L486">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L579-L629">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Gathers feature value from the first node of each graph component.
 
@@ -54,21 +52,21 @@ or `feature_name` must be specified.
 
 <tr>
 <td>
-`graph_tensor`
+`graph_tensor`<a id="graph_tensor"></a>
 </td>
 <td>
 A scalar GraphTensor.
 </td>
 </tr><tr>
 <td>
-`node_set_name`
+`node_set_name`<a id="node_set_name"></a>
 </td>
 <td>
 A seed node set name.
 </td>
 </tr><tr>
 <td>
-`feature_value`
+`feature_value`<a id="feature_value"></a>
 </td>
 <td>
 A ragged or dense node feature value. Has a shape
@@ -78,15 +76,13 @@ feature value for each node.
 </td>
 </tr><tr>
 <td>
-`feature_name`
+`feature_name`<a id="feature_name"></a>
 </td>
 <td>
 A node feature name.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

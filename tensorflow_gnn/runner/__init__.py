@@ -28,9 +28,10 @@ from tensorflow_gnn.runner.utils import padding as padding_utils
 from tensorflow_gnn.runner.utils import strategies
 
 # Input
+PassthruDatasetProvider = datasets.PassthruDatasetProvider
+PassthruSampleDatasetsProvider = datasets.PassthruSampleDatasetsProvider
 SimpleDatasetProvider = datasets.SimpleDatasetProvider
 SimpleSampleDatasetsProvider = datasets.SimpleSampleDatasetsProvider
-
 SampleTFRecordDatasetsProvider = datasets.SampleTFRecordDatasetsProvider
 TFRecordDatasetProvider = datasets.TFRecordDatasetProvider
 
@@ -88,6 +89,7 @@ RootNodeMeanSquaredLogScaledError = regression.RootNodeMeanSquaredLogScaledError
 # Training
 KerasTrainer = keras_fit.KerasTrainer
 KerasTrainerOptions = keras_fit.KerasTrainerOptions
+KerasTrainerCheckpointOptions = keras_fit.KerasTrainerCheckpointOptions
 
 # Model templates
 ModelFromInitAndUpdates = model_templates.ModelFromInitAndUpdates

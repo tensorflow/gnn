@@ -113,6 +113,7 @@ SizeConstraints = preprocessing_common.SizeConstraints
 
 # General preprocessing helpers.
 dataset_filter_with_summary = preprocessing_common.dataset_filter_with_summary
+dataset_from_generator = batching_utils.dataset_from_generator
 
 # I/O functions (input parsing).
 parse_example = graph_tensor_io.parse_example
@@ -141,6 +142,7 @@ graph_tensor_to_values = graph_tensor_pprint.graph_tensor_to_values
 random_graph_tensor = graph_tensor_random.random_graph_tensor
 
 # Operations.
+mask_edges = graph_tensor_ops.mask_edges
 add_self_loops = graph_tensor_ops.add_self_loops
 broadcast_node_to_edges = graph_tensor_ops.broadcast_node_to_edges
 is_graph_tensor = graph_tensor_ops.is_graph_tensor
@@ -155,8 +157,10 @@ gather_first_node = graph_tensor_ops.gather_first_node
 get_registered_reduce_operation_names = (
     graph_tensor_ops.get_registered_reduce_operation_names)
 register_reduce_operation = graph_tensor_ops.register_reduce_operation
-shuffle_scalar_components = graph_tensor_ops.shuffle_scalar_components
+shuffle_features_globally = graph_tensor_ops.shuffle_features_globally
 combine_values = graph_tensor_ops.combine_values
+reorder_nodes = graph_tensor_ops.reorder_nodes
+shuffle_nodes = graph_tensor_ops.shuffle_nodes
 
 # Normalization operations.
 softmax = normalization_ops.softmax

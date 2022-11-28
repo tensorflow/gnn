@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_utils.py#L41-L50">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_utils.py#L55-L64">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Write a `GraphSchema` to a text-formatted proto file.
 
@@ -36,19 +34,18 @@ Write a `GraphSchema` to a text-formatted proto file.
 
 <tr>
 <td>
-`schema`
+`schema`<a id="schema"></a>
 </td>
 <td>
 A `GraphSchema` instance to write out.
 </td>
 </tr><tr>
 <td>
-`filename`
+`filename`<a id="filename"></a>
 </td>
 <td>
-A string, the path to a file to render a text-formatted
-rendition of the `GraphSchema` message to.
+A string, the path to a file to render a text-formatted rendition
+of the `GraphSchema` message to.
 </td>
 </tr>
 </table>
-

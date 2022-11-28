@@ -6,14 +6,12 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_utils.py#L14-L24">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_utils.py#L28-L38">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
-
-
 
 Parse a schema from text-formatted protos.
 
@@ -35,16 +33,14 @@ Parse a schema from text-formatted protos.
 
 <tr>
 <td>
-`schema_text`
+`schema_text`<a id="schema_text"></a>
 </td>
 <td>
-A string containing a text-formatted protocol buffer
-rendition of a `GraphSchema` message.
+A string containing a text-formatted protocol buffer rendition
+of a `GraphSchema` message.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

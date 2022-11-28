@@ -70,30 +70,30 @@ graph = tfgnn.GraphTensor.from_pieces(
        "cites": tfgnn.EdgeSet.from_fields(
            sizes=tf.constant([3]),
            adjacency=tfgnn.Adjacency.from_indices(
-               source=("paper", [1, 2, 2]),
-               target=("paper", [0, 0, 1]))),
+               source=("paper", tf.constant([1, 2, 2])),
+               target=("paper", tf.constant([0, 0, 1])))),
        "writes": tfgnn.EdgeSet.from_fields(
            sizes=tf.constant([7]),
            adjacency=tfgnn.Adjacency.from_indices(
-               source=("author", [0, 0, 1, 1, 2, 2, 3]),
-               target=("paper",  [0, 1, 0, 1, 1, 2, 2])))})
+               source=("author", tf.constant([0, 0, 1, 1, 2, 2, 3])),
+               target=("paper",  tf.constant([0, 1, 0, 1, 1, 2, 2]))))})
 ```
 
-The node sets are simply containers of features, plus size information.
-(We'll see later why the size is stored as a vector `[n]` and not a scalar `n`.)
-Within each node set, the nodes are indexed 0,1, ..., <i>n</i>–1. All nodes
-in a node set have the same features, identified by a string key, and each
-feature is stored as one tensor for the whole node set with shape `[n, ...]`.
-The first dimension is the item dimension, its size is the number <i>n</i>
-of nodes. The remaining zero or more dimensions make up the feature shape,
-that is, the shape of the feature value for each node. If the feature is stored
-as a `tf.Tensor`, all feature values have the same shape. GraphTensor also
-supports storing the feature as a `tf.RaggedTensor`, which allows for
-variable-size feature values. This support for an arbitrary number of features,
-ragged or dense, makes GraphTensor a good fit
-for both input features (often more than one, possibly variable-length)
-and hidden states in a GNN (stored as a single feature under the name
-`tfgnn.HIDDEN_STATE = "hidden_state"`).
+The node sets are simply containers of features, plus size information. (We'll
+see later why the size is stored as a vector `[n]` and not a scalar `n`.) Within
+each node set, the nodes are indexed 0,1, ..., <i>n</i>–1. All nodes in a node
+set have the same features, identified by a string key, and each feature is
+stored as one tensor for the whole node set with shape `[n, ...]`. The first
+dimension is the item dimension, its size is the number <i>n</i> of nodes. The
+remaining zero or more dimensions make up the feature shape, that is, the shape
+of the feature value for each node. If the feature is stored as a `tf.Tensor`,
+all feature values have the same shape. GraphTensor also supports storing the
+feature as a `tf.RaggedTensor`, which allows for variable-size feature values,
+as can been seen from the `"tokenized_title"` feature. This support for an
+arbitrary number of features, ragged or dense, makes GraphTensor a good fit for
+both input features (often more than one, possibly variable-length) and hidden
+states in a GNN (stored as a single feature under the name `tfgnn.HIDDEN_STATE =
+"hidden_state"`).
 
 Each edge set contains edges that connect a particular pair of source and target
 node sets. (There can be more than one edge set between the same pair of node
