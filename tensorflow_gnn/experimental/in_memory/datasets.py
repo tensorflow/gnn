@@ -97,6 +97,7 @@ graph_tensor = graph_data.as_graph_tensor()
 ```
 """
 import copy
+import functools
 import os
 import pickle
 import sys
@@ -110,6 +111,7 @@ import ogb.nodeproppred
 import scipy
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
+from tensorflow_gnn.experimental.in_memory import reader_utils
 
 
 class InMemoryGraphData:
@@ -319,6 +321,34 @@ class NodeClassificationGraphData(InMemoryGraphData):
     modified = copy.copy(self)
     modified._use_labels_as_features = use_labels_as_features  # pylint: disable=protected-access -- same class.
     return modified
+
+  def as_dataset(self, pop_labels_from_graph: bool = True) -> tf.data.Dataset:
+    """Returns dataset with elements (`GraphTensor`, labels) of entire graph.
+
+    If `pop_labels_from_graph == True` (default), then dataset yields:
+      (`GraphTensor`, labels), and no labels will be present in GraphTensor.
+
+    If `pop_labels_from_graph == False`, then dataset yields:
+      `GraphTensor` with labels being part of it. Passing
+      `pop_labels_from_graph=False` then `.map(pop_labels_from_graph)`, is
+      equivalent to calling with `pop_labels_from_graph=True`.
+
+    Args:
+      pop_labels_from_graph: If set (default), records in the datasets are a
+        tuple `(GraphTensor, tf.Tensor)` where first contains *no* label feature
+        on nodes, and the second is the label matrix of seed nodes. If unset,
+        then records are `GraphTensor` with NodeSet `graph_data.labeled_nodeset`
+        having additional feature named "labels" (see `graph_data.labels()`).
+    """
+    graph_data = self.with_labels_as_features(True)
+    dataset = tf.data.Dataset.from_tensors(graph_data.as_graph_tensor())
+
+    if pop_labels_from_graph:
+      num_classes = graph_data.num_classes()
+      dataset = dataset.map(
+          functools.partial(reader_utils.pop_labels_from_graph, num_classes))
+
+    return dataset
 
   @property
   def splits(self) -> List[str]:
