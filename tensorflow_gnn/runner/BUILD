@@ -1,4 +1,5 @@
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_library")
+load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "py_strict_test")
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "distribute_py_test")
 
 licenses(["notice"])
@@ -38,10 +39,9 @@ pytype_strict_library(
 )
 
 distribute_py_test(
-    name = "orchestration_test",
+    name = "distribute_test",
     size = "medium",
-    srcs = ["orchestration_test.py"],
-    python_version = "PY3",
+    srcs = ["distribute_test.py"],
     shard_count = 4,
     tags = [
         "no_oss",  # TODO(b/238827505)
@@ -50,6 +50,23 @@ distribute_py_test(
     xla_enable_strict_auto_jit = False,
     deps = [
         ":orchestration",
+        "//third_party/py/immutabledict",
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+        "//tensorflow_gnn/models/vanilla_mpnn",
+        "//tensorflow_gnn/runner/tasks:classification",
+        "//tensorflow_gnn/runner/trainers:keras_fit",
+        "//tensorflow_gnn/runner/utils:model_templates",
+        "//tensorflow_gnn/runner/utils:padding",
+    ],
+)
+
+py_strict_test(
+    name = "orchestration_test",
+    srcs = ["orchestration_test.py"],
+    deps = [
+        ":orchestration",
+        "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
         "//tensorflow_gnn/models/vanilla_mpnn",

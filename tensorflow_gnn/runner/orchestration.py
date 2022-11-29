@@ -19,7 +19,7 @@ import functools
 import itertools
 import os
 import sys
-from typing import Callable, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -267,12 +267,39 @@ class Trainer(Protocol):
 
 def make_parsing_model(gtspec: GraphTensorSpec) -> tf.keras.Model:
   """Builds a `tf.keras.Model` that parses GraphTensors."""
-  examples = tf.keras.layers.Input(
+  examples = tf.keras.Input(
       shape=(),
       dtype=tf.string,
       name="examples")  # Name seen in SignatureDef.
   parsed = tfgnn.keras.layers.ParseExample(gtspec)(examples)
   return tf.keras.Model(examples, parsed)
+
+
+def maybe_parse(gtspec: GraphTensorSpec) -> Callable[[Any], GraphTensor]:
+  """Returns a callable to parse (or assert the spec of) dataset elements."""
+  parse_example = tfgnn.keras.layers.ParseExample(gtspec)
+  # Relax the spec for potential comparisons.
+  relaxed = gtspec.relax(num_components=True, num_nodes=True, num_edges=True)
+  def fn(element):
+    # Use `getattr` to account for types without a `dtype` (e.g. `GraphTensor`).
+    if getattr(element, "dtype", None) == tf.string:
+      gt = parse_example(element)
+    elif not tfgnn.is_graph_tensor(element):
+      raise ValueError(f"Expected `GraphTensor` (got {element})")
+    else:
+      # Access protected member `_unbatch` to avoid any potential
+      # `merge_batch_to_components` work.
+      actual = element.spec._unbatch().relax(  # pylint: disable=protected-access
+          num_components=True,
+          num_nodes=True,
+          num_edges=True)
+      if actual != relaxed:
+        raise ValueError(
+            f"Expected a `GraphTensor` of spec {relaxed} (got {actual})")
+      else:
+        gt = element
+    return gt
+  return fn
 
 
 def make_preprocessing_model(
@@ -295,7 +322,7 @@ def make_preprocessing_model(
     outputs are (`GraphTensor`, `tfgnn.Field`, `tfgnn.Field`) as model
     input, label and mask (respectively).
   """
-  gt = tf.keras.layers.Input(type_spec=gtspec)
+  gt = tf.keras.Input(type_spec=gtspec)
   x = gt.merge_batch_to_components()
 
   if size_constraints is not None:
@@ -365,8 +392,11 @@ def run(*,
     optimizer_fn: Returns a `tf.keras.optimizers.Optimizer` for use in training.
     trainer: A `Trainer.`
     task: A `Task.`
-    gtspec: A `GraphTensorSpec` for parsing the GraphTensors in the
-      `train` and `valid` datasets.
+    gtspec: A `GraphTensorSpec` matching the elements of `train` and `valid`
+      datasets. If `train` or `valid` contain `tf.string` elements, this
+      `GraphTensorSpec` is used for parsing; otherwise, `train` or `valid` are
+      expected to contain `GraphTensor` elements whose relaxed spec matches
+      `gtspec.`
     global_batch_size: The `tf.data.Dataset` global batch size for both training
       and validation.
     epochs: The epochs to train.
@@ -404,7 +434,6 @@ def run(*,
   if not validate and valid_padding is not None:
     raise ValueError("`valid_padding` specified without a validation dataset")
 
-  parsing_model = make_parsing_model(gtspec)
   preprocess_model = make_preprocessing_model(
       gtspec,
       feature_processors or (),
@@ -414,7 +443,7 @@ def run(*,
                *,
                filter_fn: Optional[Callable[..., bool]] = None,
                size_constraints: Optional[SizeConstraints] = None):
-    ds = _map_over_dataset(ds, parsing_model)
+    ds = _map_over_dataset(ds, maybe_parse(gtspec))
     if filter_fn is not None:
       ds = ds.filter(filter_fn)
     if size_constraints is not None:
@@ -491,7 +520,7 @@ def run(*,
     model_exporters = [model_export.KerasModelExporter()]
 
   parsing_and_preprocess_model = model_utils.chain_first_output(
-      parsing_model,
+      make_parsing_model(gtspec),
       preprocess_model, first_output_only=False)
 
   for export_dir in export_dirs or [os.path.join(trainer.model_dir, "export")]:
