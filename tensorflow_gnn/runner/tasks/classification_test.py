@@ -112,26 +112,52 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
       dict(
           testcase_name="GraphBinaryClassification",
           schema=SCHEMA,
-          task=classification.GraphBinaryClassification(node_set_name="nodes")),
+          task=classification.GraphBinaryClassification(node_set_name="nodes"),
+          batch_size=1),
       dict(
           testcase_name="GraphMulticlassClassification",
           schema=SCHEMA,
           task=classification.GraphMulticlassClassification(
-              num_classes=4, node_set_name="nodes")),
+              num_classes=4, node_set_name="nodes"),
+          batch_size=1),
       dict(
           testcase_name="RootNodeBinaryClassification",
           schema=SCHEMA,
           task=classification.RootNodeBinaryClassification(
-              node_set_name="nodes")),
+              node_set_name="nodes"),
+          batch_size=1),
       dict(
           testcase_name="RootNodeMulticlassClassification",
           schema=SCHEMA,
           task=classification.RootNodeMulticlassClassification(
-              num_classes=3, node_set_name="nodes")),
+              num_classes=3, node_set_name="nodes"),
+          batch_size=1),
+      dict(
+          testcase_name="GraphBinaryClassificationBatchSize2",
+          schema=SCHEMA,
+          task=classification.GraphBinaryClassification(node_set_name="nodes"),
+          batch_size=2),
+      dict(
+          testcase_name="GraphMulticlassClassificationBatchSize2",
+          schema=SCHEMA,
+          task=classification.GraphMulticlassClassification(
+              num_classes=4, node_set_name="nodes"),
+          batch_size=2),
+      dict(
+          testcase_name="RootNodeBinaryClassificationBatchSize2",
+          schema=SCHEMA,
+          task=classification.RootNodeBinaryClassification(
+              node_set_name="nodes"),
+          batch_size=2),
+      dict(
+          testcase_name="RootNodeMulticlassClassificationBatchSize2",
+          schema=SCHEMA,
+          task=classification.RootNodeMulticlassClassification(
+              num_classes=3, node_set_name="nodes"),
+          batch_size=2),
   ])
-  def test_fit(self,
-               schema: str,
-               task: classification._Classification):
+  def test_fit(self, schema: str, task: classification._Classification,
+               batch_size: int):
     gtspec = tfgnn.create_graph_spec_from_schema_pb(tfgnn.parse_schema(schema))
     inputs = tf.keras.layers.Input(type_spec=gtspec)
     hidden_state = inputs.node_sets["nodes"][tfgnn.HIDDEN_STATE]
@@ -143,7 +169,10 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
     model = task.adapt(model)
 
     examples = tf.data.Dataset.from_tensors(tfgnn.random_graph_tensor(gtspec))
-    labels = tf.data.Dataset.from_tensors([1.])
+    # In the batched case, prepare exactly 1 batch by copying the graph tensor.
+    examples = examples.repeat(batch_size).batch(batch_size).map(
+        tfgnn.GraphTensor.merge_batch_to_components)
+    labels = tf.data.Dataset.from_tensors([1.] * batch_size)
 
     dataset = tf.data.Dataset.zip((examples.repeat(2), labels.repeat(2)))
 
@@ -205,7 +234,6 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
         ValueError,
         r"Exactly one of `num_classes` or `class_names` must be specified"):
       classification.GraphMulticlassClassification(node_set_name="nodes")
-
 
 if __name__ == "__main__":
   tf.test.main()

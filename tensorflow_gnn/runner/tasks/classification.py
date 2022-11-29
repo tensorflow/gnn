@@ -116,7 +116,7 @@ class _Classification(abc.ABC):
     logits = tf.keras.layers.Dense(
         self._units,
         name="logits")(activations)  # Name seen in SignatureDef.
-    return tf.keras.Model(model.inputs, logits)
+    return tf.keras.Model(model.input, logits)
 
   @abc.abstractmethod
   def preprocess(self, gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
@@ -229,11 +229,11 @@ class _GraphClassification(_Classification):
     self._reduce_type = reduce_type
 
   def gather_activations(self, gt: tfgnn.GraphTensor) ->  Tensor:
-    return tfgnn.pool_nodes_to_context(
-        gt,
-        self._node_set_name,
+    return tfgnn.keras.layers.Pool(
+        tfgnn.CONTEXT,
         self._reduce_type,
-        feature_name=self._state_name)
+        node_set_name=self._node_set_name,
+        feature_name=self._state_name)(gt)
 
 
 class _RootNodeClassification(_Classification):

@@ -52,7 +52,7 @@ class _Regression(abc.ABC):
     logits = tf.keras.layers.Dense(
         self._units,
         name="logits")(activations)  # Name seen in SignatureDef.
-    return tf.keras.Model(model.inputs, logits)
+    return tf.keras.Model(model.input, logits)
 
   def preprocess(self, gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
     return gt
