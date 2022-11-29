@@ -84,17 +84,18 @@ of this document.
 ## The Toolkit (and its Building Blocks)
 
 Running (an all inclusive term for everything from data reading to training,
-validation and export) is orchestrated by four abstractions, implemented as
-Python [protocols](https://peps.python.org/pep-0544/): The `DatasetProvider`,
-`Task`, `Trainer` and `GraphTensorProcessorFn`. Collaborators may extend and
-enrich the runner with a Python `object` that matches the static duck typing of
-the corresponding protocol. Each abstraction is introduced and explained below.
+validation and export) is orchestrated by four abstractions: the
+`DatasetProvider`, `Task`, `Trainer` and `GraphTensorProcessorFn`. The runner
+provides instances for common cases (e.g., the `TFRecordDatasetProvider`, the
+`NodeClassification` task, the `KerasTrainer`), but collaborators are free to
+defne their own. Each abstraction is introduced and explained below.
 
 ### Data Reading
 
 ```python
-class DatasetProvider(Protocol):
+class DatasetProvider(abc.ABC):
 
+  @abc.abstractmethod
   def get_dataset(self, context: tf.distribute.InputContext) -> tf.data.Dataset:
     raise NotImplementedError()
 ```
@@ -125,17 +126,21 @@ graph persistence formats.
 ### Graph Task Adaptation, Preprocessing and Objectives
 
 ```python
-class Task(Protocol):
+class Task(abc.ABC):
 
+  @abc.abstractmethod
   def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
     raise NotImplementedError()
 
+  @abc.abstractmethod
   def preprocessors(self) -> Sequence[Callable[..., tf.data.Dataset]]:
     raise NotImplementedError()
 
+  @abc.abstractmethod
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     raise NotImplementedError()
 
+  @abc.abstractmethod
   def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     raise NotImplementedError()
 ```
@@ -166,8 +171,8 @@ provided:
 *   `RootNodeMulticlassClassification`.
 
 Collaborators may contribute new graph learning objectives with a Python
-`object` that implements the `Task` protocol. For example, an imagined
-`RadiaInfomax` that:
+`object` that subclasses `Task` and implements its abstract methods. For
+example, an imagined `RadiaInfomax` that:
 
 *   For a dataset,
 
@@ -183,7 +188,7 @@ Collaborators may contribute new graph learning objectives with a Python
     *   Uses cosine similarity.
 
 ```python
-class RadiaInfomax:
+class RadiaInfomax(runner.Task):
 
   def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
     tfgnn.check_scalar_graph_tensor(model.output, name="RadiaInfomax")
@@ -212,16 +217,19 @@ class RadiaInfomax:
 ### Training
 
 ```python
-class Trainer(Protocol):
+class Trainer(abc.ABC):
 
   @property
+  @abc.abstractmethod
   def model_dir(self) -> str:
     raise NotImplementedError()
 
   @property
+  @abc.abstractmethod
   def strategy(self) -> tf.distribute.Strategy:
     raise NotImplementedError()
 
+  @abc.abstractmethod
   def train(
       self,
       model_fn: Callable[[], tf.keras.Model],
@@ -241,9 +249,9 @@ performing validation more than once per epoch):
 
 *   `KerasFit`.
 
-Collaborators may contribute new training and validation loops with Python
-object that implements the `Trainer` protocol. For example, a custom training
-loop with look ahead gradients.
+Collaborators may contribute new training and validation loops with a Python
+object that subclasses `Trainer` and implements its abstract methods. For
+example, a custom training loop with look ahead gradients.
 
 ### GraphTensor Processing
 
@@ -254,15 +262,19 @@ class GraphTensorProcessorFn(Protocol):
     raise NotImplementedError()
 ```
 
+Any Python callable of such signature&mdash;`GraphTensor` ->
+`Union[tfgnn.GraphTensor, Tuple[tfgnn.GraphTensor, tfgnn.Field]]`&mdash;is
+valid.
+
 A `GraphTensorProcessorFn` performs feature processing on the `GraphTensor` of a
 dataset. Importantly: all `GraphTensorProcessorFn` are applied in a
 `tf.data.Dataset.map` call (and correspondingly executed on CPU). All
 `GraphTensorProcessorFn` are collected in a `tf.keras.Model` specifically for
 feature processing. The final model exported by [orchestration](#orchestration)
 will contain both the feature processing model and the client GNN. Any
-`GraphTensorProcessorFn` may return processed a `GraphTensor` or processed a
-`GraphTensor` *and* `Field` (e.g., a label extracted from the `GraphTensor`
-context).
+`GraphTensorProcessorFn` may return a processed `GraphTensor` or a processed
+`GraphTensor` *and* `Field` (e.g., where the field is used as a supervision
+target).
 
 TIP: A `tf.keras.Model` or `tf.keras.layers.Layer`, whose inputs and outputs are
 scalar `GraphTensor`, matches the `GraphTensorProcessorFn` protocol (and may be
@@ -303,7 +315,8 @@ The `model_fn` is expected to take a `tfgnn.GraphTensorSpec` and return a
 `export_dirs` are locations for a trained and saved model and any
 `feature_processors` are applied in sequence order. All other arguments may be
 supplied with out of the box or custom implementations of the respective
-protocol. An example `model_fn` built using the *TF-GNN* Keras API:
+protocol or base class. An example `model_fn` built using the *TF-GNN* Keras
+API:
 
 ```python
 def model_fn(gtspec: tfgnn.GraphTensorSpec):

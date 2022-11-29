@@ -13,10 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for padding."""
-from absl.testing import parameterized
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
-from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.utils import padding
 
 SCHEMA = """
@@ -47,19 +45,6 @@ class PaddingTest(tf.test.TestCase):
     self.assertCountEqual(a.keys(), b.keys())
     for k, v in a.items():
       self.assertAllEqual(v, b[k])
-
-  @parameterized.named_parameters([
-      dict(
-          testcase_name="FitOrSkipPadding",
-          klass=padding.FitOrSkipPadding,
-      ),
-      dict(
-          testcase_name="TightPadding",
-          klass=padding.TightPadding,
-      ),
-  ])
-  def test_protocol_matches_type(self, klass: object):
-    self.assertIsInstance(klass, orchestration.GraphTensorPadding)
 
   def test_parse_dataset(self):
     schema = tfgnn.parse_schema(SCHEMA)

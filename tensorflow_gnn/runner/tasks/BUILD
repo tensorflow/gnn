@@ -11,6 +11,7 @@ pytype_strict_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//tensorflow_gnn/runner:orchestration",
     ],
 )
 
@@ -21,8 +22,8 @@ py_strict_test(
     deps = [
         ":classification",
         "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-        "//tensorflow_gnn/runner:orchestration",
     ],
 )
 
@@ -34,6 +35,7 @@ pytype_strict_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//tensorflow_gnn/runner:orchestration",
     ],
 )
 
@@ -45,7 +47,6 @@ py_strict_test(
         ":dgi",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-        "//tensorflow_gnn/runner:orchestration",
     ],
 )
 
@@ -57,6 +58,7 @@ pytype_strict_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//tensorflow_gnn/runner:orchestration",
     ],
 )
 
@@ -69,6 +71,5 @@ py_strict_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-        "//tensorflow_gnn/runner:orchestration",
     ],
 )

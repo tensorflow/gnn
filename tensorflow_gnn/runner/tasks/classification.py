@@ -18,6 +18,7 @@ from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
+from tensorflow_gnn.runner import orchestration
 
 Tensor = Union[tf.Tensor, tf.RaggedTensor]
 
@@ -86,7 +87,7 @@ class PerClassRecall(_PerClassMetricMixIn, tf.keras.metrics.Recall):
   pass
 
 
-class _Classification(abc.ABC):
+class _Classification(orchestration.Task):
   """Abstract classification class.
 
   Any subclass must implement all of `gather_activations`, `losses` and

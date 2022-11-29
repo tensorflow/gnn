@@ -13,7 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """The runner entry point."""
-from collections import abc
+import abc
+import collections
 import dataclasses
 import functools
 import itertools
@@ -68,15 +69,15 @@ class TFDataServiceConfig:
   tf_data_service_mode: Union[str, tf.data.experimental.service.ShardingPolicy]
 
 
-@runtime_checkable
-class DatasetProvider(Protocol):
+class DatasetProvider(abc.ABC):
 
+  @abc.abstractmethod
   def get_dataset(self, context: tf.distribute.InputContext) -> tf.data.Dataset:
     """Get a `tf.data.Dataset` by `context` per replica."""
     raise NotImplementedError()
 
 
-class _WrappedDatasetProvider:
+class _WrappedDatasetProvider(DatasetProvider):
   """Wraps a `DatasetProvider` with batching and processing."""
 
   def __init__(self,
@@ -85,6 +86,7 @@ class _WrappedDatasetProvider:
                drop_remainder: bool,
                global_batch_size: int,
                tf_data_service_config: Optional[TFDataServiceConfig] = None):
+    super().__init__()
     self._apply_fn = apply_fn
     self._delegate = delegate
     self._drop_remainder = drop_remainder
@@ -118,18 +120,17 @@ class _WrappedDatasetProvider:
     return ds.apply(self._apply_fn)
 
 
-@runtime_checkable
-class GraphTensorPadding(Protocol):
+class GraphTensorPadding(abc.ABC):
   """Collects `GraphtTensor` padding helpers."""
 
+  @abc.abstractmethod
   def get_filter_fn(
       self,
       size_constraints: SizeConstraints) -> Callable[..., bool]:
-    """"""
     raise NotImplementedError()
 
+  @abc.abstractmethod
   def get_size_constraints(self, target_batch_size: int) -> SizeConstraints:
-    """"""
     raise NotImplementedError()
 
 
@@ -151,10 +152,10 @@ class GraphTensorProcessorFn(Protocol):
     raise NotImplementedError()
 
 
-@runtime_checkable
-class ModelExporter(Protocol):
+class ModelExporter(abc.ABC):
   """Saves a Keras model."""
 
+  @abc.abstractmethod
   def save(
       self,
       preprocess_model: Optional[tf.keras.Model],
@@ -173,8 +174,7 @@ class ModelExporter(Protocol):
     raise NotImplementedError()
 
 
-@runtime_checkable
-class Task(Protocol):
+class Task(abc.ABC):
   """Collects the ancillary, supporting pieces to train a Keras model.
 
   `Task`s are applied and used to compile a `tf.keras.Model` in the scope
@@ -207,37 +207,43 @@ class Task(Protocol):
   `losses.`)
   """
 
+  @abc.abstractmethod
   def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
     """Adapt a model to a task by appending arbitrary head(s)."""
     raise NotImplementedError()
 
+  @abc.abstractmethod
   def preprocess(
       self,
       gt: GraphTensor) -> Union[GraphTensor, GraphTensorAndField]:
     """Preprocess a scalar (after `merge_batch_to_components`) `GraphTensor`."""
     raise NotImplementedError()
 
+  @abc.abstractmethod
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     """Arbitrary losses matching any head(s)."""
     raise NotImplementedError()
 
+  @abc.abstractmethod
   def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     """Arbitrary task specific metrics."""
     raise NotImplementedError()
 
 
-@runtime_checkable
-class Trainer(Protocol):
+class Trainer(abc.ABC):
   """A class for training and validation."""
 
   @property
+  @abc.abstractmethod
   def model_dir(self) -> str:
     raise NotImplementedError()
 
   @property
+  @abc.abstractmethod
   def strategy(self) -> tf.distribute.Strategy:
     raise NotImplementedError()
 
+  @abc.abstractmethod
   def train(
       self,
       model_fn: Callable[[], tf.keras.Model],
@@ -336,7 +342,7 @@ def make_preprocessing_model(
   for fn in itertools.chain(preprocessors, (task_preprocessor,)):
     output = fn(x)
 
-    if isinstance(output, abc.Sequence):
+    if isinstance(output, collections.abc.Sequence):
       x, *ys = output
       if len(ys) == 1:
         yy = ys[0]
@@ -498,7 +504,7 @@ def run(*,
         global_batch_size)
 
   def adapted_model_fn():
-    if isinstance(preprocess_model.output, abc.Sequence):
+    if isinstance(preprocess_model.output, collections.abc.Sequence):
       x, *_ = preprocess_model.output
     else:
       x = preprocess_model.output

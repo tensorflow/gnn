@@ -41,7 +41,6 @@ incrementing_model_dir = model_dir.incrementing_model_dir
 # Model export
 IntegratedGradientsExporter = attribution.IntegratedGradientsExporter
 KerasModelExporter = model_export.KerasModelExporter
-ModelExporter = orchestration.ModelExporter
 SubmoduleExporter = model_export.SubmoduleExporter
 
 # Model helpers
@@ -49,13 +48,15 @@ chain_first_output = model_utils.chain_first_output
 
 # Orchestration
 DatasetProvider = orchestration.DatasetProvider
-GraphTensorProcessorFn = orchestration.GraphTensorProcessorFn
+ModelExporter = orchestration.ModelExporter
 run = orchestration.run
 Trainer = orchestration.Trainer
 Task = orchestration.Task
 TFDataServiceConfig = orchestration.TFDataServiceConfig
 
 # Padding
+GraphTensorPadding = orchestration.GraphTensorPadding
+GraphTensorProcessorFn = orchestration.GraphTensorProcessorFn
 one_node_per_component = padding_utils.one_node_per_component
 FitOrSkipPadding = padding_utils.FitOrSkipPadding
 GraphTensorPadding = orchestration.GraphTensorPadding

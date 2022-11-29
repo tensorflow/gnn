@@ -16,6 +16,7 @@
 from typing import Callable, List, Optional, Sequence
 
 import tensorflow as tf
+from tensorflow_gnn.runner import orchestration
 
 
 def _process_dataset(
@@ -55,7 +56,7 @@ def _process_dataset(
   return dataset.prefetch(tf.data.AUTOTUNE)
 
 
-class PassthruDatasetProvider:
+class PassthruDatasetProvider(orchestration.DatasetProvider):
   """Builds a `tf.data.Dataset` from a pass thru dataset.
 
   Passes any `dataset` thru: omitting any sharding. For detailed documentation,
@@ -82,7 +83,7 @@ class PassthruDatasetProvider:
         examples_shuffle_size=self._examples_shuffle_size)
 
 
-class SimpleDatasetProvider:
+class SimpleDatasetProvider(orchestration.DatasetProvider):
   """Builds a `tf.data.Dataset` from a file pattern.
 
   This `SimpleDatasetProvider` builds a `tf.data.Dataset` as follows:
@@ -207,7 +208,7 @@ def _process_sampled_dataset(
   return sampled_dataset.prefetch(tf.data.AUTOTUNE)
 
 
-class PassthruSampleDatasetsProvider:
+class PassthruSampleDatasetsProvider(orchestration.DatasetProvider):
   """Builds a sampled `tf.data.Dataset` from multiple pass thru datasets.
 
   Passes any `principal_dataset` and `extra_datasets` thru: omitting any
@@ -254,7 +255,7 @@ class PassthruSampleDatasetsProvider:
         examples_shuffle_size=self._examples_shuffle_size)
 
 
-class SimpleSampleDatasetsProvider:
+class SimpleSampleDatasetsProvider(orchestration.DatasetProvider):
   """Builds a sampling `tf.data.Dataset` from a multiple file patterns.
 
   For complete explanations regarding sampling see `_process_sampled_dataset()`.

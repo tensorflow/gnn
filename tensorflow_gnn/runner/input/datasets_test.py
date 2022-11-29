@@ -17,7 +17,6 @@ from typing import Any, Optional, Sequence
 
 from absl.testing import parameterized
 import tensorflow as tf
-from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.input import datasets
 
 
@@ -202,19 +201,6 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
           fixed_cardinality=fixed_cardinality,
           principal_cardinality=principal_cardinality,
           interleave_fn=interleave_fn)
-
-  @parameterized.named_parameters([
-      dict(
-          testcase_name="TFRecordDatasetProvider",
-          klass=datasets.TFRecordDatasetProvider,
-      ),
-      dict(
-          testcase_name="SampleTFRecordDatasetsProvider",
-          klass=datasets.SampleTFRecordDatasetsProvider,
-      ),
-  ])
-  def test_protocol(self, klass: object):
-    self.assertIsInstance(klass, orchestration.DatasetProvider)
 
 
 if __name__ == "__main__":

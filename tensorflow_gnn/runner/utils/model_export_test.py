@@ -18,7 +18,6 @@ from typing import Any
 
 from absl.testing import parameterized
 import tensorflow as tf
-from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.utils import model_export
 
 
@@ -267,19 +266,6 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
     exporter = model_export.SubmoduleExporter(submodule_name)
     with self.assertRaisesRegex(ValueError, expected_error):
       exporter.save(None, model, self.create_tempdir())
-
-  @parameterized.named_parameters([
-      dict(
-          testcase_name="KerasModelExporter",
-          klass=model_export.KerasModelExporter,
-      ),
-      dict(
-          testcase_name="SubmoduleExporter",
-          klass=model_export.SubmoduleExporter,
-      ),
-  ])
-  def test_protocol(self, klass: object):
-    self.assertIsInstance(klass, orchestration.ModelExporter)
 
 
 if __name__ == "__main__":

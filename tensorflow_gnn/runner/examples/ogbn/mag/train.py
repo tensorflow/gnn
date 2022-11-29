@@ -147,7 +147,7 @@ def _is_in_split(split_name: str):
   return filter_fn
 
 
-class _SplitDatasetProvider:
+class _SplitDatasetProvider(runner.DatasetProvider):
   """Splits a `delegate` for OGBN-MAG.
 
   The OGBN-MAG datasets splits test/validation/train by paper year. This class

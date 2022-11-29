@@ -55,7 +55,7 @@ class KerasTrainerCheckpointOptions:
     return os.path.join(self.checkpoint_dir, self.latest_checkpoint)
 
 
-class KerasTrainer:
+class KerasTrainer(orchestration.Trainer):
   """Trains using the `tf.keras.Model.fit` training loop."""
 
   def __init__(

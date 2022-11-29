@@ -88,7 +88,6 @@ py_strict_test(
         ":attribution",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-        "//tensorflow_gnn/runner:orchestration",
     ],
 )
 
@@ -111,7 +110,6 @@ py_strict_test(
         ":model_export",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
-        "//tensorflow_gnn/runner:orchestration",
     ],
 )
 
@@ -121,8 +119,7 @@ pytype_strict_library(
     srcs_version = "PY3",
     deps = [
         ":padding",
-        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-        "//tensorflow_gnn/runner:orchestration",
     ],
 )
