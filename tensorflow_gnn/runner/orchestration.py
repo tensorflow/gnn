@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """The runner entry point."""
-import collections
+from collections import abc
 import dataclasses
 import functools
 import itertools
@@ -309,7 +309,7 @@ def make_preprocessing_model(
   for fn in itertools.chain(preprocessors, (task_preprocessor,)):
     output = fn(x)
 
-    if isinstance(output, collections.Sequence):
+    if isinstance(output, abc.Sequence):
       x, *ys = output
       if len(ys) == 1:
         yy = ys[0]
@@ -469,7 +469,7 @@ def run(*,
         global_batch_size)
 
   def adapted_model_fn():
-    if isinstance(preprocess_model.output, collections.Sequence):
+    if isinstance(preprocess_model.output, abc.Sequence):
       x, *_ = preprocess_model.output
     else:
       x = preprocess_model.output
