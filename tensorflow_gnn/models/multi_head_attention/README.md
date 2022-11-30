@@ -17,24 +17,17 @@ a component ([1]&[2]) or a baseline ([3]) of their method:
 *   [3] Shaked Brody, Uri Alon, Eran Yahav: ["How Attentive are Graph Attention
     Networks?"](https://arxiv.org/abs/2105.14491), 2021.
     (They discuss "DPGAT" as a baseline in the appendix, citing further uses.
-    Their main contribution "GATv2" is implemented elsewhere in TF-GNN.)
+    Their main contribution "GATv2" is implemented [elsewhere](../gat_v2)
+    in TF-GNN.)
 
-TensorFlow programs can import it as
+## Usage
 
-```python
-from tensorflow_gnn.models import multi_head_attention
-```
+TensorFlow programs can import and use this model as described in its
+[API docs](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/docs/api_docs/python/models/multi_head_attention.md).
 
-which provides the following components:
+## Maintenance and stability for open-source users
 
-*   `MultiHeadAttentionConv` and `MultiHeadAttentionEdgePool` for use with the
-    node or context updates of a `tfgnn.keras.layers.GraphUpdate`.
-*   `MultiHeadAttentionHomGraphUpdate` for one round of MultiHeadAttention on a
-    `GraphTensor` that stores a homogeneous graph.
-*   `MultiHeadAttentionMPNNGraphUpdate` for one round of message passing between
-    the nodes of a heterogeneous `GraphTensor`.
+This code is being maintained together with the TF-GNN library.
+However, its API may change between library versions.
 
-## Maintenance and stability
-
-This code is experimental for now, with no promises of maintenance or stability,
-and no assigned maintainer. Use at your own risk.
+<!-- PLACEHOLDER FOR README GOOGLE EXTRAS -->
