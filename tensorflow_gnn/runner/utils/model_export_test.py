@@ -108,28 +108,29 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
     exporter = model_export.KerasModelExporter(output_names=output_names)
     exporter.save(None, model, export_dir)
 
-    saved_model = tf.saved_model.load(export_dir)
+    for load_fn in (tf.keras.models.load_model, tf.saved_model.load):
+      saved_model = load_fn(export_dir)
 
-    if tf.nest.is_nested(model.input):
-      args = [tf.random.uniform([1] + i.shape[1:]) for i in model.input]
-      kwargs = {i.name: v for i, v in zip(model.input, args)}
-    else:  # Single input
-      args = tf.random.uniform([1] + model.input.shape[1:])
-      kwargs = {model.input.name: args}
+      if tf.nest.is_nested(model.input):
+        args = [tf.random.uniform([1, *i.shape[1:]]) for i in model.input]
+        kwargs = {i.name: v for i, v in zip(model.input, args)}
+      else:  # Single input
+        args = tf.random.uniform([1, *model.input.shape[1:]])
+        kwargs = {model.input.name: args}
 
-    model_output = model(args)
-    saved_model_outputs = saved_model.signatures["serving_default"](**kwargs)
+      model_output = model(args)
+      saved_model_outputs = saved_model.signatures["serving_default"](**kwargs)
 
-    if tf.nest.is_nested(model_output):
-      model_outputs = model_output
-    else:  # Single output
-      output_names = [output_names]
-      model_outputs = [model_output]
+      if tf.nest.is_nested(model_output):
+        zipped = zip(model_output, output_names)
+      else:  # Single output
+        zipped = zip([model_output], [output_names])
 
-    for output, name in zip(model_outputs, output_names):
-      self.assertAllClose(
-          output,
-          saved_model_outputs[name], msg=f"Testing {name}...")
+      for output, name in zipped:
+        self.assertAllClose(
+            output,
+            saved_model_outputs[name],
+            msg=f"Testing {load_fn.__name__} with output {name}")
 
   @parameterized.named_parameters([
       dict(
@@ -212,8 +213,7 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
     submodule = next(m for m in model.submodules if submodule_name == m.name)
 
     if subdirectory:
-      directory = os.path.join(export_dir, subdirectory)
-      saved_model = tf.saved_model.load(directory)
+      saved_model = tf.saved_model.load(os.path.join(export_dir, subdirectory))
     else:  # `export_dir` only
       saved_model = tf.saved_model.load(export_dir)
 
