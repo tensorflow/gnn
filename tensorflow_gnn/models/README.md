@@ -41,3 +41,5 @@ say so in their README files.
     model, based on (Gilmer&al., 2016).
   * [MultiHeadAttention](multi_head_attention/README.md): Transformer-style
     multi-head attention on graph (Dwivedi&Bresson, 2021)
+  * [GPT-GNN](gpt_gnn/README.md): Autoregressive graph generation task for
+    transfer learning, based on (Hu&al., 2020).
