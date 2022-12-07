@@ -379,18 +379,25 @@ class TypedWalkTree:
 
   def _get_edge_lists_recursive(
       self, edge_lists: MutableMapping[tfgnn.EdgeSetName, List[tf.Tensor]]):
+    """Recursively accumulates into `edge_lists` traversed edges."""
     for edge_set_name, child_tree in self._next_steps:
       fanout = child_tree.nodes.shape[-1]
       stacked = tf.stack(
           [tf.stack([self.nodes] * fanout, -1), child_tree.nodes], 0)
-      edge_lists[edge_set_name].append(tf.reshape(stacked, (2, -1)))
+
+      reshaped = tf.reshape(stacked, (2, -1))
+      valid_mask = tf.reshape(child_tree.valid_mask, (-1))
+      reshaped = tf.transpose(
+          tf.boolean_mask(tf.transpose(reshaped), valid_mask))
+
+      edge_lists[edge_set_name].append(reshaped)
       child_tree._get_edge_lists_recursive(edge_lists)  # Same class. pylint: disable=protected-access
 
   def as_graph_tensor(
       self,
       node_features_fn: Callable[
           [tfgnn.NodeSetName, tf.Tensor], Mapping[tfgnn.FieldName, tf.Tensor]],
-      static_sizes: bool = False,
+      static_sizes: bool = False
       ) -> tfgnn.GraphTensor:
     """Converts the randomly traversed walk tree into a `GraphTensor`.
 
@@ -400,10 +407,10 @@ class TypedWalkTree:
       node_features_fn: function accepts (node set name, node IDs). It should
         output dict of features: feature name -> feature matrix, where leading
         dimensions of feature matrix must equal to shape of input node IDs.
-      static_sizes: If set, then GraphTensor will always have same number
-        of nodes. Specifically, nodes can be repeated. If not set, then even if
-        random trees discover some node multiple times, then it would only
-        appear once in node features.
+      static_sizes: If set, then GraphTensor will always have same number of
+        nodes and edges. Specifically, nodes can be repeated. If not set, then
+        even if random trees discover some node multiple times, then it would
+        only appear once in node features.
 
     Returns:
       newly-constructed tfgnn.GraphTensor.
@@ -724,6 +731,7 @@ class GraphSampler:
       sampling_mode: Optional[EdgeSampling] = None,
       node_feature_gather_fn: Optional[
           Callable[[str, tf.Tensor], Mapping[str, tf.Tensor]]] = None,
+      static_sizes: bool = False,
       ) -> tfgnn.GraphTensor:
     """Samples GraphTensor starting from seed nodes `node_idx`.
 
@@ -739,6 +747,7 @@ class GraphSampler:
         a different random order), such that, all neighbors appears exactly the
         same number of times (+/- 1, if sample_size % neighbors != 0).
       node_feature_gather_fn: Forwarded to as_graph_tensor.
+      static_sizes: Forwarded to as_graph_tensor.
 
     Returns:
       `tfgnn.GraphTensor` containing subgraphs traversed as random trees rooted
@@ -747,7 +756,8 @@ class GraphSampler:
     walk_tree = self.sample_walk_tree(
         node_idx, sampling_spec=sampling_spec, sampling_mode=sampling_mode)
     return walk_tree.as_graph_tensor(
-        node_feature_gather_fn or self.gather_node_features_dict)
+        node_feature_gather_fn or self.gather_node_features_dict,
+        static_sizes=static_sizes)
 
   def gather_node_features_dict(self, node_set_name, node_idx):
     features = self.graph_data.node_features_dicts().get(node_set_name, {})
@@ -818,7 +828,8 @@ class NodeClassificationGraphSampler(GraphSampler):
       pop_labels_from_graph: bool = True,
       num_seed_nodes: int = 1,
       sampling_mode=EdgeSampling.WITH_REPLACEMENT,
-      repeat: Union[bool, int] = True, shuffle=True
+      repeat: Union[bool, int] = True, shuffle=True,
+      static_sizes: bool = False,
       ) -> tf.data.Dataset:
     """Returns dataset with elements (`GraphTensor`, labels), seeded at `split`.
 
@@ -846,6 +857,7 @@ class NodeClassificationGraphSampler(GraphSampler):
         then dataset will be repeated this many times. If False, dataset will
         not be repeated.
       shuffle: If set, the nodes will be shuffled.
+      static_sizes: Forwarded to sample_sub_graph.
     """
     graph_data = self.graph_data.with_labels_as_features(True)
     seed_nodes = self._get_seed_nodes()
@@ -868,7 +880,7 @@ class NodeClassificationGraphSampler(GraphSampler):
 
     dataset = dataset.map(functools.partial(
         self.sample_sub_graph, sampling_mode=sampling_mode,
-        sampling_spec=sampling_spec))
+        sampling_spec=sampling_spec, static_sizes=static_sizes))
 
     if pop_labels_from_graph:
       num_classes = graph_data.num_classes()

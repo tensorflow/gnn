@@ -244,5 +244,50 @@ class IntArithmeticSamplerTest(tf.test.TestCase, parameterized.TestCase):
       self.assertFalse(np.any(hop2.valid_mask[0, 2:]))   # ERROR
       self.assertFalse(np.any(hop2.valid_mask[1]))
 
+  def test_as_graph_tensor_on_orphan_nodes_graph(self):
+    strategy = ia_sampler.EdgeSampling.WITHOUT_REPLACEMENT
+    toy_dataset = ToyDataset()
+    sampler = ia_sampler.GraphSampler(toy_dataset, sampling_mode=strategy)
+    source_node_names = ['dog', 'unicorn']
+    source_node_ids = [toy_dataset.animal2id[name]
+                       for name in source_node_names]
+    source_node_ids = np.array(source_node_ids)
+    source_node_ids = tf.convert_to_tensor(source_node_ids)
+
+    toy_graph_schema = toy_dataset.graph_schema()
+
+    hop1_samples = hop2_samples = 10
+    spec = sampling_spec_builder.SamplingSpecBuilder(
+        toy_graph_schema,
+        default_strategy=sampling_spec_builder.SamplingStrategy.RANDOM_UNIFORM)
+    spec = (spec.seed('animals').sample(hop1_samples, 'eats')
+            .sample(hop2_samples, 'rev_eats').build())
+    walk_tree = sampler.sample_walk_tree(source_node_ids, spec)
+
+    def node_features_fn(node_set_name, node_ids) -> Mapping[str, tf.Tensor]:
+      del node_set_name
+      return {'myfeat': node_ids}
+
+    graph_tensor = walk_tree.as_graph_tensor(node_features_fn)
+
+    # Animals.
+    eats_src = graph_tensor.edge_sets['eats'].adjacency.source
+    eats_src = tf.gather(graph_tensor.node_sets['animals']['myfeat'], eats_src)
+
+    # Foods.
+    eats_tgt = graph_tensor.edge_sets['eats'].adjacency.target
+    eats_tgt = tf.gather(graph_tensor.node_sets['food']['myfeat'], eats_tgt)
+
+    def are_all_edges_valid(eats_src, eats_tgt):
+      eats_str_list = [toy_dataset.id2animal[i] for i in eats_src.numpy()]
+      food_str_list = [toy_dataset.id2food[i] for i in eats_tgt.numpy()]
+      for animal, food in zip(eats_str_list, food_str_list):
+        if food not in toy_dataset.eats[animal]:
+          return False
+      return True
+
+    self.assertTrue(are_all_edges_valid(eats_src, eats_tgt))
+
+
 if __name__ == '__main__':
   tf.test.main()
