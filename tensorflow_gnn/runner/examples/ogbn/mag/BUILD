@@ -16,6 +16,7 @@ pytype_strict_library(
         "//third_party/py/ml_collections/config_flags",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//tensorflow_gnn/models/multi_head_attention",
         "//tensorflow_gnn/models/vanilla_mpnn",
         "//tensorflow_gnn/runner",
     ],

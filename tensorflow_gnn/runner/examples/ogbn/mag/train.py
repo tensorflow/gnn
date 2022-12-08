@@ -26,6 +26,7 @@ import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
 from tensorflow_gnn import runner
+from tensorflow_gnn.models import multi_head_attention
 from tensorflow_gnn.models import vanilla_mpnn
 
 FLAGS = flags.FLAGS
@@ -109,6 +110,16 @@ def get_config_dict() -> config_dict.ConfigDict:
   cfg.gnn.vanilla_mpnn.dropout_rate = 0.2
   cfg.gnn.vanilla_mpnn.l2_regularization = 6e-6
   cfg.gnn.vanilla_mpnn.use_layer_normalization = True
+  # Config for multi head attention
+  cfg.gnn.multi_head_attention = (
+      multi_head_attention.graph_update_get_config_dict())
+  cfg.gnn.multi_head_attention.units = 128
+  cfg.gnn.multi_head_attention.message_dim = 128
+  cfg.gnn.multi_head_attention.num_heads = 4
+  cfg.gnn.multi_head_attention.receiver_tag = tfgnn.SOURCE
+  cfg.gnn.multi_head_attention.state_dropout_rate = 0.2
+  cfg.gnn.multi_head_attention.l2_regularization = 6e-6
+  cfg.gnn.multi_head_attention.edge_dropout_rate = 0.2
   cfg.lock()
   return cfg
 
@@ -120,6 +131,9 @@ def _graph_update_from_config(
   """Returns one instance of the configured GraphUpdate layer."""
   if cfg.gnn.type == "vanilla_mpnn":
     return vanilla_mpnn.graph_update_from_config_dict(cfg.gnn.vanilla_mpnn)
+  elif cfg.gnn.type == "multi_head_attention":
+    return multi_head_attention.graph_update_from_config_dict(
+        cfg.gnn.multi_head_attention)
   else:
     raise ValueError(f"Unknown gnn.type: {cfg.gnn.type}")
 
