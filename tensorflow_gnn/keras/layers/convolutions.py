@@ -14,7 +14,7 @@
 # ==============================================================================
 """The most elementary convolutions, and associated tooling."""
 
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 import tensorflow as tf
 
@@ -124,7 +124,9 @@ class SimpleConv(convolution_base.AnyToAnyConvolutionBase):
                broadcast_from_sender_node: Callable[[tf.Tensor], tf.Tensor],
                broadcast_from_receiver: Callable[[tf.Tensor], tf.Tensor],
                pool_to_receiver: Callable[..., tf.Tensor],
+               extra_receiver_ops: Any = None,
                training: bool) -> tf.Tensor:
+    assert extra_receiver_ops is None, "Internal error: bad super().__init__()"
     # Collect inputs, suitably broadcast.
     inputs = []
     if sender_edge_input is not None:
