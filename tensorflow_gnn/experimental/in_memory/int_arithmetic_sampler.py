@@ -385,8 +385,8 @@ class TypedWalkTree:
       stacked = tf.stack(
           [tf.stack([self.nodes] * fanout, -1), child_tree.nodes], 0)
 
-      reshaped = tf.reshape(stacked, (2, -1))
-      valid_mask = tf.reshape(child_tree.valid_mask, (-1))
+      reshaped = tf.reshape(stacked, [2, -1])
+      valid_mask = tf.reshape(child_tree.valid_mask, [-1])
       reshaped = tf.transpose(
           tf.boolean_mask(tf.transpose(reshaped), valid_mask))
 
