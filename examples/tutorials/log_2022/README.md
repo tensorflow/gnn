@@ -37,7 +37,7 @@ working with graph structured data in TensorFlow.
 
 Here's links to the material used in the presentation:
 
-<!-- 1.  [Presentation Slides (PDF)](https://drive.google.com/file/d/1ECcnRgJqjmj7hlegYuPdscLCUw7YJc7G/view?usp=sharing) -->
+1.  [Presentation Slides (PDF)](https://drive.google.com/file/d/1FjhdZNdMVGmaypWizr208iLxeqY4hRk5/view?usp=sharing)
 2.  Hands-on Tutorial Links
   1.  Tutorial 1: [TF-GNN Basics (Node Classification)](https://github.com/tensorflow/gnn/blob/main/examples/tutorials/log_2022/code_tutorial_1_tfgnn_single_machine.ipynb)
   2.  Tutorial 2: [TF-GNN Modeling (Graph Classification), Student version](https://github.com/tensorflow/gnn/blob/main/examples/tutorials/log_2022/neurips_student_tfgnn_graph_classification_mutag.ipynb)
