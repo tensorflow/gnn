@@ -70,5 +70,5 @@ def add_params_attention(search_space: vz.SearchSpace,
   # go/pyvizier also lets you add conditional params.
   root = search_space.root
   root.add_discrete_param(
-      prefix + "num_heads", [2, 4, 8],
+      prefix + "num_heads", [4, 8, 16, 32],
       scale_type=vz.ScaleType.LINEAR)
