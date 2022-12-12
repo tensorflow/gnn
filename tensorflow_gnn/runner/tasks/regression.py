@@ -85,11 +85,11 @@ class _GraphRegression(_Regression):
     self._reduce_type = reduce_type
 
   def gather_activations(self, gt: tfgnn.GraphTensor) -> tfgnn.Field:
-    return tfgnn.pool_nodes_to_context(
-        gt,
-        self._node_set_name,
+    return tfgnn.keras.layers.Pool(
+        tfgnn.CONTEXT,
         self._reduce_type,
-        feature_name=self._state_name)
+        node_set_name=self._node_set_name,
+        feature_name=self._state_name)(gt)
 
 
 class _RootNodeRegression(_Regression):
