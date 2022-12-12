@@ -124,7 +124,7 @@ class HyperAdjacency(gp.GraphPieceBase):
         _node_tag_to_index_key(tag): index
         for tag, (_, index) in indices.items()
     }
-    # This graph piece uses metadata fields as a mapping from an indcident node
+    # This graph piece uses metadata fields as a mapping from an incident node
     # tag as f'{const.INDEX_KEY_PREFIX}{node_tag}' (see b/187015015) to the
     # node set name.
     metadata = {
@@ -214,7 +214,7 @@ class HyperAdjacencySpec(gp.GraphPieceSpecBase):
     data_spec = {
         _node_tag_to_index_key(tag): index_spec for tag in incident_node_sets
     }
-    # This graph piece uses metadata fields as a mapping from an indcident node
+    # This graph piece uses metadata fields as a mapping from an incident node
     # tag as f'{const.INDEX_KEY_PREFIX}{node_tag}' (see b/187015015) to the
     # node set name.
     metadata = {
