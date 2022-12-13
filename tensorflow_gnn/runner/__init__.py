@@ -68,6 +68,11 @@ TightPadding = padding_utils.TightPadding
 ParameterServerStrategy = strategies.ParameterServerStrategy
 TPUStrategy = strategies.TPUStrategy
 
+# NOTE: Tasks cross TensorFlow distribute strategies are tested end to end in
+# `distribute_test.py`. If adding a new Task, please also add it to the test
+# combinations found there. (See `_all_task_and_processors_combinations`
+# in `distribute_test.py`.)
+#
 # Tasks (Unsupervised)
 DeepGraphInfomax = dgi.DeepGraphInfomax
 # Tasks (Classification)

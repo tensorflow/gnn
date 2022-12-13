@@ -23,16 +23,17 @@ import tensorflow.__internal__.distribute as tfdistribute
 import tensorflow.__internal__.test as tftest
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models import vanilla_mpnn
+from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.tasks import classification
+from tensorflow_gnn.runner.tasks import dgi
+from tensorflow_gnn.runner.tasks import regression
 from tensorflow_gnn.runner.trainers import keras_fit
 from tensorflow_gnn.runner.utils import model_templates
 from tensorflow_gnn.runner.utils import padding
 
 _LABELS = tuple(range(32))
-
 _SAMPLE_DICT = immutabledict({(tfgnn.CONTEXT, None, "label"): _LABELS})
-
 _SCHEMA = """
   context {
     features {
@@ -63,6 +64,8 @@ _SCHEMA = """
   }
 """
 
+TaskAndProcessor = tuple[interfaces.Task, interfaces.GraphTensorProcessorFn]
+
 
 def _all_eager_strategy_combinations():
   strategies = [
@@ -88,7 +91,64 @@ def _all_eager_strategy_combinations():
   return tftest.combinations.combine(distribution=strategies)
 
 
-class DatasetProvider(orchestration.DatasetProvider):
+def _all_task_and_processors_combinations():
+
+  def identity(gt):
+    return gt
+
+  def extract_binary_labels(gt):
+    return gt, gt.context["label"] % 2
+
+  def extract_multiclass_labels(gt):
+    return gt, gt.context["label"]
+
+  def extract_regression_labels(gt):
+    return gt, tf.ones_like(gt.context["label"], dtype=tf.float32)
+
+  task_and_processor = {
+      # Root node classification
+      classification.RootNodeBinaryClassification(node_set_name="node"):
+          extract_binary_labels,
+      classification.RootNodeMulticlassClassification(
+          node_set_name="node",
+          num_classes=len(_LABELS)): extract_multiclass_labels,
+      # Graph classification
+      classification.GraphBinaryClassification(node_set_name="node"):
+          extract_binary_labels,
+      classification.GraphMulticlassClassification(
+          node_set_name="node",
+          num_classes=len(_LABELS)): extract_multiclass_labels,
+      # Root node regression
+      regression.RootNodeMeanAbsoluteError(node_set_name="node"):
+          extract_regression_labels,
+      regression.RootNodeMeanAbsolutePercentageError(node_set_name="node"):
+          extract_regression_labels,
+      regression.RootNodeMeanSquaredError(node_set_name="node"):
+          extract_regression_labels,
+      regression.RootNodeMeanSquaredLogarithmicError(node_set_name="node"):
+          extract_regression_labels,
+      regression.RootNodeMeanSquaredLogScaledError(node_set_name="node"):
+          extract_regression_labels,
+      # Graph regression
+      regression.GraphMeanAbsoluteError(node_set_name="node"):
+          extract_regression_labels,
+      regression.GraphMeanAbsolutePercentageError(node_set_name="node"):
+          extract_regression_labels,
+      regression.GraphMeanSquaredError(node_set_name="node"):
+          extract_regression_labels,
+      regression.GraphMeanSquaredLogarithmicError(node_set_name="node"):
+          extract_regression_labels,
+      regression.GraphMeanSquaredLogScaledError(node_set_name="node"):
+          extract_regression_labels,
+      # Unsupervised
+      dgi.DeepGraphInfomax(node_set_name="node"):
+          identity,
+  }
+  items = list(task_and_processor.items())
+  return tftest.combinations.combine(task_and_processor=items)
+
+
+class DatasetProvider(interfaces.DatasetProvider):
 
   def __init__(self, examples: Sequence[bytes]):
     self._examples = list(examples)
@@ -99,8 +159,16 @@ class DatasetProvider(orchestration.DatasetProvider):
 
 class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
 
-  @tfdistribute.combinations.generate(_all_eager_strategy_combinations())
-  def test_run(self, distribution: tf.distribute.Strategy):
+  @tfdistribute.combinations.generate(
+      tftest.combinations.times(
+          _all_eager_strategy_combinations(),
+          _all_task_and_processors_combinations()
+      )
+  )
+  def test_run(
+      self,
+      distribution: tf.distribute.Strategy,
+      task_and_processor: TaskAndProcessor):
     schema = tfgnn.parse_schema(_SCHEMA)
     gtspec = tfgnn.create_graph_spec_from_schema_pb(schema)
     gt = tfgnn.write_example(tfgnn.random_graph_tensor(
@@ -108,13 +176,7 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
         sample_dict=_SAMPLE_DICT))
     ds_provider = DatasetProvider((gt.SerializeToString(),) * 4)
 
-    def extract_labels(gt):
-      return gt, gt.context["label"]
-
-    def node_sets_fn(node_set, node_set_name):
-      del node_set_name
-      return node_set["features"]
-
+    node_sets_fn = lambda node_set, node_set_name: node_set["features"]
     model_fn = model_templates.ModelFromInitAndUpdates(
         init=tfgnn.keras.layers.MapFeatures(node_sets_fn=node_sets_fn),
         updates=[vanilla_mpnn.VanillaMPNNGraphUpdate(
@@ -123,10 +185,6 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
             receiver_tag=tfgnn.SOURCE,
             l2_regularization=5e-4,
             dropout_rate=0.1)])
-
-    task = classification.RootNodeMulticlassClassification(
-        node_set_name="node",
-        num_classes=len(_LABELS))
 
     model_dir = self.create_tempdir()
 
@@ -148,6 +206,8 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
       train_padding = None
       valid_padding = None
 
+    task, processor = task_and_processor
+
     orchestration.run(
         train_ds_provider=ds_provider,
         train_padding=train_padding,
@@ -157,9 +217,8 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
         trainer=trainer,
         task=task,
         gtspec=gtspec,
-        drop_remainder=False,
-        global_batch_size=4,
-        feature_processors=[extract_labels],
+        global_batch_size=2,
+        feature_processors=(processor,),
         valid_ds_provider=ds_provider,
         valid_padding=valid_padding)
 
@@ -167,14 +226,7 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
     kwargs = {"examples": next(iter(dataset.batch(2)))}
 
     saved_model = tf.saved_model.load(os.path.join(model_dir, "export"))
-    output = saved_model.signatures["serving_default"](**kwargs)
-    actual = next(iter(output.values()))
-
-    # The model has one output
-    self.assertLen(output, 1)
-
-    # The expected shape is (batch size, num classes) or (2, 10)
-    self.assertShapeEqual(actual, tf.random.uniform((2, len(_LABELS))))
+    saved_model.signatures["serving_default"](**kwargs)
 
 
 if __name__ == "__main__":

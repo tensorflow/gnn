@@ -52,9 +52,9 @@ pytype_strict_library(
 
 distribute_py_test(
     name = "distribute_test",
-    size = "medium",
+    size = "large",
     srcs = ["distribute_test.py"],
-    shard_count = 4,
+    shard_count = 8,
     tags = [
         "no_oss",  # TODO(b/238827505)
         "nomultivm",  # TODO(b/170502145)
@@ -67,6 +67,8 @@ distribute_py_test(
         "//tensorflow_gnn",
         "//tensorflow_gnn/models/vanilla_mpnn",
         "//tensorflow_gnn/runner/tasks:classification",
+        "//tensorflow_gnn/runner/tasks:dgi",
+        "//tensorflow_gnn/runner/tasks:regression",
         "//tensorflow_gnn/runner/trainers:keras_fit",
         "//tensorflow_gnn/runner/utils:model_templates",
         "//tensorflow_gnn/runner/utils:padding",
