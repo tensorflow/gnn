@@ -63,6 +63,20 @@ class ResidualNextStateTest(tf.test.TestCase, parameterized.TestCase):
     actual = next_state((first_input, second_input, third_input))
     self.assertAllEqual([[64. + 15.]], actual)
 
+  def testEmptyState(self):
+    first_input = {const.HIDDEN_STATE: tf.constant([[]], tf.float32),
+                   "other": tf.constant([[2.]])}
+    second_input = {"foo": tf.constant([[4.]]),
+                    "bar": tf.constant([[8.]])}
+    third_input = {}
+
+    init_div2 = tf.keras.initializers.Constant(0.5)
+    next_state = next_state_lib.ResidualNextState(
+        tf.keras.layers.Dense(1, use_bias=False, kernel_initializer=init_div2))
+
+    actual = next_state((first_input, second_input, third_input))
+    self.assertAllEqual([[1. + 2. + 4.]], actual)
+
 
 class SingleInputNextStateTest(tf.test.TestCase, parameterized.TestCase):
 
