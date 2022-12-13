@@ -9,6 +9,7 @@ pytype_strict_library(
     srcs = ["__init__.py"],
     visibility = ["//visibility:public"],
     deps = [
+        ":interfaces",
         ":orchestration",
         "//tensorflow_gnn/runner/input:datasets",
         "//tensorflow_gnn/runner/tasks:classification",
@@ -26,11 +27,22 @@ pytype_strict_library(
 )
 
 pytype_strict_library(
-    name = "orchestration",
-    srcs = ["orchestration.py"],
+    name = "interfaces",
+    srcs = ["interfaces.py"],
     srcs_version = "PY3",
     visibility = [":__subpackages__"],
     deps = [
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+    ],
+)
+
+pytype_strict_library(
+    name = "orchestration",
+    srcs = ["orchestration.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":interfaces",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
         "//tensorflow_gnn/runner/utils:model",

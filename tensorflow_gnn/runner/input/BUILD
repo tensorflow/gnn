@@ -10,7 +10,7 @@ pytype_strict_library(
     visibility = ["//tensorflow_gnn/runner:__pkg__"],
     deps = [
         "//:expect_tensorflow_installed",
-        "//tensorflow_gnn/runner:orchestration",
+        "//tensorflow_gnn/runner:interfaces",
     ],
 )
 

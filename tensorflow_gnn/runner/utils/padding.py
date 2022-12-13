@@ -19,7 +19,7 @@ from typing import Callable, Mapping, Optional
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
-from tensorflow_gnn.runner import orchestration
+from tensorflow_gnn.runner import interfaces
 
 SizeConstraints = tfgnn.SizeConstraints
 
@@ -37,13 +37,13 @@ def one_node_per_component(gtspec: tfgnn.GraphTensorSpec) -> Mapping[str, int]:
   return {k: 1 for k in gtspec.node_sets_spec.keys()}
 
 
-class _GraphTensorPadding(abc.ABC):
+class _GraphTensorPadding(interfaces.GraphTensorPadding):
   """Calculates `SizeConstraints` for `GraphTensor` padding."""
 
   def __init__(
       self,
       gtspec: tfgnn.GraphTensorSpec,
-      dataset_provider: orchestration.DatasetProvider,
+      dataset_provider: interfaces.DatasetProvider,
       min_nodes_per_component: Optional[Mapping[str, int]] = None):
     self._gtspec = gtspec
     self._dataset_provider = dataset_provider
@@ -73,7 +73,7 @@ class FitOrSkipPadding(_GraphTensorPadding):
   def __init__(
       self,
       gtspec: tfgnn.GraphTensorSpec,
-      dataset_provider: orchestration.DatasetProvider,
+      dataset_provider: interfaces.DatasetProvider,
       min_nodes_per_component: Optional[Mapping[str, int]] = None,
       fit_or_skip_sample_sample_size: int = 10_000,
       fit_or_skip_success_ratio: float = 0.99):

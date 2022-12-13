@@ -19,11 +19,10 @@ import os
 from typing import Callable, Optional, Sequence, Union
 
 import tensorflow as tf
-
-from tensorflow_gnn.runner import orchestration
+from tensorflow_gnn.runner import interfaces
 
 BackupAndRestore = tf.keras.callbacks.experimental.BackupAndRestore
-DatasetProvider = orchestration.DatasetProvider
+DatasetProvider = interfaces.DatasetProvider
 
 
 @dataclasses.dataclass
@@ -55,7 +54,7 @@ class KerasTrainerCheckpointOptions:
     return os.path.join(self.checkpoint_dir, self.latest_checkpoint)
 
 
-class KerasTrainer(orchestration.Trainer):
+class KerasTrainer(interfaces.Trainer):
   """Trains using the `tf.keras.Model.fit` training loop."""
 
   def __init__(
