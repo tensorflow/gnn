@@ -18,11 +18,12 @@ from typing import Callable, Optional, Sequence
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
+from tensorflow_gnn.runner import interfaces
 
 AUTO = tf.keras.losses.Reduction.AUTO
 
 
-class _Regression(abc.ABC):
+class _Regression(interfaces.Task):
   """Regression abstract class.
 
   Any subclass must implement both `gather_activations` and `losses`, usually

@@ -11,6 +11,7 @@ pytype_strict_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//tensorflow_gnn/runner:interfaces",
     ],
 )
 
@@ -34,6 +35,7 @@ pytype_strict_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//tensorflow_gnn/runner:interfaces",
     ],
 )
 
@@ -57,6 +59,7 @@ pytype_strict_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//tensorflow_gnn/runner:interfaces",
     ],
 )
 

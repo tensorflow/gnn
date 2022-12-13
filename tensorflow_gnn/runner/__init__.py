@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """A general purpose runner for TF-GNN."""
+from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.input import datasets
 from tensorflow_gnn.runner.tasks import classification
@@ -35,6 +36,14 @@ SimpleSampleDatasetsProvider = datasets.SimpleSampleDatasetsProvider
 SampleTFRecordDatasetsProvider = datasets.SampleTFRecordDatasetsProvider
 TFRecordDatasetProvider = datasets.TFRecordDatasetProvider
 
+# Interfaces
+DatasetProvider = interfaces.DatasetProvider
+GraphTensorPadding = interfaces.GraphTensorPadding
+GraphTensorProcessorFn = interfaces.GraphTensorProcessorFn
+ModelExporter = interfaces.ModelExporter
+Trainer = interfaces.Trainer
+Task = interfaces.Task
+
 # Model directory
 incrementing_model_dir = model_dir.incrementing_model_dir
 
@@ -48,33 +57,26 @@ SubmoduleExporter = model_export.SubmoduleExporter
 chain_first_output = model_utils.chain_first_output
 
 # Orchestration
-DatasetProvider = orchestration.DatasetProvider
-GraphTensorProcessorFn = orchestration.GraphTensorProcessorFn
 run = orchestration.run
-Trainer = orchestration.Trainer
-Task = orchestration.Task
 TFDataServiceConfig = orchestration.TFDataServiceConfig
 
 # Padding
 one_node_per_component = padding_utils.one_node_per_component
 FitOrSkipPadding = padding_utils.FitOrSkipPadding
-GraphTensorPadding = orchestration.GraphTensorPadding
 TightPadding = padding_utils.TightPadding
 
 # Strategies
 ParameterServerStrategy = strategies.ParameterServerStrategy
 TPUStrategy = strategies.TPUStrategy
 
-# Tasks
-#
-# Unsupervised
+# Tasks (Unsupervised)
 DeepGraphInfomax = dgi.DeepGraphInfomax
-# Classification
+# Tasks (Classification)
 RootNodeBinaryClassification = classification.RootNodeBinaryClassification
 RootNodeMulticlassClassification = classification.RootNodeMulticlassClassification
 GraphBinaryClassification = classification.GraphMulticlassClassification
 GraphMulticlassClassification = classification.GraphMulticlassClassification
-# Regression
+# Tasks (Regression)
 GraphMeanAbsoluteError = regression.GraphMeanAbsoluteError
 GraphMeanAbsolutePercentageError = regression.GraphMeanAbsolutePercentageError
 GraphMeanSquaredError = regression.GraphMeanSquaredError

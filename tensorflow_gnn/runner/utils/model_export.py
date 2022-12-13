@@ -17,6 +17,7 @@ import os
 from typing import Any, Optional, Union
 
 import tensorflow as tf
+from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner.utils import model as model_utils
 
 Field = Union[tf.Tensor, tf.RaggedTensor]
@@ -41,7 +42,7 @@ def _rename_output(output: Any, names: Any) -> Any:
   return tf.nest.pack_sequence_as(names, renamed_output)
 
 
-class KerasModelExporter:
+class KerasModelExporter(interfaces.ModelExporter):
   """Exports a Keras model (with Keras API) via tf.keras.models.save_model."""
 
   def __init__(self,
@@ -98,7 +99,7 @@ class KerasModelExporter:
     tf.keras.models.save_model(model, export_dir, options=self._options)
 
 
-class SubmoduleExporter:
+class SubmoduleExporter(interfaces.ModelExporter):
   """Exports a Keras model submodule (`getarr(model, 'submodules')`) by name."""
 
   def __init__(self,
@@ -125,7 +126,7 @@ class SubmoduleExporter:
     self._options = options
 
   def save(self,
-           preprocess_model: tf.keras.Model,
+           preprocess_model: Optional[tf.keras.Model],
            model: tf.keras.Model,
            export_dir: str):
     """Saves a Keras model submodule.

@@ -16,6 +16,7 @@
 from typing import Callable, List, Optional, Sequence
 
 import tensorflow as tf
+from tensorflow_gnn.runner import interfaces
 
 
 def _process_dataset(
@@ -55,7 +56,11 @@ def _process_dataset(
   return dataset.prefetch(tf.data.AUTOTUNE)
 
 
+<<<<<<< HEAD
 class PassthruDatasetProvider:
+=======
+class PassthruDatasetProvider(interfaces.DatasetProvider):
+>>>>>>> 8c2a3f3 (Move interfaces from orchestration.py to interfaces.py.)
   """Builds a `tf.data.Dataset` from a pass thru dataset.
 
   Passes any `dataset` thru: omitting any sharding. For detailed documentation,
@@ -83,7 +88,11 @@ class PassthruDatasetProvider:
 
 
 class SimpleDatasetProvider(interfaces.DatasetProvider):
+<<<<<<< HEAD
   """Builds a `tf.data.Dataset` from a list of files.
+=======
+  """Builds a `tf.data.Dataset` from a file pattern.
+>>>>>>> 8c2a3f3 (Move interfaces from orchestration.py to interfaces.py.)
 
   This `SimpleDatasetProvider` builds a `tf.data.Dataset` as follows:
    - The object is initialized with a list of filenames. For convenience,
@@ -223,7 +232,11 @@ def _process_sampled_dataset(
   return sampled_dataset.prefetch(tf.data.AUTOTUNE)
 
 
+<<<<<<< HEAD
 class PassthruSampleDatasetsProvider:
+=======
+class PassthruSampleDatasetsProvider(interfaces.DatasetProvider):
+>>>>>>> 8c2a3f3 (Move interfaces from orchestration.py to interfaces.py.)
   """Builds a sampled `tf.data.Dataset` from multiple pass thru datasets.
 
   Passes any `principal_dataset` and `extra_datasets` thru: omitting any
@@ -271,7 +284,11 @@ class PassthruSampleDatasetsProvider:
 
 
 class SimpleSampleDatasetsProvider(interfaces.DatasetProvider):
+<<<<<<< HEAD
   """Builds a sampling `tf.data.Dataset` from multiple filenames.
+=======
+  """Builds a sampling `tf.data.Dataset` from a multiple file patterns.
+>>>>>>> 8c2a3f3 (Move interfaces from orchestration.py to interfaces.py.)
 
   For complete explanations regarding sampling see `_process_sampled_dataset()`.
 

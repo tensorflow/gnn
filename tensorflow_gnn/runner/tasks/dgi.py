@@ -17,12 +17,13 @@ from typing import Callable, Optional, Sequence, Tuple
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
+from tensorflow_gnn.runner import interfaces
 
 Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
 
 
-class DeepGraphInfomax:
+class DeepGraphInfomax(interfaces.Task):
   """Deep Graph Infomax.
 
   Deep Graph Infomax is an unsupervised loss that attempts to learn a bilinear

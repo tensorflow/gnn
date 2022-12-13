@@ -27,6 +27,7 @@ from typing import Callable, Optional, Sequence, Union
 import numpy as np
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
+from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner.utils import model as model_utils
 
 
@@ -290,7 +291,7 @@ def integrated_gradients(
   return fn
 
 
-class IntegratedGradientsExporter:
+class IntegratedGradientsExporter(interfaces.ModelExporter):
   """Exports a Keras model with an additional integrated gradients signature."""
 
   # TODO(b/196880966): Support specifying IG and serving default output names.
