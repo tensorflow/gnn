@@ -12,3 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Heterogeneous Graph Transformers.
+
+Users of TF-GNN can use this model by importing it next to the core library as
+
+```python
+import tensorflow_gnn as tfgnn
+from tensorflow_gnn.models import hgt
+```
+"""
+
+from tensorflow_gnn.models.hgt import softmax
+global_segmented_softmax_edges_per_node = softmax.global_segmented_softmax_edges_per_node
+
+del softmax
