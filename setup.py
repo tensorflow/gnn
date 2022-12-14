@@ -176,7 +176,7 @@ setup(
         'tensorflow>=2.8.0; platform_machine != "arm64" or platform_system != "Darwin"',
         'tensorflow-macos>=2.8.0; platform_machine == "arm64" and platform_system == "Darwin"',
     ],
-    python_requires='>=3.7,<4',
+    python_requires='>=3.8,<4',
     packages=find_namespace_packages(
         exclude=['examples*', 'package*', 'testdata*'],
     ),
