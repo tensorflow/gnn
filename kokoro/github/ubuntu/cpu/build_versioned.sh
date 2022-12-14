@@ -18,7 +18,7 @@ set -x
 
 cd "${KOKORO_ARTIFACTS_DIR}/github/gnn/"
 
-sudo apt-get install "python${PYTHON_VERSION}"
+sudo apt-get install -y "python${PYTHON_VERSION}"
 
 # Update alternatives, taken from corresponding Keras OSS test script
 sudo update-alternatives --install /usr/bin/python3 python3 "/usr/bin/python$PYTHON_VERSION" 1
