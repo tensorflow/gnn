@@ -299,7 +299,8 @@ class IntegratedGradientsExporter(interfaces.ModelExporter):
                integrated_gradients_output_name: Optional[str] = None,
                random_counterfactual: bool = True,
                steps: int = 32,
-               seed: Optional[int] = None):
+               seed: Optional[int] = None,
+               options: Optional[tf.saved_model.SaveOptions] = None):
     """Captures the args shared across `save(...)` calls.
 
     Args:
@@ -307,12 +308,14 @@ class IntegratedGradientsExporter(interfaces.ModelExporter):
         output tensor. If unset, the tensor will be named by Keras defaults.
       random_counterfactual: Whether to use a random uniform counterfactual.
       steps: The number of interpolations of the Riemann sum approximation.
-      seed: An option random seed.
+      seed: An optional random seed.
+      options: Options for saving to SavedModel.
     """
     self._integrated_gradients_output_name = integrated_gradients_output_name
     self._random_counterfactual = random_counterfactual
     self._steps = steps
     self._seed = seed
+    self._options = options
 
   def save(self,
            preprocess_model: Optional[tf.keras.Model],
@@ -361,4 +364,5 @@ class IntegratedGradientsExporter(interfaces.ModelExporter):
     tf.keras.models.save_model(
         model_for_export,
         export_dir,
-        signatures=signatures)
+        signatures=signatures,
+        options=self._options)
