@@ -40,7 +40,8 @@ ln -s "$(pwd)"/tensorflow_gnn "$TEST_ROOT"/tensorflow_gnn
 
 # Prepend common tag filters to a defined env_var
 # For example, tests for TF 2.8 shouldn't run RNG-dependent tests
-tag_filters="-no_oss,${TAG_FILTERS}"
+# These tag filters are enforced to start with a comma for separation
+tag_filters="-no_oss${TAG_FILTERS}"
 
 bazel clean
 pip install -r requirements-dev.txt --progress-bar off
