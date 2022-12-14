@@ -69,6 +69,7 @@ class KerasTrainer(interfaces.Trainer):
       validation_per_epoch: Optional[int] = None,
       summarize_every_n_steps: Union[int, str] = 500,
       checkpoint_every_n_steps: Union[int, str] = "epoch",
+      backup_and_restore: bool = True,
       callbacks: Optional[Sequence[tf.keras.callbacks.Callback]] = None,
       restore_best_weights: bool = True,
       options: Optional[KerasTrainerOptions] = None):
@@ -96,6 +97,9 @@ class KerasTrainer(interfaces.Trainer):
         The best model will always be saved after each validation epoch except
         when this parameter is set to "never", because the validation metric is
         available only after validation epoch.
+      backup_and_restore: Whether to backup and restore (According to
+        `tf.keras.callbacks.BackupAndRestore`). The backup
+        directory is determined by `backup_dir`.
       callbacks: Optional additional `tf.keras.callbacks.Callback` for
         `tf.keras.Model.fit.`
       restore_best_weights: Requires a `checkpoint_every_n_steps` other than
@@ -125,6 +129,7 @@ class KerasTrainer(interfaces.Trainer):
     self._validation_per_epoch = validation_per_epoch
     self._summarize_every_n_steps = summarize_every_n_steps
     self._checkpoint_every_n_steps = checkpoint_every_n_steps
+    self._backup_and_restore = backup_and_restore
     self._callbacks = callbacks
     self._restore_best_weights = restore_best_weights
     self._options = options
@@ -230,10 +235,12 @@ class KerasTrainer(interfaces.Trainer):
     else:
       valid_ds = None
 
-    callbacks = [
-        *(self._callbacks or []),
-        BackupAndRestore(backup_dir=self._backup_dir)
-    ]
+    callbacks = list(self._callbacks or [])
+
+    if self._backup_and_restore:
+      callbacks += [
+          BackupAndRestore(backup_dir=self._backup_dir)
+      ]
 
     if checkpoint_every_n_steps != "never":
       callbacks += [
