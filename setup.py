@@ -172,6 +172,7 @@ setup(
         'ml-collections',
         'networkx',
         'pyarrow',
+        'google-vizier>=0.0.15',
         'tensorflow>=2.8.0; platform_machine != "arm64" or platform_system != "Darwin"',
         'tensorflow-macos>=2.8.0; platform_machine == "arm64" and platform_system == "Darwin"',
     ],
