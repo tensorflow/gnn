@@ -45,7 +45,7 @@ class Readout(tf.keras.layers.Layer):
   For example:
 
   ```python
-  readout = tfgnn.keras.layers.Readout(feature="value")
+  readout = tfgnn.keras.layers.Readout(feature_name="value")
   value = readout(graph_tensor, edge_set_name="edges")
   assert value == graph_tensor.edge_sets["edge"]["value"]
   ```
