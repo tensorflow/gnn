@@ -1,5 +1,6 @@
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_library")
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "py_strict_test")
+load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "distribute_py_test")
 
 licenses(["notice"])
 
@@ -39,12 +40,18 @@ pytype_strict_library(
     ],
 )
 
-py_strict_test(
+distribute_py_test(
     name = "dgi_test",
     srcs = ["dgi_test.py"],
     srcs_version = "PY3",
+    tags = [
+        "no_oss",  # TODO(b/238827505)
+        "nomultivm",  # TODO(b/170502145)
+    ],
+    xla_enable_strict_auto_jit = False,
     deps = [
         ":dgi",
+        "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
     ],

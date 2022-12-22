@@ -13,7 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for dgi."""
+from absl.testing import parameterized
 import tensorflow as tf
+import tensorflow.__internal__.distribute as tfdistribute
+import tensorflow.__internal__.test as tftest
 import tensorflow_gnn as tfgnn
 
 from tensorflow_gnn.runner.tasks import dgi
@@ -41,7 +44,7 @@ edge_sets {
 """ % tfgnn.HIDDEN_STATE
 
 
-class DeepGraphInfomaxTest(tf.test.TestCase):
+class DeepGraphInfomaxTest(tf.test.TestCase, parameterized.TestCase):
 
   gtspec = tfgnn.create_graph_spec_from_schema_pb(tfgnn.parse_schema(SCHEMA))
   task = dgi.DeepGraphInfomax("node", seed=8191)
@@ -51,11 +54,10 @@ class DeepGraphInfomaxTest(tf.test.TestCase):
 
     for _ in range(2):  # Message pass twice
       values = tfgnn.broadcast_node_to_edges(
-          graph,
-          "edge",
-          tfgnn.TARGET,
-          feature_name=tfgnn.HIDDEN_STATE)
-      messages = tf.keras.layers.Dense(16)(values)
+          graph, "edge", tfgnn.TARGET, feature_name=tfgnn.HIDDEN_STATE)
+      messages = tf.keras.layers.Dense(
+          16, kernel_initializer=tf.constant_initializer(1.))(
+              values)
 
       pooled = tfgnn.pool_edges_to_node(
           graph,
@@ -66,7 +68,9 @@ class DeepGraphInfomaxTest(tf.test.TestCase):
       h_old = graph.node_sets["node"].features[tfgnn.HIDDEN_STATE]
 
       h_next = tf.keras.layers.Concatenate()((pooled, h_old))
-      h_next = tf.keras.layers.Dense(8)(h_next)
+      h_next = tf.keras.layers.Dense(
+          8, kernel_initializer=tf.constant_initializer(1.))(
+              h_next)
 
       graph = graph.replace_features(
           node_sets={"node": {
@@ -94,6 +98,67 @@ class DeepGraphInfomaxTest(tf.test.TestCase):
     model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=True))
     model.fit(ds)
 
+  @tfdistribute.combinations.generate(
+      tftest.combinations.combine(distribution=[
+          tfdistribute.combinations.mirrored_strategy_with_one_gpu,
+          tfdistribute.combinations.multi_worker_mirrored_2x1_gpu,
+      ]))
+  def test_distributed(self, distribution):
+    gt = tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            "node":
+                tfgnn.NodeSet.from_fields(
+                    features={
+                        tfgnn.HIDDEN_STATE:
+                            tf.convert_to_tensor([[0.1, 0.2, 0.3, 0.4],
+                                                  [0.11, 0.11, 0.11, 0.11],
+                                                  [0.19, 0.19, 0.19, 0.19]])
+                    },
+                    sizes=tf.convert_to_tensor([3])),
+        },
+        edge_sets={
+            "edge":
+                tfgnn.EdgeSet.from_fields(
+                    sizes=tf.convert_to_tensor([3]),
+                    adjacency=tfgnn.Adjacency.from_indices(
+                        ("node", tf.convert_to_tensor([0, 1, 1],
+                                                      dtype=tf.int32)),
+                        ("node", tf.convert_to_tensor([0, 0, 2],
+                                                      dtype=tf.int32)),
+                    )),
+        })
+
+    def dataset_fn(input_context=None, gt=gt):
+      ds = tf.data.Dataset.from_tensors(gt).repeat(8)
+      if input_context:
+        ds = ds.shard(input_context.num_input_pipelines,
+                      input_context.input_pipeline_id)
+        batch_size = input_context.get_per_replica_batch_size(4)
+      else:
+        batch_size = 4
+      ds = ds.batch(batch_size).map(tfgnn.GraphTensor.merge_batch_to_components)
+      ds = ds.map(self.task.preprocess)
+      return ds
+
+    distributed_ds = distribution.distribute_datasets_from_function(dataset_fn)
+
+    with distribution.scope():
+      tf.random.set_seed(8191)
+      model = self.task.adapt(self.build_model())
+      model.compile(loss=self.task.losses(), metrics=self.task.metrics())
+
+    def get_loss():
+      tf.random.set_seed(8191)
+      values = model.evaluate(distributed_ds, steps=2)
+      return dict(zip(model.metrics_names, values))["loss"]
+
+    before = get_loss()
+    model.fit(distributed_ds, steps_per_epoch=2)
+    after = get_loss()
+    tf.print(f"before: {before}, after: {after}")
+    self.assertAllClose(before, 1576777.75, rtol=1e-04, atol=1e-04)
+    self.assertAllClose(after, 535825.25, rtol=1e-04, atol=1e-04)
+
   def test_embeddings_submodule(self):
     model = self.task.adapt(self.build_model())
     dgi_embeddings_model = [
@@ -108,13 +173,10 @@ class DeepGraphInfomaxTest(tf.test.TestCase):
     ds = tf.data.Dataset.from_tensors(gt).repeat(8).map(self.task.preprocess)
 
     for x, y in ds:
-      self.assertAllEqual(
-          x.node_sets["node"].features[tfgnn.HIDDEN_STATE],
-          gt.node_sets["node"].features[tfgnn.HIDDEN_STATE])
-      self.assertAllEqual(
-          y,
-          tf.constant([[1, 0]], dtype=tf.int32))
+      self.assertAllEqual(x.node_sets["node"].features[tfgnn.HIDDEN_STATE],
+                          gt.node_sets["node"].features[tfgnn.HIDDEN_STATE])
+      self.assertAllEqual(y, tf.constant([[1, 0]], dtype=tf.int32))
 
 
 if __name__ == "__main__":
-  tf.test.main()
+  tfdistribute.multi_process_runner.test_main()
