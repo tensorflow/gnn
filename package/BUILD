@@ -1,12 +1,5 @@
 licenses(["notice"])  # Apache 2.0
 
-config_setting(
-    name = "windows",
-    constraint_values = [
-        "@bazel_tools//platforms:windows",
-    ],
-)
-
 sh_binary(
     name = "move_generated_files",
     srcs = ["move_generated_files.sh"],

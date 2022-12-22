@@ -6,9 +6,9 @@ def tf_setup():
     """Define tensorflow>=2.8.0 dependency for Bazel build."""
     http_archive(
         name = "org_tensorflow",
-        sha256 = "66b953ae7fba61fd78969a2e24e350b26ec116cf2e6a7eb93d02c63939c6f9f7",
+        sha256 = "99c732b92b1b37fc243a559e02f9aef5671771e272758aa4aec7f34dc92dac48",
         urls = [
-            "https://github.com/tensorflow/tensorflow/archive/refs/tags/v2.8.0.tar.gz",
+            "https://github.com/tensorflow/tensorflow/archive/refs/tags/v2.11.0.tar.gz",
         ],
-        strip_prefix = "tensorflow-2.8.0",
+        strip_prefix = "tensorflow-2.11.0",
     )
