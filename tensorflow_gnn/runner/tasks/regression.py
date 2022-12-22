@@ -84,7 +84,7 @@ class _GraphRegression(_Regression):
     self._state_name = state_name
     self._reduce_type = reduce_type
 
-  def gather_activations(self, gt: tfgnn.GraphTensor) -> tfgnn.Field:  # pytype: disable=signature-mismatch  # overriding-return-type-checks
+  def gather_activations(self, gt: tfgnn.GraphTensor) -> tf.Tensor:
     return tfgnn.keras.layers.Pool(
         tfgnn.CONTEXT,
         self._reduce_type,
