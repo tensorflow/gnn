@@ -22,6 +22,7 @@ The task implements the method as described in:
 https://papers.nips.cc/paper/2020/hash/417fbbf2e9d5a28a855a11894b2e795a-Abstract.html.
 """
 import operator
+import os
 from typing import Callable, Optional, Sequence, Union
 
 import numpy as np
@@ -297,6 +298,7 @@ class IntegratedGradientsExporter(interfaces.ModelExporter):
   # TODO(b/196880966): Support specifying IG and serving default output names.
   def __init__(self,
                integrated_gradients_output_name: Optional[str] = None,
+               subdirectory: Optional[str] = None,
                random_counterfactual: bool = True,
                steps: int = 32,
                seed: Optional[int] = None,
@@ -306,12 +308,15 @@ class IntegratedGradientsExporter(interfaces.ModelExporter):
     Args:
       integrated_gradients_output_name: The name for the integrated gradients
         output tensor. If unset, the tensor will be named by Keras defaults.
+      subdirectory: An optional subdirectory, if set: models are exported to
+        `os.path.join(export_dir, subdirectory).`
       random_counterfactual: Whether to use a random uniform counterfactual.
       steps: The number of interpolations of the Riemann sum approximation.
       seed: An optional random seed.
       options: Options for saving to SavedModel.
     """
     self._integrated_gradients_output_name = integrated_gradients_output_name
+    self._subdirectory = subdirectory
     self._random_counterfactual = random_counterfactual
     self._steps = steps
     self._seed = seed
@@ -360,6 +365,9 @@ class IntegratedGradientsExporter(interfaces.ModelExporter):
         "integrated_gradients": ig,
         "serving_default": serving_default,
     }
+
+    if self._subdirectory:
+      export_dir = os.path.join(export_dir, self._subdirectory)
 
     tf.keras.models.save_model(
         model_for_export,
