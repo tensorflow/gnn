@@ -1329,6 +1329,70 @@ class ShuffleNodesTest(tf.test.TestCase, parameterized.TestCase):
     self.assertLen(unique_permutations, 4)
 
 
+class NodeDegreeTest(tf.test.TestCase, parameterized.TestCase):
+  """Tests for computing degree of each node w.r.t. one side of an edge set."""
+  @parameterized.parameters([
+      dict(
+          description='varying degrees for receiver nodes',
+          node_sets={
+              'a': gt.NodeSet.from_fields(
+                  sizes=as_tensor([4]),
+                  features={'s': [1, 2, 3, 4]}),
+              'b': gt.NodeSet.from_fields(
+                  sizes=as_tensor([3]),
+                  features={}),
+              'c': gt.NodeSet.from_fields(
+                  sizes=as_tensor([3]),
+                  features={})
+          },
+          edge_sets={
+              'a->b':
+                  gt.EdgeSet.from_fields(
+                      sizes=as_tensor([8]),
+                      adjacency=adj.Adjacency.from_indices(
+                          ('a', as_tensor([0, 0, 1, 1, 2, 2, 3, 3])),
+                          ('b', as_tensor([0, 1, 0, 1, 0, 1, 1, 2])),
+                      )),
+              'a->c':
+                  gt.EdgeSet.from_fields(
+                      sizes=as_tensor([5]),
+                      adjacency=adj.Adjacency.from_indices(
+                          ('a', as_tensor([0, 0, 0, 2, 2])),
+                          ('c', as_tensor([2, 1, 0, 0, 0])),
+                      )),
+              'b->c':
+                  gt.EdgeSet.from_fields(
+                      sizes=as_tensor([0]),
+                      adjacency=adj.Adjacency.from_indices(
+                          ('b', as_tensor([], dtype=tf.int32)),
+                          ('c', as_tensor([], dtype=tf.int32)),
+                      )),
+          },
+          expected_source_degree={'a->b': as_tensor([2, 2, 2, 2]),
+                                  'a->c': as_tensor([3, 0, 2, 0]),
+                                  'b->c': as_tensor([0, 0, 0])},
+          expected_target_degree={'a->b': as_tensor([3, 4, 1]),
+                                  'a->c': as_tensor([3, 1, 1]),
+                                  'b->c': as_tensor([0, 0, 0])}),
+  ])
+  def test(
+      self, description: str,
+      node_sets: Mapping[str, gt.NodeSet],
+      edge_sets: Mapping[str, gt.EdgeSet],
+      expected_source_degree: Mapping[const.EdgeSetName, const.Field],
+      expected_target_degree: Mapping[const.EdgeSetName, const.Field]):
+    del description
+    graph = gt.GraphTensor.from_pieces(node_sets=node_sets, edge_sets=edge_sets)
+
+    for edge_set_name, expected in expected_source_degree.items():
+      get = ops.node_degree(graph, edge_set_name, const.SOURCE)
+      self.assertAllEqual(get, expected)
+
+    for edge_set_name, expected in expected_target_degree.items():
+      get = ops.node_degree(graph, edge_set_name, const.TARGET)
+      self.assertAllEqual(get, expected)
+
+
 class EdgeMaskingTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for edge-masking operations over a scalar GraphTensor."""
 

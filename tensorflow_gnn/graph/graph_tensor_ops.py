@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Broadcasts and pools features between node sets, edge sets and context."""
+"""Operations on the GraphTensor."""
 import functools
 from typing import Any, Callable, Collection, List, Mapping, Optional, Union
 import tensorflow as tf
@@ -1168,6 +1168,36 @@ def shuffle_nodes(graph_tensor: GraphTensor,
 
   return reorder_nodes(
       graph_tensor, node_indices, validate=const.validate_internal_results)
+
+
+def node_degree(graph_tensor: GraphTensor,
+                edge_set_name: EdgeSetName,
+                node_tag: IncidentNodeTag) -> Field:
+  """Returns the degree of each node w.r.t. one side of an edge set.
+
+  Args:
+    graph_tensor: A scalar GraphTensor.
+    edge_set_name: The name of the edge set for which degrees are calculated.
+    node_tag: The side of each edge for which the degrees are calculated,
+      specified by its tag in the edge set (e.g., `tfgnn.SOURCE`,
+      `tfgnn.TARGET`).
+
+  Returns:
+    An integer Tensor of shape `[num_nodes]` and dtype equal to `indices_dtype`
+    of the GraphTensor. Element `i` contains the number of edges in the given
+    edge set that have node index `i` as their endpoint with the given
+    `node_tag`. The dimension `num_nodes` is the number of nodes in the
+    respective node set.
+  """
+  gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.node_degree()')
+  adjacency = graph_tensor.edge_sets[edge_set_name].adjacency
+  aggregate_node_count = pool_edges_to_node(
+      graph_tensor,
+      edge_set_name,
+      node_tag,
+      reduce_type='sum',
+      feature_value=tf.ones_like(adjacency[node_tag]))
+  return aggregate_node_count
 
 
 def _shuffle_features(features: gt.Fields,
