@@ -129,7 +129,7 @@ class InMemoryGraphData:
     self._add_self_loops = add_self_loops
 
   def with_undirected_edges(self, make_undirected: bool) -> 'InMemoryGraphData':
-    """Marks graph as "undirected" and returns the reference to this instance.
+    """Returns same graph data but with undirected edges added (or removed).
 
     Subsequent calls to `.graph_schema()` and to `.as_graph_tensor()` will be
     affected. Specifically, the generated output `tfgnn.GraphTensor` (by
@@ -158,16 +158,13 @@ class InMemoryGraphData:
       make_undirected: If True, subsequent calls to `.graph_schema()` and
         `.as_graph_tensor()` will export an undirected graph. If False, a
         directed graph (with additional "rev_*" edges).
-
-    Returns:
-      Reference to `self`.
     """
     modified = copy.copy(self)
     modified._make_undirected = make_undirected  # pylint: disable=protected-access -- same class.
     return modified
 
   def with_self_loops(self, add_self_loops: bool) -> 'InMemoryGraphData':
-    """Marks graph with "self-loops" and returns the reference to this instance.
+    """Returns same graph data but with self-loops added (or removed).
 
     If add_self_loops == True, then subsequent calls to `.as_graph_tensor()`
     will contain edges `[(i, i) for i in range(N_j)]`, for each homogeneous edge
@@ -181,9 +178,6 @@ class InMemoryGraphData:
     Args:
       add_self_loops: If set, self-loops will be amended on subsequent calls to
       `.as_graph_tensor()`. If not, no self-loops will be automatically added.
-
-    Returns:
-      Reference to `self`.
     """
     modified = copy.copy(self)
     modified._add_self_loops = add_self_loops  # pylint: disable=protected-access -- same class.
@@ -308,16 +302,29 @@ class NodeClassificationGraphData(InMemoryGraphData):
 
   def with_split(self, split: Union[str, List[str]] = 'train'
                  ) -> 'NodeClassificationGraphData':
+    """Returns same graph data but with specific partition.
+
+    Args:
+      split: must be one of {"train", "validation", "test"}.
+    """
     splits = split if isinstance(split, (tuple, list)) else [split]
     for split in splits:
       if split not in ('train', 'validation', 'test'):
-        raise ValueError('split must be one of {"train", "valid", "test"}.')
+        raise ValueError(
+            'split must be one of {"train", "validation", "test"}.')
     modified = copy.copy(self)
     modified._splits = splits  # pylint: disable=protected-access -- same class.
     return modified
 
   def with_labels_as_features(
       self, use_labels_as_features: bool) -> 'NodeClassificationGraphData':
+    """Returns same graph data with labels as an additional feature on nodes.
+
+    The feature will be added to the node-set with name `self.labeled_nodeset`.
+
+    Args:
+      use_labels_as_features: Label feature will be added iff set to True.
+    """
     modified = copy.copy(self)
     modified._use_labels_as_features = use_labels_as_features  # pylint: disable=protected-access -- same class.
     return modified
@@ -359,10 +366,10 @@ class NodeClassificationGraphData(InMemoryGraphData):
     raise NotImplementedError('num_classes')
 
   def node_split(self) -> NodeSplit:
-    """`NodeSplit` with attributes `train`, `valid`, `test` set to node indices.
+    """`NodeSplit` with attributes `train`, `validation`, `test` set.
 
-    These indices correspond to leading dimension of features in node set
-    `labeled_nodeset`.
+    The attributes are set to indices of the `labeled_nodeset`. Specifically,
+    they correspond to leading dimension of features of the node set.
     """
     raise NotImplementedError()
 
@@ -387,7 +394,7 @@ class NodeClassificationGraphData(InMemoryGraphData):
     raise NotImplementedError()
 
   @property
-  def labeled_nodeset(self) -> str:
+  def labeled_nodeset(self) -> tfgnn.NodeSetName:
     """Name of node set which `labels` and `node_splits` reference."""
     raise NotImplementedError()
 
@@ -638,16 +645,16 @@ class OgbnData(NodeClassificationGraphData):
 
 def _maybe_download_file(source_url, destination_path, make_dirs=True):
   """Downloads URL `source_url` onto file `destination_path` if not present."""
-  if not os.path.exists(destination_path):
+  if not tf.io.gfile.exists(destination_path):
     dir_name = os.path.dirname(destination_path)
     if make_dirs:
       try:
-        os.makedirs(dir_name)
+        tf.io.gfile.makedirs(dir_name)
       except FileExistsError:
         pass
 
     with urllib.request.urlopen(source_url) as fin:
-      with open(destination_path, 'wb') as fout:
+      with tf.io.gfile.GFile(destination_path, 'wb') as fout:
         fout.write(fin.read())
 
 
@@ -684,15 +691,17 @@ class PlanetoidGraphData(NodeClassificationGraphData):
       _maybe_download_file(source_url, destination_path)
 
     # Load data files.
-    edge_lists = pickle.load(open(base_path + '.graph', 'rb'))
+    edge_lists = pickle.load(tf.io.gfile.GFile(base_path + '.graph', 'rb'))
     allx = PlanetoidGraphData.load_x(base_path + '.allx')
-    ally = np.load(base_path + '.ally', allow_pickle=True)
+    ally = np.load(tf.io.gfile.GFile(base_path + '.ally', 'rb'),
+                   allow_pickle=True)
 
     testx = PlanetoidGraphData.load_x(base_path + '.tx')
 
     # Add test
     test_idx = list(
-        map(int, open(base_path + '.test.index').read().split('\n')[:-1]))
+        map(int, tf.io.gfile.GFile(
+            base_path + '.test.index').read().split('\n')[:-1]))
 
     num_test_examples = max(test_idx) - min(test_idx) + 1
     sparse_zeros = scipy.sparse.csr_matrix((num_test_examples, allx.shape[1]),
@@ -703,7 +712,8 @@ class PlanetoidGraphData(NodeClassificationGraphData):
     llallx[test_idx] = testx
     self._allx = as_tensor(np.array(llallx.todense()))
 
-    testy = np.load(base_path + '.ty', allow_pickle=True)
+    testy = np.load(tf.io.gfile.GFile(base_path + '.ty', 'rb'),
+                    allow_pickle=True)
     ally = np.pad(ally, [(0, num_test_examples), (0, 0)], mode='constant')
     ally[test_idx] = testy
 
@@ -729,9 +739,9 @@ class PlanetoidGraphData(NodeClassificationGraphData):
   @staticmethod
   def load_x(filename):
     if sys.version_info > (3, 0):
-      return pickle.load(open(filename, 'rb'), encoding='latin1')
+      return pickle.load(tf.io.gfile.GFile(filename, 'rb'), encoding='latin1')
     else:
-      return np.load(filename)
+      return np.load(tf.io.gfile.GFile(filename))
 
   def num_classes(self) -> int:
     return self._num_classes
