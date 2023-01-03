@@ -1268,7 +1268,7 @@ class GraphTensorSpec(gp.GraphPieceSpecBase):
     Calling with all default parameters keeps the spec unchanged.
 
     Args:
-      num_components: if True, allows the variable number of graph components.
+      num_components: if True, allows a variable number of graph components.
       num_nodes: if True, allows a variable number of nodes in each node set.
       num_edges: if True, allows a variable number of edges in each edge set.
 
