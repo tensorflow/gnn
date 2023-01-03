@@ -16,8 +16,6 @@
 """
 from __future__ import annotations
 
-import functools
-import operator
 from typing import Mapping
 
 import tensorflow as tf
@@ -29,19 +27,6 @@ def _correct_node_set_at_tag(
 
   return gt.edge_sets[edge_set_name].adjacency.node_set_name(
       node_tag) == node_set_name
-
-
-def _max_n(inputs: list[tfgnn.Field])->tfgnn.Field:
-  """Returns the element-wise max of a list of tensors."""
-
-  if not inputs:
-    raise ValueError(("Inputs must be an iterable of at least one "
-                      "Tensor/IndexedSlices with the same dtype and shape."))
-  if len(inputs) > 1 and not (tf.reduce_all(
-      functools.reduce(tf.math.equal, [tf.shape(input) for input in inputs])
-  ) and functools.reduce(operator.eq, [input.dtype for input in inputs])):
-    raise ValueError("Inputs must all have the same shape and dtype")
-  return functools.reduce(tf.math.maximum, inputs)
 
 
 def global_segmented_softmax_edges_per_node(
@@ -73,7 +58,7 @@ def global_segmented_softmax_edges_per_node(
             reduce_type="max",
             feature_value=value))
 
-  max_by_node = _max_n(maxes)
+  max_by_node = tf.keras.layers.maximum(maxes)
 
   # Next get all the offset exp sums, saving the per-edge exp sums
   for edge_set_name, value in feature_values.items():
