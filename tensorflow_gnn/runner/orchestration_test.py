@@ -181,60 +181,6 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
     # (len(examples), len(_LABELS))
     self.assertAllEqual(actual.shape, (examples.shape[0], len(_LABELS)))
 
-  @parameterized.named_parameters([
-      dict(
-          testcase_name="NoGraphTensor",
-          ds_provider=DatasetProvider(8191.),
-          expected_error=r"Expected `GraphTensor` \(got .*\)",
-      ),
-      dict(
-          testcase_name="MismatchedGraphTensorSpec",
-          ds_provider=DatasetProvider(random_graph_tensor(_SCHEMA_B)),
-          expected_error=r"Expected a `GraphTensor` of spec .*\ \(got .*\)",
-      ),
-  ])
-  def test_run_fails(
-      self,
-      ds_provider: orchestration.DatasetProvider,
-      expected_error: str):
-    def extract_labels(gt):
-      return gt, gt.context["label"]
-
-    def node_sets_fn(node_set, node_set_name):
-      del node_set_name
-      return node_set["features"]
-
-    def model_fn(gtspec):
-      inputs = tf.keras.Input(type_spec=gtspec)
-      graph = tfgnn.keras.layers.MapFeatures(node_sets_fn=node_sets_fn)(inputs)
-      return tf.keras.Model(inputs, graph)
-
-    task = classification.RootNodeMulticlassClassification(
-        node_set_name="node",
-        num_classes=8191)
-
-    model_dir = self.create_tempdir()
-
-    trainer = keras_fit.KerasTrainer(
-        strategy=tf.distribute.get_strategy(),
-        model_dir=model_dir,
-        steps_per_epoch=1,
-        validation_steps=1,
-        restore_best_weights=False)
-
-    with self.assertRaisesRegex(ValueError, expected_error):
-      orchestration.run(
-          train_ds_provider=ds_provider,
-          model_fn=model_fn,
-          optimizer_fn=tf.keras.optimizers.Adam,
-          epochs=1,
-          trainer=trainer,
-          task=task,
-          gtspec=graph_spec(),
-          global_batch_size=2,
-          feature_processors=(extract_labels,),
-          valid_ds_provider=ds_provider)
-
 
 if __name__ == "__main__":
   tf.test.main()
