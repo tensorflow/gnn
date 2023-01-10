@@ -18,13 +18,14 @@ import dataclasses
 import functools
 import itertools
 import os
-from typing import Any, Callable, Optional, Sequence, Tuple, Union
+from typing import Callable, Optional, Sequence, Tuple, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner.utils import model as model_utils
 from tensorflow_gnn.runner.utils import model_export
+from tensorflow_gnn.runner.utils import parsing as parsing_utils
 
 GraphTensor = tfgnn.GraphTensor
 GraphTensorAndField = Tuple[GraphTensor, tfgnn.Field]
@@ -172,33 +173,6 @@ _map_over_dataset = functools.partial(
     num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
 
-def _maybe_parse(gtspec: GraphTensorSpec) -> Callable[[Any], GraphTensor]:
-  """Returns a callable to parse (or assert the spec of) dataset elements."""
-  parse_example = tfgnn.keras.layers.ParseExample(gtspec)
-  # Relax the spec for potential comparisons.
-  relaxed = gtspec.relax(num_components=True, num_nodes=True, num_edges=True)
-  def fn(element):
-    # Use `getattr` to account for types without a `dtype` (e.g. `GraphTensor`).
-    if getattr(element, "dtype", None) == tf.string:
-      gt = parse_example(element)
-    elif not tfgnn.is_graph_tensor(element):
-      raise ValueError(f"Expected `GraphTensor` (got {element})")
-    else:
-      # Access protected member `_unbatch` to avoid any potential
-      # `merge_batch_to_components` work.
-      actual = element.spec._unbatch().relax(  # pylint: disable=protected-access
-          num_components=True,
-          num_nodes=True,
-          num_edges=True)
-      if actual != relaxed:
-        raise ValueError(
-            f"Expected a `GraphTensor` of spec {relaxed} (got {actual})")
-      else:
-        gt = element
-    return gt
-  return fn
-
-
 def _per_replica_batch_size(global_batch_size: int, num_replicas: int) -> int:
   if global_batch_size % num_replicas != 0:
     raise ValueError(f"The `global_batch_size` {global_batch_size} is not "
@@ -287,7 +261,7 @@ def run(*,
                *,
                filter_fn: Optional[Callable[..., bool]] = None,
                size_constraints: Optional[SizeConstraints] = None):
-    ds = _map_over_dataset(ds, _maybe_parse(gtspec))
+    ds = parsing_utils.maybe_parse_graph_tensor_dataset(ds, gtspec)
     if filter_fn is not None:
       ds = ds.filter(filter_fn)
     if size_constraints is not None:

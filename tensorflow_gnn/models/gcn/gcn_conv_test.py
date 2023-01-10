@@ -14,6 +14,7 @@
 # ==============================================================================
 """Tests for gcn_conv."""
 import enum
+import math
 import os
 
 from absl.testing import parameterized
@@ -193,9 +194,179 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                            lambda: conv(graph, edge_set_name=tfgnn.EDGES))
 
   @parameterized.named_parameters(
-      ('', ReloadModel.SKIP),
-      ('Restored', ReloadModel.SAVED_MODEL),
-      ('RestoredKeras', ReloadModel.KERAS))
+      dict(
+          testcase_name='noSelfLoops_noBias',
+          use_bias=False,
+          add_self_loops=False,
+      ),)
+  def test_gcnconv_with_edge_weights_ones(self, use_bias, add_self_loops):
+    """Tests that gcn_conv returns the correct values with edge weights."""
+    graph = tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            tfgnn.NODES:
+                tfgnn.NodeSet.from_fields(
+                    sizes=[2],
+                    features={
+                        tfgnn.HIDDEN_STATE: tf.constant([[1., 0.], [0., 1.]])
+                    },
+                )
+        },
+        edge_sets={
+            tfgnn.EDGES:
+                tfgnn.EdgeSet.from_fields(
+                    sizes=[2],
+                    features={
+                        'weights': tf.constant([1.0, 1.0], dtype=tf.float32)
+                    },
+                    adjacency=tfgnn.Adjacency.from_indices(
+                        source=(tfgnn.NODES, tf.constant([0, 1],
+                                                         dtype=tf.int64)),
+                        target=(tfgnn.NODES, tf.constant([1, 0],
+                                                         dtype=tf.int64)),
+                    ))
+        })
+    conv_with_edge_weights = gcn_conv.GCNConv(
+        units=2,
+        use_bias=use_bias,
+        add_self_loops=add_self_loops,
+        kernel_initializer=tf.keras.initializers.Constant(tf.eye(2)),
+        edge_weight_feature_name='weights')
+    conv_without_edge_weights = gcn_conv.GCNConv(
+        units=2,
+        use_bias=use_bias,
+        add_self_loops=add_self_loops,
+        kernel_initializer=tf.keras.initializers.Constant(tf.eye(2)))
+    self.assertAllClose(
+        conv_with_edge_weights(graph, edge_set_name=tfgnn.EDGES),
+        conv_without_edge_weights(graph, edge_set_name=tfgnn.EDGES),
+        rtol=1e-06,
+        atol=1e-06)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='noSelfLoops_noBias',
+          use_bias=False,
+          add_self_loops=False,
+          expected_result=tf.constant([[0., 4. / (2. * 3.)],
+                                       [9. / (2. * 3.), 0.]])),
+      dict(
+          testcase_name='selfLoops_noBias',
+          use_bias=False,
+          add_self_loops=True,
+          expected_result=tf.constant(
+              [[
+                  1. / (math.sqrt(5.) * math.sqrt(5.)),
+                  4. / (math.sqrt(10.) * math.sqrt(5.))
+              ],
+               [
+                   9. / (math.sqrt(10.) * math.sqrt(5.)),
+                   1. / (math.sqrt(10.) * math.sqrt(10.))
+               ]])),
+  )
+  def test_gcnconv_with_edge_weights(self, use_bias, add_self_loops,
+                                     expected_result):
+    """Tests that gcn_conv returns the correct values with edge weights."""
+    graph = tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            tfgnn.NODES:
+                tfgnn.NodeSet.from_fields(
+                    sizes=[2],
+                    features={
+                        tfgnn.HIDDEN_STATE: tf.constant([[1., 0.], [0., 1.]])
+                    },
+                )
+        },
+        edge_sets={
+            tfgnn.EDGES:
+                tfgnn.EdgeSet.from_fields(
+                    sizes=[2],
+                    features={
+                        'weights': tf.constant([9.0, 4.0], dtype=tf.float32)
+                    },
+                    adjacency=tfgnn.Adjacency.from_indices(
+                        source=(tfgnn.NODES, tf.constant([0, 1],
+                                                         dtype=tf.int64)),
+                        target=(tfgnn.NODES, tf.constant([1, 0],
+                                                         dtype=tf.int64)),
+                    ))
+        })
+    conv = gcn_conv.GCNConv(
+        units=2,
+        use_bias=use_bias,
+        add_self_loops=add_self_loops,
+        kernel_initializer=tf.keras.initializers.Constant(tf.eye(2)),
+        edge_weight_feature_name='weights')
+
+    self.assertAllClose(
+        expected_result,
+        conv(graph, edge_set_name=tfgnn.EDGES),
+        rtol=1e-06,
+        atol=1e-06)
+
+  def test_gcnconv_with_edge_weights_missing(self):
+    """Tests that missing given edge weights feature name in the graph tensor throws an error."""
+    graph = tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            tfgnn.NODES:
+                tfgnn.NodeSet.from_fields(
+                    sizes=[2],
+                    features={
+                        tfgnn.HIDDEN_STATE: tf.constant([[1., 0.], [0., 1.]])
+                    },
+                )
+        },
+        edge_sets={
+            tfgnn.EDGES:
+                tfgnn.EdgeSet.from_fields(
+                    sizes=[2],
+                    adjacency=tfgnn.Adjacency.from_indices(
+                        source=(tfgnn.NODES, tf.constant([0, 1],
+                                                         dtype=tf.int64)),
+                        target=(tfgnn.NODES, tf.constant([1, 0],
+                                                         dtype=tf.int64)),
+                    ))
+        })
+
+    conv = gcn_conv.GCNConv(units=2, edge_weight_feature_name='weights')
+    self.assertRaisesRegex(ValueError,
+                           'weights is not given for edge set edges ',
+                           lambda: conv(graph, edge_set_name=tfgnn.EDGES))
+
+  def test_gcnconv_with_bad_shaped_edge_weights(self):
+    """Tests that given edge weights feature with bad shape throws an error."""
+    graph = tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            tfgnn.NODES:
+                tfgnn.NodeSet.from_fields(
+                    sizes=[2],
+                    features={
+                        tfgnn.HIDDEN_STATE: tf.constant([[1., 0.], [0., 1.]])
+                    },
+                )
+        },
+        edge_sets={
+            tfgnn.EDGES:
+                tfgnn.EdgeSet.from_fields(
+                    sizes=[2],
+                    features={
+                        'weights': tf.constant([[9.0], [4.0]], dtype=tf.float32)
+                    },
+                    adjacency=tfgnn.Adjacency.from_indices(
+                        source=(tfgnn.NODES, tf.constant([0, 1],
+                                                         dtype=tf.int64)),
+                        target=(tfgnn.NODES, tf.constant([1, 0],
+                                                         dtype=tf.int64)),
+                    ))
+        })
+
+    conv = gcn_conv.GCNConv(units=2, edge_weight_feature_name='weights')
+    self.assertRaisesRegex(
+        ValueError, 'Expecting vector for edge weights. Received rank 2.',
+        lambda: conv(graph, edge_set_name=tfgnn.EDGES))
+
+  @parameterized.named_parameters(('', ReloadModel.SKIP),
+                                  ('Restored', ReloadModel.SAVED_MODEL),
+                                  ('RestoredKeras', ReloadModel.KERAS))
   def test_full_model(self, reload_model):
     """Tests GCNGraphUpdate in a full Model (incl. saving) with edge input."""
     gt_input = tfgnn.GraphTensor.from_pieces(

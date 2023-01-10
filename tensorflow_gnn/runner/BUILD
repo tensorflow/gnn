@@ -47,6 +47,7 @@ pytype_strict_library(
         "//tensorflow_gnn",
         "//tensorflow_gnn/runner/utils:model",
         "//tensorflow_gnn/runner/utils:model_export",
+        "//tensorflow_gnn/runner/utils:parsing",
     ],
 )
 
