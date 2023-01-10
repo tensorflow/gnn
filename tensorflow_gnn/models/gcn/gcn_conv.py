@@ -47,10 +47,14 @@ class GCNConv(tf.keras.layers.Layer):
       paper doesn't use a bias, but this defaults to True to be consistent
       with Keras and other implementations.
     add_self_loops: Whether to compute the result as if a loop from each node
-      to itself had been added to the edge set.
+      to itself had been added to the edge set. The self-loop edges are added
+      with an edge weight of one.
     normalize: Whether to normalize the node features by in-degree.
     kernel_initializer: initializer of type tf.keras.initializers .
     node_feature: Name of the node feature to transform.
+    edge_weight_feature_name: Can be set to the name of a feature on the edge
+      set that supplies a scalar weight for each edge. The GCN computation uses
+      it as the edge's entry in the adjacency matrix, instead of the default 1.
     **kwargs: additional arguments for the Layer.
 
   Call arguments:
@@ -99,6 +103,7 @@ class GCNConv(tf.keras.layers.Layer):
                kernel_initializer: bool = None,
                node_feature: Optional[str] = tfgnn.HIDDEN_STATE,
                kernel_regularizer: Optional[_RegularizerType] = None,
+               edge_weight_feature_name: Optional[tfgnn.FieldName] = None,
                **kwargs):
 
     super().__init__(**kwargs)
@@ -113,6 +118,7 @@ class GCNConv(tf.keras.layers.Layer):
     self._node_feature = node_feature
     self._receiver = receiver_tag
     self._sender = tfgnn.reverse_tag(receiver_tag)
+    self._edge_weight_feature_name = edge_weight_feature_name
 
   def get_config(self):
     filter_config = self._filter.get_config()
@@ -126,6 +132,7 @@ class GCNConv(tf.keras.layers.Layer):
         use_bias=filter_config['use_bias'],
         kernel_initializer=filter_config['kernel_initializer'],
         kernel_regularizer=filter_config['kernel_regularizer'],
+        edge_weight_feature_name=self._edge_weight_feature_name,
         **super().get_config())
 
   def call(
@@ -148,13 +155,29 @@ class GCNConv(tf.keras.layers.Layer):
 
     if self._normalize:
       edge_set = graph.edge_sets[edge_set_name]
-      edge_ones = tf.ones([edge_set.total_size, 1])
-      in_degree = tf.squeeze(tfgnn.pool_edges_to_node(
-          graph,
-          edge_set_name,
-          self._receiver,
-          'sum',
-          feature_value=edge_ones), -1)
+      if self._edge_weight_feature_name is not None:
+        try:
+          edge_weights = graph.edge_sets[edge_set_name][
+              self._edge_weight_feature_name]
+        except KeyError as e:
+          raise ValueError(f'{self._edge_weight_feature_name} is not given '
+                           f'for edge set {edge_set_name} ') from e
+        if edge_weights.shape.rank != 1:
+          # GraphTensor guarantees it is not None.
+          raise ValueError('Expecting vector for edge weights. Received rank '
+                           f'{tf.rank(edge_weights)}.')
+        edge_weights = tf.expand_dims(
+            edge_weights, axis=1)  # Align with state feature.
+      else:
+        edge_weights = tf.ones([edge_set.total_size, 1])
+
+      in_degree = tf.squeeze(
+          tfgnn.pool_edges_to_node(
+              graph,
+              edge_set_name,
+              self._receiver,
+              'sum',
+              feature_value=edge_weights), -1)
       # Degree matrix is the sum of rows of adjacency
       # Adding self-loops adds an identity matrix to the adjacency
       # This adds 1 to each diagonal element of the degree matrix
@@ -176,6 +199,8 @@ class GCNConv(tf.keras.layers.Layer):
         self._sender,
         feature_value=normalized_values,
     )
+    if self._edge_weight_feature_name is not None:
+      source_bcast = source_bcast * edge_weights
     pooled = tfgnn.pool_edges_to_node(
         graph, edge_set_name, self._receiver, 'sum', feature_value=source_bcast)
 
