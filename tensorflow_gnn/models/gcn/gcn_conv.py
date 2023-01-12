@@ -164,8 +164,10 @@ class GCNConv(tf.keras.layers.Layer):
                            f'for edge set {edge_set_name} ') from e
         if edge_weights.shape.rank != 1:
           # GraphTensor guarantees it is not None.
-          raise ValueError('Expecting vector for edge weights. Received rank '
-                           f'{tf.rank(edge_weights)}.')
+          raise ValueError(
+              'Expecting vector for edge weights. Received rank '
+              f'{edge_weights.shape.rank}.'
+          )
         edge_weights = tf.expand_dims(
             edge_weights, axis=1)  # Align with state feature.
       else:
