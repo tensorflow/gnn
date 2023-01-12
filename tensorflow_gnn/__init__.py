@@ -25,6 +25,8 @@ similar to `tf.TensorSpec`. For example, a `FieldSpec` describes an instance of
 `Field`, and a `GraphTensorSpec` describes an instance of `GraphTensor`.
 """
 
+from tensorflow_gnn import experimental  # Exposed as submodule. pylint: disable=unused-import
+from tensorflow_gnn import keras  # Exposed as submodule. pylint: disable=unused-import
 from tensorflow_gnn import version
 from tensorflow_gnn.graph import adjacency
 from tensorflow_gnn.graph import batching_utils

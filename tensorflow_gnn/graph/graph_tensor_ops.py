@@ -1154,7 +1154,7 @@ def shuffle_nodes(graph_tensor: GraphTensor,
   def index_shuffle_generic(node_set: gt.NodeSet) -> tf.Tensor:
     row_ids = utils.row_lengths_to_row_ids(
         node_set.sizes, sum_row_lengths_hint=node_set.spec.total_size)
-    return utils.segment_shuffle(row_ids, seed=seed)
+    return utils.segment_random_index_shuffle(segment_ids=row_ids, seed=seed)
 
   if graph_tensor.spec.total_num_components == 1:
     index_fn = index_shuffle_singleton

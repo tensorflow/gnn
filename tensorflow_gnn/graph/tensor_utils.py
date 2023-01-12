@@ -77,19 +77,23 @@ def row_lengths_to_row_ids(
   return result[:sum_row_lengths]
 
 
-def segment_shuffle(segment_ids: tf.Tensor,
-                    *,
-                    seed: Optional[int] = None) -> tf.Tensor:
-  """Returns global random permutation that respects segment boundaries.
+def segment_random_index_shuffle(
+    *, segment_ids: tf.Tensor, seed: Optional[int] = None) -> tf.Tensor:
+  """Returns a global permutation that shuffles randomly within each segment.
 
   XLA compatible.
 
-  NOTE: this implementation is based on `tf.argsort()`. Because TF argsort
+  NOTE: This function is **experimental** and may change or disappear in future
+  releases of the TF-GNN library.
+
+  NOTE: This implementation is based on `tf.argsort()`. Because TF argsort
   returns `tf.int32` indices, it is required that the total number of values in
   all segments, `N = tf.size(segment_ids)`, is `N <= tf.dtypes.int32.max`.
   Although this sorting-based implementation results in O(N log N) complexity,
-  in practice it is significantly faster compared to `tf.map_fn()` because the
-  latter is not vectorized.
+  in practice it can sometimes be significantly faster than `tf.map_fn()`.
+
+  NOTE: Unlike `tf.random_index_shuffle`, this function returns all indices
+  implied by `segment_ids`.
 
   Args:
     segment_ids: rank-1 tensor of dtype int32 or int64 with sorted segment ids.
