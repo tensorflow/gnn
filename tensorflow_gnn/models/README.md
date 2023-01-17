@@ -32,14 +32,16 @@ say so in their README files.
 
 ## List of Models
 
+<!-- Sorted alphabetically by title. -->
+
   * [GATv2](gat_v2/README.md): Graph Attention Networks v2
     (Brody&al, 2021).
-  * [GCN](gcn/README.md): Graph Convoutional Networks
+  * [GCN](gcn/README.md): Graph Convolutional Networks
     (Kipf&Welling, 2016), for homogeneous graphs only.
-  * [GraphSAGE](graph_sage/README.md) (Hamilton&al., 2017).
-  * [VanillaMPNN](vanilla_mpnn/README.md): TF-GNN's frequently used baseline
-    model, based on (Gilmer&al., 2016).
-  * [MultiHeadAttention](multi_head_attention/README.md): Transformer-style
-    multi-head attention on graph (Dwivedi&Bresson, 2021)
   * [GPT-GNN](gpt_gnn/README.md): Autoregressive graph generation task for
     transfer learning, based on (Hu&al., 2020).
+  * [GraphSAGE](graph_sage/README.md) (Hamilton&al., 2017).
+  * [MultiHeadAttention](multi_head_attention/README.md): Transformer-style
+    multi-head attention on graph (Dwivedi&Bresson, 2021).
+  * [VanillaMPNN](vanilla_mpnn/README.md): TF-GNN's frequently used baseline
+    model, based on (Gilmer&al., 2016).
