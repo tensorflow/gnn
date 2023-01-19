@@ -1,3 +1,4 @@
+# pyformat: mode=yapf
 # Copyright 2021 The TensorFlow GNN Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,7 +14,7 @@
 # limitations under the License.
 # ==============================================================================
 """Contains a Multi-Head Attention and associated layers."""
-from typing import Any, Callable, Collection, Mapping, Optional, Union
+from typing import Any, Callable, Collection, Literal, Mapping, Optional, Union
 import warnings
 
 import tensorflow as tf
@@ -72,13 +73,13 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
   attended to each other, which means we do NOT compute $N^2$ pairs of scores
   as the original Transformer-style Attention.
 
-  Users are able to remove the scaling of attention scores (score_scaling=False)
-  or add an activation on the transformed query (controled by
-  `attention_activation`). However, we recommend to remove the scaling when
-  using an `attention_activation` since activating both of them may lead to
-  degrated accuracy. One can also customize the transformation kernels with
-  different intializers, regularizers as well as the use of bias terms, using
-  the other arguments.
+  Users are able to remove the scaling of attention scores
+  (`score_scaling="none"`) or add an activation on the transformed query
+  (controlled by `attention_activation`). However, we recommend to remove the
+  scaling when using an `attention_activation` since activating both of them may
+  lead to degraded accuracy. One can also customize the transformation kernels
+  with different initializers, regularizers as well as the use of bias terms,
+  using the other arguments.
 
   Example: Transformer-style attention on neighbors along incoming edges
   whose result is concatenated with the old node state and passed through
@@ -157,9 +158,15 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       only queries are transformed since the two transformations on queries and
       keys are equivalent to one. (The presence of transformations on values is
       independent of this arg.)
-    score_scaling: If true, the attention scores are divided by the square root
-      of the dimension of keys (i.e., per_head_channels if transform_keys=True,
-      else whatever the dimension of combined sender inputs is).
+    score_scaling: One of either `"none"`, `"rsqrt_dim"`, or
+      `"trainable_sigmoid"`. If set to `"rsqrt_dim"`, the attention scores are
+      divided by the square root of the dimension of keys (i.e.,
+      `per_head_channels` if `transform_keys=True`, otherwise whatever the
+      dimension of combined sender inputs is). If set to `"trainable_sigmoid"`,
+      the scores are scaled with `sigmoid(x)`, where `x` is a trainable weight
+      of the model that is initialized to `-5.0`, which initially makes all the
+      attention weights equal and slowly ramps up as the other weights in the
+      layer converge. Defaults to `"rsqrt_dim"`.
     transform_values_after_pooling: By default, each attention head applies
       the value transformation, then pools with attention coefficients.
       Setting this option pools inputs with attention coefficients, then applies
@@ -186,7 +193,8 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       kernel_regularizer: Union[None, str,
                                 tf.keras.regularizers.Regularizer] = None,
       transform_keys: bool = True,
-      score_scaling: bool = True,
+      score_scaling: Literal["none", "rsqrt_dim",
+                             "trainable_sigmoid"] = "rsqrt_dim",
       transform_values_after_pooling: bool = False,
       **kwargs):
     kwargs.setdefault("name", "multi_head_attention_conv")
@@ -222,7 +230,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       self._edge_dropout_layer = None
 
     # Check for conflicting options.
-    if attention_activation is not None and score_scaling:
+    if attention_activation is not None and score_scaling != "none":
       warnings.warn(
           "using both an activation on transformed inputs and score scaling "
           "may lead to degraded accuracy if the activation function restricts "
@@ -299,6 +307,9 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
           kernel_initializer=kernel_initializer,
           kernel_regularizer=kernel_regularizer,
           name="value_pooled")
+
+    if self._score_scaling == "trainable_sigmoid":
+      self._score_scaling_weight = None
 
   def get_config(self):
     return dict(
@@ -419,9 +430,27 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     # [num_items, *extra_dims, num_heads, 1]
     attention_coefficients = tf.expand_dims(
         tf.einsum("...j,...j->...", queries, keys), axis=-1)
-    if self._score_scaling:
+
+    # Optionally scale the attention scores.
+    if self._score_scaling == "none":
+      pass
+    elif self._score_scaling == "rsqrt_dim":
       attention_coefficients *= tf.math.rsqrt(
-          tf.cast(keys.shape[-1], tf.float32))
+          tf.cast(tf.shape(keys)[-1], tf.float32))
+    elif self._score_scaling == "trainable_sigmoid":
+      if self._score_scaling_weight is None:
+        self._score_scaling_weight = self.add_weight(
+            name="score_scaling",
+            shape=[],
+            dtype=tf.float32,
+            initializer=tf.keras.initializers.Constant(-5.0),
+            trainable=True,
+        )
+      attention_coefficients *= tf.keras.activations.sigmoid(
+          self._score_scaling_weight)
+    else:
+      raise ValueError("Unknown value MultiHeadAttentionConv("
+                       f"score_scaling='{self._score_scaling}')")
 
     attention_coefficients = extra_receiver_ops["softmax"](
         attention_coefficients)

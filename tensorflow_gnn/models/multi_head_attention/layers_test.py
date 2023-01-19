@@ -1,3 +1,4 @@
+# pyformat: mode=yapf
 # Copyright 2021 The TensorFlow GNN Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +16,7 @@
 """Tests for Multi-Head Attention."""
 
 import enum
+import math
 import os
 
 from absl.testing import parameterized
@@ -32,8 +34,7 @@ class ReloadModel(int, enum.Enum):
 
 class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
 
-  @parameterized.named_parameters(("", False),
-                                  ("TransformAfter", True))
+  @parameterized.named_parameters(("", False), ("TransformAfter", True))
   def testBasic(self, transform_values_after_pooling):
     """Tests that a single-headed MHA is correct given predefined weights."""
     # NOTE: Many following tests use minor variations of the explicit
@@ -121,13 +122,12 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
           [0., 0., 0.])
     else:
       # Same weights, but as Einsum kernel "hvc".
-      weights["multi_head_attention_conv/value_pooled/kernel:0"].assign(
-          [[
-              [0., -1., 0.],
-              [-1., 0., 0.],
-              [-1., -1., 0.],
-              [0., 0., 1.1],
-          ]])
+      weights["multi_head_attention_conv/value_pooled/kernel:0"].assign([[
+          [0., -1., 0.],
+          [-1., 0., 0.],
+          [-1., -1., 0.],
+          [0., 0., 1.1],
+      ]])
       weights["multi_head_attention_conv/value_pooled/bias:0"].assign(
           [[0., 0., 0.]])
 
@@ -165,8 +165,7 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(got_2, want_2, atol=.0001)
 
   def testAttentionActivation(self):
-    """Tests that a single-headed MHA correctly applies attention activations.
-    """
+    """Tests that a single-headed MHA correctly applies attention activations."""
 
     # The same test graph as in the testBasic above.
     gt_input = _get_test_bidi_cycle_graph(
@@ -177,8 +176,7 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
         ]))
 
     def get_conv(attention_activation=None):
-      """Constructs a MultiHeadAttentionConv with the given attention_activation.
-      """
+      """Constructs a MultiHeadAttentionConv with the given attention_activation."""
 
       conv = multi_head_attention.MultiHeadAttentionConv(
           num_heads=1,
@@ -186,7 +184,7 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
           receiver_tag=tfgnn.TARGET,
           attention_activation=attention_activation,
           activation=None,
-          score_scaling=False,
+          score_scaling="none",
       )
 
       _ = conv(gt_input, edge_set_name="edges")  # Build weights.
@@ -290,6 +288,122 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllEqual(got.shape, (3, 3))
       self.assertAllClose(got, want, atol=.0001)
 
+  def testScoreScalingTypes(self):
+    """Tests that the different types of score scaling are applied correctly."""
+
+    # The same test graph as in the testBasic above.
+    gt_input = _get_test_bidi_cycle_graph(
+        tf.constant([
+            [1.0, 0.0, 0.0, 1.0],
+            [0.0, 1.0, 0.0, 2.0],
+            [0.0, 0.0, 1.0, 3.0],
+        ]))
+
+    def get_conv(score_scaling=None):
+      """Constructs a MultiHeadAttentionConv with the given score_scaling."""
+
+      conv = multi_head_attention.MultiHeadAttentionConv(
+          num_heads=1,
+          per_head_channels=3,
+          receiver_tag=tfgnn.TARGET,
+          activation=None,
+          score_scaling=score_scaling,
+      )
+
+      _ = conv(gt_input, edge_set_name="edges")  # Build weights.
+      weights = {v.name: v for v in conv.trainable_weights}
+      if score_scaling == "trainable_sigmoid":
+        # Additional trainable weight for the score scaling.
+        self.assertLen(weights, 7)
+      else:
+        self.assertLen(weights, 6)
+
+      weights["multi_head_attention_conv/query/kernel:0"].assign(
+          # The node states times the query kernel should be:
+          #
+          # [[0., 1., 0.],
+          #  [0., 0., -1.],
+          #  [1., 0., 0.]]
+          #
+          # i.e. the second query vector has negative values, which, after
+          # activation with the `relu` function, should be all zeros.
+          [
+              [0.0, 1.0, 0.0],
+              [0.0, 0.0, -1.0],
+              [1.0, 0.0, 0.0],
+              [0.0, 0.0, 0.0],
+          ])
+      weights["multi_head_attention_conv/query/bias:0"].assign([0.0, 0.0, 0.0])
+
+      weights["multi_head_attention_conv/key_node/kernel:0"].assign(
+          # The key_node kernel is chosen such that the the product with the
+          # node states is:
+          #
+          # [[-1., 0., 0.],
+          #  [0., 1., 0.],
+          #  [0., 0., 1.]]
+          #
+          # i.e. the third key vector has negative values, which, after
+          # activation with the `relu` function, should be all zeros.
+          [
+              [-1.0, 0.0, 0.0],
+              [0.0, 1.0, 0.0],
+              [0.0, 0.0, 1.0],
+              [0.0, 0.0, 0.0],
+          ])
+      weights["multi_head_attention_conv/key_node/bias:0"].assign(
+          [0.0, 0.0, 0.0])
+
+      # The attention scores are computed as the product of the transformed
+      # queries and keys (with a zero diagonal since there are no self edges and
+      # hence no self-attention), scaled by a factor s.
+      #
+      #  s * [[0., 1., 0.],              [[ 0,  s,  0],
+      #       [0., 0., -1],      ==       [ 0,  0, -s],
+      #       [-1, 0., 0.]]               [-s,  0,  0]]
+      #
+      # Attention weights are computed by applying softmax to each row except
+      # the diagonal element. Recall that
+      #    softmax([s,  0])                   = [exp(s), 1] / (exp(s) + 1), and
+      #    softmax([0, -s]) = softmax([s, 0]) = [exp(s), 1] / (exp(s) + 1),
+      # which explains the expected values below, with w = exp(s).
+
+      weights["multi_head_attention_conv/value_node/kernel:0"].assign(
+          # Identity matrix such that the transformed node states are `eye(3)`.
+          [
+              [1.0, 0.0, 0.0],
+              [0.0, 1.0, 0.0],
+              [0.0, 0.0, 1.0],
+              [0.0, 0.0, 0.0],
+          ])
+      weights["multi_head_attention_conv/value_node/bias:0"].assign(
+          [0.0, 0.0, 0.0])
+
+      return conv
+
+    named_scalings = {
+        "none": 1.0,
+        "rsqrt_dim": 1.0 / math.sqrt(3.0),
+        "trainable_sigmoid": tf.keras.activations.sigmoid(-5.0),
+    }
+
+    for scaling_name, scaling_factor in named_scalings.items():
+      with self.subTest(f"with_{scaling_name}"):
+        conv = get_conv(score_scaling=scaling_name)
+        got = conv(gt_input, edge_set_name="edges")
+
+        # Since the transformed values are just the identity matrix, we recover
+        # the attention weights for each query.
+        w = tf.math.exp(scaling_factor).numpy()
+        want = tf.constant([
+            [0.0, w, 1.0],
+            [w, 0.0, 1.0],
+            [1.0, w, 0.0],
+        ]) / tf.constant(
+            w + 1.0, dtype=tf.float32)
+        self.assertAllEqual(got.shape, (3, 3))
+        self.assertAllClose(got, want, atol=0.0001)
+
   def testNoTransformKeys(self):
     """Tests that the no key transformation variant of MHA is correct."""
 
@@ -386,8 +500,7 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(got_2.shape, (3, 2, 3))
     self.assertAllClose(got_2, want_2, atol=.0001)
 
-  @parameterized.named_parameters(("", False),
-                                  ("TransformAfter", True))
+  @parameterized.named_parameters(("", False), ("TransformAfter", True))
   def testMultihead(self, transform_values_after_pooling):
     """Extends testBasic with multiple attention heads."""
     # The same test graph as in the testBasic above.
@@ -404,7 +517,7 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
         receiver_tag=tfgnn.TARGET,
         activation="relu",
         use_bias=False,  # Don't create /bias variables.
-        score_scaling=False,  # Disable score scaling.
+        score_scaling="none",  # Disable score scaling.
         transform_values_after_pooling=transform_values_after_pooling,
     )
 
@@ -475,8 +588,7 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(got, want, atol=.0001)
 
   @parameterized.named_parameters(
-      ("", ReloadModel.SKIP, False),
-      ("TransformAfter", ReloadModel.SKIP, True),
+      ("", ReloadModel.SKIP, False), ("TransformAfter", ReloadModel.SKIP, True),
       ("Restored", ReloadModel.SAVED_MODEL, False),
       ("RestoredTransformAfter", ReloadModel.SAVED_MODEL, True),
       ("RestoredKeras", ReloadModel.KERAS, False),
