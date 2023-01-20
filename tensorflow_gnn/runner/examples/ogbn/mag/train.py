@@ -13,16 +13,20 @@
 # limitations under the License.
 # ==============================================================================
 """An e2e training example for OGBN-MAG."""
-from typing import Mapping, Optional, Sequence
+import functools
+from typing import Any, Callable, Mapping, Optional, Sequence
 
 from absl import app
 from absl import flags
 from absl import logging
+from ml_collections import config_dict
+from ml_collections import config_flags
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
 from tensorflow_gnn import runner
+from tensorflow_gnn.models import multi_head_attention
 from tensorflow_gnn.models import vanilla_mpnn
 
 FLAGS = flags.FLAGS
@@ -72,19 +76,66 @@ _RESTORE_BEST_WEIGHTS = flags.DEFINE_boolean(
     "By default, exports the trained model from the end of the training. "
     "If set, exports the trained model with the best validation result.")
 
+_LEARNING_RATE_SCHEDULE = flags.DEFINE_enum(
+    "lr_schedule", "cosine_decay", ["constant", "cosine_decay"],
+    "The learning rate schedule for the optimizer.")
+
+_LEARNING_RATE = flags.DEFINE_float(
+    "learning_rate", 1e-3,
+    "The initial learning rate of the learning rate schedule.")
+
 _PAPER_DIM = flags.DEFINE_integer(
     "paper_dim", 512,
     "Dimensionality of dense layer applied to paper features. "
     "Set to '0' for no dense transform.")
 
-_DROPOUT_RATE = flags.DEFINE_float(
-    "dropout_rate", 0.1,
-    "Controls the dropout applied to hidden states of the GNN. "
-    "Leave at default zero to disable dropout.")
 
-_L2_REGULARIZATION = flags.DEFINE_float(
-    "l2_regularization", 5e-4,
-    "The coefficient of the L2 regularization loss.")
+# The GNN model used by this script is configured by a ConfigDict
+# (see https://github.com/google/ml_collections).
+# The following function defines the available configuration options
+# and their default values. The subsequent config_flags definition
+# allows users to override them from the command line, for example,
+# --config.gnn.vanilla_mpnn.dropout_rate = 0.1
+def get_config_dict() -> config_dict.ConfigDict:
+  """The default config that users can override with --config.foo=bar."""
+  cfg = config_dict.ConfigDict()
+  cfg.gnn = config_dict.ConfigDict()
+  cfg.gnn.type = "vanilla_mpnn"
+  # For each supported gnn.type="foo", there is a config gnn.foo for that type's
+  # GraphUpdate class, overridden with the defaults for this training.
+  cfg.gnn.vanilla_mpnn = vanilla_mpnn.graph_update_get_config_dict()
+  cfg.gnn.vanilla_mpnn.units = 128
+  cfg.gnn.vanilla_mpnn.message_dim = 128
+  cfg.gnn.vanilla_mpnn.receiver_tag = tfgnn.SOURCE
+  cfg.gnn.vanilla_mpnn.dropout_rate = 0.2
+  cfg.gnn.vanilla_mpnn.l2_regularization = 6e-6
+  cfg.gnn.vanilla_mpnn.use_layer_normalization = True
+  # Config for multi head attention
+  cfg.gnn.multi_head_attention = (
+      multi_head_attention.graph_update_get_config_dict())
+  cfg.gnn.multi_head_attention.units = 128
+  cfg.gnn.multi_head_attention.message_dim = 128
+  cfg.gnn.multi_head_attention.num_heads = 4
+  cfg.gnn.multi_head_attention.receiver_tag = tfgnn.SOURCE
+  cfg.gnn.multi_head_attention.state_dropout_rate = 0.2
+  cfg.gnn.multi_head_attention.l2_regularization = 6e-6
+  cfg.gnn.multi_head_attention.edge_dropout_rate = 0.2
+  cfg.lock()
+  return cfg
+
+_CONFIG = config_flags.DEFINE_config_dict("config", get_config_dict())
+
+
+def _graph_update_from_config(
+    cfg: config_dict.ConfigDict) -> tf.keras.layers.Layer:
+  """Returns one instance of the configured GraphUpdate layer."""
+  if cfg.gnn.type == "vanilla_mpnn":
+    return vanilla_mpnn.graph_update_from_config_dict(cfg.gnn.vanilla_mpnn)
+  elif cfg.gnn.type == "multi_head_attention":
+    return multi_head_attention.graph_update_from_config_dict(
+        cfg.gnn.multi_head_attention)
+  else:
+    raise ValueError(f"Unknown gnn.type: {cfg.gnn.type}")
 
 
 # The following helper lets us filter a single input dataset by OGBN-MAG's
@@ -110,7 +161,7 @@ def _is_in_split(split_name: str):
   return filter_fn
 
 
-class _SplitDatasetProvider:
+class _SplitDatasetProvider(runner.DatasetProvider):
   """Splits a `delegate` for OGBN-MAG.
 
   The OGBN-MAG datasets splits test/validation/train by paper year. This class
@@ -136,8 +187,7 @@ def main(
     *,
     extra_keras_callbacks:
         Optional[Sequence[tf.keras.callbacks.Callback]] = None,
-    extra_dataset_formats:
-        Optional[Mapping[str, runner.SimpleDatasetProvider]] = None,
+    extra_dataset_formats: Optional[Mapping[str, Callable[[str], Any]]] = None,
 ) -> None:
   if len(args) > 1:
     raise app.UsageError("Too many command-line arguments.")
@@ -193,13 +243,8 @@ def main(
     graph = tfgnn.keras.layers.MapFeatures(
         node_sets_fn=set_initial_node_states)(graph)
     for _ in range(4):
-      graph = vanilla_mpnn.VanillaMPNNGraphUpdate(
-          units=128,
-          message_dim=128,
-          receiver_tag=tfgnn.SOURCE,
-          l2_regularization=_L2_REGULARIZATION.value,
-          dropout_rate=_DROPOUT_RATE.value,
-      )(graph)
+      graph_update = _graph_update_from_config(_CONFIG.value)
+      graph = graph_update(graph)
     return tf.keras.Model(inputs, graph)
 
   task = runner.RootNodeMulticlassClassification(
@@ -213,10 +258,31 @@ def main(
   # len(validation) == 64,879
   validation_steps = 64_879 // validation_batch_size
 
+  # Determine learning rate schedule
+  if _LEARNING_RATE_SCHEDULE.value == "cosine_decay":
+    learning_rate = tf.keras.optimizers.schedules.CosineDecay(
+        _LEARNING_RATE.value, steps_per_epoch*_EPOCHS.value)
+  elif _LEARNING_RATE_SCHEDULE.value == "constant":
+    learning_rate = _LEARNING_RATE.value
+  else:
+    raise ValueError(
+        f"Learning rate schedule '{_LEARNING_RATE_SCHEDULE.value}' not defined")
+
+  # Optimizer Function
+  optimizer_fn = functools.partial(tf.keras.optimizers.Adam,
+                                   learning_rate=learning_rate)
+
   if _TPU_ADDRESS.value is not None:
     strategy = runner.TPUStrategy(_TPU_ADDRESS.value)
-    train_padding = runner.FitOrSkipPadding(gtspec, train_ds_provider)
-    valid_padding = runner.TightPadding(gtspec, train_ds_provider)
+    # Update `min_nodes_per_component.` Default requirement of at least one node
+    # from each node set in input is sufficient but more than necessary.
+    # The condition that each graph component must contain at least one "paper"
+    # node is sufficient.
+    min_nodes_per_component = {"paper": 1}
+    train_padding = runner.FitOrSkipPadding(gtspec, train_ds_provider,
+                                            min_nodes_per_component)
+    valid_padding = runner.TightPadding(gtspec, valid_ds_provider,
+                                        min_nodes_per_component)
   else:
     strategy = tf.distribute.MirroredStrategy()
     train_padding = None
@@ -237,7 +303,7 @@ def main(
       train_ds_provider=train_ds_provider,
       train_padding=train_padding,
       model_fn=model_fn,
-      optimizer_fn=tf.keras.optimizers.Adam,
+      optimizer_fn=optimizer_fn,
       epochs=_EPOCHS.value,
       trainer=trainer,
       task=task,

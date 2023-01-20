@@ -22,11 +22,13 @@ The task implements the method as described in:
 https://papers.nips.cc/paper/2020/hash/417fbbf2e9d5a28a855a11894b2e795a-Abstract.html.
 """
 import operator
+import os
 from typing import Callable, Optional, Sequence, Union
 
 import numpy as np
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
+from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner.utils import model as model_utils
 
 
@@ -290,28 +292,35 @@ def integrated_gradients(
   return fn
 
 
-class IntegratedGradientsExporter:
+class IntegratedGradientsExporter(interfaces.ModelExporter):
   """Exports a Keras model with an additional integrated gradients signature."""
 
   # TODO(b/196880966): Support specifying IG and serving default output names.
   def __init__(self,
                integrated_gradients_output_name: Optional[str] = None,
+               subdirectory: Optional[str] = None,
                random_counterfactual: bool = True,
                steps: int = 32,
-               seed: Optional[int] = None):
+               seed: Optional[int] = None,
+               options: Optional[tf.saved_model.SaveOptions] = None):
     """Captures the args shared across `save(...)` calls.
 
     Args:
       integrated_gradients_output_name: The name for the integrated gradients
         output tensor. If unset, the tensor will be named by Keras defaults.
+      subdirectory: An optional subdirectory, if set: models are exported to
+        `os.path.join(export_dir, subdirectory).`
       random_counterfactual: Whether to use a random uniform counterfactual.
       steps: The number of interpolations of the Riemann sum approximation.
-      seed: An option random seed.
+      seed: An optional random seed.
+      options: Options for saving to SavedModel.
     """
     self._integrated_gradients_output_name = integrated_gradients_output_name
+    self._subdirectory = subdirectory
     self._random_counterfactual = random_counterfactual
     self._steps = steps
     self._seed = seed
+    self._options = options
 
   def save(self,
            preprocess_model: Optional[tf.keras.Model],
@@ -357,7 +366,11 @@ class IntegratedGradientsExporter:
         "serving_default": serving_default,
     }
 
+    if self._subdirectory:
+      export_dir = os.path.join(export_dir, self._subdirectory)
+
     tf.keras.models.save_model(
         model_for_export,
         export_dir,
-        signatures=signatures)
+        signatures=signatures,
+        options=self._options)

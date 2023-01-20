@@ -34,7 +34,6 @@ from absl import logging
 import apache_beam as beam
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.data import unigraph
@@ -211,14 +210,15 @@ def convert_samples_to_examples(
 
   def filter_by_prefix(prefix: str, group: Dict[str, Any]) -> Dict[str, Any]:
     return {
-        key.removeprefix(prefix): value
+        key[len(prefix):]: value
         for key, value in group.items()
         if key.startswith(prefix)
     }
 
   def convert_to_tf_example(schema: tfgnn.GraphSchema, sample_id: SampleId,
                             group: Dict[str, Any]) -> Example:
-
+    import tensorflow as tf  # pylint: disable=reimported,g-import-not-at-top,redefined-outer-name
+    from tensorflow_gnn.sampler import subgraph  # pylint: disable=reimported,g-import-not-at-top,redefined-outer-name
     seeds: Dict[tfgnn.NodeSetName, Iterable[NodeId]] = (
         filter_by_prefix("seeds/", group))
     node_sets: Dict[tfgnn.NodeSetName, Dict[NodeId, Features]] = {
@@ -232,7 +232,7 @@ def convert_samples_to_examples(
       raise ValueError("Sampling from multiple seed node sets is not supported,"
                        f" seed node sets {sorted(seeds.keys())}.")
     seed_ids: Iterable[bytes] = next(iter(seeds.values()))
-    context = Features()
+    context = tf.train.Features()
     assert "sample_id" in schema.context.features, schema
     context.feature["sample_id"].bytes_list.value.append(sample_id)
     assert "seed_id" in schema.context.features, schema
@@ -414,9 +414,6 @@ def define_flags():
       "output_samples", None,
       "Output file with serialized graph tensor Example protos.")
 
-  flags.DEFINE_bool("direct", False,
-                    "Use the direct runner that will only work locally.")
-
   runner_choices = [_DIRECT_RUNNER, _DATAFLOW_RUNNER]
   # Placeholder for Google-internal pipeline runner
   flags.DEFINE_enum(
@@ -435,35 +432,26 @@ def app_main(argv):
   """
   FLAGS = flags.FLAGS  # pylint: disable=invalid-name
   pipeline_args = argv[1:]
+  logging.info("output_samples: %s", FLAGS.output_samples)
   logging.info("Additional pipeline args: %s", pipeline_args)
   pipeline_options = PipelineOptions(pipeline_args)
-
-  # Make sure remote workers have access to variables/imports in the global
-  # namespace.
-  if FLAGS.runner == _DATAFLOW_RUNNER:
-    pipeline_options.view_as(SetupOptions).save_main_session = True
-
-  logging.info("output_samples: %s", FLAGS.output_samples)
 
   with tf.io.gfile.GFile(FLAGS.sampling_spec) as spec_file:
     spec = text_format.Parse(spec_file.read(), sampling_spec_pb2.SamplingSpec())
   logging.info("Sampling Specification:\n %s", spec)
 
   # Read the schema and validate it.
-  graph_schema_filename = unigraph.find_schema_filename(FLAGS.schema_filename)
+  graph_schema_filename = unigraph.find_schema_filename(FLAGS.graph_schema)
   graph_root_path = os.path.dirname(graph_schema_filename)
   logging.info("Reading schema from: %s", graph_schema_filename)
   schema = tfgnn.read_schema(graph_schema_filename)
+  logging.info("Graph Schema:\n %s", schema)
+  logging.info("Validating schema...")
   validate_schema(schema)
   logging.info("Schema read and validated.")
 
-  with tf.io.gfile.GFile(FLAGS.schema_filename) as schema_file:
-    schema = text_format.Parse(schema_file.read(),
-                               unigraph.graph_schema_pb2.GraphSchema())
-  logging.info("Graph Schema:\n %s", schema)
-
   run_sample_graph_pipeline(
-      FLAGS.graph_schema,
+      schema,
       spec,
       FLAGS.edge_aggregation_method,
       output_pattern=FLAGS.output_samples,

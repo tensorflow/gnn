@@ -36,7 +36,6 @@ In other words, the user-supplied transformation is a residual block
 that modifies the state.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
@@ -74,7 +73,6 @@ a dict, this key is used; defaults to <a href="../../../tfgnn.md#HIDDEN_STATE"><
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call returns</h2></th></tr>

@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for datasets."""
+"""Tests for unigraph_data."""
 
 import tensorflow as tf
-import tensorflow_gnn as tfgnn
 from tensorflow_gnn.data import unigraph
-import datasets
+from tensorflow_gnn.experimental.in_memory import unigraph_data
 from tensorflow_gnn.utils import test_utils
 
 from google.protobuf import text_format
@@ -25,17 +24,18 @@ from google.protobuf import text_format
 Example = tf.train.Example
 
 
-class DatasetsUnigraphHomogeneousTest(tf.test.TestCase):
+class UnigraphDataHomogeneousTest(tf.test.TestCase):
 
   def setUp(self):
     super().setUp()
     self.resource_dir = test_utils.get_resource_dir('testdata/homogeneous')
     self.graph_schema_file = unigraph.find_schema_filename(self.resource_dir)
-    self.graph_schema = tfgnn.read_schema(self.graph_schema_file)
+    self.graph_schema = unigraph.read_schema(self.graph_schema_file)
 
   def test_raw_io(self):
-    in_mem_unigraph = datasets.UnigraphInMemeoryDataset(
-        self.graph_schema, graph_directory=self.resource_dir)
+    in_mem_unigraph = unigraph_data.UnigraphData(
+        self.graph_schema, keep_intermediate_examples=True)
+
     self.assertSameElements(['fruits'], in_mem_unigraph.node_features.keys())
     self.assertSameElements([
         b'amanatsu', b'daidai', b'hassaku', b'kiyomi', b'komikan', b'lumia',
@@ -204,12 +204,11 @@ class DatasetsUnigraphHeterogeneousTest(tf.test.TestCase):
     super().setUp()
     self.resource_dir = test_utils.get_resource_dir('testdata/heterogeneous')
     self.graph_schema_file = unigraph.find_schema_filename(self.resource_dir)
-    self.graph_schema = tfgnn.read_schema(self.graph_schema_file)
+    self.graph_schema = unigraph.read_schema(self.graph_schema_file)
 
   def test_raw_io(self):
-    in_mem_unigraph = datasets.UnigraphInMemeoryDataset(
-        self.graph_schema, graph_directory=self.resource_dir)
-
+    in_mem_unigraph = unigraph_data.UnigraphData(
+        self.graph_schema, keep_intermediate_examples=True)
     self.assertSameElements([
         'transaction',
         'customer',

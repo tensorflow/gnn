@@ -33,19 +33,21 @@ that modifies `search_space` in-place by adding parameters and returns `None`.
 from vizier.service import pyvizier as vz
 
 
-def add_params_regularization(search_space: vz.SearchSpace) -> None:
+def add_params_regularization(search_space: vz.SearchSpace,
+                              *, prefix: str = "")-> None:
   """Adds params for a study of regularization strength.
 
   Args:
     search_space: a `pyvizier.SearchSpace` that is changed in-place by adding
       `dropout_rate` and `l2_regularization`.
+    prefix: a prefix added to param names.
   """
   # The params in `root` apply to all trials in the Vizier study.
   # go/pyvizier also lets you add conditional params.
   root = search_space.root
   root.add_discrete_param(
-      "dropout_rate", [.0, .1, .2, .3, .4, .5],
+      prefix + "dropout_rate", [.1, .2, .3],
       scale_type=vz.ScaleType.LINEAR)
   root.add_float_param(
-      "l2_regularization", 5e-7, 5e-4,
+      prefix + "l2_regularization", 1e-6, 1e-4,
       scale_type=vz.ScaleType.LOG)

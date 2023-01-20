@@ -42,7 +42,9 @@ TensorFlow programs can import and use this model as described in its
 [API docs](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/docs/api_docs/python/models/vanilla_mpnn.md).
 
 
-## Maintenance and stability
+## Maintenance and stability for open-source users
 
-This code is experimental for now, with no promises of maintenance or stability,
-and no assigned maintainer. Use at your own risk.
+This code is being maintained together with the TF-GNN library.
+However, its API may change between library versions.
+
+<!-- PLACEHOLDER FOR README GOOGLE EXTRAS -->

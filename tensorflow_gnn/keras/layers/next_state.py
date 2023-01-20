@@ -150,16 +150,21 @@ class ResidualNextState(tf.keras.layers.Layer):
   transformation, forms a skip connection by adding back the state of the
   updated graph piece, and finally applies an activation function.
   In other words, the user-supplied transformation is a residual block
-  that modifies the state.
+  that modifies the state. The output shape of the residual block must match
+  the shape of the state that gets updated so that they can be added.
+
+  If the initial state of the graph piece that is being updated has size 0,
+  the skip connection is omitted. This avoids the need to special-case, say,
+  latent node sets in modeling code applied to different node sets.
 
   Init args:
     residual_block: Required. A Keras Layer to transform the concatenation
-      of all inputs into a delta that gets added to the state. Notice that
-      the activation function is applied after the residual_block and the
-      addition, so typically the residual_block does *not* use an activation
-      function in its last layer.
-    activation: An activation function (none by default),
-      as understood by tf.keras.layers.Activation.
+      of all inputs into a delta that gets added to the state.
+    activation: An activation function (none by default), as understood by
+      `tf.keras.layers.Activation`. This activation function is applied after
+      the residual block and the addition. If using this, typically the
+      residual block does not have an activation function on its last layer,
+      or vice versa.
     skip_connection_feature_name: Controls which input from the updated graph
       piece is added back after the residual block. If the input from the
       updated graph piece is a single tensor, that one is used. If it is
@@ -216,14 +221,19 @@ class ResidualNextState(tf.keras.layers.Layer):
     net = tf.nest.flatten(inputs)
     net = tf.concat(net, axis=-1)
     net = self._residual_block(net)
-    if not skip_connection_feature.shape.is_compatible_with(net.shape):
+    if skip_connection_feature.shape[1:].num_elements() == 0:
+      tf.get_logger().warning(
+          "ResidualNextState() called on empty input state (latent node set?); "
+          "will omit residual link.")
+    elif not skip_connection_feature.shape.is_compatible_with(net.shape):
       raise ValueError(
           "A ResidualNextState() requires an update_fn whose "
           "output has the same shape as the input state, but got "
           f"output shape {net.shape.as_list()} vs "
           f"input shape {skip_connection_feature.shape.as_list()} "
           f"from {skip_connection_msg}.")
-    net = tf.add(net, skip_connection_feature)
+    else:
+      net = tf.add(net, skip_connection_feature)
     net = self._activation(net)
     return net
 

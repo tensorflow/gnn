@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/vanilla_mpnn/layers.py#L22-L105">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/vanilla_mpnn/layers.py#L22-L111">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -26,7 +26,8 @@ Returns a GraphUpdate layer for a Vanilla MPNN.
     reduce_type: str = &#x27;sum&#x27;,
     l2_regularization: float = 0.0,
     dropout_rate: float = 0.0,
-    kernel_initializer: Union[None, str, tf.keras.initializers.Initializer] = &#x27;glorot_uniform&#x27;
+    kernel_initializer: Union[None, str, tf.keras.initializers.Initializer] = &#x27;glorot_uniform&#x27;,
+    use_layer_normalization: bool = False
 ) -> tf.keras.layers.Layer
 </code></pre>
 
@@ -131,6 +132,14 @@ new node state.
 <td>
 Can be set to a `kerner_initializer` as understood
 by `tf.keras.layers.Dense` etc.
+</td>
+</tr><tr>
+<td>
+`use_layer_normalization`<a id="use_layer_normalization"></a>
+</td>
+<td>
+Flag to determine whether to apply layer
+normalization to the new node state.
 </td>
 </tr>
 </table>

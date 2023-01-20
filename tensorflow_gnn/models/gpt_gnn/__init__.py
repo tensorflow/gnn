@@ -12,18 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for keras_fit."""
-import tensorflow as tf
+"""GPT-GNN.
 
-from tensorflow_gnn.runner import orchestration
-from tensorflow_gnn.runner.trainers import keras_fit
+Users of TF-GNN can use this model by importing it next to the core library as
 
-
-class KerasFitTest(tf.test.TestCase):
-
-  def test_protocol(self):
-    self.assertIsInstance(keras_fit.KerasTrainer, orchestration.Trainer)
-
-
-if __name__ == "__main__":
-  tf.test.main()
+```python
+import tensorflow_gnn as tfgnn
+from tensorflow_gnn.models import gpt_gnn
+```
+"""

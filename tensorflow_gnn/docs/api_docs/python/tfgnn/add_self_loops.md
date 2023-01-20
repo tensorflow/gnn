@@ -29,7 +29,6 @@ Adds self-loops for edge with name `edge_set_name` EVEN if already exist.
 Edge `edge_set_name` must connect pair of nodes of the same node set.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -61,7 +60,6 @@ It defaults to initializing features of new edges to tf.zeros.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>

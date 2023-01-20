@@ -19,31 +19,23 @@ from typing import Callable, Mapping, Optional
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
-from tensorflow_gnn.runner import orchestration
+from tensorflow_gnn.runner import interfaces
+from tensorflow_gnn.runner.utils import parsing as parsing_utils
 
 SizeConstraints = tfgnn.SizeConstraints
-
-
-def _parse_dataset(
-    gtspec: tfgnn.GraphTensorSpec,
-    dataset: tf.data.Dataset) -> tf.data.Dataset:
-  return dataset.map(
-      functools.partial(tfgnn.parse_single_example, gtspec),
-      deterministic=False,
-      num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
 
 def one_node_per_component(gtspec: tfgnn.GraphTensorSpec) -> Mapping[str, int]:
   return {k: 1 for k in gtspec.node_sets_spec.keys()}
 
 
-class _GraphTensorPadding(abc.ABC):
+class _GraphTensorPadding(interfaces.GraphTensorPadding):
   """Calculates `SizeConstraints` for `GraphTensor` padding."""
 
   def __init__(
       self,
       gtspec: tfgnn.GraphTensorSpec,
-      dataset_provider: orchestration.DatasetProvider,
+      dataset_provider: interfaces.DatasetProvider,
       min_nodes_per_component: Optional[Mapping[str, int]] = None):
     self._gtspec = gtspec
     self._dataset_provider = dataset_provider
@@ -73,7 +65,7 @@ class FitOrSkipPadding(_GraphTensorPadding):
   def __init__(
       self,
       gtspec: tfgnn.GraphTensorSpec,
-      dataset_provider: orchestration.DatasetProvider,
+      dataset_provider: interfaces.DatasetProvider,
       min_nodes_per_component: Optional[Mapping[str, int]] = None,
       fit_or_skip_sample_sample_size: int = 10_000,
       fit_or_skip_success_ratio: float = 0.99):
@@ -89,11 +81,9 @@ class FitOrSkipPadding(_GraphTensorPadding):
         total_sizes=size_constraints)
 
   def get_size_constraints(self, target_batch_size: int) -> SizeConstraints:
-    dataset = _parse_dataset(
-        self._gtspec,
-        self._dataset_provider.get_dataset(tf.distribute.InputContext()))
+    dataset = self._dataset_provider.get_dataset(tf.distribute.InputContext())
     return tfgnn.learn_fit_or_skip_size_constraints(  # pytype: disable=bad-return-type
-        dataset,
+        parsing_utils.maybe_parse_graph_tensor_dataset(dataset, self._gtspec),
         target_batch_size,
         min_nodes_per_component=self._min_nodes_per_component,
         sample_size=self._fit_or_skip_sample_sample_size,
@@ -111,10 +101,8 @@ class TightPadding(_GraphTensorPadding):
     return lambda *args, **kwargs: True
 
   def get_size_constraints(self, target_batch_size: int) -> SizeConstraints:
-    dataset = _parse_dataset(
-        self._gtspec,
-        self._dataset_provider.get_dataset(tf.distribute.InputContext()))
+    dataset = self._dataset_provider.get_dataset(tf.distribute.InputContext())
     return tfgnn.find_tight_size_constraints(
-        dataset,
+        parsing_utils.maybe_parse_graph_tensor_dataset(dataset, self._gtspec),
         min_nodes_per_component=self._min_nodes_per_component,
         target_batch_size=target_batch_size)

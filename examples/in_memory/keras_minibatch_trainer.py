@@ -12,27 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Sample script for full-batch (entire graph) training of tfgnn model on OGBN.
+"""Sample script for on-the-fly-sampling training of tfgnn model on OGBN.
 
 This script runs end-to-end, i.e., requiring no pre- or post-processing scripts.
-It holds the dataset in-memory, and processes the entire graph at each step. It
-uses barebones tensorflow.
+It holds the dataset in-memory, and at each step, samples subgraph as mini-batch
 
 By default, script runs on 'ogbn-arxiv'. You substitute with another
 node-classification dataset via flag --dataset.
 """
-import functools
 import json
+import math
 
 from absl import app
 from absl import flags
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
-import datasets
-from tensorflow_gnn.examples.in_memory import int_arithmetic_sampler
-import models
-import reader_utils
+from tensorflow_gnn.experimental.in_memory import datasets
+from tensorflow_gnn.experimental.in_memory import int_arithmetic_sampler as ia_sampler
+from tensorflow_gnn.experimental.in_memory import models
+from tensorflow_gnn.experimental.in_memory import reader_utils
 from tensorflow_gnn.sampler import sampling_spec_builder
 
 
@@ -50,23 +49,25 @@ flags.DEFINE_integer('eval_every', 500, 'Eval every this many steps.')
 flags.DEFINE_float('learning_rate', 1e-3, 'Learning rate.')
 flags.DEFINE_float('l2_regularization', 1e-5,
                    'L2 Regularization for (non-bias) weights.')
-flags.DEFINE_integer('steps', 10_000,
-                     'Total number of training steps. Each step uses '
-                     '--batch_size training nodes.')
-flags.DEFINE_integer('batch_size', 200,
-                     'Number of labeled seed nodes in every batch.')
+flags.DEFINE_integer('epochs', 50,
+                     'Total number of training epochs. Each step uses '
+                     '--num_seeds training nodes.')
+flags.DEFINE_integer('num_seeds', 200,
+                     'Number of labeled nodes to seed subgraphs in every '
+                     'training step.')
 
 
 def main(unused_argv):
-  dataset_wrapper = datasets.get_dataset(FLAGS.dataset)
-  num_classes = dataset_wrapper.num_classes()
+  graph_data = datasets.get_in_memory_graph_data(FLAGS.dataset)
+  assert isinstance(graph_data, datasets.NodeClassificationGraphData)
+  num_classes = graph_data.num_classes()
   model_kwargs = json.loads(FLAGS.model_kwargs_json)
   prefers_undirected, model = models.make_model_by_name(
       FLAGS.model, num_classes, l2_coefficient=FLAGS.l2_regularization,
       model_kwargs=model_kwargs)
+  graph_data = graph_data.with_undirected_edges(prefers_undirected)
 
-  graph_schema = dataset_wrapper.export_graph_schema(
-      make_undirected=prefers_undirected)
+  graph_schema = graph_data.graph_schema()
   type_spec = tfgnn.create_graph_spec_from_schema_pb(graph_schema)
 
   input_graph = tf.keras.layers.Input(type_spec=type_spec)
@@ -91,44 +92,42 @@ def main(unused_argv):
       from_logits=True, reduction=tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE)
   keras_model.compile(opt, loss=loss, metrics=['acc'])
 
+  sampling_kwargs = dict(
+      sampling_spec=(
+          sampling_spec_builder.SamplingSpecBuilder(
+              graph_schema,
+              sampling_spec_builder.SamplingStrategy.RANDOM_UNIFORM)
+          .seed().sample([3, 3]).build()),
+      num_seed_nodes=FLAGS.num_seeds,
+      sampling_mode=ia_sampler.EdgeSampling.WITH_REPLACEMENT
+  )
   # Subgraph samples for training.
-  train_sampling_spec = (sampling_spec_builder.SamplingSpecBuilder(graph_schema)
-                         .seed().sample([3, 3]).to_sampling_spec())
-  _, train_dataset = int_arithmetic_sampler.make_sampled_subgraphs_dataset(
-      dataset_wrapper, sampling_spec=train_sampling_spec,
-      batch_size=FLAGS.batch_size,
-      sampling=int_arithmetic_sampler.EdgeSampling.WITH_REPLACEMENT,
-      make_undirected=prefers_undirected)
-
-  train_labels_dataset = train_dataset.map(
-      functools.partial(reader_utils.pair_graphs_with_labels, num_classes))
+  train_dataset = ia_sampler.NodeClassificationGraphSampler(
+      graph_data.with_split('train')).as_dataset(**sampling_kwargs)
 
   # Subgraph samples for validation.
-  _, validation_ds = int_arithmetic_sampler.make_sampled_subgraphs_dataset(
-      dataset_wrapper, sampling_spec=train_sampling_spec,
-      batch_size=FLAGS.batch_size,
-      sampling=int_arithmetic_sampler.EdgeSampling.WITHOUT_REPLACEMENT,
-      split='valid', make_undirected=prefers_undirected)
-  validation_ds = validation_ds.map(
-      functools.partial(reader_utils.pair_graphs_with_labels, num_classes))
-
+  validation_ds = ia_sampler.NodeClassificationGraphSampler(
+      graph_data.with_split('validation')).as_dataset(**sampling_kwargs)
   validation_repeated_ds = validation_ds.repeat()
 
   FLAGS.alsologtostderr = True  # To print accuracy and training progress.
+  steps_per_epoch = math.ceil(graph_data.node_split().train.shape[0]
+                              / FLAGS.num_seeds)
   keras_model.fit(
-      train_labels_dataset,
-      epochs=FLAGS.steps,
-      steps_per_epoch=1,
+      train_dataset,
+      verbose=1,
+      epochs=FLAGS.epochs,
+      steps_per_epoch=steps_per_epoch,
       validation_data=validation_repeated_ds,
-      validation_steps=10,
+      validation_steps=1,
       validation_freq=FLAGS.eval_every)
 
-  test_graph = dataset_wrapper.export_to_graph_tensor(
-      split='test', make_undirected=prefers_undirected)
-  test_graph, test_labels = reader_utils.pair_graphs_with_labels(
+  test_graph = (graph_data.with_split('test').with_labels_as_features(True)
+                .as_graph_tensor())
+  test_graph, test_labels = reader_utils.pop_labels_from_graph(
       num_classes, test_graph)
-  accuracy = (tf.argmax(keras_model(test_graph), 1) ==
-              tf.argmax(test_labels, 1)).numpy().mean()
+  accuracy = (tf.argmax(keras_model(test_graph), -1) ==
+              tf.argmax(test_labels, -1)).numpy().mean()
 
   print('Final test accuracy=%f' % accuracy)
 

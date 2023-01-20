@@ -18,11 +18,12 @@ from typing import Callable, Optional, Sequence
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
+from tensorflow_gnn.runner import interfaces
 
 AUTO = tf.keras.losses.Reduction.AUTO
 
 
-class _Regression(abc.ABC):
+class _Regression(interfaces.Task):
   """Regression abstract class.
 
   Any subclass must implement both `gather_activations` and `losses`, usually
@@ -52,7 +53,7 @@ class _Regression(abc.ABC):
     logits = tf.keras.layers.Dense(
         self._units,
         name="logits")(activations)  # Name seen in SignatureDef.
-    return tf.keras.Model(model.inputs, logits)
+    return tf.keras.Model(model.input, logits)
 
   def preprocess(self, gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
     return gt
@@ -83,12 +84,12 @@ class _GraphRegression(_Regression):
     self._state_name = state_name
     self._reduce_type = reduce_type
 
-  def gather_activations(self, gt: tfgnn.GraphTensor) -> tfgnn.Field:
-    return tfgnn.pool_nodes_to_context(
-        gt,
-        self._node_set_name,
+  def gather_activations(self, gt: tfgnn.GraphTensor) -> tf.Tensor:
+    return tfgnn.keras.layers.Pool(
+        tfgnn.CONTEXT,
         self._reduce_type,
-        feature_name=self._state_name)
+        node_set_name=self._node_set_name,
+        feature_name=self._state_name)(gt)
 
 
 class _RootNodeRegression(_Regression):

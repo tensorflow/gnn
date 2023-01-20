@@ -87,7 +87,6 @@ perform an identical computation on each of the `num_nodes * 2 * 4` input
 values.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>

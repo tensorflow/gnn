@@ -22,12 +22,16 @@ from tensorflow_gnn.models import multi_head_attention
 ```
 """
 
+from tensorflow_gnn.models.multi_head_attention import config_dict
 from tensorflow_gnn.models.multi_head_attention import layers
 
 MultiHeadAttentionConv = layers.MultiHeadAttentionConv
 MultiHeadAttentionEdgePool = layers.MultiHeadAttentionEdgePool
 MultiHeadAttentionHomGraphUpdate = layers.MultiHeadAttentionHomGraphUpdate
 MultiHeadAttentionMPNNGraphUpdate = layers.MultiHeadAttentionMPNNGraphUpdate
+graph_update_get_config_dict = config_dict.graph_update_get_config_dict
+graph_update_from_config_dict = config_dict.graph_update_from_config_dict
 
 # Prune imported module symbols so they're not accessible implicitly.
+del config_dict
 del layers

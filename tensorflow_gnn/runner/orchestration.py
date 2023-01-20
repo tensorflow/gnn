@@ -16,39 +16,28 @@
 import collections
 import dataclasses
 import functools
+import itertools
 import os
-import sys
-from typing import Callable, Mapping, Optional, Sequence, Tuple, Union
+from typing import Callable, Optional, Sequence, Tuple, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
+from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner.utils import model as model_utils
 from tensorflow_gnn.runner.utils import model_export
+from tensorflow_gnn.runner.utils import parsing as parsing_utils
 
-# pylint:disable=g-import-not-at-top
-if sys.version_info >= (3, 8):
-  from typing import Protocol
-  from typing import runtime_checkable
-else:
-  from typing_extensions import Protocol
-  from typing_extensions import runtime_checkable
-# pylint:enable=g-import-not-at-top
-
-GraphTensorAndField = Tuple[tfgnn.GraphTensor, tfgnn.Field]
+GraphTensor = tfgnn.GraphTensor
+GraphTensorAndField = Tuple[GraphTensor, tfgnn.Field]
+GraphTensorSpec = tfgnn.GraphTensorSpec
 SizeConstraints = tfgnn.SizeConstraints
 
-
-_map_over_dataset = functools.partial(
-    tf.data.Dataset.map,
-    deterministic=False,
-    num_parallel_calls=tf.data.experimental.AUTOTUNE)
-
-
-def _per_replica_batch_size(global_batch_size: int, num_replicas: int) -> int:
-  if global_batch_size % num_replicas != 0:
-    raise ValueError(f"The `global_batch_size` {global_batch_size} is not "
-                     f"divisible by `num_replicas_in_sync` {num_replicas}")
-  return global_batch_size // num_replicas
+DatasetProvider = interfaces.DatasetProvider
+GraphTensorPadding = interfaces.GraphTensorPadding
+GraphTensorProcessorFn = interfaces.GraphTensorProcessorFn
+ModelExporter = interfaces.ModelExporter
+Task = interfaces.Task
+Trainer = interfaces.Trainer
 
 
 @dataclasses.dataclass
@@ -65,15 +54,7 @@ class TFDataServiceConfig:
   tf_data_service_mode: Union[str, tf.data.experimental.service.ShardingPolicy]
 
 
-@runtime_checkable
-class DatasetProvider(Protocol):
-
-  def get_dataset(self, context: tf.distribute.InputContext) -> tf.data.Dataset:
-    """Get a `tf.data.Dataset` by `context` per replica."""
-    raise NotImplementedError()
-
-
-class _WrappedDatasetProvider:
+class _WrappedDatasetProvider(DatasetProvider):
   """Wraps a `DatasetProvider` with batching and processing."""
 
   def __init__(self,
@@ -82,6 +63,7 @@ class _WrappedDatasetProvider:
                drop_remainder: bool,
                global_batch_size: int,
                tf_data_service_config: Optional[TFDataServiceConfig] = None):
+    super().__init__()
     self._apply_fn = apply_fn
     self._delegate = delegate
     self._drop_remainder = drop_remainder
@@ -115,153 +97,9 @@ class _WrappedDatasetProvider:
     return ds.apply(self._apply_fn)
 
 
-@runtime_checkable
-class GraphTensorPadding(Protocol):
-  """Collects `GraphtTensor` padding helpers."""
-
-  def get_filter_fn(
-      self,
-      size_constraints: SizeConstraints) -> Callable[..., bool]:
-    """"""
-    raise NotImplementedError()
-
-  def get_size_constraints(self, target_batch_size: int) -> SizeConstraints:
-    """"""
-    raise NotImplementedError()
-
-
-@runtime_checkable
-class GraphTensorProcessorFn(Protocol):
-  """A class for `GraphTensor` processing."""
-
-  def __call__(
-      self,
-      gt: tfgnn.GraphTensor) -> Union[tfgnn.GraphTensor, GraphTensorAndField]:
-    """Processes a `GraphTensor` with optional `Field` extraction.
-
-    Args:
-      gt: A `GraphTensor` for processing.
-
-    Returns:
-      A processed `GraphTensor` or a processed `GraphTensor` and `Field.`
-    """
-    raise NotImplementedError()
-
-
-@runtime_checkable
-class ModelExporter(Protocol):
-  """Saves a Keras model."""
-
-  def save(
-      self,
-      preprocess_model: Optional[tf.keras.Model],
-      model: tf.keras.Model,
-      export_dir: str):
-    """Saves a Keras model.
-
-    All persistence decisions are left to the implementation: e.g., a Keras
-    model with full API or a simple `tf.train.Checkpoint` may be saved.
-
-    Args:
-      preprocess_model: An optional `tf.keras.Model` for preprocessing.
-      model: A `tf.keras.Model` to save.
-      export_dir: A destination directory for the model.
-    """
-    raise NotImplementedError()
-
-
-@runtime_checkable
-class Task(Protocol):
-  """Collects the ancillary, supporting pieces to train a Keras model.
-
-  `Task`s are applied and used to compile a `tf.keras.Model` in the scope
-  of a training invocation: they are subject to the executing context
-  of the `Trainer` and should, when needed, override it (e.g., a global
-  policy, like `tf.keras.mixed_precision.global_policy()` and its implications
-  over logit and activation layers).
-
-  A `Task` is expected to coordinate all of its methods and their return values
-  to define a graph learning objective. Precisely:
-
-  1) `preprocess` is expected to return a `GraphTensor` matching the input of
-     the model returned by `adapt`
-  2) `adapt` is expected to return a `tf.keras.Model` that accepts a
-     `GraphTensor` matching the output of `preprocess`
-  3) `losses` is expected to return callables (`tf.Tensor`, `tf.Tensor`) ->
-     `tf.Tensor` that accept (`y_true`, `y_pred`) where `y_true` is produced
-     by some dataset and `y_pred` is output of the adapted model (see (2))
-  4) `metrics` is expected to return callables (`tf.Tensor`, `tf.Tensor`) ->
-     `tf.Tensor` that accept (`y_true`, `y_pred`) where `y_true` is produced
-     by some dataset and `y_pred` is output of the adapted model (see (2)).
-
-  No constraints are made on the `adapt` method; e.g.: it may adapt its input by
-  appending a head, it may add losses to its input, it may add metrics to its
-  input or it may do any combination of the aforementioned modifications. The
-  `adapt` method is expected to adapt an arbitrary `tf.keras.Model` to the graph
-  learning objective. (The entire `Tasks` coordinates what that means with
-  respect to input—via `preprocess`—, modeling—via `adapt`— and optimization—via
-  `losses.`)
-  """
-
-  def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
-    """Adapt a model to a task by appending arbitrary head(s)."""
-    raise NotImplementedError()
-
-  def preprocess(self, gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
-    """Preprocess a scalar (after `merge_batch_to_components`) `GraphTensor`."""
-    raise NotImplementedError()
-
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    """Arbitrary losses matching any head(s)."""
-    raise NotImplementedError()
-
-  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    """Arbitrary task specific metrics."""
-    raise NotImplementedError()
-
-
-@runtime_checkable
-class Trainer(Protocol):
-  """A class for training and validation."""
-
-  @property
-  def model_dir(self) -> str:
-    raise NotImplementedError()
-
-  @property
-  def strategy(self) -> tf.distribute.Strategy:
-    raise NotImplementedError()
-
-  def train(
-      self,
-      model_fn: Callable[[], tf.keras.Model],
-      train_ds_provider: DatasetProvider,
-      *,
-      epochs: int = 1,
-      valid_ds_provider: Optional[DatasetProvider] = None) -> tf.keras.Model:
-    """Trains a `tf.keras.Model` with optional validation.
-
-    Args:
-      model_fn: Returns a `tf.keras.Model` for use in training and validation.
-      train_ds_provider: A `DatasetProvider` for training. The items of the
-        `tf.data.Dataset` are pairs `(graph_tensor, label)` that represent one
-        batch of per-replica training inputs after
-        `GraphTensor.merge_batch_to_components()` has been applied.
-      epochs: The epochs to train.
-      valid_ds_provider: A `DatasetProvider` for validation. The items of the
-        `tf.data.Dataset` are pairs `(graph_tensor, label)` that represent one
-        batch of per-replica training inputs after
-        `GraphTensor.merge_batch_to_components()` has been applied.
-
-    Returns:
-      A trained `tf.keras.Model.`
-    """
-    raise NotImplementedError()
-
-
-def make_parsing_model(gtspec: tfgnn.GraphTensorSpec) -> tf.keras.Model:
+def _make_parsing_model(gtspec: GraphTensorSpec) -> tf.keras.Model:
   """Builds a `tf.keras.Model` that parses GraphTensors."""
-  examples = tf.keras.layers.Input(
+  examples = tf.keras.Input(
       shape=(),
       dtype=tf.string,
       name="examples")  # Name seen in SignatureDef.
@@ -269,15 +107,15 @@ def make_parsing_model(gtspec: tfgnn.GraphTensorSpec) -> tf.keras.Model:
   return tf.keras.Model(examples, parsed)
 
 
-def make_preprocessing_model(
-    gtspec: tfgnn.GraphTensorSpec,
+def _make_preprocessing_model(
+    gtspec: GraphTensorSpec,
     preprocessors: Sequence[GraphTensorProcessorFn],
-    task_preprocessor: Callable[[tfgnn.GraphTensor], tfgnn.GraphTensor],
+    task_preprocessor: GraphTensorProcessorFn,
     size_constraints: Optional[SizeConstraints] = None) -> tf.keras.Model:
   """Builds a `tf.keras.Model` that applies preprocessing.
 
   Args:
-    gtspec: The `tfgnn.GraphTensorSpec` for input.
+    gtspec: The `GraphTensorSpec` for input.
     preprocessors: The `GraphTensorProcessorFn` to apply.
     task_preprocessor: A `Task` preprocessor, used to apply any final objective
       specific processing.
@@ -286,10 +124,10 @@ def make_preprocessing_model(
   Returns:
     A `tf.keras.Model` with one, two or three outputs depending on the presence
     of `size_constraints` and the return values of `preprocessors.` Where
-    outputs are (`tfgnn.GraphTensor`, `tfgnn.Field`, `tfgnn.Field`) as model
+    outputs are (`GraphTensor`, `tfgnn.Field`, `tfgnn.Field`) as model
     input, label and mask (respectively).
   """
-  gt = tf.keras.layers.Input(type_spec=gtspec)
+  gt = tf.keras.Input(type_spec=gtspec)
   x = gt.merge_batch_to_components()
 
   if size_constraints is not None:
@@ -300,10 +138,10 @@ def make_preprocessing_model(
   # Apply preprocessors to GraphTensor x: exactly one may split out a label y.
   y = None
 
-  for fn in preprocessors:
+  for fn in itertools.chain(preprocessors, (task_preprocessor,)):
     output = fn(x)
 
-    if isinstance(output, collections.Sequence):
+    if isinstance(output, collections.abc.Sequence):
       x, *ys = output
       if len(ys) == 1:
         yy = ys[0]
@@ -311,17 +149,13 @@ def make_preprocessing_model(
         raise ValueError(f"Expected (`GraphTensor`, `Field`) (got {output})")
       if y is not None and yy is not None:
         raise ValueError(f"Expected one label (got {y} and {yy})")
-      y = yy
+      else:
+        y = yy
     else:
       x = output
 
     if not tfgnn.is_graph_tensor(x):
       raise ValueError(f"Expected `GraphTensor` (got {x})")
-
-  x = task_preprocessor(x)
-
-  if not tfgnn.is_graph_tensor(x):
-    raise ValueError(f"Expected `GraphTensor` (got {x})")
 
   if y is None and mask is None:
     return tf.keras.Model(gt, x)
@@ -331,13 +165,26 @@ def make_preprocessing_model(
     return tf.keras.Model(gt, (x, y, mask))
 
 
+_map_over_dataset = functools.partial(
+    tf.data.Dataset.map,
+    deterministic=False,
+    num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+
+def _per_replica_batch_size(global_batch_size: int, num_replicas: int) -> int:
+  if global_batch_size % num_replicas != 0:
+    raise ValueError(f"The `global_batch_size` {global_batch_size} is not "
+                     f"divisible by `num_replicas_in_sync` {num_replicas}")
+  return global_batch_size // num_replicas
+
+
 def run(*,
         train_ds_provider: DatasetProvider,
-        model_fn: Callable[[tfgnn.GraphTensorSpec], tf.keras.Model],
+        model_fn: Callable[[GraphTensorSpec], tf.keras.Model],
         optimizer_fn: Callable[[], tf.keras.optimizers.Optimizer],
         trainer: Trainer,
         task: Task,
-        gtspec: tfgnn.GraphTensorSpec,
+        gtspec: GraphTensorSpec,
         global_batch_size: int,
         epochs: int = 1,
         drop_remainder: bool = False,
@@ -361,8 +208,11 @@ def run(*,
     optimizer_fn: Returns a `tf.keras.optimizers.Optimizer` for use in training.
     trainer: A `Trainer.`
     task: A `Task.`
-    gtspec: A `tfgnn.GraphTensorSpec` for parsing the GraphTensors in the
-      `train` and `valid` datasets.
+    gtspec: A `GraphTensorSpec` matching the elements of `train` and `valid`
+      datasets. If `train` or `valid` contain `tf.string` elements, this
+      `GraphTensorSpec` is used for parsing; otherwise, `train` or `valid` are
+      expected to contain `GraphTensor` elements whose relaxed spec matches
+      `gtspec.`
     global_batch_size: The `tf.data.Dataset` global batch size for both training
       and validation.
     epochs: The epochs to train.
@@ -371,12 +221,12 @@ def run(*,
       default behavior is `os.path.join(model_dir, "export").`
     model_exporters: Zero or more `ModelExporter` for exporting (SavedModels) to
       `export_dirs.` If unset, default behavior is `[KerasModelExporter()].`
-    feature_processors: `tfgnn.GraphTensor` functions for feature processing:
-      These may change some `tfgnn.GraphTensorSpec.` Functions are composed in
+    feature_processors: `GraphTensor` functions for feature processing:
+      These may change some `GraphTensorSpec.` Functions are composed in
       order using `functools.reduce`; each function should accept a scalar
-      `tfgnn.GraphTensor.`. All except one function should return a scalar
-      `tfgnn.GraphTensor` with a single component; a single function, anywhere
-      within `feature_processors` may return a tuple (`tfgnn.GraphTensor`,
+      `GraphTensor.`. All except one function should return a scalar
+      `GraphTensor` with a single component; a single function, anywhere
+      within `feature_processors` may return a tuple (`GraphTensor`,
       `tfgnn.Field`) where the `tfgnn.Field` is used for training labels.
     valid_ds_provider: A `DatasetProvider` for validation. The `tf.data.Dataset`
       is not batched and contains scalar `GraphTensor` values.
@@ -400,8 +250,7 @@ def run(*,
   if not validate and valid_padding is not None:
     raise ValueError("`valid_padding` specified without a validation dataset")
 
-  parsing_model = make_parsing_model(gtspec)
-  preprocess_model = make_preprocessing_model(
+  preprocess_model = _make_preprocessing_model(
       gtspec,
       feature_processors or (),
       task.preprocess)
@@ -410,11 +259,11 @@ def run(*,
                *,
                filter_fn: Optional[Callable[..., bool]] = None,
                size_constraints: Optional[SizeConstraints] = None):
-    ds = _map_over_dataset(ds, parsing_model)
+    ds = parsing_utils.maybe_parse_graph_tensor_dataset(ds, gtspec)
     if filter_fn is not None:
       ds = ds.filter(filter_fn)
     if size_constraints is not None:
-      padding_preprocess_model = make_preprocessing_model(
+      padding_preprocess_model = _make_preprocessing_model(
           gtspec,
           feature_processors or (),
           task.preprocess,
@@ -465,7 +314,7 @@ def run(*,
         global_batch_size)
 
   def adapted_model_fn():
-    if isinstance(preprocess_model.output, collections.Sequence):
+    if isinstance(preprocess_model.output, collections.abc.Sequence):
       x, *_ = preprocess_model.output
     else:
       x = preprocess_model.output
@@ -487,7 +336,7 @@ def run(*,
     model_exporters = [model_export.KerasModelExporter()]
 
   parsing_and_preprocess_model = model_utils.chain_first_output(
-      parsing_model,
+      _make_parsing_model(gtspec),
       preprocess_model, first_output_only=False)
 
   for export_dir in export_dirs or [os.path.join(trainer.model_dir, "export")]:

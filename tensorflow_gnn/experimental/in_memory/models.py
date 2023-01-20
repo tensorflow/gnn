@@ -22,7 +22,7 @@ import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models import gat_v2
 from tensorflow_gnn.models import gcn
 
-MODEL_NAMES = ('GCN', 'Simple', 'JKNet', 'GATv2')
+MODEL_NAMES = ('GCN', 'Simple', 'JKNet', 'GATv2', 'ResidualGCN')
 
 
 def make_map_node_features_layer(
@@ -100,12 +100,15 @@ def make_model_by_name(
   elif model_name == 'GATv2':
     return True, make_gatv2_model(
         num_classes, kernel_regularizer=regularizer, **model_kwargs)
+  elif model_name == 'ResidualGCN':
+    return True, ResidualGCNModel(
+        num_classes, kernel_regularizer=regularizer, **model_kwargs)
   else:
     raise ValueError('Invalid model name ' + model_name)
 
 
 def make_simple_model(
-    num_classes: int, hidden_units: int = 200, depth: int = 3,
+    num_classes: int, *, hidden_units: int = 200, depth: int = 3,
     kernel_regularizer=None) -> tf.keras.Sequential:
   """Message Passing model show-casing `GraphUpdate`.
 
@@ -162,7 +165,7 @@ _OptionalRegularizer = Optional[tf.keras.regularizers.Regularizer]
 
 
 def make_gcn_model(
-    num_classes: int, depth: int = 3, hidden_units: int = 200,
+    num_classes: int, *, depth: int = 3, hidden_units: int = 200,
     hidden_activation: _OptionalActivation = 'relu',
     out_activation: _OptionalActivation = None,
     kernel_regularizer: _OptionalRegularizer = None, use_bias: bool = False,
@@ -189,13 +192,13 @@ def make_gcn_model(
 
 
 def make_gatv2_model(
-    num_classes: int, depth: int = 2,
+    num_classes: int, *, depth: int = 2,
     num_heads=8, per_head_channels=8,
     hidden_activation: _OptionalActivation = 'relu',
     kernel_regularizer: _OptionalRegularizer = None,
     out_activation: _OptionalActivation = None,
     add_self_loops=True,
-    batchnorm: bool = False, dropout: float = 0.5) -> tf.keras.Sequential:
+    batchnorm: bool = False, dropout: float = 0) -> tf.keras.Sequential:
   """Makes GATv2 tower interleaving GATv2 conv with batchnorm and dropout."""
   layers = []
   if add_self_loops:
@@ -241,7 +244,7 @@ def make_gatv2_model(
 
 
 def make_jknet_model(
-    num_classes: int, depth: int = 3, hidden_units: int = 200,
+    num_classes: int, *, depth: int = 3, hidden_units: int = 200,
     kernel_regularizer: _OptionalRegularizer = None) -> tf.keras.Model:
   gcn_fn = functools.partial(
       make_gcn_model, hidden_units, depth, hidden_units, out_activation='relu',
@@ -284,3 +287,73 @@ class JKNetModel(tf.keras.Model):
         self.readout_dropout(tf.concat(all_features, axis=1)))
 
     return graph.replace_features(node_sets={tfgnn.NODES: out_features})
+
+
+class ResidualGCNModel(tf.keras.layers.Layer):
+  """GCN model with residual skip connections."""
+
+  def __init__(
+      self,
+      num_classes: int, *, depth: int = 3, hidden_units: int = 200,
+      hidden_activation='relu', out_activation=None, kernel_regularizer=None,
+      batchnorm: bool = False, dropout: float = 0, **kwargs):
+    super().__init__(**kwargs)
+    self._config = dict(
+        num_classes=num_classes, depth=depth, hidden_units=hidden_units,
+        out_activation=out_activation, kernel_regularizer=kernel_regularizer,
+        batchnorm=batchnorm, dropout=dropout)
+
+    make_batch_norm_layer = functools.partial(
+        tf.keras.layers.BatchNormalization, epsilon=1e-5, momentum=0.9)
+
+    prenet_model = tf.keras.Sequential()
+    if dropout > 0:
+      prenet_model.add(tf.keras.layers.Dropout(dropout))
+    prenet_model.add(tf.keras.layers.Dense(
+        hidden_units, kernel_regularizer=kernel_regularizer))
+    if batchnorm:
+      prenet_model.add(make_batch_norm_layer())
+    prenet_model.add(tf.keras.layers.Activation(hidden_activation))
+    prenet_model.add(tf.keras.layers.Dense(
+        hidden_units, kernel_regularizer=kernel_regularizer))
+    self.prenet = make_map_node_features_layer(prenet_model)
+
+    self.res_blocks = []
+    for j in range(depth):
+      res_model = tf.keras.Sequential()
+      if batchnorm:
+        res_model.add(make_batch_norm_layer())
+      res_model.add(tf.keras.layers.Activation(hidden_activation))
+      if dropout > 0:
+        res_model.add(tf.keras.layers.Dropout(dropout))
+      self.res_blocks.append(tf.keras.Sequential([
+          make_map_node_features_layer(res_model),
+          gcn.GCNHomGraphUpdate(
+              units=hidden_units, receiver_tag=tfgnn.SOURCE,
+              add_self_loops=True, name='gcn_layer_A_%i' % j, activation=None,
+              kernel_regularizer=kernel_regularizer),
+      ]))
+
+    postnet_model = tf.keras.Sequential()
+    postnet_model.add(tf.keras.layers.Dense(
+        hidden_units, kernel_regularizer=kernel_regularizer))
+    if batchnorm:
+      postnet_model.add(make_batch_norm_layer())
+    postnet_model.add(tf.keras.layers.Activation('relu'))
+    postnet_model.add(tf.keras.layers.Dense(
+        num_classes, kernel_regularizer=kernel_regularizer))
+
+    self.postnet = make_map_node_features_layer(postnet_model)
+
+  def call(self, x):
+    x = self.prenet(x)
+    for res_block in self.res_blocks:
+      y = res_block(x)
+      y_plus_x = (y.node_sets['nodes']['hidden_state']
+                  + x.node_sets['nodes']['hidden_state'])
+      x = y.replace_features(node_sets={'nodes': {'hidden_state': y_plus_x}})
+    x = self.postnet(x)
+    return x
+
+  def get_config(self):
+    return dict(**self._config, **super().get_config())

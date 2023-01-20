@@ -38,7 +38,6 @@ https://arxiv.org/abs/1609.02907 as a Keras layer that can be used as a
 convolution on an edge set in a tfgnn.keras.layers.NodeSetUpdate.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init arguments</h2></th></tr>
@@ -119,7 +118,6 @@ additional arguments for the Layer.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call arguments</h2></th></tr>

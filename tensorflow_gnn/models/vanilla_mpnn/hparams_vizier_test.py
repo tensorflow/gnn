@@ -24,10 +24,11 @@ class HparamsVizierTest(absltest.TestCase):
 
   def test_regularization(self):
     problem = vz.ProblemStatement()
-    hparams_vizier.add_params_regularization(problem.search_space)
+    hparams_vizier.add_params_regularization(problem.search_space,
+                                             prefix="foo.")
     self.assertCountEqual(
         [p.name for p in problem.search_space.parameters],
-        ["dropout_rate", "l2_regularization"])
+        ["foo.dropout_rate", "foo.l2_regularization"])
 
 
 if __name__ == "__main__":

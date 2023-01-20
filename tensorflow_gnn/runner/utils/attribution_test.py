@@ -16,11 +16,9 @@
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
-from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.utils import attribution
 
 IntegratedGradientsExporter = attribution.IntegratedGradientsExporter
-ModelExporter = orchestration.ModelExporter
 
 as_tensor = lambda sequence: tf.constant(sequence, dtype=tf.float32)
 
@@ -273,9 +271,6 @@ class AttributionTest(tf.test.TestCase):
     self.assertAllClose(
         gt.edge_sets["edge"].features["weight"],
         as_tensor((4.725009, 0.)), 1e-04, 1e-04)
-
-  def test_protocol(self):
-    self.assertIsInstance(IntegratedGradientsExporter, ModelExporter)
 
 
 if __name__ == "__main__":

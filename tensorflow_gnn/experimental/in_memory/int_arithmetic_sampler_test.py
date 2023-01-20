@@ -23,18 +23,21 @@ import scipy.sparse
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
-import datasets
-from tensorflow_gnn.examples.in_memory import int_arithmetic_sampler as ia_sampler
+from tensorflow_gnn.experimental.in_memory import datasets
+from tensorflow_gnn.experimental.in_memory import int_arithmetic_sampler as ia_sampler
+from tensorflow_gnn.sampler import sampling_spec_builder
 
 
-class ToyDataset(datasets.NodeClassificationDatasetWrapper):
+class ToyDataset(datasets.InMemoryGraphData):
 
   def __init__(self):
+    super().__init__()
     self.eats = {
         'dog': ['beef', 'water'],
         'cat': ['spider', 'rat', 'water'],
         'monkey': ['banana', 'water'],
         'cow': ['banana', 'water'],
+        'unicorn': [],
     }
 
     food_set = set()
@@ -78,14 +81,14 @@ class ToyDataset(datasets.NodeClassificationDatasetWrapper):
     }
 
 
-class IntArithmeticSamplerTest(parameterized.TestCase):
+class IntArithmeticSamplerTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
       ('WithReplacement', ia_sampler.EdgeSampling.WITH_REPLACEMENT),
       ('WithoutReplacement', ia_sampler.EdgeSampling.WITHOUT_REPLACEMENT))
   def test_sample_one_hop(self, strategy):
     toy_dataset = ToyDataset()
-    sampler = ia_sampler.GraphSampler(toy_dataset)
+    sampler = ia_sampler.GraphSampler(toy_dataset, sampling_mode=strategy)
     source_node_names = ['dog', 'monkey']
     source_node_ids = [toy_dataset.animal2id[name]
                        for name in source_node_names]
@@ -94,7 +97,7 @@ class IntArithmeticSamplerTest(parameterized.TestCase):
     sample_size = 100
     next_hop = sampler.sample_one_hop(
         tf.convert_to_tensor(source_node_ids), 'eats', sample_size=sample_size,
-        sampling=strategy)
+        validate=False)
 
     self.assertEqual(next_hop.shape[0], source_node_ids.shape[0])
     self.assertEqual(next_hop.shape[1], sample_size)
@@ -128,7 +131,7 @@ class IntArithmeticSamplerTest(parameterized.TestCase):
       ('WithoutReplacement', ia_sampler.EdgeSampling.WITHOUT_REPLACEMENT))
   def test_sample_two_hops(self, strategy):
     toy_dataset = ToyDataset()
-    sampler = ia_sampler.GraphSampler(toy_dataset)
+    sampler = ia_sampler.GraphSampler(toy_dataset, sampling_mode=strategy)
     source_node_names = ['dog', 'monkey']
     source_node_ids = [toy_dataset.animal2id[name]
                        for name in source_node_names]
@@ -138,11 +141,15 @@ class IntArithmeticSamplerTest(parameterized.TestCase):
     hop1_size = 30
     hop1 = sampler.sample_one_hop(
         tf.convert_to_tensor(source_node_ids), 'eats', sample_size=hop1_size,
-        sampling=strategy)
+        validate=False)
+    self.assertIsInstance(hop1, tf.Tensor)
+    assert isinstance(hop1, tf.Tensor)  # Assert needed to access `.shape`.
 
     hop2_size = 20
     hop2 = sampler.sample_one_hop(
-        hop1, 'rev_eats', sample_size=hop2_size, sampling=strategy)
+        hop1, 'rev_eats', sample_size=hop2_size, validate=False)
+    self.assertIsInstance(hop2, tf.Tensor)
+    assert isinstance(hop2, tf.Tensor)  # Assert needed to access `.shape`.
 
     self.assertEqual(hop1.shape, (batch_size, hop1_size))
     self.assertEqual(hop2.shape, (batch_size, hop1_size, hop2_size))
@@ -189,6 +196,97 @@ class IntArithmeticSamplerTest(parameterized.TestCase):
           max_count = max(sampled_hop2_counts.values())
           min_count = min(sampled_hop2_counts.values())
           self.assertLessEqual(max_count - min_count, 1)  # Fair sampling.
+
+  @parameterized.named_parameters(
+      ('WithReplacement', ia_sampler.EdgeSampling.WITH_REPLACEMENT),
+      ('WithoutReplacement', ia_sampler.EdgeSampling.WITHOUT_REPLACEMENT))
+  def test_sample_walk_tree_with_validation(self, strategy):
+    toy_dataset = ToyDataset()
+    sampler = ia_sampler.GraphSampler(toy_dataset, sampling_mode=strategy)
+    source_node_names = ['dog', 'unicorn']
+    source_node_ids = [toy_dataset.animal2id[name]
+                       for name in source_node_names]
+    source_node_ids = np.array(source_node_ids)
+    source_node_ids = tf.convert_to_tensor(source_node_ids)
+
+    toy_graph_schema = toy_dataset.graph_schema()
+
+    hop1_samples = hop2_samples = 10
+    spec = sampling_spec_builder.SamplingSpecBuilder(
+        toy_graph_schema,
+        default_strategy=sampling_spec_builder.SamplingStrategy.RANDOM_UNIFORM)
+    spec = (spec.seed('animals').sample(hop1_samples, 'eats')
+            .sample(hop2_samples, 'rev_eats').build())
+    walk_tree = sampler.sample_walk_tree(source_node_ids, spec)
+
+    # Root node contains source nodes, all of which are valid.
+    self.assertAllEqual(walk_tree.nodes, source_node_ids)
+    self.assertAllEqual(walk_tree.valid_mask,
+                        tf.ones(shape=source_node_ids.shape, dtype=tf.bool))
+    self.assertLen(walk_tree.next_steps, 1)  # Sampled one edge from root.
+    self.assertEqual(walk_tree.next_steps[0][0], 'eats')  # Sampled edge 'eats'.
+    hop1 = walk_tree.next_steps[0][1]
+
+    self.assertLen(hop1.next_steps, 1)  # Sampled one edge from hop1.
+    self.assertEqual(hop1.next_steps[0][0], 'rev_eats')
+    hop2 = hop1.next_steps[0][1]
+
+    if strategy == ia_sampler.EdgeSampling.WITH_REPLACEMENT:
+      self.assertTrue(np.all(hop1.valid_mask[0]))   # dog eats some things.
+      self.assertFalse(np.any(hop1.valid_mask[1]))  # unicorn eats nothing.
+      # Validity should be propagated.
+      self.assertFalse(np.any(hop2.valid_mask[1]))  # ERROR
+    elif strategy == ia_sampler.EdgeSampling.WITHOUT_REPLACEMENT:
+      self.assertTrue(np.all(hop1.valid_mask[0, :2]))   # dog eats 2 things.
+      self.assertFalse(np.any(hop1.valid_mask[0, 2:]))  # dog eats 2 things.
+      self.assertFalse(np.any(hop1.valid_mask[1]))  # unicorn eats nothing
+      # Validity should be propagated.
+      self.assertFalse(np.any(hop2.valid_mask[0, 2:]))   # ERROR
+      self.assertFalse(np.any(hop2.valid_mask[1]))
+
+  def test_as_graph_tensor_on_orphan_nodes_graph(self):
+    strategy = ia_sampler.EdgeSampling.WITHOUT_REPLACEMENT
+    toy_dataset = ToyDataset()
+    sampler = ia_sampler.GraphSampler(toy_dataset, sampling_mode=strategy)
+    source_node_names = ['dog', 'unicorn']
+    source_node_ids = [toy_dataset.animal2id[name]
+                       for name in source_node_names]
+    source_node_ids = np.array(source_node_ids)
+    source_node_ids = tf.convert_to_tensor(source_node_ids)
+
+    toy_graph_schema = toy_dataset.graph_schema()
+
+    hop1_samples = hop2_samples = 10
+    spec = sampling_spec_builder.SamplingSpecBuilder(
+        toy_graph_schema,
+        default_strategy=sampling_spec_builder.SamplingStrategy.RANDOM_UNIFORM)
+    spec = (spec.seed('animals').sample(hop1_samples, 'eats')
+            .sample(hop2_samples, 'rev_eats').build())
+    walk_tree = sampler.sample_walk_tree(source_node_ids, spec)
+
+    def node_features_fn(node_set_name, node_ids) -> Mapping[str, tf.Tensor]:
+      del node_set_name
+      return {'myfeat': node_ids}
+
+    graph_tensor = walk_tree.as_graph_tensor(node_features_fn)
+
+    # Animals.
+    eats_src = graph_tensor.edge_sets['eats'].adjacency.source
+    eats_src = tf.gather(graph_tensor.node_sets['animals']['myfeat'], eats_src)
+
+    # Foods.
+    eats_tgt = graph_tensor.edge_sets['eats'].adjacency.target
+    eats_tgt = tf.gather(graph_tensor.node_sets['food']['myfeat'], eats_tgt)
+
+    def are_all_edges_valid(eats_src, eats_tgt):
+      eats_str_list = [toy_dataset.id2animal[i] for i in eats_src.numpy()]
+      food_str_list = [toy_dataset.id2food[i] for i in eats_tgt.numpy()]
+      for animal, food in zip(eats_str_list, food_str_list):
+        if food not in toy_dataset.eats[animal]:
+          return False
+      return True
+
+    self.assertTrue(are_all_edges_valid(eats_src, eats_tgt))
 
 
 if __name__ == '__main__':

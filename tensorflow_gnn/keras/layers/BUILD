@@ -18,6 +18,7 @@ pytype_strict_library(
         ":convolutions",
         ":graph_ops",
         ":graph_update",
+        ":item_dropout",
         ":map_features",
         ":next_state",
         ":padding_ops",
@@ -130,6 +131,22 @@ tf_py_test(
         "//tensorflow_gnn/graph:adjacency",
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
+    ],
+)
+
+pytype_strict_library(
+    name = "item_dropout",
+    srcs = ["item_dropout.py"],
+    deps = ["//:expect_tensorflow_installed"],
+)
+
+tf_py_test(
+    name = "item_dropout_test",
+    srcs = ["item_dropout_test.py"],
+    deps = [
+        ":item_dropout",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
     ],
 )
 

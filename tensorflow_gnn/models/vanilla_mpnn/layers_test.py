@@ -13,13 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for VanillaMPNN."""
+from absl.testing import parameterized
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models import vanilla_mpnn
 
 
 # The components of VanillaMPNNGraphUpdate have been tested elsewhere.
-class VanillaMPNNTest(tf.test.TestCase):
+class VanillaMPNNTest(tf.test.TestCase, parameterized.TestCase):
 
   def testVanillaMPNNGraphUpdate(self):
     input_graph = _make_test_graph_abc()
@@ -37,6 +38,39 @@ class VanillaMPNNTest(tf.test.TestCase):
     self.assertAllEqual([[8.]], graph.node_sets["c"][tfgnn.HIDDEN_STATE])
     # Node "b" receives message 1+2+16 = 19 and combines it with old state 2.
     self.assertAllEqual([[21.]*units], graph.node_sets["b"][tfgnn.HIDDEN_STATE])
+
+  @parameterized.named_parameters(("WithoutLayerNorm", False),
+                                  ("WithLayerNorm", True))
+  def testVanillaMPNNGraphUpdateWithCustomKernelInitializer(
+      self, use_layer_normalization):
+    input_graph = _make_test_graph_abc()
+    # To ensure that the updated node-state has non-identical entries
+    kernel_initializer = tf.constant_initializer([[1., 1.],
+                                                  [2., 0.],
+                                                  [1., 1.]])
+    units = 2
+    layer = vanilla_mpnn.VanillaMPNNGraphUpdate(
+        units=units,
+        message_dim=2,
+        receiver_tag=tfgnn.TARGET,
+        node_set_names=["b"],
+        edge_feature="fab",
+        kernel_initializer=kernel_initializer,
+        use_layer_normalization=use_layer_normalization)
+    graph = layer(input_graph)
+
+    # Nodes "a" and "c" are unchanged.
+    self.assertAllEqual([[1.]], graph.node_sets["a"][tfgnn.HIDDEN_STATE])
+    self.assertAllEqual([[8.]], graph.node_sets["c"][tfgnn.HIDDEN_STATE])
+    # Node "b" receives message [b, a, fab] * Kw = [20., 18.]
+    # Message is combined with "b" old state [b, 20., 18.] * Kw = [60, 20]
+    # If use_layer_normalization flag is set, layer normalization is applied on
+    # the updated node state
+    if use_layer_normalization:
+      want = [[1., -1.]]
+    else:
+      want = [[60., 20.]]
+    self.assertAllClose(want, graph.node_sets["b"][tfgnn.HIDDEN_STATE])
 
 
 def _make_test_graph_abc():

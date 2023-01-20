@@ -17,7 +17,6 @@ from typing import Any, Optional, Sequence
 
 from absl.testing import parameterized
 import tensorflow as tf
-from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.input import datasets
 
 
@@ -128,11 +127,11 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
   ])
   def test_process_sampled_dataset(
       self,
-      extra_datasets: Sequence[str],
+      extra_datasets: Sequence[tf.data.Dataset],
       extra_weights: Optional[Sequence[float]],
       fixed_cardinality: bool,
       shuffle_dataset: bool,
-      principal_dataset: str,
+      principal_dataset: tf.data.Dataset,
       principal_cardinality: Optional[int],
       principal_weight: Optional[float],
       expected_cardinality: Optional[int]):
@@ -184,10 +183,10 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
   ])
   def test_process_sampled_dataset_error(
       self,
-      extra_datasets: Sequence[str],
+      extra_datasets: Sequence[tf.data.Dataset],
       extra_weights: Optional[Sequence[float]],
       fixed_cardinality: Optional[bool],
-      principal_dataset: str,
+      principal_dataset: tf.data.Dataset,
       principal_cardinality: Optional[int],
       principal_weight: Optional[float],
       expected_error: str):
@@ -205,17 +204,57 @@ class DatasetsTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters([
       dict(
-          testcase_name="TFRecordDatasetProvider",
-          klass=datasets.TFRecordDatasetProvider,
-      ),
+          testcase_name="Missing file_pattern and filenames argument",
+          file_pattern=None,
+          filenames=None,
+          expected_error="Please provide either `_file_pattern` or `_filenames`"
+          " argument, but not both.",
+          ),
       dict(
-          testcase_name="SampleTFRecordDatasetsProvider",
-          klass=datasets.SampleTFRecordDatasetsProvider,
-      ),
+          testcase_name="Both file_pattern and filenames argument",
+          file_pattern="foo",
+          filenames=["bar"],
+          expected_error="Please provide either `_file_pattern` or `_filenames`"
+          " argument, but not both.",
+          )
   ])
-  def test_protocol(self, klass: object):
-    self.assertIsInstance(klass, orchestration.DatasetProvider)
+  def test_simple_dataset_provider_initialization_error(
+      self,
+      file_pattern: Optional[str],
+      filenames: Optional[Sequence[str]],
+      expected_error: str):
+    with self.assertRaisesRegex(ValueError, expected_error):
+      _ = datasets.SimpleDatasetProvider(
+          file_pattern,
+          filenames=filenames,
+          interleave_fn=interleave_fn)
 
+  @parameterized.named_parameters([
+      dict(
+          testcase_name="Missing principal_file_pattern and principal_filename argument",
+          principal_file_pattern=None,
+          principal_filenames=None,
+          expected_error="Please provide either `_principal_file_pattern` or "
+          "`_principal_filenames` argument, but not both.",
+          ),
+      dict(
+          testcase_name="Both principal_file_pattern and principal_filename argument",
+          principal_file_pattern="foo",
+          principal_filenames=["bar"],
+          expected_error="Please provide either `_principal_file_pattern` or "
+          "`_principal_filenames` argument, but not both.",
+          )
+  ])
+  def test_simple_sample_datasets_provider_initialization_error(
+      self,
+      principal_file_pattern: Optional[str],
+      principal_filenames: Optional[Sequence[str]],
+      expected_error: str):
+    with self.assertRaisesRegex(ValueError, expected_error):
+      _ = datasets.SimpleSampleDatasetsProvider(
+          principal_file_pattern=principal_file_pattern,
+          principal_filenames=principal_filenames,
+          interleave_fn=interleave_fn)
 
 if __name__ == "__main__":
   tf.test.main()

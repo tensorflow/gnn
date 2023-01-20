@@ -41,7 +41,9 @@
 *   <a href="../tfgnn/check_scalar_graph_tensor.md"><code>tfgnn.check_scalar_graph_tensor</code></a>
 *   <a href="../tfgnn/combine_values.md"><code>tfgnn.combine_values</code></a>
 *   <a href="../tfgnn/create_graph_spec_from_schema_pb.md"><code>tfgnn.create_graph_spec_from_schema_pb</code></a>
+*   <a href="../tfgnn/create_schema_pb_from_graph_spec.md"><code>tfgnn.create_schema_pb_from_graph_spec</code></a>
 *   <a href="../tfgnn/dataset_filter_with_summary.md"><code>tfgnn.dataset_filter_with_summary</code></a>
+*   <a href="../tfgnn/dataset_from_generator.md"><code>tfgnn.dataset_from_generator</code></a>
 *   <a href="../tfgnn/find_tight_size_constraints.md"><code>tfgnn.find_tight_size_constraints</code></a>
 *   <a href="../tfgnn/gather_first_node.md"><code>tfgnn.gather_first_node</code></a>
 *   <a href="../tfgnn/get_io_spec.md"><code>tfgnn.get_io_spec</code></a>
@@ -75,6 +77,7 @@
 *   <a href="../tfgnn/keras/layers/SimpleConv.md"><code>tfgnn.keras.layers.SimpleConv</code></a>
 *   <a href="../tfgnn/keras/layers/SingleInputNextState.md"><code>tfgnn.keras.layers.SingleInputNextState</code></a>
 *   <a href="../tfgnn/learn_fit_or_skip_size_constraints.md"><code>tfgnn.learn_fit_or_skip_size_constraints</code></a>
+*   <a href="../tfgnn/mask_edges.md"><code>tfgnn.mask_edges</code></a>
 *   <a href="../tfgnn/pad_to_total_sizes.md"><code>tfgnn.pad_to_total_sizes</code></a>
 *   <a href="../tfgnn/parse_example.md"><code>tfgnn.parse_example</code></a>
 *   <a href="../tfgnn/parse_schema.md"><code>tfgnn.parse_schema</code></a>
@@ -86,10 +89,12 @@
 *   <a href="../tfgnn/random_graph_tensor.md"><code>tfgnn.random_graph_tensor</code></a>
 *   <a href="../tfgnn/read_schema.md"><code>tfgnn.read_schema</code></a>
 *   <a href="../tfgnn/register_reduce_operation.md"><code>tfgnn.register_reduce_operation</code></a>
+*   <a href="../tfgnn/reorder_nodes.md"><code>tfgnn.reorder_nodes</code></a>
 *   <a href="../tfgnn/reverse_tag.md"><code>tfgnn.reverse_tag</code></a>
 *   <a href="../tfgnn/satisfies_size_constraints.md"><code>tfgnn.satisfies_size_constraints</code></a>
 *   <a href="../tfgnn/satisfies_size_constraints.md"><code>tfgnn.satisfies_total_sizes</code></a>
-*   <a href="../tfgnn/shuffle_scalar_components.md"><code>tfgnn.shuffle_scalar_components</code></a>
+*   <a href="../tfgnn/shuffle_features_globally.md"><code>tfgnn.shuffle_features_globally</code></a>
+*   <a href="../tfgnn/shuffle_nodes.md"><code>tfgnn.shuffle_nodes</code></a>
 *   <a href="../tfgnn/softmax.md"><code>tfgnn.softmax</code></a>
 *   <a href="../tfgnn/softmax_edges_per_node.md"><code>tfgnn.softmax_edges_per_node</code></a>
 *   <a href="../tfgnn/validate_schema.md"><code>tfgnn.validate_schema</code></a>

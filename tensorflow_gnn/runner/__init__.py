@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """A general purpose runner for TF-GNN."""
+from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.input import datasets
 from tensorflow_gnn.runner.tasks import classification
@@ -35,46 +36,51 @@ SimpleSampleDatasetsProvider = datasets.SimpleSampleDatasetsProvider
 SampleTFRecordDatasetsProvider = datasets.SampleTFRecordDatasetsProvider
 TFRecordDatasetProvider = datasets.TFRecordDatasetProvider
 
+# Interfaces
+DatasetProvider = interfaces.DatasetProvider
+GraphTensorPadding = interfaces.GraphTensorPadding
+GraphTensorProcessorFn = interfaces.GraphTensorProcessorFn
+ModelExporter = interfaces.ModelExporter
+Trainer = interfaces.Trainer
+Task = interfaces.Task
+
 # Model directory
 incrementing_model_dir = model_dir.incrementing_model_dir
 
 # Model export
 IntegratedGradientsExporter = attribution.IntegratedGradientsExporter
 KerasModelExporter = model_export.KerasModelExporter
-ModelExporter = orchestration.ModelExporter
 SubmoduleExporter = model_export.SubmoduleExporter
 
 # Model helpers
 chain_first_output = model_utils.chain_first_output
 
 # Orchestration
-DatasetProvider = orchestration.DatasetProvider
-GraphTensorProcessorFn = orchestration.GraphTensorProcessorFn
 run = orchestration.run
-Trainer = orchestration.Trainer
-Task = orchestration.Task
 TFDataServiceConfig = orchestration.TFDataServiceConfig
 
 # Padding
 one_node_per_component = padding_utils.one_node_per_component
 FitOrSkipPadding = padding_utils.FitOrSkipPadding
-GraphTensorPadding = orchestration.GraphTensorPadding
 TightPadding = padding_utils.TightPadding
 
 # Strategies
 ParameterServerStrategy = strategies.ParameterServerStrategy
 TPUStrategy = strategies.TPUStrategy
 
-# Tasks
+# NOTE: Tasks cross TensorFlow distribute strategies are tested end to end in
+# `distribute_test.py`. If adding a new Task, please also add it to the test
+# combinations found there. (See `_all_task_and_processors_combinations`
+# in `distribute_test.py`.)
 #
-# Unsupervised
+# Tasks (Unsupervised)
 DeepGraphInfomax = dgi.DeepGraphInfomax
-# Classification
+# Tasks (Classification)
 RootNodeBinaryClassification = classification.RootNodeBinaryClassification
 RootNodeMulticlassClassification = classification.RootNodeMulticlassClassification
 GraphBinaryClassification = classification.GraphMulticlassClassification
 GraphMulticlassClassification = classification.GraphMulticlassClassification
-# Regression
+# Tasks (Regression)
 GraphMeanAbsoluteError = regression.GraphMeanAbsoluteError
 GraphMeanAbsolutePercentageError = regression.GraphMeanAbsolutePercentageError
 GraphMeanSquaredError = regression.GraphMeanSquaredError

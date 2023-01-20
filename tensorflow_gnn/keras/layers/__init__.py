@@ -4,6 +4,7 @@ from tensorflow_gnn.keras.layers import convolution_base
 from tensorflow_gnn.keras.layers import convolutions
 from tensorflow_gnn.keras.layers import graph_ops
 from tensorflow_gnn.keras.layers import graph_update
+from tensorflow_gnn.keras.layers import item_dropout
 from tensorflow_gnn.keras.layers import map_features
 from tensorflow_gnn.keras.layers import next_state
 from tensorflow_gnn.keras.layers import padding_ops
@@ -26,6 +27,8 @@ ReadoutFirstNode = graph_ops.ReadoutFirstNode
 AnyToAnyConvolutionBase = convolution_base.AnyToAnyConvolutionBase
 SimpleConv = convolutions.SimpleConv
 
+ItemDropout = item_dropout.ItemDropout
+
 NextStateFromConcat = next_state.NextStateFromConcat
 ResidualNextState = next_state.ResidualNextState
 SingleInputNextState = next_state.SingleInputNextState
@@ -41,6 +44,7 @@ del convolution_base
 del convolutions
 del graph_ops
 del graph_update
+del item_dropout
 del map_features
 del next_state
 del padding_ops

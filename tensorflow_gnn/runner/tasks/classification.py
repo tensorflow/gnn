@@ -14,10 +14,11 @@
 # ==============================================================================
 """Classification tasks."""
 import abc
-from typing import Callable, Optional, Sequence, Union
+from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
+from tensorflow_gnn.runner import interfaces
 
 Tensor = Union[tf.Tensor, tf.RaggedTensor]
 
@@ -38,48 +39,55 @@ class _FromLogitsMixIn(tf.keras.metrics.Metric):
         tf.nn.sigmoid(y_pred) if self._from_logits else y_pred,
         sample_weight)
 
+  def get_config(self) -> Mapping[Any, Any]:
+    return dict(from_logits=self._from_logits, **super().get_config())
 
-class _Precision(_FromLogitsMixIn, tf.keras.metrics.Precision):
+
+@tf.keras.utils.register_keras_serializable(package="GNN")
+class FromLogitsPrecision(_FromLogitsMixIn, tf.keras.metrics.Precision):
   pass
 
 
-class _Recall(_FromLogitsMixIn, tf.keras.metrics.Recall):
+@tf.keras.utils.register_keras_serializable(package="GNN")
+class FromLogitsRecall(_FromLogitsMixIn, tf.keras.metrics.Recall):
   pass
 
 
 class _PerClassMetricMixIn(tf.keras.metrics.Metric):
-  """Mixin for `tf.keras.metrics.Metric` with a class_id option.
+  """Mixin for `tf.keras.metrics.Metric` with a sparse_class_id option.
 
   This Mixin is needed because ground truths come as class id integer, which is
   incompatible with tf.keras.metrics.Precision.
   """
 
-  def __init__(self,
-               class_id: int,
-               *args,
-               **kwargs) -> None:
+  def __init__(self, sparse_class_id: int, *args, **kwargs) -> None:
     super().__init__(*args, **kwargs)
-    self._class_id = class_id
+    self._sparse_class_id = sparse_class_id
 
   def update_state(self,
                    y_true: tf.Tensor,
                    y_pred: tf.Tensor,
                    sample_weight: Optional[tf.Tensor] = None) -> None:
     return super().update_state(
-        (y_true == self._class_id),
-        (tf.argmax(y_pred, -1) == self._class_id),
+        (y_true == self._sparse_class_id),
+        (tf.argmax(y_pred, -1) == self._sparse_class_id),
         sample_weight)
 
+  def get_config(self) -> Mapping[Any, Any]:
+    return dict(sparse_class_id=self._sparse_class_id, **super().get_config())
 
-class _PerClassPrecision(_PerClassMetricMixIn, tf.keras.metrics.Precision):
+
+@tf.keras.utils.register_keras_serializable(package="GNN")
+class PerClassPrecision(_PerClassMetricMixIn, tf.keras.metrics.Precision):
   pass
 
 
-class _PerClassRecall(_PerClassMetricMixIn, tf.keras.metrics.Recall):
+@tf.keras.utils.register_keras_serializable(package="GNN")
+class PerClassRecall(_PerClassMetricMixIn, tf.keras.metrics.Recall):
   pass
 
 
-class _Classification(abc.ABC):
+class _Classification(interfaces.Task):
   """Abstract classification class.
 
   Any subclass must implement all of `gather_activations`, `losses` and
@@ -109,7 +117,7 @@ class _Classification(abc.ABC):
     logits = tf.keras.layers.Dense(
         self._units,
         name="logits")(activations)  # Name seen in SignatureDef.
-    return tf.keras.Model(model.inputs, logits)
+    return tf.keras.Model(model.input, logits)
 
   @abc.abstractmethod
   def preprocess(self, gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
@@ -137,8 +145,8 @@ class _BinaryClassification(_Classification):
     return (tf.keras.losses.BinaryCrossentropy(from_logits=True),)
 
   def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return (_Precision(from_logits=True),
-            _Recall(from_logits=True),
+    return (FromLogitsPrecision(from_logits=True),
+            FromLogitsRecall(from_logits=True),
             tf.keras.metrics.AUC(from_logits=True, name="auc_roc"),
             tf.keras.metrics.AUC(curve="PR", from_logits=True, name="auc_pr"),
             tf.keras.metrics.BinaryAccuracy(),
@@ -182,9 +190,13 @@ class _MulticlassClassification(_Classification):
     if self._per_class_statistics:
       for i, class_name in enumerate(self._class_names):
         metric_objs.append(
-            _PerClassPrecision(class_id=i, name=f"precision_for_{class_name}"))
+            PerClassPrecision(
+                sparse_class_id=i,
+                name=f"precision_for_{class_name}"))
         metric_objs.append(
-            _PerClassRecall(class_id=i, name=f"recall_for_{class_name}"))
+            PerClassRecall(
+                sparse_class_id=i,
+                name=f"recall_for_{class_name}"))
     return metric_objs
 
 
@@ -218,11 +230,11 @@ class _GraphClassification(_Classification):
     self._reduce_type = reduce_type
 
   def gather_activations(self, gt: tfgnn.GraphTensor) ->  Tensor:
-    return tfgnn.pool_nodes_to_context(
-        gt,
-        self._node_set_name,
+    return tfgnn.keras.layers.Pool(
+        tfgnn.CONTEXT,
         self._reduce_type,
-        feature_name=self._state_name)
+        node_set_name=self._node_set_name,
+        feature_name=self._state_name)(gt)
 
 
 class _RootNodeClassification(_Classification):

@@ -12,23 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for orchestraion."""
+"""Tests for orchestration."""
 import os
-from typing import Sequence
+from typing import Any, Sequence, Union
 
 from absl.testing import parameterized
 import tensorflow as tf
-import tensorflow.__internal__.distribute as tfdistribute
-import tensorflow.__internal__.test as tftest
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models import vanilla_mpnn
 from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.tasks import classification
 from tensorflow_gnn.runner.trainers import keras_fit
 from tensorflow_gnn.runner.utils import model_templates
-from tensorflow_gnn.runner.utils import padding
 
-SCHEMA = """
+_LABELS = tuple(range(32))
+
+_SCHEMA_A = """
   context {
     features {
       key: "label"
@@ -55,56 +54,82 @@ SCHEMA = """
       source: "node"
       target: "node"
     }
-  }"""
+  }
+"""
+
+_SCHEMA_B = """
+  context {
+    features {
+      key: "label"
+      value {
+        dtype: DT_INT32
+      }
+    }
+  }
+  node_sets {
+    key: "node"
+    value {
+      features {
+        key: "features"
+        value {
+          dtype: DT_FLOAT
+          shape { dim { size: 12 } }
+        }
+      }
+    }
+  }
+"""
 
 
-def _all_eager_strategy_combinations():
-  strategies = [
-      # default
-      tfdistribute.combinations.default_strategy,
-      # MirroredStrategy
-      tfdistribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-      tfdistribute.combinations.mirrored_strategy_with_one_cpu,
-      tfdistribute.combinations.mirrored_strategy_with_one_gpu,
-      # MultiWorkerMirroredStrategy
-      tfdistribute.combinations.multi_worker_mirrored_2x1_cpu,
-      tfdistribute.combinations.multi_worker_mirrored_2x1_gpu,
-      # TPUStrategy
-      tfdistribute.combinations.tpu_strategy,
-      tfdistribute.combinations.tpu_strategy_one_core,
-      tfdistribute.combinations.tpu_strategy_packed_var,
-      # ParameterServerStrategy
-      tfdistribute.combinations.parameter_server_strategy_3worker_2ps_cpu,
-      tfdistribute.combinations.parameter_server_strategy_3worker_2ps_1gpu,
-      tfdistribute.combinations.parameter_server_strategy_1worker_2ps_cpu,
-      tfdistribute.combinations.parameter_server_strategy_1worker_2ps_1gpu,
-  ]
-  return tftest.combinations.combine(distribution=strategies)
+def graph_spec(txt: str = _SCHEMA_A) -> tfgnn.GraphTensorSpec:
+  schema = tfgnn.parse_schema(txt)
+  return tfgnn.create_graph_spec_from_schema_pb(schema)
 
 
-class DatasetProvider:
+def random_graph_tensor(txt: str = _SCHEMA_A) -> tfgnn.GraphTensor:
+  sample_dict = {(tfgnn.CONTEXT, None, "label"): _LABELS}
+  return tfgnn.random_graph_tensor(graph_spec(txt), sample_dict=sample_dict)
 
-  def __init__(self, examples: Sequence[bytes]):
-    self._examples = list(examples)
+
+def random_serialized_graph_tensor(txt: str = _SCHEMA_A) -> tfgnn.GraphTensor:
+  return tfgnn.write_example(random_graph_tensor(txt)).SerializeToString()
+
+
+class DatasetProvider(orchestration.DatasetProvider):
+
+  def __init__(
+      self,
+      element: Union[tfgnn.GraphTensor, bytes, Any],
+      cardinality: int = 8):
+    self._ds = tf.data.Dataset.from_tensors(element).repeat(cardinality)
 
   def get_dataset(self, _: tf.distribute.InputContext) -> tf.data.Dataset:
-    return tf.data.Dataset.from_tensor_slices(self._examples)
+    return self._ds
 
 
 class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
 
-  @tfdistribute.combinations.generate(_all_eager_strategy_combinations())
-  def test_run(self, distribution: tf.distribute.Strategy):
-    schema = tfgnn.parse_schema(SCHEMA)
-    gtspec = tfgnn.create_graph_spec_from_schema_pb(schema)
-    smaller_graph = tfgnn.random_graph_tensor(gtspec, row_lengths_range=[1, 2])
-    larger_graph = tfgnn.random_graph_tensor(gtspec, row_lengths_range=[7, 19])
-    ds_provider = DatasetProvider(
-        [tfgnn.write_example(smaller_graph).SerializeToString()] * 4 +
-        [tfgnn.write_example(larger_graph).SerializeToString()])
-
+  @parameterized.named_parameters([
+      dict(
+          testcase_name="GraphTensors",
+          gtspec=graph_spec(),
+          ds_provider=DatasetProvider(random_graph_tensor()),
+          examples=tf.constant((random_serialized_graph_tensor(),) * 2),
+      ),
+      dict(
+          testcase_name="SerializedGraphTensors",
+          gtspec=graph_spec(),
+          ds_provider=DatasetProvider(random_serialized_graph_tensor()),
+          examples=tf.constant((random_serialized_graph_tensor(),) * 2),
+      ),
+  ])
+  def test_run(
+      self,
+      gtspec: tfgnn.GraphTensorSpec,
+      ds_provider: orchestration.DatasetProvider,
+      examples: Sequence[str]):
     def extract_labels(gt):
-      return gt, gt.context["label"] % 10  # Ten labels
+      return gt, gt.context["label"]
 
     def node_sets_fn(node_set, node_set_name):
       del node_set_name
@@ -121,31 +146,19 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
 
     task = classification.RootNodeMulticlassClassification(
         node_set_name="node",
-        num_classes=10)  # Ten classes (like above)
+        num_classes=len(_LABELS))
 
     model_dir = self.create_tempdir()
 
     trainer = keras_fit.KerasTrainer(
-        strategy=distribution,
+        strategy=tf.distribute.get_strategy(),
         model_dir=model_dir,
         steps_per_epoch=1,
         validation_steps=1,
         restore_best_weights=False)
 
-    if isinstance(distribution, tf.distribute.TPUStrategy):
-      train_padding = padding.FitOrSkipPadding(
-          gtspec,
-          ds_provider,
-          fit_or_skip_sample_sample_size=5,
-          fit_or_skip_success_ratio=0.7)
-      valid_padding = padding.TightPadding(gtspec, ds_provider)
-    else:
-      train_padding = None
-      valid_padding = None
-
     orchestration.run(
         train_ds_provider=ds_provider,
-        train_padding=train_padding,
         model_fn=model_fn,
         optimizer_fn=tf.keras.optimizers.Adam,
         epochs=1,
@@ -154,23 +167,20 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
         gtspec=gtspec,
         drop_remainder=False,
         global_batch_size=4,
-        feature_processors=[extract_labels],
-        valid_ds_provider=ds_provider,
-        valid_padding=valid_padding)
-
-    dataset = ds_provider.get_dataset(tf.distribute.InputContext())
-    kwargs = {"examples": next(iter(dataset.batch(2)))}
+        feature_processors=(extract_labels,),
+        valid_ds_provider=ds_provider)
 
     saved_model = tf.saved_model.load(os.path.join(model_dir, "export"))
-    output = saved_model.signatures["serving_default"](**kwargs)
+    output = saved_model.signatures["serving_default"](examples=examples)
     actual = next(iter(output.values()))
 
     # The model has one output
     self.assertLen(output, 1)
 
-    # The expected shape is (batch size, num classes) or (2, 10)
-    self.assertShapeEqual(actual, tf.random.uniform((2, 10)))
+    # The expected shape is (batch size, num classes) or
+    # (len(examples), len(_LABELS))
+    self.assertAllEqual(actual.shape, (examples.shape[0], len(_LABELS)))
 
 
 if __name__ == "__main__":
-  tfdistribute.multi_process_runner.test_main()
+  tf.test.main()

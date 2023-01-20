@@ -112,8 +112,10 @@ class GraphSAGEAggregatorConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
                broadcast_from_sender_node: Callable[[tf.Tensor], tf.Tensor],
                broadcast_from_receiver: Callable[[tf.Tensor], tf.Tensor],
                pool_to_receiver: Callable[..., tf.Tensor],
+               extra_receiver_ops: Any = None,
                training: bool) -> tf.Tensor:
     """Overridden internal method of the base class."""
+    assert extra_receiver_ops is None, "Internal error: bad super().__init__()"
     assert sender_node_input is not None, "sender_node_input can't be None."
     result = broadcast_from_sender_node(sender_node_input)
     result = self._dropout(result, training=training)
@@ -238,8 +240,10 @@ class GraphSAGEPoolingConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
                broadcast_from_sender_node: Callable[[tf.Tensor], tf.Tensor],
                broadcast_from_receiver: Callable[[tf.Tensor], tf.Tensor],
                pool_to_receiver: Callable[..., tf.Tensor],
+               extra_receiver_ops: Any = None,
                training: bool) -> tf.Tensor:
     """Overridden internal method of the base class."""
+    assert extra_receiver_ops is None, "Internal error: bad super().__init__()"
     assert sender_node_input is not None, "sender_node_input can't be None."
     result = broadcast_from_sender_node(sender_node_input)
     result = self._dropout(result, training=training)

@@ -13,6 +13,7 @@ pytype_strict_library(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//tensorflow_gnn/runner:interfaces",
     ],
 )
 
@@ -44,6 +45,7 @@ pytype_strict_library(
     deps = [
         ":model",
         "//:expect_tensorflow_installed",
+        "//tensorflow_gnn/runner:interfaces",
     ],
 )
 
@@ -64,9 +66,21 @@ pytype_strict_library(
     srcs_version = "PY3",
     visibility = ["//tensorflow_gnn/runner:__pkg__"],
     deps = [
+        ":parsing",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-        "//tensorflow_gnn/runner:orchestration",
+        "//tensorflow_gnn/runner:interfaces",
+    ],
+)
+
+pytype_strict_library(
+    name = "parsing",
+    srcs = ["parsing.py"],
+    srcs_version = "PY3",
+    visibility = ["//tensorflow_gnn/runner:__pkg__"],
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
     ],
 )
 
@@ -84,14 +98,10 @@ py_strict_test(
     name = "attribution_test",
     srcs = ["attribution_test.py"],
     srcs_version = "PY3",
-    tags = [
-        "no_oss",  # TODO(b/237419537) remove on tf 2.10 release
-    ],
     deps = [
         ":attribution",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-        "//tensorflow_gnn/runner:orchestration",
     ],
 )
 
@@ -114,18 +124,17 @@ py_strict_test(
         ":model_export",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
-        "//tensorflow_gnn/runner:orchestration",
     ],
 )
 
-pytype_strict_library(
-    name = "padding_test",
-    srcs = ["padding_test.py"],
+py_strict_test(
+    name = "parsing_test",
+    srcs = ["parsing_test.py"],
     srcs_version = "PY3",
     deps = [
-        ":padding",
+        ":parsing",
         "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-        "//tensorflow_gnn/runner:orchestration",
     ],
 )

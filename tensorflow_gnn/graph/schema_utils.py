@@ -25,7 +25,7 @@ import tensorflow_gnn.proto.graph_schema_pb2 as schema_pb2
 from google.protobuf import text_format
 
 
-def parse_schema(schema_text: str) -> schema_pb2.GraphSchema:
+def parse_schema(schema_text: Union[bytes, str]) -> schema_pb2.GraphSchema:
   """Parse a schema from text-formatted protos.
 
   Args:

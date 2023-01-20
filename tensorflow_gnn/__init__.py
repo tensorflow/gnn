@@ -25,6 +25,8 @@ similar to `tf.TensorSpec`. For example, a `FieldSpec` describes an instance of
 `Field`, and a `GraphTensorSpec` describes an instance of `GraphTensor`.
 """
 
+from tensorflow_gnn import experimental  # Exposed as submodule. pylint: disable=unused-import
+from tensorflow_gnn import keras  # Exposed as submodule. pylint: disable=unused-import
 from tensorflow_gnn import version
 from tensorflow_gnn.graph import adjacency
 from tensorflow_gnn.graph import batching_utils
@@ -161,6 +163,7 @@ shuffle_features_globally = graph_tensor_ops.shuffle_features_globally
 combine_values = graph_tensor_ops.combine_values
 reorder_nodes = graph_tensor_ops.reorder_nodes
 shuffle_nodes = graph_tensor_ops.shuffle_nodes
+node_degree = graph_tensor_ops.node_degree
 
 # Normalization operations.
 softmax = normalization_ops.softmax
@@ -170,7 +173,9 @@ softmax_edges_per_node = normalization_ops.softmax_edges_per_node
 parse_schema = schema_utils.parse_schema
 read_schema = schema_utils.read_schema
 write_schema = schema_utils.write_schema
+check_compatible_with_schema_pb = schema_utils.check_compatible_with_schema_pb
 create_graph_spec_from_schema_pb = schema_utils.create_graph_spec_from_schema_pb
+create_schema_pb_from_graph_spec = schema_utils.create_schema_pb_from_graph_spec
 iter_sets = schema_utils.iter_sets
 iter_features = schema_utils.iter_features
 
