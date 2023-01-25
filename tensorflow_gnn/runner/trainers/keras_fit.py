@@ -269,14 +269,6 @@ class KerasTrainer(interfaces.Trainer):
     with self._strategy.scope():
       model = model_fn(self._options)
 
-    # if self._options and self._options.policy:
-    #   # Cast logits to `tf.keras.backend.floatx()` for mixed_precision.
-    #   # For more details, see:
-    #   # https://www.tensorflow.org/guide/mixed_precision#building_the_model.
-    #   floatx = tf.keras.backend.floatx()
-    #   outputs = [tf.cast(o, dtype=floatx) for o in model.outputs]
-    #   model = tf.keras.Model(model.inputs, outputs)
-
     model.fit(
         train_ds,
         epochs=epochs,
