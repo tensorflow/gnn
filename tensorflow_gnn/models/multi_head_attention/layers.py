@@ -608,7 +608,7 @@ def MultiHeadAttentionHomGraphUpdate(
     *,  # To be called like a class initializer.  pylint: disable=invalid-name
     num_heads: int,
     per_head_channels: int,
-    receiver_tag: tfgnn.IncidentNodeOrContextTag,
+    receiver_tag: tfgnn.IncidentNodeTag,
     feature_name: str = tfgnn.HIDDEN_STATE,
     name: str = "multi_head_attention",
     **kwargs):
@@ -674,7 +674,7 @@ def MultiHeadAttentionMPNNGraphUpdate(  # To be called like a class initializer.
     units: int,
     message_dim: int,
     num_heads: int,
-    receiver_tag: tfgnn.IncidentNodeOrContextTag,
+    receiver_tag: tfgnn.IncidentNodeTag,
     node_set_names: Optional[Collection[tfgnn.NodeSetName]] = None,
     edge_feature: Optional[tfgnn.FieldName] = None,
     l2_regularization: float = 0.0,
