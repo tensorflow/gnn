@@ -26,7 +26,6 @@ from tensorflow_gnn.models import vanilla_mpnn
 from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.tasks import classification
-from tensorflow_gnn.runner.tasks import dgi
 from tensorflow_gnn.runner.tasks import regression
 from tensorflow_gnn.runner.trainers import keras_fit
 from tensorflow_gnn.runner.utils import model_templates
@@ -93,9 +92,6 @@ def _all_eager_strategy_combinations():
 
 def _all_task_and_processors_combinations():
 
-  def identity(gt):
-    return gt
-
   def extract_binary_labels(gt):
     return gt, gt.context["label"] % 2
 
@@ -140,9 +136,6 @@ def _all_task_and_processors_combinations():
           extract_regression_labels,
       regression.GraphMeanSquaredLogScaledError(node_set_name="node"):
           extract_regression_labels,
-      # Unsupervised
-      dgi.DeepGraphInfomax(node_set_name="node"):
-          identity,
   }
   items = list(task_and_processor.items())
   return tftest.combinations.combine(task_and_processor=items)
@@ -227,6 +220,15 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
 
     saved_model = tf.saved_model.load(os.path.join(model_dir, "export"))
     saved_model.signatures["serving_default"](**kwargs)
+
+    results = saved_model.signatures["serving_default"](**kwargs)
+    self.assertLen(results, 1)  # The task has a single output.
+
+    [result] = results.values()
+    # The above distribute test verifies *only* that the `Task` runs under many
+    # distribution strategies. Verify here that run and export also produce
+    # finite values.
+    self.assertAllInRange(result, result.dtype.min, result.dtype.max)
 
 
 if __name__ == "__main__":

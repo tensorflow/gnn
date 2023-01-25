@@ -17,7 +17,6 @@ from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.input import datasets
 from tensorflow_gnn.runner.tasks import classification
-from tensorflow_gnn.runner.tasks import dgi
 from tensorflow_gnn.runner.tasks import regression
 from tensorflow_gnn.runner.trainers import keras_fit
 from tensorflow_gnn.runner.utils import attribution
@@ -73,8 +72,6 @@ TPUStrategy = strategies.TPUStrategy
 # combinations found there. (See `_all_task_and_processors_combinations`
 # in `distribute_test.py`.)
 #
-# Tasks (Unsupervised)
-DeepGraphInfomax = dgi.DeepGraphInfomax
 # Tasks (Classification)
 RootNodeBinaryClassification = classification.RootNodeBinaryClassification
 RootNodeMulticlassClassification = classification.RootNodeMulticlassClassification
@@ -103,7 +100,6 @@ ModelFromInitAndUpdates = model_templates.ModelFromInitAndUpdates
 del orchestration
 del datasets
 del classification
-del dgi
 del regression
 del keras_fit
 del attribution
