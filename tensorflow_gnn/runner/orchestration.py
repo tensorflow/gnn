@@ -315,13 +315,20 @@ def run(*,
         drop_remainder,
         global_batch_size)
 
-  def adapted_model_fn():
+  def adapted_model_fn(options = None):
     if isinstance(preprocess_model.output, collections.abc.Sequence):
       x, *_ = preprocess_model.output
     else:
       x = preprocess_model.output
     m = task.adapt(model_fn(x.spec))
     optimizer = optimizer_fn()
+    if options and options.policy:
+      # Cast logits to `tf.keras.backend.floatx()` for mixed_precision.
+      # For more details, see:
+      # https://www.tensorflow.org/guide/mixed_precision#building_the_model.
+      floatx = tf.keras.backend.floatx()
+      outputs = [tf.cast(o, dtype=floatx) for o in m.outputs]
+      m = tf.keras.Model(m.inputs, outputs)
     if train_padding is None:
       m.compile(optimizer, loss=task.losses(), metrics=task.metrics())
     else:
