@@ -83,7 +83,7 @@ class ConvGNNBuilder:
       nodes_next_state_factory: Callable[[const.NodeSetName],
                                          next_state_lib.NextStateForNodeSet],
       *,
-      receiver_tag: Optional[const.IncidentNodeOrContextTag] = None):
+      receiver_tag: Optional[const.IncidentNodeTag] = None):
     self._convolutions_factory = convolutions_factory
     self._nodes_next_state_factory = nodes_next_state_factory
     self._receiver_tag = receiver_tag
