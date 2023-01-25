@@ -42,6 +42,7 @@ def outer_dimension_size(value: Value) -> Union[int, tf.Tensor]:
   raise ValueError(f'Unsupported type {type(value).__name__}')
 
 
+# LINT.IfChange
 def row_lengths_to_row_ids(
     row_lengths: tf.Tensor,
     sum_row_lengths_hint: Optional[int] = None) -> tf.Tensor:
@@ -75,6 +76,7 @@ def row_lengths_to_row_ids(
       tf.ones_like(row_starts), row_starts, sum_row_lengths + 1)
   result = tf.math.cumsum(cuts, exclusive=False)
   return result[:sum_row_lengths]
+# LINT.ThenChange(../models/gpt_gnn/tensor_utils.py)
 
 
 def segment_random_index_shuffle(
@@ -451,10 +453,12 @@ def pad_to_nrows(value: Value,
     return tf.concat([value, diff], axis=0)
 
 
+# LINT.IfChange
 def _assert_rank1_int(t: tf.Tensor, tensor_name: Text) -> None:
   if t.shape.rank != 1 or t.dtype not in (tf.int32, tf.int64):
     raise ValueError(f'Expected `{tensor_name}` as rank-1 integer tensor,'
                      f' got rank={t.shape.rank}, dtype={t.dtype.name}')
+# LINT.ThenChange(../models/gpt_gnn/tensor_utils.py)
 
 
 def with_undefined_outer_dimension(spec: ValueSpec) -> ValueSpec:
