@@ -34,6 +34,8 @@ say so in their README files.
 
 <!-- Sorted alphabetically by title. -->
 
+  * [Contrastive Losses](contrastive_losses/README.md): Contrastive losses for
+    self-supervised learning.
   * [GATv2](gat_v2/README.md): Graph Attention Networks v2
     (Brody&al, 2021).
   * [GCN](gcn/README.md): Graph Convolutional Networks
