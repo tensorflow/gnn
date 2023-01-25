@@ -21,3 +21,6 @@ import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models import gpt_gnn
 ```
 """
+from tensorflow_gnn.models.gpt_gnn import tensor_utils
+
+sample_unconnected_nodes = tensor_utils.sample_unconnected_nodes
