@@ -417,7 +417,7 @@ def GATv2HomGraphUpdate(
     *,  # To be called like a class initializer.  pylint: disable=invalid-name
     num_heads: int,
     per_head_channels: int,
-    receiver_tag: tfgnn.IncidentNodeOrContextTag,
+    receiver_tag: tfgnn.IncidentNodeTag,
     feature_name: str = tfgnn.HIDDEN_STATE,
     heads_merge_type: str = "concat",
     name: str = "gat_v2",
@@ -490,7 +490,7 @@ def GATv2MPNNGraphUpdate(  # To be called like a class initializer.  pylint: dis
     message_dim: int,
     num_heads: int,
     heads_merge_type: str = "concat",
-    receiver_tag: tfgnn.IncidentNodeOrContextTag,
+    receiver_tag: tfgnn.IncidentNodeTag,
     node_set_names: Optional[Collection[tfgnn.NodeSetName]] = None,
     edge_feature: Optional[tfgnn.FieldName] = None,
     l2_regularization: float = 0.0,

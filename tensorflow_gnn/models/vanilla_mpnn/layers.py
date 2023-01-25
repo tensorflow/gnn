@@ -23,7 +23,7 @@ def VanillaMPNNGraphUpdate(  # To be called like a class initializer.  pylint: d
     *,
     units: int,
     message_dim: int,
-    receiver_tag: tfgnn.IncidentNodeOrContextTag,
+    receiver_tag: tfgnn.IncidentNodeTag,
     node_set_names: Optional[Collection[tfgnn.NodeSetName]] = None,
     edge_feature: Optional[tfgnn.FieldName] = None,
     reduce_type: str = "sum",
