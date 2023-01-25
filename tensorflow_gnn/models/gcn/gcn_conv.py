@@ -215,8 +215,6 @@ class GCNConv(tf.keras.layers.Layer):
     if self._add_self_loops:
       pooled += invsqrt_deg[:, tf.newaxis] * normalized_values
 
-    input_feature_shape = graph.node_sets[sender_name][self._node_feature].shape[-1]
-    pooled.set_shape(tf.TensorShape((None, input_feature_shape)))
     return self._filter(pooled)
 
 
