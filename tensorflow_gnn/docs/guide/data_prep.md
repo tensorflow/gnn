@@ -26,9 +26,10 @@ can use this code:
 import tensorflow_gnn as tfgnn
 
 schema = tfgnn.read_schema(schema_filename)
+graph_spec = tfgnn.create_graph_spec_from_schema_pb(schema)
 with tf.io.TFRecordWriter(record_file) as writer:
   for _ in range(1000):
-    graph = tfgnn.random_graph_tensor_from_schema(schema)
+    graph = tfgnn.random_graph_tensor(graph_spec)
     example = tfgnn.write_example(graph)
     writer.write(example.SerializeToString())
 ```
