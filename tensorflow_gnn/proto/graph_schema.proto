@@ -105,6 +105,7 @@ message Feature {
   // this field itself.
   optional string source = 4;
 
+  // THIS FIELD IS DEPRECATED.  TODO(b/266790186): Remove it.
   // Example feature data. This can be used both to document what the data looks
   // like in the schema proto, and also to sample from when generating bogus
   // example data. When generating random graph tensor= data, values are sampled

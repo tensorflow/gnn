@@ -276,6 +276,8 @@ def random_graph_tensor_from_schema(
     validate: bool = True) -> gt.GraphTensor:
   """Generate a graph tensor from a schema, with random features.
 
+  THIS FUNCTION IS DEPRECATED. TODO(b/266790186): Remove it.
+
   If example values are provided, the corresponding graph tensor features
   contain a sample of those values instead of fully random bogus values.
 
