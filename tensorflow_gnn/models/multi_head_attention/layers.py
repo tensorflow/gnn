@@ -300,7 +300,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       else:
         self._w_sender_edge_to_value = None
     else:
-      self._w_sender_pooled_to_value = tf.keras.layers.EinsumDense(
+      self._w_sender_pooled_to_value = tf.keras.layers.experimental.EinsumDense(
           equation="...hv,hvc->...hc",
           output_shape=(num_heads, per_head_channels),
           bias_axes="hc" if use_bias else None,
