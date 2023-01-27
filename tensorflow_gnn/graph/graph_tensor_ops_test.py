@@ -19,6 +19,8 @@ import functools
 from typing import Mapping, Union
 
 from absl.testing import parameterized
+# TODO(b/266817638): Remove when fixed
+from packaging import version
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
@@ -690,7 +692,15 @@ class ShuffleOpsTest(tf.test.TestCase, parameterized.TestCase):
       context: gt.Context,
       node_set: gt.NodeSet,
       edge_set: gt.EdgeSet,
-      expected_fields: Mapping[GraphPiece, Mapping[str, const.Field]]):
+      expected_fields: Mapping[GraphPiece, Mapping[str, const.Field]],
+  ):
+
+    # TODO(b/266817638): Remove when fixed
+    if version.parse(tf.__version__) < version.parse(
+        '2.11.0'
+    ) and description in {'ragged.1', 'ragged.2'}:
+      self.skipTest('Bad Test')
+
     del description
     graph = gt.GraphTensor.from_pieces(
         context,

@@ -45,7 +45,7 @@ tag_filters="-no_oss${TAG_FILTERS}"
 
 bazel clean
 pip install -r requirements-dev.txt --progress-bar off
-pip install tensorflow~="${TF_VERSION}" --progress-bar off --upgrade
+pip install tensorflow=="${TF_VERSION}" --progress-bar off --upgrade
 python3 setup.py bdist_wheel
 pip uninstall -y tensorflow_gnn
 pip install dist/tensorflow_gnn-*.whl

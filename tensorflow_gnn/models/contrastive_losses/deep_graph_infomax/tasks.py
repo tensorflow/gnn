@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Deep Graph Infomax tasks."""
+from __future__ import annotations
+
 from collections.abc import Callable, Sequence
 from typing import Optional
 

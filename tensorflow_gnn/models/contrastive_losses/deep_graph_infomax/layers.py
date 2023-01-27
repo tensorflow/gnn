@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Deep Graph Infomax layers (see: https://arxiv.org/abs/1809.10341)."""
+from __future__ import annotations
+
 import collections
 from collections.abc import Sequence
 

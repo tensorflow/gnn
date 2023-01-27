@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Contains GPT-GNN related tensor operations."""
+from __future__ import annotations
+
 import dataclasses
 from typing import Optional, Text
 
