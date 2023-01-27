@@ -19,6 +19,7 @@ py_strict_test(
     name = "classification_test",
     srcs = ["classification_test.py"],
     srcs_version = "PY3",
+    tags = ["tf_at_least_2_10"],
     deps = [
         ":classification",
         "//:expect_absl_installed",
@@ -43,6 +44,7 @@ py_strict_test(
     name = "regression_test",
     srcs = ["regression_test.py"],
     srcs_version = "PY3",
+    tags = ["tf_at_least_2_10"],
     deps = [
         ":regression",
         "//:expect_absl_installed",

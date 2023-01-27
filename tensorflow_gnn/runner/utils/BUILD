@@ -98,6 +98,7 @@ py_strict_test(
     name = "attribution_test",
     srcs = ["attribution_test.py"],
     srcs_version = "PY3",
+    tags = ["tf_at_least_2_10"],
     deps = [
         ":attribution",
         "//:expect_tensorflow_installed",

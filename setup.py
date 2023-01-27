@@ -174,8 +174,8 @@ setup(
         'networkx',
         'pyarrow',
         # pylint:disable=g-line-too-long
-        'tensorflow>=2.10.0; platform_machine != "arm64" or platform_system != "Darwin"',
-        'tensorflow-macos>=2.10.0; platform_machine == "arm64" and platform_system == "Darwin"',
+        'tensorflow>=2.9.0; platform_machine != "arm64" or platform_system != "Darwin"',
+        'tensorflow-macos>=2.9.0; platform_machine == "arm64" and platform_system == "Darwin"',
         # pylint:enable=g-line-too-long
     ],
     python_requires='>=3.8,<4',
