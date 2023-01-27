@@ -172,7 +172,9 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       Setting this option pools inputs with attention coefficients, then applies
       the transformation. This is mathematically equivalent but can be faster
       or slower to compute, depending on the platform and the dataset.
-      IMPORANT: Toggling this option breaks checkpoint compatibility.
+      IMPORTANT: Toggling this option breaks checkpoint compatibility.
+      IMPORTANT: Setting this option requires TensorFlow 2.10 or greater,
+      because it uses `tf.keras.layers.EinsumDense`.
   """
 
   def __init__(
@@ -300,6 +302,15 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       else:
         self._w_sender_edge_to_value = None
     else:
+      # TODO(b/266868417): Remove when TF2.10+ is required by all of TF-GNN.
+      try:
+        _ = tf.keras.layers.EinsumDense
+      except AttributeError as e:
+        raise ValueError(
+            "MultiHeadAttentionConv(transform_values_after_pooling=True) "
+            "requires tf.keras.layers.EinsumDense from "
+            f"TensorFlow 2.10 or newer, got TensorFlow {tf.__version__}"
+        ) from e
       self._w_sender_pooled_to_value = tf.keras.layers.EinsumDense(
           equation="...hv,hvc->...hc",
           output_shape=(num_heads, per_head_channels),
