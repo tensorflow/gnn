@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L578-L640">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L618-L680">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -20,7 +20,7 @@ Returns a GraphUpdate layer with a transformer-style multihead attention.
     *,
     num_heads: int,
     per_head_channels: int,
-    receiver_tag: tfgnn.IncidentNodeOrContextTag,
+    receiver_tag: tfgnn.IncidentNodeTag,
     feature_name: str = tfgnn.HIDDEN_STATE,
     name: str = &#x27;multi_head_attention&#x27;,
     **kwargs
@@ -43,7 +43,6 @@ details).
 > itself requires having an explicit loop in the edge set.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>

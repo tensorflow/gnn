@@ -30,6 +30,9 @@ similar to `tf.TensorSpec`. For example, a `FieldSpec` describes an instance of
 
 ## Modules
 
+[`experimental`](./tfgnn/experimental.md) module: Experimental (unstable) parts
+of the public interface of TensorFlow GNN.
+
 [`keras`](./tfgnn/keras.md) module: The tfgnn.keras package.
 
 ## Classes
@@ -88,6 +91,9 @@ or from context to nodes or edges.
 
 [`broadcast_node_to_edges(...)`](./tfgnn/broadcast_node_to_edges.md): Broadcasts values from nodes to incident edges.
 
+[`check_compatible_with_schema_pb(...)`](./tfgnn/check_compatible_with_schema_pb.md):
+Checks that the given spec or value is compatible with the graph schema.
+
 [`check_homogeneous_graph_tensor(...)`](./tfgnn/check_homogeneous_graph_tensor.md):
 Raises ValueError unless there is exactly one node set and edge set.
 
@@ -133,6 +139,9 @@ dataset from generator of any nest of scalar graph pieces.
 
 [`mask_edges(...)`](./tfgnn/mask_edges.md): Creates a GraphTensor after applying
 edge_mask over the specified edge-set.
+
+[`node_degree(...)`](./tfgnn/node_degree.md): Returns the degree of each node
+w.r.t. one side of an edge set.
 
 [`pad_to_total_sizes(...)`](./tfgnn/pad_to_total_sizes.md): Pads graph tensor to the total sizes by inserting fake graph components.
 
@@ -271,7 +280,7 @@ TARGET_NAME<a id="TARGET_NAME"></a>
 **version**<a id="__version__"></a>
 </td>
 <td>
-`'0.4.0.dev1'`
+`'0.5.0.dev1'`
 </td>
 </tr>
 </table>

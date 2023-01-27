@@ -30,10 +30,10 @@ other fields are left unset. (Callers can set them separately before writing out
 the schema.)
 
 It is guranteed that the input graph is compatible with the output graph schema
-(as `tfgnn.check_compatible_with_schema_pb()`.)
+(as
+<a href="../tfgnn/check_compatible_with_schema_pb.md"><code>tfgnn.check_compatible_with_schema_pb()</code></a>.)
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -49,7 +49,6 @@ The scalar graph tensor or its spec with single graph component.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
@@ -62,7 +61,6 @@ An instance of the graph schema proto message.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Raises</h2></th></tr>

@@ -36,6 +36,7 @@
 *   <a href="../tfgnn/broadcast_context_to_edges.md"><code>tfgnn.broadcast_context_to_edges</code></a>
 *   <a href="../tfgnn/broadcast_context_to_nodes.md"><code>tfgnn.broadcast_context_to_nodes</code></a>
 *   <a href="../tfgnn/broadcast_node_to_edges.md"><code>tfgnn.broadcast_node_to_edges</code></a>
+*   <a href="../tfgnn/check_compatible_with_schema_pb.md"><code>tfgnn.check_compatible_with_schema_pb</code></a>
 *   <a href="../tfgnn/check_homogeneous_graph_tensor.md"><code>tfgnn.check_homogeneous_graph_tensor</code></a>
 *   <a href="../tfgnn/check_required_features.md"><code>tfgnn.check_required_features</code></a>
 *   <a href="../tfgnn/check_scalar_graph_tensor.md"><code>tfgnn.check_scalar_graph_tensor</code></a>
@@ -44,6 +45,7 @@
 *   <a href="../tfgnn/create_schema_pb_from_graph_spec.md"><code>tfgnn.create_schema_pb_from_graph_spec</code></a>
 *   <a href="../tfgnn/dataset_filter_with_summary.md"><code>tfgnn.dataset_filter_with_summary</code></a>
 *   <a href="../tfgnn/dataset_from_generator.md"><code>tfgnn.dataset_from_generator</code></a>
+*   <a href="../tfgnn/experimental.md"><code>tfgnn.experimental</code></a>
 *   <a href="../tfgnn/find_tight_size_constraints.md"><code>tfgnn.find_tight_size_constraints</code></a>
 *   <a href="../tfgnn/gather_first_node.md"><code>tfgnn.gather_first_node</code></a>
 *   <a href="../tfgnn/get_io_spec.md"><code>tfgnn.get_io_spec</code></a>
@@ -63,6 +65,7 @@
 *   <a href="../tfgnn/keras/layers/ContextUpdate.md"><code>tfgnn.keras.layers.ContextUpdate</code></a>
 *   <a href="../tfgnn/keras/layers/EdgeSetUpdate.md"><code>tfgnn.keras.layers.EdgeSetUpdate</code></a>
 *   <a href="../tfgnn/keras/layers/GraphUpdate.md"><code>tfgnn.keras.layers.GraphUpdate</code></a>
+*   <a href="../tfgnn/keras/layers/ItemDropout.md"><code>tfgnn.keras.layers.ItemDropout</code></a>
 *   <a href="../tfgnn/keras/layers/MakeEmptyFeature.md"><code>tfgnn.keras.layers.MakeEmptyFeature</code></a>
 *   <a href="../tfgnn/keras/layers/MapFeatures.md"><code>tfgnn.keras.layers.MapFeatures</code></a>
 *   <a href="../tfgnn/keras/layers/NextStateFromConcat.md"><code>tfgnn.keras.layers.NextStateFromConcat</code></a>
@@ -78,6 +81,7 @@
 *   <a href="../tfgnn/keras/layers/SingleInputNextState.md"><code>tfgnn.keras.layers.SingleInputNextState</code></a>
 *   <a href="../tfgnn/learn_fit_or_skip_size_constraints.md"><code>tfgnn.learn_fit_or_skip_size_constraints</code></a>
 *   <a href="../tfgnn/mask_edges.md"><code>tfgnn.mask_edges</code></a>
+*   <a href="../tfgnn/node_degree.md"><code>tfgnn.node_degree</code></a>
 *   <a href="../tfgnn/pad_to_total_sizes.md"><code>tfgnn.pad_to_total_sizes</code></a>
 *   <a href="../tfgnn/parse_example.md"><code>tfgnn.parse_example</code></a>
 *   <a href="../tfgnn/parse_schema.md"><code>tfgnn.parse_schema</code></a>

@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1191-L1295">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1192-L1296">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -116,13 +116,13 @@ Do NOT override for custom non-TF types.
 
 <h3 id="from_piece_specs"><code>from_piece_specs</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1195-L1225">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1196-L1226">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>@classmethod</code>
 <code>from_piece_specs(
-    context_spec: Optional[<a href="../tfgnn/ContextSpec.md"><code>tfgnn.ContextSpec</code></a>] = None,
+    context_spec: Optional[ContextSpec] = None,
     node_sets_spec: Optional[Mapping[NodeSetName, NodeSetSpec]] = None,
     edge_sets_spec: Optional[Mapping[EdgeSetName, EdgeSetSpec]] = None
 ) -> 'GraphTensorSpec'
@@ -296,7 +296,7 @@ and `other`.
 
 <h3 id="relax"><code>relax</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1258-L1295">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1259-L1296">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -322,7 +322,7 @@ Calling with all default parameters keeps the spec unchanged.
 `num_components`
 </td>
 <td>
-if True, allows the variable number of graph components.
+if True, allows a variable number of graph components.
 </td>
 </tr><tr>
 <td>

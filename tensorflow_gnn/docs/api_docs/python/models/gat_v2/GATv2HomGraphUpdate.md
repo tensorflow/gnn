@@ -20,7 +20,7 @@ Returns a GraphUpdate layer with a Graph Attention Network V2 (GATv2).
     *,
     num_heads: int,
     per_head_channels: int,
-    receiver_tag: tfgnn.IncidentNodeOrContextTag,
+    receiver_tag: tfgnn.IncidentNodeTag,
     feature_name: str = tfgnn.HIDDEN_STATE,
     heads_merge_type: str = &#x27;concat&#x27;,
     name: str = &#x27;gat_v2&#x27;,

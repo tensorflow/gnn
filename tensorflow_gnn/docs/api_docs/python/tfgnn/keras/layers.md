@@ -34,6 +34,9 @@ self-loops to scalar graphs.
 
 [`class GraphUpdate`](../../tfgnn/keras/layers/GraphUpdate.md): Applies one round of updates to EdgeSets, NodeSets and Context.
 
+[`class ItemDropout`](../../tfgnn/keras/layers/ItemDropout.md): Dropout of
+feature values for entire edges, nodes or components.
+
 [`class MakeEmptyFeature`](../../tfgnn/keras/layers/MakeEmptyFeature.md): Returns an empty feature with a shape that fits the input graph piece.
 
 [`class MapFeatures`](../../tfgnn/keras/layers/MapFeatures.md): Transforms features on a GraphTensor by user-defined callbacks.

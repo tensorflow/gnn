@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gcn/gcn_conv.py#L28-L191">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gcn/gcn_conv.py#L28-L218">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -27,6 +27,7 @@ Implements the Graph Convolutional Network by Kipf&Welling (2016).
     kernel_initializer: bool = None,
     node_feature: Optional[str] = tfgnn.HIDDEN_STATE,
     kernel_regularizer: Optional[_RegularizerType] = None,
+    edge_weight_feature_name: Optional[tfgnn.FieldName] = None,
     **kwargs
 )
 </code></pre>
@@ -84,7 +85,8 @@ with Keras and other implementations.
 </td>
 <td>
 Whether to compute the result as if a loop from each node
-to itself had been added to the edge set.
+to itself had been added to the edge set. The self-loop edges are added
+with an edge weight of one.
 </td>
 </tr><tr>
 <td>
@@ -106,6 +108,15 @@ initializer of type tf.keras.initializers .
 </td>
 <td>
 Name of the node feature to transform.
+</td>
+</tr><tr>
+<td>
+`edge_weight_feature_name`<a id="edge_weight_feature_name"></a>
+</td>
+<td>
+Can be set to the name of a feature on the edge
+set that supplies a scalar weight for each edge. The GCN computation uses
+it as the edge's entry in the adjacency matrix, instead of the default 1.
 </td>
 </tr><tr>
 <td>

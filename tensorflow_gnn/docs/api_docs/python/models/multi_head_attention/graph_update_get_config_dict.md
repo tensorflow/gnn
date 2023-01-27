@@ -1,4 +1,4 @@
-# tfgnn.check_scalar_graph_tensor
+# multi_head_attention.graph_update_get_config_dict
 
 [TOC]
 
@@ -6,17 +6,17 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1413-L1415">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/config_dict.py#L22-L37">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
 
+Returns ConfigDict for graph_update_from_config_dict() with defaults.
+
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
-<code>tfgnn.check_scalar_graph_tensor(
-    graph: Union[GraphTensor, GraphTensorSpec], name=&#x27;This operation&#x27;
-) -> None
+<code>multi_head_attention.graph_update_get_config_dict() -> config_dict.ConfigDict
 </code></pre>
 
 <!-- Placeholder for "Used in" -->

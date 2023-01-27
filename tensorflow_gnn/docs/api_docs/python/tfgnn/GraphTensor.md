@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L681-L1188">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L682-L1189">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -236,13 +236,13 @@ The total number of graph components.
 
 <h3 id="from_pieces"><code>from_pieces</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L821-L853">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L822-L854">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>@classmethod</code>
 <code>from_pieces(
-    context: Optional[<a href="../tfgnn/Context.md"><code>tfgnn.Context</code></a>] = None,
+    context: Optional[Context] = None,
     node_sets: Optional[Mapping[NodeSetName, NodeSet]] = None,
     edge_sets: Optional[Mapping[EdgeSetName, EdgeSet]] = None
 ) -> 'GraphTensor'
@@ -253,7 +253,7 @@ Constructs a new `GraphTensor` from context, node sets and edge sets.
 
 <h3 id="merge_batch_to_components"><code>merge_batch_to_components</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L855-L940">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L856-L941">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -334,7 +334,7 @@ A scalar (rank 0) graph tensor.
 
 <h3 id="remove_features"><code>remove_features</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1083-L1174">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1084-L1175">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -447,12 +447,12 @@ input graph tensor.
 
 <h3 id="replace_features"><code>replace_features</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L982-L1081">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L983-L1082">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>replace_features(
-    context: Optional[<a href="../tfgnn/Fields.md"><code>tfgnn.Fields</code></a>] = None,
+    context: Optional[Fields] = None,
     node_sets: Optional[Mapping[NodeSetName, Fields]] = None,
     edge_sets: Optional[Mapping[EdgeSetName, Fields]] = None
 ) -> 'GraphTensor'

@@ -20,11 +20,9 @@ Factory of layers that do convolutions on a graph.
     convolutions_factory: Callable[..., graph_update_lib.EdgesToNodePoolingLayer],
     nodes_next_state_factory: Callable[[const.NodeSetName], next_state_lib.NextStateForNodeSet],
     *,
-    receiver_tag: Optional[const.IncidentNodeOrContextTag] = None
+    receiver_tag: Optional[const.IncidentNodeTag] = None
 )
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
 

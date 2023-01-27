@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L533-L616">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L534-L617">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -127,16 +127,13 @@ The total number of items.
 
 <h3 id="from_fields"><code>from_fields</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L556-L601">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L557-L602">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>@classmethod</code>
 <code>from_fields(
-    *,
-    features: Optional[<a href="../tfgnn/Fields.md"><code>tfgnn.Fields</code></a>] = None,
-    sizes: <a href="../tfgnn/Field.md"><code>tfgnn.Field</code></a>,
-    adjacency: Adjacency
+    *, features: Optional[Fields] = None, sizes: Field, adjacency: Adjacency
 ) -> 'EdgeSet'
 </code></pre>
 
@@ -218,7 +215,7 @@ An `EdgeSet` composite tensor.
 
 <h3 id="get_features_dict"><code>get_features_dict</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L157-L159">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L158-L160">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -230,12 +227,12 @@ Returns features copy as a dictionary.
 
 <h3 id="replace_features"><code>replace_features</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L404-L410">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L405-L411">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>replace_features(
-    features: <a href="../tfgnn/Fields.md"><code>tfgnn.Fields</code></a>
+    features: Mapping[FieldName, Field]
 ) -> '_NodeOrEdgeSet'
 </code></pre>
 
@@ -258,13 +255,13 @@ Enforce the common prefix shape on all the contained features.
 
 <h3 id="__getitem__"><code>__getitem__</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L54-L56">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L55-L57">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>__getitem__(
     feature_name: FieldName
-) -> <a href="../tfgnn/Field.md"><code>tfgnn.Field</code></a>
+) -> Field
 </code></pre>
 
 Indexing operator `[]` to access feature values by their name.

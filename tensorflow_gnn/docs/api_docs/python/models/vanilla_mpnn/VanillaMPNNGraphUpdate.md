@@ -20,7 +20,7 @@ Returns a GraphUpdate layer for a Vanilla MPNN.
     *,
     units: int,
     message_dim: int,
-    receiver_tag: tfgnn.IncidentNodeOrContextTag,
+    receiver_tag: tfgnn.IncidentNodeTag,
     node_set_names: Optional[Collection[tfgnn.NodeSetName]] = None,
     edge_feature: Optional[tfgnn.FieldName] = None,
     reduce_type: str = &#x27;sum&#x27;,

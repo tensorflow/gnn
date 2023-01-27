@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L619-L678">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L620-L679">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -118,15 +118,15 @@ Do NOT override for custom non-TF types.
 
 <h3 id="from_field_specs"><code>from_field_specs</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L623-L637">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L624-L638">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>@classmethod</code>
 <code>from_field_specs(
     *,
-    features_spec: Optional[<a href="../tfgnn/FieldsSpec.md"><code>tfgnn.FieldsSpec</code></a>] = None,
-    sizes_spec: <a href="../tfgnn/FieldSpec.md"><code>tfgnn.FieldSpec</code></a>,
+    features_spec: Optional[FieldsSpec] = None,
+    sizes_spec: FieldSpec,
     adjacency_spec: AdjacencySpec
 ) -> 'EdgeSetSpec'
 </code></pre>
@@ -299,7 +299,7 @@ and `other`.
 
 <h3 id="relax"><code>relax</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L653-L678">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L654-L679">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -376,17 +376,14 @@ Return self==value.
 
 <h3 id="__getitem__"><code>__getitem__</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L165-L166">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L166-L167">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>__getitem__(
     feature_name: FieldName
-) -> <a href="../tfgnn/FieldSpec.md"><code>tfgnn.FieldSpec</code></a>
+) -> FieldSpec
 </code></pre>
-
-
-
 
 <h3 id="__ne__"><code>__ne__</code></h3>
 

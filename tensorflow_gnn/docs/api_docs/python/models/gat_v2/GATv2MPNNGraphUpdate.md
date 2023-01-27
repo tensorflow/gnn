@@ -22,7 +22,7 @@ Returns a GraphUpdate layer for message passing with GATv2 pooling.
     message_dim: int,
     num_heads: int,
     heads_merge_type: str = &#x27;concat&#x27;,
-    receiver_tag: tfgnn.IncidentNodeOrContextTag,
+    receiver_tag: tfgnn.IncidentNodeTag,
     node_set_names: Optional[Collection[tfgnn.NodeSetName]] = None,
     edge_feature: Optional[tfgnn.FieldName] = None,
     l2_regularization: float = 0.0,

@@ -37,3 +37,9 @@ Returns a GraphUpdate layer with a transformer-style multihead attention.
 
 [`MultiHeadAttentionMPNNGraphUpdate(...)`](./multi_head_attention/MultiHeadAttentionMPNNGraphUpdate.md):
 Returns a GraphUpdate layer for message passing with MultiHeadAttention pooling.
+
+[`graph_update_from_config_dict(...)`](./multi_head_attention/graph_update_from_config_dict.md):
+Returns a MultiHeadAttentionMPNNGraphUpdate initialized from `cfg`.
+
+[`graph_update_get_config_dict(...)`](./multi_head_attention/graph_update_get_config_dict.md):
+Returns ConfigDict for graph_update_from_config_dict() with defaults.

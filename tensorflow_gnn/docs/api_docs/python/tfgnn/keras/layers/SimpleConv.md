@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/convolutions.py#L26-L142">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/convolutions.py#L26-L144">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -245,7 +245,7 @@ If `False`, all calls to convolve() will get `sender_node_input=None`.
 
 <h3 id="convolve"><code>convolve</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/convolutions.py#L120-L142">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/convolutions.py#L120-L144">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -257,6 +257,7 @@ source</a>
     broadcast_from_sender_node: Callable[[tf.Tensor], tf.Tensor],
     broadcast_from_receiver: Callable[[tf.Tensor], tf.Tensor],
     pool_to_receiver: Callable[..., tf.Tensor],
+    extra_receiver_ops: Any = None,
     training: bool
 ) -> tf.Tensor
 </code></pre>

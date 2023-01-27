@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L23-L518">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L24-L558">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -31,7 +31,7 @@ Transformer-style (dot-product) multi-head attention on GNNs.
     kernel_initializer: Union[None, str, tf.keras.initializers.Initializer] = None,
     kernel_regularizer: Union[None, str, tf.keras.regularizers.Regularizer] = None,
     transform_keys: bool = True,
-    score_scaling: bool = True,
+    score_scaling: Literal['none', 'rsqrt_dim', 'trainable_sigmoid'] = &#x27;rsqrt_dim&#x27;,
     transform_values_after_pooling: bool = False,
     **kwargs
 )
@@ -85,13 +85,13 @@ Note that in the context of graph, only nodes with edges connected are attended
 to each other, which means we do NOT compute $N^2$ pairs of scores as the
 original Transformer-style Attention.
 
-Users are able to remove the scaling of attention scores (score_scaling=False)
-or add an activation on the transformed query (controled by
-`attention_activation`). However, we recommend to remove the scaling when using
-an `attention_activation` since activating both of them may lead to degrated
-accuracy. One can also customize the transformation kernels with different
-intializers, regularizers as well as the use of bias terms, using the other
-arguments.
+Users are able to remove the scaling of attention scores
+(`score_scaling="none"`) or add an activation on the transformed query
+(controlled by `attention_activation`). However, we recommend to remove the
+scaling when using an `attention_activation` since activating both of them may
+lead to degraded accuracy. One can also customize the transformation kernels
+with different initializers, regularizers as well as the use of bias terms,
+using the other arguments.
 
 Example: Transformer-style attention on neighbors along incoming edges whose
 result is concatenated with the old node state and passed through a Dense layer
@@ -125,7 +125,6 @@ could potentially be beneficial:
 ```
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
@@ -256,9 +255,15 @@ independent of this arg.)
 `score_scaling`<a id="score_scaling"></a>
 </td>
 <td>
-If true, the attention scores are divided by the square root
-of the dimension of keys (i.e., per_head_channels if transform_keys=True,
-else whatever the dimension of combined sender inputs is).
+One of either `"none"`, `"rsqrt_dim"`, or
+`"trainable_sigmoid"`. If set to `"rsqrt_dim"`, the attention scores are
+divided by the square root of the dimension of keys (i.e.,
+`per_head_channels` if `transform_keys=True`, otherwise whatever the
+dimension of combined sender inputs is). If set to `"trainable_sigmoid"`,
+the scores are scaled with `sigmoid(x)`, where `x` is a trainable weight
+of the model that is initialized to `-5.0`, which initially makes all the
+attention weights equal and slowly ramps up as the other weights in the
+layer converge. Defaults to `"rsqrt_dim"`.
 </td>
 </tr><tr>
 <td>
@@ -270,13 +275,14 @@ the value transformation, then pools with attention coefficients.
 Setting this option pools inputs with attention coefficients, then applies
 the transformation. This is mathematically equivalent but can be faster
 or slower to compute, depending on the platform and the dataset.
-IMPORANT: Toggling this option breaks checkpoint compatibility.
+IMPORTANT: Toggling this option breaks checkpoint compatibility.
+IMPORTANT: Setting this option requires TensorFlow 2.10 or greater,
+because it uses `tf.keras.layers.EinsumDense`.
 </td>
 </tr>
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -335,7 +341,6 @@ Forwarded to the base class tf.keras.layers.Layer.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>
@@ -368,7 +373,7 @@ If `False`, all calls to convolve() will get `sender_node_input=None`.
 
 <h3 id="convolve"><code>convolve</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L332-L490">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L354-L530">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -394,7 +399,6 @@ from nodes to context). In the end, values have to be pooled from there into a
 Tensor with a leading dimension indexed by receivers, see `pool_to_receiver`.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Args</th></tr>
@@ -482,7 +486,6 @@ does not require forwarding this arg, Keras does that automatically.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Returns</th></tr>

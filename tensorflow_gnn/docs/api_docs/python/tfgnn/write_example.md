@@ -31,9 +31,10 @@ Python job. Create instances of scalar `GraphTensor` with a single graph
 component and call this to write them out. It is recommended to always accompany
 serialized graph tensor tensorflow examples by their graph schema file (see
 <a href="../tfgnn/create_schema_pb_from_graph_spec.md"><code>tfgnn.create_schema_pb_from_graph_spec()</code></a>).
-TF-GNN library provides `tfgnn.check_compatible_with_schema_pb()` to check that
-graph tensor instances (or their specs) are compatible with the graph schema.
-The graph tensors materialized in this way will be parseable by
+TF-GNN library provides
+<a href="../tfgnn/check_compatible_with_schema_pb.md"><code>tfgnn.check_compatible_with_schema_pb()</code></a>
+to check that graph tensor instances (or their specs) are compatible with the
+graph schema. The graph tensors materialized in this way will be parseable by
 <a href="../tfgnn/parse_example.md"><code>tfgnn.parse_example()</code></a>
 (using the spec deserialized from the schema) and have the same contents (up to
 the choice of indices_dtype).

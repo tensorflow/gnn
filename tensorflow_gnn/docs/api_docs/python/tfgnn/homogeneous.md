@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1457-L1536">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1458-L1537">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -27,13 +27,12 @@ Constructs a homogeneous `GraphTensor` with node features and one edge_set.
     edge_set_name: Optional[FieldName] = const.EDGES,
     node_set_sizes: Optional[Field] = None,
     edge_set_sizes: Optional[Field] = None
-) -> <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>
+) -> GraphTensor
 </code></pre>
 
 <!-- Placeholder for "Used in" -->
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>

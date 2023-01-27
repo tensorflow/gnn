@@ -33,7 +33,8 @@ of the same goal. This function converts the proto to the corresponding type
 spec.
 
 It is guranteed that the output graph spec is compatible with the input graph
-schema (as `tfgnn.check_compatible_with_schema_pb()`.)
+schema (as
+<a href="../tfgnn/check_compatible_with_schema_pb.md"><code>tfgnn.check_compatible_with_schema_pb()</code></a>.)
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
