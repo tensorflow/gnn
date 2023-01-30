@@ -43,6 +43,8 @@ say so in their README files.
   * [GPT-GNN](gpt_gnn/README.md): Autoregressive graph generation task for
     transfer learning, based on (Hu&al., 2020).
   * [GraphSAGE](graph_sage/README.md) (Hamilton&al., 2017).
+  * [MtAlbis](mt_albis/README.md): a model template for easy configuration
+    of selected GNN architectures.
   * [MultiHeadAttention](multi_head_attention/README.md): Transformer-style
     multi-head attention on graph (Dwivedi&Bresson, 2021).
   * [VanillaMPNN](vanilla_mpnn/README.md): TF-GNN's frequently used baseline

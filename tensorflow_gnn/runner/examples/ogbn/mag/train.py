@@ -26,6 +26,7 @@ import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
 from tensorflow_gnn import runner
+from tensorflow_gnn.models import mt_albis
 from tensorflow_gnn.models import multi_head_attention
 from tensorflow_gnn.models import vanilla_mpnn
 
@@ -89,6 +90,11 @@ _PAPER_DIM = flags.DEFINE_integer(
     "Dimensionality of dense layer applied to paper features. "
     "Set to '0' for no dense transform.")
 
+_READOUT_USE_SKIP_CONNECTION = flags.DEFINE_boolean(
+    "readout_use_skip_connection", False,
+    "If set, readout of GNN states for prediction extends the final state "
+    "by concatenation with the initial state.")
+
 
 # The GNN model used by this script is configured by a ConfigDict
 # (see https://github.com/google/ml_collections).
@@ -100,17 +106,16 @@ def get_config_dict() -> config_dict.ConfigDict:
   """The default config that users can override with --config.foo=bar."""
   cfg = config_dict.ConfigDict()
   cfg.gnn = config_dict.ConfigDict()
-  cfg.gnn.type = "vanilla_mpnn"
   # For each supported gnn.type="foo", there is a config gnn.foo for that type's
   # GraphUpdate class, overridden with the defaults for this training.
-  cfg.gnn.vanilla_mpnn = vanilla_mpnn.graph_update_get_config_dict()
-  cfg.gnn.vanilla_mpnn.units = 128
-  cfg.gnn.vanilla_mpnn.message_dim = 128
-  cfg.gnn.vanilla_mpnn.receiver_tag = tfgnn.SOURCE
-  cfg.gnn.vanilla_mpnn.dropout_rate = 0.2
-  cfg.gnn.vanilla_mpnn.l2_regularization = 6e-6
-  cfg.gnn.vanilla_mpnn.use_layer_normalization = True
-  # Config for multi head attention
+  cfg.gnn.type = "vanilla_mpnn"
+  # For gnn.type="mt_albis":
+  cfg.gnn.mt_albis = mt_albis.graph_update_get_config_dict()
+  cfg.gnn.mt_albis.units = 128
+  cfg.gnn.mt_albis.message_dim = 128
+  cfg.gnn.mt_albis.receiver_tag = tfgnn.SOURCE
+  cfg.gnn.mt_albis.state_dropout_rate = 0.2
+  # For gnn.type="multi head attention":
   cfg.gnn.multi_head_attention = (
       multi_head_attention.graph_update_get_config_dict())
   cfg.gnn.multi_head_attention.units = 128
@@ -120,6 +125,14 @@ def get_config_dict() -> config_dict.ConfigDict:
   cfg.gnn.multi_head_attention.state_dropout_rate = 0.2
   cfg.gnn.multi_head_attention.l2_regularization = 6e-6
   cfg.gnn.multi_head_attention.edge_dropout_rate = 0.2
+  # For gnn.type="vanilla_mpnn":
+  cfg.gnn.vanilla_mpnn = vanilla_mpnn.graph_update_get_config_dict()
+  cfg.gnn.vanilla_mpnn.units = 128
+  cfg.gnn.vanilla_mpnn.message_dim = 128
+  cfg.gnn.vanilla_mpnn.receiver_tag = tfgnn.SOURCE
+  cfg.gnn.vanilla_mpnn.dropout_rate = 0.2
+  cfg.gnn.vanilla_mpnn.l2_regularization = 6e-6
+  cfg.gnn.vanilla_mpnn.use_layer_normalization = True
   cfg.lock()
   return cfg
 
@@ -129,11 +142,13 @@ _CONFIG = config_flags.DEFINE_config_dict("config", get_config_dict())
 def _graph_update_from_config(
     cfg: config_dict.ConfigDict) -> tf.keras.layers.Layer:
   """Returns one instance of the configured GraphUpdate layer."""
-  if cfg.gnn.type == "vanilla_mpnn":
-    return vanilla_mpnn.graph_update_from_config_dict(cfg.gnn.vanilla_mpnn)
+  if cfg.gnn.type == "mt_albis":
+    return mt_albis.graph_update_from_config_dict(cfg.gnn.mt_albis)
   elif cfg.gnn.type == "multi_head_attention":
     return multi_head_attention.graph_update_from_config_dict(
         cfg.gnn.multi_head_attention)
+  elif cfg.gnn.type == "vanilla_mpnn":
+    return vanilla_mpnn.graph_update_from_config_dict(cfg.gnn.vanilla_mpnn)
   else:
     raise ValueError(f"Unknown gnn.type: {cfg.gnn.type}")
 
@@ -238,18 +253,26 @@ def main(
       return node_set["empty_state"]
     raise KeyError(f"Unexpected node_set_name='{node_set_name}'")
 
+  task_node_set_name = "paper"
+  task = runner.RootNodeMulticlassClassification(
+      node_set_name=task_node_set_name,
+      num_classes=349)
+
   def model_fn(gtspec: tfgnn.GraphTensorSpec):
-    graph = inputs = tf.keras.layers.Input(type_spec=gtspec)
-    graph = tfgnn.keras.layers.MapFeatures(
-        node_sets_fn=set_initial_node_states)(graph)
+    model_inputs = tf.keras.layers.Input(type_spec=gtspec)
+    graph = gnn_inputs = tfgnn.keras.layers.MapFeatures(
+        node_sets_fn=set_initial_node_states)(model_inputs)
     for _ in range(4):
       graph_update = _graph_update_from_config(_CONFIG.value)
       graph = graph_update(graph)
-    return tf.keras.Model(inputs, graph)
-
-  task = runner.RootNodeMulticlassClassification(
-      node_set_name="paper",
-      num_classes=349)
+    if _READOUT_USE_SKIP_CONNECTION.value:
+      # TODO(b/234563300): Allow `graph = MapFeatures(...)(graph, gnn_inputs)`.
+      initial_features = gnn_inputs.node_sets[task_node_set_name].features
+      features = graph.node_sets[task_node_set_name].get_features_dict()
+      features[tfgnn.HIDDEN_STATE] = tf.keras.layers.Concatenate()(
+          [features[tfgnn.HIDDEN_STATE], initial_features[tfgnn.HIDDEN_STATE]])
+      graph = graph.replace_features(node_sets={task_node_set_name: features})
+    return tf.keras.Model(model_inputs, graph)
 
   global_batch_size = 128
   validation_batch_size = 32
