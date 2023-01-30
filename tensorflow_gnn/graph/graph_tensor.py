@@ -761,7 +761,7 @@ class GraphTensor(gp.GraphPieceBase):
           'paper': tfgnn.NodeSet.from_fields(
               sizes=[3, 1], features={'year': [2018, 2017, 2017, 2022]})},
       edge_sets={
-          'is_writen': tfgnn.EdgeSet.from_fields(
+          'is_written': tfgnn.EdgeSet.from_fields(
               sizes=[4, 2],
               features={},
               adjacency=tfgnn.Adjacency.from_indices(
