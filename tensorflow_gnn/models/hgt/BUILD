@@ -17,7 +17,7 @@ pytype_strict_library(
         ":__subpackages__",
         ":users",
     ],
-    deps = [],
+    deps = [":softmax"],
 )
 
 pytype_strict_library(
