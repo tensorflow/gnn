@@ -70,9 +70,13 @@ model on a Google server from within your browser.
     trains a model on heterogeneous sampled subgraphs from the
     [OGBN-MAG](https://ogb.stanford.edu/docs/nodeprop/#ogbn-mag) dataset (from
     Stanford's Open Graph Benchmark) that contains 1 million research papers,
-    their authors, and other relations. This is a more advanced example that
-    introduces node classification from sampled subgraphs as well as the nuts
-    and bolts of training in parallel on multiple accelerators (GPU, TPU).
+    their authors, and other relations. This colab introduces the node
+    classification task from sampled subgraphs as well as the nuts and bolts of
+    training in parallel on multiple accelerators (GPU, TPU).
+  * An [in-depth OGBN-MAG tutorial]
+    (https://colab.research.google.com/github/tensorflow/gnn/blob/master/examples/notebooks/ogbn_mag_indepth.ipynb#scrollTo=udvGTpefWRE_)
+    that solves OGBN-MAG again while demonstrating how users can exercise
+    greater control over the GNN model definition and the training code.
   * [Learning shortest paths with
     GraphNetworks](https://colab.research.google.com/github/tensorflow/gnn/blob/master/examples/notebooks/graph_network_shortest_path.ipynb)
     demonstrates an Encoder/Process/Decoder architecture for predicting the
