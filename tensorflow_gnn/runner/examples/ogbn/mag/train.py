@@ -29,6 +29,7 @@ from tensorflow_gnn import runner
 from tensorflow_gnn.models import mt_albis
 from tensorflow_gnn.models import multi_head_attention
 from tensorflow_gnn.models import vanilla_mpnn
+from tensorflow_gnn.runner.examples.ogbn.mag import utils
 
 FLAGS = flags.FLAGS
 
@@ -95,6 +96,11 @@ _READOUT_USE_SKIP_CONNECTION = flags.DEFINE_boolean(
     "If set, readout of GNN states for prediction extends the final state "
     "by concatenation with the initial state.")
 
+_MASKED_LABELS = flags.DEFINE_boolean(
+    "masked_labels",
+    False,
+    "If true, utilizes the neighbour information for the neighbours.")
+
 
 # The GNN model used by this script is configured by a ConfigDict
 # (see https://github.com/google/ml_collections).
@@ -127,11 +133,11 @@ def get_config_dict() -> config_dict.ConfigDict:
   cfg.gnn.multi_head_attention.edge_dropout_rate = 0.2
   # For gnn.type="vanilla_mpnn":
   cfg.gnn.vanilla_mpnn = vanilla_mpnn.graph_update_get_config_dict()
-  cfg.gnn.vanilla_mpnn.units = 128
-  cfg.gnn.vanilla_mpnn.message_dim = 128
+  cfg.gnn.vanilla_mpnn.units = 256
+  cfg.gnn.vanilla_mpnn.message_dim = 256
   cfg.gnn.vanilla_mpnn.receiver_tag = tfgnn.SOURCE
   cfg.gnn.vanilla_mpnn.dropout_rate = 0.2
-  cfg.gnn.vanilla_mpnn.l2_regularization = 6e-6
+  cfg.gnn.vanilla_mpnn.l2_regularization = 2e-6
   cfg.gnn.vanilla_mpnn.use_layer_normalization = True
   cfg.lock()
   return cfg
@@ -192,6 +198,9 @@ class _SplitDatasetProvider(runner.DatasetProvider):
     dataset = self._delegate.get_dataset(context)
     return dataset.filter(_is_in_split(self._split_name))
 
+_NUM_CLASSES = 349
+_FIELD_OF_STUDY_BINS = 50_000
+_INSTITUTION_BINS = 6_500
 _DEFAULT_DATASET_FORMATS = {
     "tfrecord": runner.TFRecordDatasetProvider,
 }
@@ -221,34 +230,79 @@ def main(
     labels = tfgnn.keras.layers.ReadoutFirstNode(
         node_set_name="paper",
         feature_name="labels")(graphtensor)
-    graphtensor = graphtensor.remove_features(node_sets={"paper": ["labels"]})
+    # Need labels for masking
+    if not _MASKED_LABELS.value:
+      logging.info("Removing graph labels.")
+      graphtensor = graphtensor.remove_features(node_sets={"paper": ["labels"]})
+    else:
+      logging.info("Not removing graph labels yet for masking later.")
+      logging.warning("Make sure that label information is not propagated.")
     return graphtensor, labels
 
   def drop_all_features(_, **unused_kwargs):
     return {}
 
+  def process_paper_node_features(node_set: tfgnn.NodeSet):
+    if _MASKED_LABELS.value:
+      # Mask seed node labels as well as validation and test node labels
+      year_feature = node_set["year"]
+      validation_and_test_mask = year_feature >= 2018
+      masked_labels = utils.mask_paper_labels(
+          node_set, label_feature_name="labels", mask_value=_NUM_CLASSES,
+          extra_label_mask=validation_and_test_mask)
+      return {"feat": node_set["feat"], "masked_labels": masked_labels}
+    return {"feat": node_set["feat"]}
+
   def  process_node_features(node_set: tfgnn.NodeSet, node_set_name: str):
     if node_set_name == "field_of_study":
-      return {"hashed_id": tf.keras.layers.Hashing(50_000)(node_set["#id"])}
+      return {
+          "hashed_id": tf.keras.layers.Hashing(_FIELD_OF_STUDY_BINS)(
+              node_set["#id"]
+          )
+      }
     if node_set_name == "institution":
-      return {"hashed_id": tf.keras.layers.Hashing(6_500)(node_set["#id"])}
+      return {
+          "hashed_id": tf.keras.layers.Hashing(_INSTITUTION_BINS)(
+              node_set["#id"]
+          )
+      }
     if node_set_name == "paper":
-      return {"feat": node_set["feat"]}
+      return process_paper_node_features(node_set)
     if node_set_name == "author":
       return {"empty_state": tfgnn.keras.layers.MakeEmptyFeature()(node_set)}
     raise KeyError(f"Unexpected node_set_name='{node_set_name}'")
 
+  def set_paper_node_state(node_set: tfgnn.NodeSet):
+    embedding_list = []
+    # Paper title features
+    if not _PAPER_DIM.value:
+      logging.info("Skipping dense layer for paper.")
+      embedding_list.append(node_set["feat"])
+    else:
+      logging.info("Applying dense layer %d to paper.", _PAPER_DIM.value)
+      embedding_list.append(
+          tf.keras.layers.Dense(_PAPER_DIM.value)(node_set["feat"])
+      )
+    # Masked label
+    if _MASKED_LABELS.value:
+      embedding_list.append(
+          tf.keras.layers.Embedding(_NUM_CLASSES + 1, 64)(
+              node_set["masked_labels"]
+          )
+      )
+    return tf.keras.layers.Concatenate()(embedding_list)
+
   def set_initial_node_states(node_set: tfgnn.NodeSet, node_set_name: str):
     if node_set_name == "field_of_study":
-      return tf.keras.layers.Embedding(50_000, 32)(node_set["hashed_id"])
+      return tf.keras.layers.Embedding(_FIELD_OF_STUDY_BINS, 32)(
+          node_set["hashed_id"]
+      )
     if node_set_name == "institution":
-      return tf.keras.layers.Embedding(6_500, 16)(node_set["hashed_id"])
+      return tf.keras.layers.Embedding(_INSTITUTION_BINS, 16)(
+          node_set["hashed_id"]
+      )
     if node_set_name == "paper":
-      if not _PAPER_DIM.value:
-        logging.info("Skipping dense layer for paper.")
-        return node_set["feat"]
-      logging.info("Applying dense layer %d to paper.", _PAPER_DIM.value)
-      return tf.keras.layers.Dense(_PAPER_DIM.value)(node_set["feat"])
+      return set_paper_node_state(node_set)
     if node_set_name == "author":
       return node_set["empty_state"]
     raise KeyError(f"Unexpected node_set_name='{node_set_name}'")
@@ -256,7 +310,7 @@ def main(
   task_node_set_name = "paper"
   task = runner.RootNodeMulticlassClassification(
       node_set_name=task_node_set_name,
-      num_classes=349)
+      num_classes=_NUM_CLASSES)
 
   def model_fn(gtspec: tfgnn.GraphTensorSpec):
     model_inputs = tf.keras.layers.Input(type_spec=gtspec)

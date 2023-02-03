@@ -1,4 +1,5 @@
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_binary", "pytype_strict_library")
+load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "tf_py_test")
 
 licenses(["notice"])
 
@@ -9,6 +10,7 @@ pytype_strict_library(
         ":__subpackages__",
     ],
     deps = [
+        ":utils",
         "//third_party/py/absl:app",
         "//third_party/py/absl/flags",
         "//third_party/py/absl/logging",
@@ -28,4 +30,25 @@ pytype_strict_binary(
     srcs = ["train.py"],
     python_version = "PY3",
     deps = [":train_lib"],
+)
+
+pytype_strict_library(
+    name = "utils",
+    srcs = ["utils.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+    ],
+)
+
+tf_py_test(
+    name = "utils_test",
+    srcs = ["utils_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":utils",
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+    ],
 )
