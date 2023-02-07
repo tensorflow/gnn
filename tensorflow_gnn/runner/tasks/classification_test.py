@@ -99,6 +99,10 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
     model = task.adapt(model)
 
     self.assertIs(model.input, inputs)
+    # TODO(b/266817638): Remove when fixed.
+    if tf.__version__.startswith("2.9."):
+      self.skipTest("Bad test: exepected values depend on TF2.10+ RNG seeds")
+
     self.assertAllEqual(as_tensor(expected_y_pred).shape, model.output.shape)
 
     y_pred = model(tfgnn.random_graph_tensor(gtspec))

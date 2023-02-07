@@ -159,6 +159,10 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
     model = tf.keras.Model(inputs, outputs)
     model = task.adapt(model)
 
+    # TODO(b/266817638): Remove when fixed.
+    if tf.__version__.startswith("2.9."):
+      self.skipTest("Bad test: exepected values depend on TF2.10+ RNG seeds")
+
     self.assertIs(model.input, inputs)
     self.assertAllEqual(as_tensor(expected_y_pred).shape, model.output.shape)
 
