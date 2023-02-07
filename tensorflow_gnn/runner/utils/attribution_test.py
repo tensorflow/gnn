@@ -52,6 +52,10 @@ class AttributionTest(tf.test.TestCase):
   def test_counterfactual_random(self):
     counterfactual = attribution.counterfactual(self.gt, random=True, seed=8191)
 
+    # TODO(b/266817638): Remove when fixed.
+    if tf.__version__.startswith("2.9."):
+      self.skipTest("Bad test: exepected values depend on TF2.10+ RNG seeds")
+
     self.assertAllEqual(
         counterfactual.context.features["h"],
         as_tensor((0.49280962, 0.466383)))
@@ -95,6 +99,10 @@ class AttributionTest(tf.test.TestCase):
                 }
             }))
 
+    # TODO(b/266817638): Remove when fixed.
+    if tf.__version__.startswith("2.9."):
+      self.skipTest("Bad test: exepected values depend on TF2.10+ RNG seeds")
+
     self.assertAllClose(
         deltas.context.features["h"],
         as_tensor((.514 - .4, .433 - .8)))
@@ -115,6 +123,10 @@ class AttributionTest(tf.test.TestCase):
         steps=4)
 
     self.assertLen(interpolations, 4)
+
+    # TODO(b/266817638): Remove when fixed.
+    if tf.__version__.startswith("2.9."):
+      self.skipTest("Bad test: exepected values depend on TF2.10+ RNG seeds")
 
     # Interpolation 0
     self.assertAllEqual(
@@ -178,6 +190,10 @@ class AttributionTest(tf.test.TestCase):
 
   def test_sum_graph_features(self):
     summation = attribution.sum_graph_features((self.gt,) * 4)
+
+    # TODO(b/266817638): Remove when fixed.
+    if tf.__version__.startswith("2.9."):
+      self.skipTest("Bad test: exepected values depend on TF2.10+ RNG seeds")
 
     self.assertAllEqual(
         summation.context.features["h"],
@@ -257,6 +273,10 @@ class AttributionTest(tf.test.TestCase):
     }
     outputs = saved_model.signatures["integrated_gradients"](**kwargs)
     gt = outputs["output"]
+
+    # TODO(b/266817638): Remove when fixed.
+    if tf.__version__.startswith("2.9."):
+      self.skipTest("Bad test: exepected values depend on TF2.10+ RNG seeds")
 
     # The above GNN passes a single message over the only edge type before
     # collecting a seed node for activations. The above graph is a line:
