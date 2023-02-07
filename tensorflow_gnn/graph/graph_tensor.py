@@ -568,18 +568,18 @@ class EdgeSet(_NodeOrEdgeSet):
     tfgnn.EdgeSet.from_fields(
         sizes=tf.constant([3]),
         adjacency=tfgnn.Adjacency.from_indices(
-             source=("paper", [1, 2, 2]),
-             target=("paper", [0, 0, 1])))
+            source=("paper", [1, 2, 2]),
+            target=("paper", [0, 0, 1])))
     ```
 
     Example 2:
 
     ```python
-     tfgnn.EdgeSet.from_fields(
-         sizes=tf.constant([4]),
-         adjacency=tfgnn.Adjacency.from_indices(
-             source=("paper", [1, 1, 1, 2]),
-             target=("author", [0, 1, 1, 3])))
+    tfgnn.EdgeSet.from_fields(
+        sizes=tf.constant([4]),
+        adjacency=tfgnn.Adjacency.from_indices(
+            source=("paper", [1, 1, 1, 2]),
+            target=("author", [0, 1, 1, 3])))
     ```
 
     Args:
@@ -716,14 +716,14 @@ class GraphTensor(gp.GraphPieceBase):
   # edges. Edges connect nodes 0 and 3, 5 and 7, 9 and 1. There are no features.
   tfgnn.GraphTensor.from_pieces(
       node_sets = {
-        'node': tfgnn.NodeSet.from_fields(sizes=[10], features={})},
+          'node': tfgnn.NodeSet.from_fields(sizes=[10], features={})},
       edge_sets = {
-        'edge': tfgnn.EdgeSet.from_fields(
-           sizes=[3],
-           features={},
-           adjacency=tfgnn.Adjacency.from_indices(
-             source=('node', [0, 5, 9]),
-             target=('node', [3, 7, 1])))})
+          'edge': tfgnn.EdgeSet.from_fields(
+              sizes=[3],
+              features={},
+              adjacency=tfgnn.Adjacency.from_indices(
+                  source=('node', [0, 5, 9]),
+                  target=('node', [3, 7, 1])))})
   ```
 
   All graph pieces provide a mapping interface to access their features by name
@@ -780,8 +780,9 @@ class GraphTensor(gp.GraphPieceBase):
   # The year of publication of the first article in each venue from the
   # previous example.
   papers = venues.node_sets['paper']
-  years_by_venue = tf.RaggedTensor.from_row_lengths(papers['year'],
-                                                    papers.sizes)
+  years_by_venue = tf.RaggedTensor.from_row_lengths(
+      papers['year'], papers.sizes
+  )
   first_paper_year = tf.reduce_min(years_by_venue, -1)  # [2017, 2022]
   ```
 
