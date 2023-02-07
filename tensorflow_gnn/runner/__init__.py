@@ -53,6 +53,7 @@ SubmoduleExporter = model_export.SubmoduleExporter
 
 # Model helpers
 chain_first_output = model_utils.chain_first_output
+integrated_gradients = attribution.integrated_gradients
 
 # Orchestration
 run = orchestration.run
