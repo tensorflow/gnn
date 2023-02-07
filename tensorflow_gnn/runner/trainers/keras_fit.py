@@ -71,7 +71,7 @@ class KerasTrainer(interfaces.Trainer):
       checkpoint_every_n_steps: Union[int, str] = "epoch",
       backup_and_restore: bool = True,
       callbacks: Optional[Sequence[tf.keras.callbacks.Callback]] = None,
-      restore_best_weights: bool = True,
+      restore_best_weights: Optional[bool] = None,
       options: Optional[KerasTrainerOptions] = None):
     """Sets training parameters.
 
@@ -104,7 +104,9 @@ class KerasTrainer(interfaces.Trainer):
         `tf.keras.Model.fit.`
       restore_best_weights: Requires a `checkpoint_every_n_steps` other than
         "never." Whether to restore the best model weights as determined by
-        `tf.keras.callbacks.ModelCheckpoint` after training.
+        `tf.keras.callbacks.ModelCheckpoint` after training. If unspecified,
+        its value is determined at `train(...)` invocation: `True if
+        valid_ds_provider is not None else False`.
       options: A `KerasTrainerOptions.`
     """
     if restore_best_weights and checkpoint_every_n_steps == "never":
@@ -198,8 +200,12 @@ class KerasTrainer(interfaces.Trainer):
     if validation_steps is not None and valid_ds_provider is None:
       raise ValueError("`validation_steps` requires a `valid_ds_fn`")
 
-    if self._restore_best_weights and valid_ds_provider is None:
+    # Adjust `restore_best_weights` given `valid_ds_provider`:
+    restore_best_weights = self._restore_best_weights
+    if restore_best_weights and valid_ds_provider is None:
       raise ValueError("`restore_best_weights` requires a validation dataset")
+    elif restore_best_weights is None:
+      restore_best_weights = valid_ds_provider is not None
 
     if self._options and self._options.soft_device_placement:
       tf.config.set_soft_device_placement(True)
@@ -285,7 +291,7 @@ class KerasTrainer(interfaces.Trainer):
         validation_steps=validation_steps,
         callbacks=callbacks)
 
-    if self._restore_best_weights:
+    if restore_best_weights:
       model.load_weights(self._checkpoint_options.best_checkpoint_filepath())
 
     return model
