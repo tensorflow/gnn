@@ -514,8 +514,8 @@ sample_dataset = sample_dataset.shuffle(...)  # Need a random sample.
 sample_dataset = sample_dataset.map(
     tfgnn.keras.layers.ParseExample(example_input_spec))
 size_constraints = tfgnn.learn_fit_or_skip_size_constraints(
-     sample_dataset, per_replica_batch_size, min_nodes_per_component={...},
-     success_ratio=0.99, sample_size=20000)
+    sample_dataset, per_replica_batch_size, min_nodes_per_component={...},
+    success_ratio=0.99, sample_size=20000)
 ```
 
 Extend construction of the training dataset with a filter to **skip oversized

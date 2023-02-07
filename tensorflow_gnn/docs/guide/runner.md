@@ -193,8 +193,8 @@ class RadiaInfomax(runner.Task):
   def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
     tfgnn.check_scalar_graph_tensor(model.output, name="RadiaInfomax")
     activations = tfgnn.keras.layers.ReadoutFirstNode(
-      node_set_name="nodes",
-      feature_name=tfgnn.HIDDEN_STATE)(model.output)
+        node_set_name="nodes",
+        feature_name=tfgnn.HIDDEN_STATE)(model.output)
     logits = tf.keras.layers.Dense(
         4,  # Apply RadiaInfomax in R^4.
         name="logits")(activations)
