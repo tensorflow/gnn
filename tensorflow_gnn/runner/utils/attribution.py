@@ -238,7 +238,10 @@ def integrated_gradients(
   subsequent attribution.
 
   Args:
-    preprocess_model: A `tf.keras.Model` for preprocessing.
+    preprocess_model: A `tf.keras.Model` for preprocessing. This model is
+      expected to return a tuple (`GraphTensor`, `Tensor`) where the
+      `GraphTensor` is used to invoke the below `model` and the tensor is used
+      used for any loss computation. (Via `model.compiled_loss`.)
     model: A `tf.keras.Model` for integrated gradients.
     output_name: The output `Tensor` name. If unset, the tensor will be named
       by Keras defaults.
@@ -247,7 +250,7 @@ def integrated_gradients(
     seed: An option random seed.
 
   Returns:
-    A `tfgnn.GraphTensor` with the integrated gradients.
+    A `tf.function` with the integrated gradients as output.
   """
   @tf.function(input_signature=_input_signature(preprocess_model))
   def fn(inputs):
@@ -272,7 +275,7 @@ def integrated_gradients(
             logits,
             regularization_losses=model.losses)
 
-      def fn(inputs):
+      def gradient_fn(inputs):
         return tape.gradient(  # pylint: disable=cell-var-from-loop
             loss,  # pylint: disable=cell-var-from-loop
             *inputs,
@@ -281,9 +284,9 @@ def integrated_gradients(
       gradients += [
           reduce_graph_sequence(
               (interpolation,),
-              context_fn=fn,
-              edge_set_fn=fn,
-              node_set_fn=fn)
+              context_fn=gradient_fn,
+              edge_set_fn=gradient_fn,
+              node_set_fn=gradient_fn)
       ]
 
     gradients = sum_graph_features(gradients)
