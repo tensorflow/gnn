@@ -21,13 +21,13 @@ from tensorflow_gnn.runner.examples.ogbn.mag import utils
 as_tensor = tf.convert_to_tensor
 
 
-class MaskNodeFeatureTest(tf.test.TestCase, parameterized.TestCase):
+class MaskPaperLabelsTest(tf.test.TestCase, parameterized.TestCase):
 
   def test(self):
     graph = tfgnn.GraphTensor.from_pieces(
         node_sets={
             'paper': tfgnn.NodeSet.from_fields(
-                sizes=as_tensor([2, 5, 9]),
+                sizes=as_tensor([2, 3, 4]),
                 features={
                     'year': as_tensor([[2013], [2014],
                                        [2015], [2016], [2017],
@@ -55,6 +55,32 @@ class MaskNodeFeatureTest(tf.test.TestCase, parameterized.TestCase):
 
     # If input_dim < num_classes + 1, there is an error on CPU.
     _ = tf.keras.layers.Embedding(num_classes+1, 4)(masked_labels)
+
+
+class MakeCausalMaskTest(tf.test.TestCase, parameterized.TestCase):
+
+  def test(self):
+    graph = tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            'paper': tfgnn.NodeSet.from_fields(
+                sizes=as_tensor([2, 3, 4]),
+                features={
+                    'year': as_tensor([2013, 2012,
+                                       2015, 2014, 2017,
+                                       2018, 2019, 2020, 2021]),
+                    'labels': as_tensor([0, 1,
+                                         2, 3, 4,
+                                         5, 6, 7, 8]),
+                }
+            )
+        }
+    )
+    mask = utils.make_causal_mask(graph.node_sets['paper'])
+    expected = as_tensor([True, False,
+                          True, False, True,
+                          True, True, True, True])
+    self.assertAllEqual(mask, expected)
+
 
 if __name__ == '__main__':
   tf.test.main()

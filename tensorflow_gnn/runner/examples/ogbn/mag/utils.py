@@ -37,6 +37,15 @@ def mask_by_indices(values: tf.Tensor, indices: tf.Tensor,
   return tf.where(mask, mask_value, values)
 
 
+def make_causal_mask(node_set: tfgnn.NodeSet,
+                     feature_name: tfgnn.FieldName = "year") -> tf.Tensor:
+  """Mask where true indicate neighbors published in same year or after seed."""
+  seed_starts = tf.math.cumsum(node_set.sizes, exclusive=True)
+  seed_features = tf.gather(node_set[feature_name], seed_starts)
+  repeated_seed_features = tf.repeat(seed_features, node_set.sizes)
+  return tf.math.greater_equal(node_set[feature_name], repeated_seed_features)
+
+
 def mask_paper_labels(
     node_set: tfgnn.NodeSet,
     label_feature_name: tfgnn.FieldName,

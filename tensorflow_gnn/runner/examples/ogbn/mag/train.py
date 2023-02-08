@@ -96,10 +96,15 @@ _READOUT_USE_SKIP_CONNECTION = flags.DEFINE_boolean(
     "If set, readout of GNN states for prediction extends the final state "
     "by concatenation with the initial state.")
 
-_MASKED_LABELS = flags.DEFINE_boolean(
+_MASKED_LABELS = flags.DEFINE_enum(
     "masked_labels",
-    False,
-    "If true, utilizes the neighbour information for the neighbours.")
+    None,
+    ["standard", "causal"],
+    "If set to None, does not utilize training labels as features. If set to "
+    "standard, masks the seed node as well as the validation and test nodes "
+    "following https://ogb.stanford.edu/docs/leader_rules/. If set to causal, "
+    "additionally masks the neighbour nodes published in the same year or "
+    "after the seed node.")
 
 
 # The GNN model used by this script is configured by a ConfigDict
@@ -244,12 +249,21 @@ def main(
 
   def process_paper_node_features(node_set: tfgnn.NodeSet):
     if _MASKED_LABELS.value:
-      # Mask seed node labels as well as validation and test node labels
+      logging.info("Utilizing training labels as features for training.")
+      # Mask for validation and test node labels.
       year_feature = node_set["year"]
-      validation_and_test_mask = year_feature >= 2018
+      extra_label_mask = year_feature >= 2018
+      if _MASKED_LABELS.value == "causal":
+        logging.info(
+            "Masking neighbours published after or in the same year as seed"
+            " node"
+        )
+        extra_label_mask = tf.math.logical_or(
+            extra_label_mask, utils.make_causal_mask(node_set)
+        )
       masked_labels = utils.mask_paper_labels(
           node_set, label_feature_name="labels", mask_value=_NUM_CLASSES,
-          extra_label_mask=validation_and_test_mask)
+          extra_label_mask=extra_label_mask)
       return {"feat": node_set["feat"], "masked_labels": masked_labels}
     return {"feat": node_set["feat"]}
 
