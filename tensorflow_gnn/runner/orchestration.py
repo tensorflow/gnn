@@ -39,6 +39,8 @@ ModelExporter = interfaces.ModelExporter
 Task = interfaces.Task
 Trainer = interfaces.Trainer
 
+_TPU_DEFAULT_STEPS_PER_EXECUTION = 100
+
 
 @dataclasses.dataclass
 class TFDataServiceConfig:
@@ -196,7 +198,8 @@ def run(*,
         valid_ds_provider: Optional[DatasetProvider] = None,
         train_padding: Optional[GraphTensorPadding] = None,
         valid_padding: Optional[GraphTensorPadding] = None,
-        tf_data_service_config: Optional[TFDataServiceConfig] = None):
+        tf_data_service_config: Optional[TFDataServiceConfig] = None,
+        steps_per_execution: Optional[int] = None):
   """Runs training (and validation) of a model on a task with the given data.
 
   This includes preprocessing the input data, adapting the model by appending
@@ -240,6 +243,8 @@ def run(*,
       runtime reducing input bottlenecks for model training. Particularly for
       training on accelerators consider enabling it. For more info please see:
       https://www.tensorflow.org/api_docs/python/tf/data/experimental/service.
+    steps_per_execution: The number of batches to run during each training
+      iteration. If not set, for TPU strategy default to 100 and to 1 otherwise.
   """
   validate = valid_ds_provider is not None
 
@@ -248,6 +253,10 @@ def run(*,
       raise ValueError("`TPUStrategy` requires a `train_padding` (got None)")
     elif validate and valid_padding is None:
       raise ValueError("`TPUStrategy` requires a `valid_padding` (got None)")
+
+    steps_per_execution = (
+        steps_per_execution or _TPU_DEFAULT_STEPS_PER_EXECUTION
+    )
 
   if not validate and valid_padding is not None:
     raise ValueError("`valid_padding` specified without a validation dataset")
@@ -323,9 +332,19 @@ def run(*,
     m = task.adapt(model_fn(x.spec))
     optimizer = optimizer_fn()
     if train_padding is None:
-      m.compile(optimizer, loss=task.losses(), metrics=task.metrics())
+      m.compile(
+          optimizer,
+          loss=task.losses(),
+          metrics=task.metrics(),
+          steps_per_execution=steps_per_execution,
+      )
     else:
-      m.compile(optimizer, loss=task.losses(), weighted_metrics=task.metrics())
+      m.compile(
+          optimizer,
+          loss=task.losses(),
+          weighted_metrics=task.metrics(),
+          steps_per_execution=steps_per_execution,
+      )
     return m
 
   model = trainer.train(
