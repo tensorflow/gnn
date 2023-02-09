@@ -39,8 +39,12 @@ tag_filters="-no_oss"
 bazel clean
 pip install -r requirements-dev.txt --progress-bar off
 pip install tf-nightly --progress-bar off --upgrade
+# We need to remove the dependency on tensorflow to test nightly
+# The dependencies will be provided by tf-nightly
+perl -i  -lpe '$k+= s/tensorflow>=2\.[0-9]+\.[0-9]+/tf-nightly/g; END{exit($k != 1)}' setup.py
 python3 setup.py bdist_wheel
 pip uninstall -y tensorflow_gnn
 pip install dist/tensorflow_gnn-*.whl
-
+# Check that tf-nightly is installed but tensorflow is not
+pip freeze | grep -q tf-nightly= && ! pip freeze | grep -q tensorflow=
 bazel test --build_tag_filters="${tag_filters}" --test_tag_filters="${tag_filters}" --test_output=errors --verbose_failures=true --build_tests_only --define=no_tfgnn_py_deps=true --keep_going --experimental_repo_remote_exec //bazel_pip/tensorflow_gnn/...
