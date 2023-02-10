@@ -264,7 +264,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       if self.takes_sender_node_input:
         self._w_sender_node_to_key = tf.keras.layers.Dense(
             per_head_channels * num_heads,
-            kernel_initializer=kernel_initializer,
+            kernel_initializer=self._create_kernel_initializer(),
             kernel_regularizer=kernel_regularizer,
             use_bias=use_bias,
             name="key_node")
@@ -273,7 +273,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       if self.takes_sender_edge_input:
         self._w_sender_edge_to_key = tf.keras.layers.Dense(
             per_head_channels * num_heads,
-            kernel_initializer=kernel_initializer,
+            kernel_initializer=self._create_kernel_initializer(),
             kernel_regularizer=kernel_regularizer,
             # This bias would be redundant with self._w_sender_node_to_key.
             use_bias=use_bias and self._w_sender_node_to_key is None,
@@ -285,7 +285,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       if self.takes_sender_node_input:
         self._w_sender_node_to_value = tf.keras.layers.Dense(
             per_head_channels * num_heads,
-            kernel_initializer=kernel_initializer,
+            kernel_initializer=self._create_kernel_initializer(),
             kernel_regularizer=kernel_regularizer,
             use_bias=use_bias,
             name="value_node")
@@ -294,7 +294,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       if self.takes_sender_edge_input:
         self._w_sender_edge_to_value = tf.keras.layers.Dense(
             per_head_channels * num_heads,
-            kernel_initializer=kernel_initializer,
+            kernel_initializer=self._create_kernel_initializer(),
             kernel_regularizer=kernel_regularizer,
             # This bias would be redundant with self._w_sender_node_to_value.
             use_bias=use_bias and self._w_sender_node_to_value is None,
@@ -315,12 +315,21 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
           equation="...hv,hvc->...hc",
           output_shape=(num_heads, per_head_channels),
           bias_axes="hc" if use_bias else None,
-          kernel_initializer=kernel_initializer,
+          kernel_initializer=self._create_kernel_initializer(),
           kernel_regularizer=kernel_regularizer,
           name="value_pooled")
 
     if self._score_scaling == "trainable_sigmoid":
       self._score_scaling_weight = None
+
+  # Utility function that clones the kernel initializer to ensure we get
+  # different initial values every time it is used.
+  def _create_kernel_initializer(
+      self) -> Optional[tf.keras.initializers.Initializer]:
+    if self._kernel_initializer is None:
+      return None
+    return self._kernel_initializer.__class__.from_config(
+        self._kernel_initializer.get_config())
 
   def get_config(self):
     return dict(
