@@ -20,10 +20,7 @@ import tensorflow as tf
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_piece as gp
 from tensorflow_gnn.graph import tensor_utils as utils
-
-# pylint: disable=g-direct-tensorflow-import
-from tensorflow.python.framework import type_spec
-# pylint: enable=g-direct-tensorflow-import
+from tensorflow_gnn.graph import tf_internal
 
 Field = const.Field
 FieldSpec = const.FieldSpec
@@ -181,7 +178,7 @@ class HyperAdjacency(gp.GraphPieceBase):
     return HyperAdjacencySpec
 
 
-@type_spec.register('tensorflow_gnn.HyperAdjacencySpec')
+@tf_internal.type_spec_register('tensorflow_gnn.HyperAdjacencySpec')
 class HyperAdjacencySpec(gp.GraphPieceSpecBase):
   """A type spec for `tfgnn.HyperAdjacency`."""
 
@@ -383,7 +380,7 @@ class Adjacency(HyperAdjacency):
             f'{utils.short_repr(self.target)}))')
 
 
-@type_spec.register('tensorflow_gnn.AdjacencySpec')
+@tf_internal.type_spec_register('tensorflow_gnn.AdjacencySpec')
 class AdjacencySpec(HyperAdjacencySpec):
   """A type spec for `tfgnn.Adjacency`."""
 

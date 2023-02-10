@@ -24,11 +24,7 @@ import tensorflow as tf
 
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import tensor_utils as utils
-
-# pylint: disable=g-direct-tensorflow-import
-from tensorflow.python.framework import composite_tensor
-from tensorflow.python.framework import type_spec
-# pylint: enable=g-direct-tensorflow-import
+from tensorflow_gnn.graph import tf_internal
 
 ShapeLike = const.ShapeLike
 Field = const.Field
@@ -53,7 +49,7 @@ def convert_to_tensor_or_ragged(value):
           else tf.convert_to_tensor(value))
 
 
-class GraphPieceBase(composite_tensor.CompositeTensor, metaclass=abc.ABCMeta):
+class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
   """The base class for all `CompositeTensors` used inside a `GraphTensor`.
 
   A `GraphPieceBase` is a `CompositeTensor` whose value is a multi-level nest of
@@ -220,7 +216,7 @@ class GraphPieceBase(composite_tensor.CompositeTensor, metaclass=abc.ABCMeta):
             shape=shape,
             indices_dtype=indices_dtype,
             metadata=metadata), data)
-    data_spec = tf.nest.map_structure(type_spec.type_spec_from_value, data)
+    data_spec = tf.nest.map_structure(tf.type_spec_from_value, data)
 
     cls_spec = cls._type_spec_cls()
     assert issubclass(cls_spec, GraphPieceSpecBase), cls_spec
@@ -251,7 +247,7 @@ class GraphPieceBase(composite_tensor.CompositeTensor, metaclass=abc.ABCMeta):
         if piece_map_fn is None:
           return data, spec
         data = piece_map_fn(data)
-        return data, type_spec.type_spec_from_value(data)
+        return data, tf.type_spec_from_value(data)
 
       if not isinstance(data, (tf.Tensor, tf.RaggedTensor)):
         raise TypeError(
@@ -369,7 +365,7 @@ class GraphPieceBase(composite_tensor.CompositeTensor, metaclass=abc.ABCMeta):
         tf.TensorShape([]))
 
 
-class GraphPieceSpecBase(type_spec.BatchableTypeSpec, metaclass=abc.ABCMeta):
+class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
   """The base class for TypeSpecs of GraphPieces."""
 
   __slots__ = ['_data_spec', '_shape', '_indices_dtype', '_metadata']
@@ -825,7 +821,7 @@ def _assert_not_rank0_ragged(spec: _ValueSpec) -> None:
 
 def _assert_value_compatible_with_spec(value: _Value, spec: _ValueSpec) -> None:
   if not spec.is_compatible_with(value):
-    value_spec = type_spec.type_spec_from_value(value)
+    value_spec = tf.type_spec_from_value(value)
     raise ValueError(f'Spec {spec} is not compatible with value {value_spec}')
 
 

@@ -24,6 +24,10 @@ def pytype_strict_binary(name, **kwargs):
 def pytype_strict_library(name, **kwargs):
     native.py_library(name = name, **kwargs)
 
+# Placeholder to use until bazel supports pytype_library.
+def pytype_library(name, **kwargs):
+    native.py_library(name = name, **kwargs)
+
 # Deletes deps with a no_tfgnn_py_deps flag so that tests
 # can run from the pip wheel instead of bazel runfiles
 def py_test(name, deps = [], **kwargs):

@@ -1,4 +1,4 @@
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_contrib_test", "pytype_strict_library")
+load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_library", "pytype_strict_contrib_test", "pytype_strict_library")
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "tf_py_test")
 
 licenses(["notice"])
@@ -31,6 +31,7 @@ pytype_strict_library(
         ":graph_constants",
         ":graph_piece",
         ":tensor_utils",
+        ":tf_internal",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -288,6 +289,7 @@ pytype_strict_library(
     deps = [
         ":graph_constants",
         ":tensor_utils",
+        ":tf_internal",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -298,6 +300,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":graph_piece",
+        ":tf_internal",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -310,6 +313,7 @@ pytype_strict_library(
         ":graph_constants",
         ":graph_piece",
         ":tensor_utils",
+        ":tf_internal",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -440,6 +444,20 @@ pytype_strict_library(
     name = "tag_utils",
     srcs = ["tag_utils.py"],
     deps = [":graph_constants"],
+)
+
+pytype_library(
+    name = "tf_internal",
+    srcs = ["tf_internal.py"],
+    tags = [
+        # Certain deps are not provided on purpose, so this cannot be a python_strict_library.
+        "ignore_for_dep=third_party.tensorflow.python.framework.type_spec_registry",
+    ],
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//third_party/tensorflow/python:composite_tensor",
+        "//third_party/tensorflow/python:type_spec",
+    ],
 )
 
 pytype_strict_contrib_test(

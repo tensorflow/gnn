@@ -21,10 +21,7 @@ from absl.testing import parameterized
 import numpy as np
 import tensorflow as tf
 from tensorflow_gnn.graph import graph_piece as gp
-
-# pylint: disable=g-direct-tensorflow-import
-from tensorflow.python.framework import type_spec
-# pylint: enable=g-direct-tensorflow-import
+from tensorflow_gnn.graph import tf_internal
 
 TestValue = Union[np.ndarray, tf.RaggedTensor, tf.Tensor, 'TestPiece']
 
@@ -61,7 +58,7 @@ class TestPiece(gp.GraphPieceBase):
     return TestPieceSpec
 
 
-@type_spec.register('tensorflow_gnn.TestPieceSpec')
+@tf_internal.type_spec_register('tensorflow_gnn.TestPieceSpec')
 class TestPieceSpec(gp.GraphPieceSpecBase):
   """Graph piece specification."""
 
@@ -399,7 +396,7 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
     itr = iter(ds)
     element = next(itr)
     self.assertAllEqual(
-        type_spec.type_spec_from_value(element.value['r']),
+        tf.type_spec_from_value(element.value['r']),
         tf.RaggedTensorSpec(
             shape=[2, 3, 3, None],
             dtype=tf.float32,
@@ -408,7 +405,7 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
 
     element = next(itr)
     self.assertAllEqual(
-        type_spec.type_spec_from_value(element.value['r']),
+        tf.type_spec_from_value(element.value['r']),
         tf.RaggedTensorSpec(
             shape=[1, 3, 3, None],
             dtype=tf.float32,
@@ -604,7 +601,7 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
                              [0, 1, 2, 3, 4, 5, 6, 7]],
                         ]))
     self.assertAllEqual(
-        type_spec.type_spec_from_value(element.value['x']),
+        tf.type_spec_from_value(element.value['x']),
         tf.RaggedTensorSpec(
             shape=[1, 3, None],
             dtype=tf.int64,

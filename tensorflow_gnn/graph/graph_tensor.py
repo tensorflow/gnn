@@ -24,10 +24,7 @@ from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_piece as gp
 from tensorflow_gnn.graph import tensor_utils as utils
-
-# pylint: disable=g-direct-tensorflow-import
-from tensorflow.python.framework import type_spec
-# pylint: enable=g-direct-tensorflow-import
+from tensorflow_gnn.graph import tf_internal
 
 FieldName = const.FieldName
 NodeSetName = const.NodeSetName
@@ -329,7 +326,7 @@ class Context(_GraphPieceWithFeatures):
             f'indices_dtype={self.indices_dtype!r})')
 
 
-@type_spec.register('tensorflow_gnn.ContextSpec.v2')
+@tf_internal.type_spec_register('tensorflow_gnn.ContextSpec.v2')
 class ContextSpec(_GraphPieceWithFeaturesSpec):
   """A type spec for `tfgnn.Context`."""
 
@@ -484,7 +481,7 @@ class NodeSet(_NodeOrEdgeSet):
             f'sizes={self.sizes})')
 
 
-@type_spec.register('tensorflow_gnn.NodeSetSpec')
+@tf_internal.type_spec_register('tensorflow_gnn.NodeSetSpec')
 class NodeSetSpec(_NodeOrEdgeSetSpec):
   """A type spec for `tfgnn.NodeSet`."""
 
@@ -617,7 +614,7 @@ class EdgeSet(_NodeOrEdgeSet):
             f'adjacency={self.adjacency})')
 
 
-@type_spec.register('tensorflow_gnn.EdgeSetSpec')
+@tf_internal.type_spec_register('tensorflow_gnn.EdgeSetSpec')
 class EdgeSetSpec(_NodeOrEdgeSetSpec):
   """A type spec for `tfgnn.EdgeSet`."""
 
@@ -1190,7 +1187,7 @@ class GraphTensor(gp.GraphPieceBase):
             f'  edge_set_names={list(self.edge_sets.keys())})')
 
 
-@type_spec.register('tensorflow_gnn.GraphTensorSpec')
+@tf_internal.type_spec_register('tensorflow_gnn.GraphTensorSpec')
 class GraphTensorSpec(gp.GraphPieceSpecBase):
   """A type spec for `tfgnn.GraphTensor`."""
 
