@@ -3,10 +3,6 @@
 **This is an early (alpha) release to get community feedback.** It's under
 active development and **we may break API compatibility in the future**.
 
-> **NOTE**:
-> 2023/01/11: Release 0.4.1 was yanked due to a broken merge that passed through
-> our tests. Release 0.4.0 still works, and we are working on a new release,
-> stay tuned.
 
 TensorFlow GNN is a library to build Graph Neural Networks on the TensorFlow
 platform. It contains the following components:
