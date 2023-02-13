@@ -27,11 +27,45 @@ _RegularizerType = Union[tf.keras.regularizers.Regularizer, str]
 
 @tf.keras.utils.register_keras_serializable(package='GNN>models>gcn')
 class GCNConv(tf.keras.layers.Layer):
-  """Implements the Graph Convolutional Network by Kipf&Welling (2016).
+  r"""Implements the Graph Convolutional Network by Kipf&Welling (2016).
 
   This class implements a Graph Convolutional Network from
   https://arxiv.org/abs/1609.02907 as a Keras layer that can be used
   as a convolution on an edge set in a tfgnn.keras.layers.NodeSetUpdate.
+  The original algorithm proposed in the Graph Convolutional Network paper
+  expects a symmetric graph as input. That is, if there is an edge from node i
+  to node j, there is also an edge from node j to node i. This implementation,
+  however, is able to take assymetric graphs as input.
+
+  Let $w_{ij}$ be the weight of the edge from sender i to receiver j.
+  Let $\deg^{in}_i$ be the number of incoming edges to i (in the direction
+  of message flow, see `receiver_tag`), and $\deg^{out}_i$ the number of
+  outgoing edges from i. In a symmetric graphs, both are equal.
+
+  In this implementation, we provide multiple approaches for normalizing an edge
+  weight $w_{ij}$ in $v_{ij}$, namely `"none"`, `"in"`, `"out"`, `"in_out"`, and
+  `"in_in"`. Setting normalization to `"none"` will end up in set $v_{ij} =
+  w_{ij}$.
+  The `"in"` normalization normalizes edge weights using the in-degree of the
+  receiver node, that is:
+
+  $$v_{ij} = w_{ij} / \deg^{in}_j.$$
+
+  The `"out"` normalization normalizes edges using the out-degree of sender
+  nodes that is:
+
+  $$v_{ij} = w_{ij} / \deg^{out}_i.$$
+
+  The `"in_out"` normalization normalizes edges as follows:
+
+  $$v_{ij} = w_{ij} / (\sqrt{\deg^{out}_i} \sqrt{\deg^{in}_j}).$$
+
+  The `"in_in"` normalization normalizes the edge weights as:
+
+  $$v_{ij} = w_{ij} / (\sqrt{\deg^{in}_i} \sqrt{\deg^{in}_j}).$$
+
+  For symmetric graphs (as in the original GCN paper), `"in_out"` and `"in_in"`
+  are equal, but the latter needs to compute degrees just once.
 
   Init arguments:
     units: Number of output units for this transformation applied to sender
@@ -49,12 +83,13 @@ class GCNConv(tf.keras.layers.Layer):
     add_self_loops: Whether to compute the result as if a loop from each node
       to itself had been added to the edge set. The self-loop edges are added
       with an edge weight of one.
-    normalize: Whether to normalize the node features by in-degree.
     kernel_initializer: initializer of type tf.keras.initializers .
     node_feature: Name of the node feature to transform.
     edge_weight_feature_name: Can be set to the name of a feature on the edge
       set that supplies a scalar weight for each edge. The GCN computation uses
       it as the edge's entry in the adjacency matrix, instead of the default 1.
+    degree_normalization: Can be set to `"none"`, `"in"`, `"out"`, `"in_out"`,
+      or `"in_in"`, as explained above.
     **kwargs: additional arguments for the Layer.
 
   Call arguments:
@@ -92,20 +127,21 @@ class GCNConv(tf.keras.layers.Layer):
   ```
   """
 
-  def __init__(self,
-               units: int,
-               *,
-               receiver_tag: tfgnn.IncidentNodeTag = tfgnn.TARGET,
-               activation='relu',
-               use_bias: bool = True,
-               add_self_loops: bool = False,
-               normalize: bool = True,
-               kernel_initializer: bool = None,
-               node_feature: Optional[str] = tfgnn.HIDDEN_STATE,
-               kernel_regularizer: Optional[_RegularizerType] = None,
-               edge_weight_feature_name: Optional[tfgnn.FieldName] = None,
-               **kwargs):
-
+  def __init__(
+      self,
+      units: int,
+      *,
+      receiver_tag: tfgnn.IncidentNodeTag = tfgnn.TARGET,
+      activation='relu',
+      use_bias: bool = True,
+      add_self_loops: bool = False,
+      kernel_initializer: bool = None,
+      node_feature: Optional[str] = tfgnn.HIDDEN_STATE,
+      kernel_regularizer: Optional[_RegularizerType] = None,
+      edge_weight_feature_name: Optional[tfgnn.FieldName] = None,
+      degree_normalization: str = 'in_out',
+      **kwargs,
+  ):
     super().__init__(**kwargs)
     self._filter = tf.keras.layers.Dense(
         units=units,
@@ -114,11 +150,11 @@ class GCNConv(tf.keras.layers.Layer):
         kernel_regularizer=kernel_regularizer,
         kernel_initializer=kernel_initializer)
     self._add_self_loops = add_self_loops
-    self._normalize = normalize
     self._node_feature = node_feature
     self._receiver = receiver_tag
     self._sender = tfgnn.reverse_tag(receiver_tag)
     self._edge_weight_feature_name = edge_weight_feature_name
+    self._degree_normalization = degree_normalization
 
   def get_config(self):
     filter_config = self._filter.get_config()
@@ -126,14 +162,15 @@ class GCNConv(tf.keras.layers.Layer):
         receiver_tag=self._receiver,
         node_feature=self._node_feature,
         add_self_loops=self._add_self_loops,
-        normalize=self._normalize,
         units=filter_config['units'],
         activation=filter_config['activation'],
         use_bias=filter_config['use_bias'],
         kernel_initializer=filter_config['kernel_initializer'],
         kernel_regularizer=filter_config['kernel_regularizer'],
         edge_weight_feature_name=self._edge_weight_feature_name,
-        **super().get_config())
+        degree_normalization=self._degree_normalization,
+        **super().get_config(),
+    )
 
   def call(
       self,
@@ -150,51 +187,72 @@ class GCNConv(tf.keras.layers.Layer):
       raise ValueError('source and target node sets must be the same '
                        f'for edge set {edge_set_name} ')
 
-    nnodes = tf.cast(graph.node_sets[sender_name].total_size, tf.int64)
-    float_type = graph.node_sets[sender_name][self._node_feature].dtype
+    edge_set = graph.edge_sets[edge_set_name]
+    if self._edge_weight_feature_name is not None:
+      try:
+        edge_weights = graph.edge_sets[edge_set_name][
+            self._edge_weight_feature_name
+        ]
+      except KeyError as e:
+        raise ValueError(
+            f'{self._edge_weight_feature_name} is not given '
+            f'for edge set {edge_set_name} '
+        ) from e
+      if edge_weights.shape.rank != 1:
+        # GraphTensor guarantees it is not None.
+        raise ValueError(
+            'Expecting vector for edge weights. Received rank '
+            f'{edge_weights.shape.rank}.'
+        )
+      edge_weights = tf.expand_dims(
+          edge_weights, axis=1
+      )  # Align with state feature.
+    else:
+      edge_weights = tf.ones([edge_set.total_size, 1])
 
-    if self._normalize:
-      edge_set = graph.edge_sets[edge_set_name]
-      if self._edge_weight_feature_name is not None:
-        try:
-          edge_weights = graph.edge_sets[edge_set_name][
-              self._edge_weight_feature_name]
-        except KeyError as e:
-          raise ValueError(f'{self._edge_weight_feature_name} is not given '
-                           f'for edge set {edge_set_name} ') from e
-        if edge_weights.shape.rank != 1:
-          # GraphTensor guarantees it is not None.
-          raise ValueError(
-              'Expecting vector for edge weights. Received rank '
-              f'{edge_weights.shape.rank}.'
-          )
-        edge_weights = tf.expand_dims(
-            edge_weights, axis=1)  # Align with state feature.
-      else:
-        edge_weights = tf.ones([edge_set.total_size, 1])
-
-      in_degree = tf.squeeze(
-          tfgnn.pool_edges_to_node(
-              graph,
-              edge_set_name,
-              self._receiver,
-              'sum',
-              feature_value=edge_weights), -1)
-      # Degree matrix is the sum of rows of adjacency
-      # Adding self-loops adds an identity matrix to the adjacency
+    def get_degree(node_tag: tfgnn.IncidentNodeTag):
+      # If node_tag is receiver, this function computes the in_degree of nodes
+      # and if node_tag is sender, it comptes the out_degree of nodes.
+      # Shape of node_degree is [nnodes, 1]
+      node_degree = tfgnn.pool_edges_to_node(
+          graph,
+          edge_set_name,
+          node_tag,
+          'sum',
+          feature_value=edge_weights,
+      )
+      # Adding self-loops connects each node to itself.
       # This adds 1 to each diagonal element of the degree matrix
       if self._add_self_loops:
-        in_degree += 1
-      invsqrt_deg = tf.math.rsqrt(in_degree)
+        node_degree += 1
+      return node_degree
+
+    if self._degree_normalization == 'none':
+      sender_scale = receiver_scale = None
+    elif self._degree_normalization == 'in':
+      receiver_scale = 1 / get_degree(self._receiver)
+      sender_scale = None
+    elif self._degree_normalization == 'out':
+      sender_scale = 1 / get_degree(self._sender)
+      receiver_scale = None
+    elif self._degree_normalization == 'in_out':
+      sender_scale = tf.math.rsqrt(get_degree(self._sender))
+      receiver_scale = tf.math.rsqrt(get_degree(self._receiver))
+    elif self._degree_normalization == 'in_in':
+      sender_scale = receiver_scale = tf.math.rsqrt(get_degree(self._receiver))
     else:
-      invsqrt_deg = tf.ones(nnodes, dtype=float_type)
+      raise ValueError(
+          'Expecting degree_normalization to be `none`, `in`, `out`,'
+          ' `in_out`, or `in_in`.'
+      )
 
-    # Calculate \hat{D^{-1/2}}X first
-    normalized_values = (
-        invsqrt_deg[:, tf.newaxis] *
-        graph.node_sets[sender_name][self._node_feature])
+    if sender_scale is not None:
+      normalized_values = (
+          sender_scale * graph.node_sets[sender_name][self._node_feature]
+      )
+    else:
+      normalized_values = graph.node_sets[sender_name][self._node_feature]
 
-    # Calculate A\hat{D^{-1/2}}X by broadcasting then pooling
     source_bcast = tfgnn.broadcast_node_to_edges(
         graph,
         edge_set_name,
@@ -205,15 +263,14 @@ class GCNConv(tf.keras.layers.Layer):
       source_bcast = source_bcast * edge_weights
     pooled = tfgnn.pool_edges_to_node(
         graph, edge_set_name, self._receiver, 'sum', feature_value=source_bcast)
+    if receiver_scale is not None:
+      pooled = receiver_scale * pooled
 
-    # left-multiply the result by \hat{D^{-1/2}}
-    pooled = invsqrt_deg[:, tf.newaxis] * pooled
-
-    # Add \hat{D^{-1/2}} I \hat{D^{-1/2}} X
-    # Since the right two factors are already computed,
-    # we can remove I and just multiply by the normalizing matrix again
     if self._add_self_loops:
-      pooled += invsqrt_deg[:, tf.newaxis] * normalized_values
+      if receiver_scale is not None:
+        pooled += receiver_scale * normalized_values
+      else:
+        pooled += normalized_values
 
     return self._filter(pooled)
 

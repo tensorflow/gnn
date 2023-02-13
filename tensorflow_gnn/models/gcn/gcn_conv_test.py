@@ -247,21 +247,25 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
           testcase_name='noSelfLoops_noBias',
           use_bias=False,
           add_self_loops=False,
-          expected_result=tf.constant([[0., 4. / (2. * 3.)],
-                                       [9. / (2. * 3.), 0.]])),
+          expected_result=tf.constant(
+              [[0.0, 4.0 / (2.0 * 2.0)], [9.0 / (3.0 * 3.0), 0.0]]
+          ),
+      ),
       dict(
           testcase_name='selfLoops_noBias',
           use_bias=False,
           add_self_loops=True,
-          expected_result=tf.constant(
-              [[
-                  1. / (math.sqrt(5.) * math.sqrt(5.)),
-                  4. / (math.sqrt(10.) * math.sqrt(5.))
+          expected_result=tf.constant([
+              [
+                  1.0 / (math.sqrt(5.0) * math.sqrt(10.0)),
+                  4.0 / (math.sqrt(5.0) * math.sqrt(5.0)),
               ],
-               [
-                   9. / (math.sqrt(10.) * math.sqrt(5.)),
-                   1. / (math.sqrt(10.) * math.sqrt(10.))
-               ]])),
+              [
+                  9.0 / (math.sqrt(10.0) * math.sqrt(10.0)),
+                  1.0 / (math.sqrt(10.0) * math.sqrt(5.0)),
+              ],
+          ]),
+      ),
   )
   def test_gcnconv_with_edge_weights(self, use_bias, add_self_loops,
                                      expected_result):
@@ -363,6 +367,290 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
     self.assertRaisesRegex(
         ValueError, 'Expecting vector for edge weights. Received rank 2.',
         lambda: conv(graph, edge_set_name=tfgnn.EDGES))
+
+  def test_gcnconv_with_unknown_normalization(self):
+    """Tests that unknown degree normalization throws an error."""
+    graph = tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            tfgnn.NODES: tfgnn.NodeSet.from_fields(
+                sizes=[2],
+                features={
+                    tfgnn.HIDDEN_STATE: tf.constant([[1.0, 0.0], [0.0, 1.0]])
+                },
+            )
+        },
+        edge_sets={
+            tfgnn.EDGES: tfgnn.EdgeSet.from_fields(
+                sizes=[2],
+                adjacency=tfgnn.Adjacency.from_indices(
+                    source=(tfgnn.NODES, tf.constant([0, 1], dtype=tf.int64)),
+                    target=(tfgnn.NODES, tf.constant([1, 0], dtype=tf.int64)),
+                ),
+            )
+        },
+    )
+
+    conv = gcn_conv.GCNConv(units=2, degree_normalization='unknown')
+    self.assertRaisesRegex(
+        ValueError,
+        (
+            'Expecting degree_normalization to be `none`, `in`, `out`,'
+            ' `in_out`, or `in_in`'
+        ),
+        lambda: conv(graph, edge_set_name=tfgnn.EDGES),
+    )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='noneDegreeNormalization',
+          degree_normalization='none',
+          expected_result=tf.constant(
+              [[1.0, 0.0, 3.0, 0.0], [2.0, 1.0, 0.0, 0.0], [0.0, 1.0, 1.0, 0.0]]
+          ),
+      ),
+      dict(
+          testcase_name='outDegreeNormalization',
+          degree_normalization='out',
+          expected_result=tf.constant([
+              [1.0 / 3.0, 0.0, 3.0 / 4.0, 0.0],
+              [2.0 / 3.0, 1.0 / 2.0, 0.0, 0.0],
+              [0.0, 1.0 / 2.0, 1.0 / 4.0, 0.0],
+          ]),
+      ),
+      dict(
+          testcase_name='inDegreeNormalization',
+          degree_normalization='in',
+          expected_result=tf.constant([
+              [1.0 / 4.0, 0.0, 3.0 / 4.0, 0.0],
+              [2.0 / 3.0, 1.0 / 3.0, 0.0, 0.0],
+              [0.0, 1.0 / 2.0, 1.0 / 2.0, 0.0],
+          ]),
+      ),
+      dict(
+          testcase_name='in_outDegreeNormalization',
+          degree_normalization='in_out',
+          expected_result=tf.constant([
+              [
+                  1.0 / (math.sqrt(4.0) * math.sqrt(3.0)),
+                  0.0,
+                  3.0 / (math.sqrt(4.0) * math.sqrt(4.0)),
+                  0.0,
+              ],
+              [
+                  2.0 / (math.sqrt(3.0) * math.sqrt(3.0)),
+                  1.0 / (math.sqrt(3.0) * math.sqrt(2.0)),
+                  0.0,
+                  0.0,
+              ],
+              [
+                  0.0,
+                  1.0 / (math.sqrt(2.0) * math.sqrt(2.0)),
+                  1.0 / (math.sqrt(2.0) * math.sqrt(4.0)),
+                  0.0,
+              ],
+          ]),
+      ),
+      dict(
+          testcase_name='in_inDegreeNormalization',
+          degree_normalization='in_in',
+          expected_result=tf.constant([
+              [
+                  1.0 / (math.sqrt(4.0) * math.sqrt(4.0)),
+                  0.0,
+                  3.0 / (math.sqrt(4.0) * math.sqrt(2.0)),
+                  0.0,
+              ],
+              [
+                  2.0 / (math.sqrt(3.0) * math.sqrt(4.0)),
+                  1.0 / (math.sqrt(3.0) * math.sqrt(3.0)),
+                  0.0,
+                  0.0,
+              ],
+              [
+                  0.0,
+                  1.0 / (math.sqrt(2.0) * math.sqrt(3.0)),
+                  1.0 / (math.sqrt(2.0) * math.sqrt(2.0)),
+                  0.0,
+              ],
+          ]),
+      ),
+  )
+  def test_gcnconv_degree_normalization(
+      self, degree_normalization, expected_result
+  ):
+    """Tests that gcn_conv returns the correct values with an asymmetric adjacency."""
+    graph = tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            tfgnn.NODES: tfgnn.NodeSet.from_fields(
+                sizes=[4],
+                features={
+                    tfgnn.HIDDEN_STATE: tf.constant([
+                        [1.0, 0.0, 0.0, 0.0],
+                        [0.0, 1.0, 0.0, 0.0],
+                        [0.0, 0.0, 1.0, 0.0],
+                    ])
+                },
+            )
+        },
+        edge_sets={
+            tfgnn.EDGES: tfgnn.EdgeSet.from_fields(
+                sizes=[3],
+                features={
+                    'weights': tf.constant([2.0, 1.0, 3.0], dtype=tf.float32)
+                },
+                adjacency=tfgnn.Adjacency.from_indices(
+                    source=(
+                        tfgnn.NODES,
+                        tf.constant([0, 1, 2], dtype=tf.int64),
+                    ),
+                    target=(
+                        tfgnn.NODES,
+                        tf.constant([1, 2, 0], dtype=tf.int64),
+                    ),
+                ),
+            )
+        },
+    )
+
+    conv = gcn_conv.GCNConv(
+        units=4,
+        use_bias=False,
+        add_self_loops=True,
+        kernel_initializer=tf.keras.initializers.Constant(tf.eye(4)),
+        edge_weight_feature_name='weights',
+        degree_normalization=degree_normalization,
+    )
+
+    self.assertAllClose(
+        expected_result,
+        conv(graph, edge_set_name=tfgnn.EDGES),
+        rtol=1e-06,
+        atol=1e-06,
+    )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='inDegreeNormalization',
+          degree_normalization='in',
+          # Same as the expected result in the previous test.
+          expected_result=tf.constant([
+              [1.0 / 4.0, 0.0, 3.0 / 4.0],
+              [2.0 / 3.0, 1.0 / 3.0, 0.0],
+              [0.0, 1.0 / 2.0, 1.0 / 2.0],
+          ]),
+      ),
+      dict(
+          testcase_name='outDegreeNormalization',
+          degree_normalization='out',
+          # Same as the expected result in the previous test.
+          expected_result=tf.constant([
+              [1.0 / 3.0, 0.0, 3.0 / 4.0],
+              [2.0 / 3.0, 1.0 / 2.0, 0.0],
+              [0.0, 1.0 / 2.0, 1.0 / 4.0],
+          ]),
+      ),
+  )
+  def test_gcnconv_degree_normalization_reverse_edges(
+      self, degree_normalization, expected_result
+  ):
+    """Tests that gcn_conv returns the correct values with an asymmetric adjacency."""
+    graph = tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            tfgnn.NODES: tfgnn.NodeSet.from_fields(
+                sizes=[3],
+                features={
+                    tfgnn.HIDDEN_STATE: tf.constant(
+                        [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+                    )
+                },
+            )
+        },
+        edge_sets={
+            tfgnn.EDGES: tfgnn.EdgeSet.from_fields(
+                sizes=[3],
+                features={
+                    'weights': tf.constant([2.0, 1.0, 3.0], dtype=tf.float32)
+                },
+                adjacency=tfgnn.Adjacency.from_indices(
+                    # Swapping source and target compared to the previous test.
+                    target=(
+                        tfgnn.NODES,
+                        tf.constant([0, 1, 2], dtype=tf.int64),
+                    ),
+                    source=(
+                        tfgnn.NODES,
+                        tf.constant([1, 2, 0], dtype=tf.int64),
+                    ),
+                ),
+            )
+        },
+    )
+
+    conv = gcn_conv.GCNConv(
+        units=3,
+        # Changing the receiver to be the source node instead of the target node
+        receiver_tag=tfgnn.SOURCE,
+        use_bias=False,
+        add_self_loops=True,
+        kernel_initializer=tf.keras.initializers.Constant(tf.eye(3)),
+        edge_weight_feature_name='weights',
+        degree_normalization=degree_normalization,
+    )
+
+    self.assertAllClose(
+        expected_result,
+        conv(graph, edge_set_name=tfgnn.EDGES),
+        rtol=1e-06,
+        atol=1e-06,
+    )
+
+  def test_gcnconv_symmetric_adj(self):
+    """Tests that gcn_conv returns the same values for a symmetric adjacency with in_in and in_out normalizations."""
+    graph = tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            tfgnn.NODES: tfgnn.NodeSet.from_fields(
+                sizes=[3],
+                features={
+                    tfgnn.HIDDEN_STATE: tf.constant(
+                        [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+                    )
+                },
+            )
+        },
+        edge_sets={
+            tfgnn.EDGES: tfgnn.EdgeSet.from_fields(
+                sizes=[4],
+                adjacency=tfgnn.Adjacency.from_indices(
+                    source=(
+                        tfgnn.NODES,
+                        tf.constant([0, 0, 1, 2], dtype=tf.int64),
+                    ),
+                    target=(
+                        tfgnn.NODES,
+                        tf.constant([1, 2, 0, 0], dtype=tf.int64),
+                    ),
+                ),
+            )
+        },
+    )
+
+    conv_in_out = gcn_conv.GCNConv(
+        units=3,
+        use_bias=False,
+        kernel_initializer=tf.keras.initializers.Constant(tf.eye(3)),
+        degree_normalization='in_out',
+    )
+
+    conv_in_in = gcn_conv.GCNConv(
+        units=3,
+        use_bias=False,
+        kernel_initializer=tf.keras.initializers.Constant(tf.eye(3)),
+        degree_normalization='in_in',
+    )
+    self.assertAllEqual(
+        conv_in_in(graph, edge_set_name=tfgnn.EDGES),
+        conv_in_out(graph, edge_set_name=tfgnn.EDGES),
+    )
 
   @parameterized.named_parameters(('', ReloadModel.SKIP),
                                   ('Restored', ReloadModel.SAVED_MODEL),
