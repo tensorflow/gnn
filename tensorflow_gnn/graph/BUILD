@@ -119,6 +119,32 @@ tf_py_test(
 )
 
 pytype_strict_library(
+    name = "readout",
+    srcs = ["readout.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":graph_constants",
+        ":graph_tensor",
+        ":graph_tensor_ops",
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+tf_py_test(
+    name = "readout_test",
+    srcs = ["readout_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":adjacency",
+        ":graph_constants",
+        ":graph_tensor",
+        ":graph_tensor_ops",
+        ":readout",
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+pytype_strict_library(
     name = "schema_utils",
     srcs = ["schema_utils.py"],
     srcs_version = "PY3",

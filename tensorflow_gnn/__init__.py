@@ -24,6 +24,7 @@ The various data types provided by the GNN library have corresponding schemas
 similar to `tf.TensorSpec`. For example, a `FieldSpec` describes an instance of
 `Field`, and a `GraphTensorSpec` describes an instance of `GraphTensor`.
 """
+# pylint: disable=line-too-long
 
 from tensorflow_gnn import experimental  # Exposed as submodule. pylint: disable=unused-import
 from tensorflow_gnn import keras  # Exposed as submodule. pylint: disable=unused-import
@@ -40,6 +41,7 @@ from tensorflow_gnn.graph import graph_tensor_random
 from tensorflow_gnn.graph import normalization_ops
 from tensorflow_gnn.graph import padding_ops
 from tensorflow_gnn.graph import preprocessing_common
+from tensorflow_gnn.graph import readout
 from tensorflow_gnn.graph import schema_utils
 from tensorflow_gnn.graph import schema_validation
 from tensorflow_gnn.graph import tag_utils
@@ -169,6 +171,11 @@ node_degree = graph_tensor_ops.node_degree
 softmax = normalization_ops.softmax
 softmax_edges_per_node = normalization_ops.softmax_edges_per_node
 
+# Readout.
+validate_graph_tensor_spec_for_readout = readout.validate_graph_tensor_spec_for_readout
+validate_graph_tensor_for_readout = readout.validate_graph_tensor_for_readout
+readout_named = readout.readout_named
+
 # Schema conversion and I/O functions.
 parse_schema = schema_utils.parse_schema
 read_schema = schema_utils.read_schema
@@ -206,6 +213,7 @@ del graph_tensor_random
 del normalization_ops
 del padding_ops
 del preprocessing_common
+del readout
 del schema_utils
 del schema_validation
 del tag_utils
