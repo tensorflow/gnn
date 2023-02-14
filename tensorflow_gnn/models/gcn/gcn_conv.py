@@ -225,6 +225,9 @@ class GCNConv(tf.keras.layers.Layer):
       # This adds 1 to each diagonal element of the degree matrix
       if self._add_self_loops:
         node_degree += 1
+      else:
+        # Prevent division by zero.
+        node_degree = tf.maximum(node_degree, 1)
       return node_degree
 
     if self._degree_normalization == 'none':

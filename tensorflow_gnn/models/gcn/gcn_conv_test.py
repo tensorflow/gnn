@@ -760,5 +760,48 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
     layer = gcn_conv.GCNHomGraphUpdate(units=3)
     self.assertRaises(ValueError, lambda: layer(graph))
 
+  def test_no_nans(self):
+    gt_input = tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            tfgnn.NODES:
+                tfgnn.NodeSet.from_fields(
+                    sizes=[2],
+                    features={
+                        tfgnn.HIDDEN_STATE:
+                            tf.constant([[1., 0, 0], [0, 1, 0]])
+                    },
+                )
+        },
+        edge_sets={
+            tfgnn.EDGES:
+                tfgnn.EdgeSet.from_fields(
+                    sizes=[2],
+                    adjacency=tfgnn.Adjacency.from_indices(
+                        source=(tfgnn.NODES, tf.constant([0, 1],
+                                                         dtype=tf.int64)),
+                        target=(tfgnn.NODES, tf.constant([0, 0],
+                                                         dtype=tf.int64)),
+                    ))
+        })
+    l2reg = 0.1  # Coefficient for L2 regularization.
+    layer = gcn_conv.GCNHomGraphUpdate(
+        units=3, add_self_loops=False,
+        kernel_regularizer=tf.keras.regularizers.l2(l2reg))
+    _ = layer(gt_input)  # Build weights.
+    weights = {v.name: v for v in layer.trainable_weights}
+    self.assertLen(weights, 2)
+    weights['gcn/node_set_update/gcn_conv/dense/bias:0'].assign(
+        [0., 0., 0.])
+    weights['gcn/node_set_update/gcn_conv/dense/kernel:0'].assign(
+        [[1., 0, 0,],
+         [0, 1, 0,],
+         [0, 0, 1,]])
+
+    node_feats = layer(gt_input).node_sets['nodes'][tfgnn.HIDDEN_STATE]
+    second_row = node_feats[1]
+    # Although no leading connections, there should be 0's rather than NaNs.
+    self.assertAllClose(second_row, tf.zeros_like(second_row))
+
+
 if __name__ == '__main__':
   tf.test.main()
