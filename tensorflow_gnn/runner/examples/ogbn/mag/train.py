@@ -343,11 +343,10 @@ def main(
     return tf.keras.Model(model_inputs, graph)
 
   global_batch_size = 128
-  validation_batch_size = 32
   steps_per_epoch = 629_571 // global_batch_size  # len(train) == 629,571
 
   # len(validation) == 64,879
-  validation_steps = 64_879 // validation_batch_size
+  validation_steps = 64_879 // global_batch_size
 
   # Determine learning rate schedule
   if _LEARNING_RATE_SCHEDULE.value == "cosine_decay":
