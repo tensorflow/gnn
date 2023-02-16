@@ -22,7 +22,13 @@ from tensorflow_gnn.models import hgt
 ```
 """
 
+from tensorflow_gnn.models.hgt import layers
 from tensorflow_gnn.models.hgt import softmax
-global_segmented_softmax_edges_per_node = softmax.global_segmented_softmax_edges_per_node
 
+global_segmented_softmax_edges_per_node = (
+    softmax.global_segmented_softmax_edges_per_node
+)
+HGTGraphUpdate = layers.HGTGraphUpdate
+
+del layers
 del softmax

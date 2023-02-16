@@ -17,7 +17,33 @@ pytype_strict_library(
         ":__subpackages__",
         ":users",
     ],
-    deps = [":softmax"],
+    deps = [
+        ":layers",
+        ":softmax",
+    ],
+)
+
+pytype_strict_library(
+    name = "layers",
+    srcs = ["layers.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":softmax",
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+    ],
+)
+
+tf_py_test(
+    name = "layers_test",
+    srcs = ["layers_test.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":layers",
+        ":softmax",
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+    ],
 )
 
 pytype_strict_library(
