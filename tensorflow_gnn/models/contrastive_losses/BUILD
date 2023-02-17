@@ -1,4 +1,6 @@
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_library")
+load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "tf_py_test")
+load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "distribute_py_test")
 
 licenses(["notice"])
 
@@ -13,8 +15,8 @@ pytype_strict_library(
     ],
     deps = [
         ":layers",
+        ":tasks",
         "//tensorflow_gnn/models/contrastive_losses/deep_graph_infomax:layers",
-        "//tensorflow_gnn/models/contrastive_losses/deep_graph_infomax:tasks",
     ],
 )
 
@@ -28,5 +30,74 @@ pytype_strict_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+    ],
+)
+
+pytype_strict_library(
+    name = "losses",
+    srcs = ["losses.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+tf_py_test(
+    name = "losses_test",
+    srcs = ["losses_test.py"],
+    python_version = "PY3",
+    srcs_version = "PY3",
+    deps = [
+        ":tasks",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+    ],
+)
+
+pytype_strict_library(
+    name = "tasks",
+    srcs = ["tasks.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":layers",
+        ":losses",
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+        "//tensorflow_gnn/models/contrastive_losses/deep_graph_infomax:layers",
+        "//tensorflow_gnn/runner",
+    ],
+)
+
+tf_py_test(
+    name = "tasks_test",
+    srcs = ["tasks_test.py"],
+    python_version = "PY3",
+    srcs_version = "PY3",
+    deps = [
+        ":tasks",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+        "//tensorflow_gnn/models/vanilla_mpnn",
+    ],
+)
+
+distribute_py_test(
+    name = "distribute_test",
+    size = "large",
+    srcs = ["distribute_test.py"],
+    shard_count = 4,
+    tags = [
+        "no_oss",  # TODO(b/238827505)
+        "nomultivm",  # TODO(b/170502145)
+    ],
+    xla_enable_strict_auto_jit = False,
+    deps = [
+        ":tasks",
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+        "//tensorflow_gnn/models/vanilla_mpnn",
+        "//tensorflow_gnn/runner",
     ],
 )

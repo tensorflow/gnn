@@ -15,9 +15,6 @@
 """Deep Graph Infomax layers (see: https://arxiv.org/abs/1809.10341)."""
 from __future__ import annotations
 
-import collections
-from collections.abc import Sequence
-
 import tensorflow as tf
 
 _PACKAGE = "GNN>models>contrastive_losses"
@@ -27,32 +24,26 @@ _PACKAGE = "GNN>models>contrastive_losses"
 class DeepGraphInfomaxLogits(tf.keras.layers.Layer):
   """Computes clean and corrupted logits for Deep Graph Infomax (DGI)."""
 
-  def build(self, input_shape: Sequence[tf.TensorShape]) -> None:
+  def build(self, input_shape: tf.TensorShape) -> None:
     """Buils a bilinear layer."""
-    if not isinstance(input_shape, collections.abc.Sequence):
-      raise ValueError(f"Expected `Sequence` (got {type(input_shape)})")
-    elif len(input_shape) != 2:
-      raise ValueError(f"Expected `Sequence` of length 2 (got {input_shape})")
-    else:
-      input_shape[0].assert_is_compatible_with(input_shape[1])
-    units = input_shape[0].as_list()[-1]
+    if not isinstance(input_shape, tf.TensorShape):
+      raise ValueError(f"Expected `TensorShape` (got {type(input_shape)})")
+    units = input_shape.as_list()[-1]
     if units is None:
       raise ValueError(f"Expected a defined inner dimension (got {units})")
     # Bilinear layer.
     self._bilinear = tf.keras.layers.Dense(units, use_bias=False)
 
-  def call(
-      self,
-      inputs: tuple[tf.Tensor, tf.Tensor]) -> tuple[tf.Tensor, tf.Tensor]:
+  def call(self, inputs: tf.Tensor) -> tuple[tf.Tensor, tf.Tensor]:
     """Computes clean and corrupted logits for DGI.
 
     Args:
-      inputs: A tuple (clean, corrupted) representations, respectively.
+      inputs: A stacked tensor with (clean, corrupted) representations.
 
     Returns:
       A concatenated (clean, corrupted) logits, respectively.
     """
-    x_clean, x_corrupted = inputs
+    x_clean, x_corrupted = tf.unstack(inputs, axis=1)
     # Summary.
     summary = tf.math.reduce_mean(x_clean, axis=0, keepdims=True)
     # Clean logits.

@@ -24,7 +24,7 @@ import tensorflow.__internal__.test as tftest
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn import runner
 from tensorflow_gnn.models import vanilla_mpnn
-from tensorflow_gnn.models.contrastive_losses.deep_graph_infomax import tasks
+from tensorflow_gnn.models.contrastive_losses import tasks
 
 _SCHEMA = """
   node_sets {
@@ -49,7 +49,7 @@ _SCHEMA = """
 """
 
 
-def _all_eager_strategy_combinations():
+def _all_eager_strategy_and_task_combinations():
   strategies = [
       # default
       tfdistribute.combinations.default_strategy,
@@ -60,20 +60,27 @@ def _all_eager_strategy_combinations():
       # MultiWorkerMirroredStrategy
       tfdistribute.combinations.multi_worker_mirrored_2x1_cpu,
       tfdistribute.combinations.multi_worker_mirrored_2x1_gpu,
-      # TPUStrategy
-      tfdistribute.combinations.tpu_strategy,
-      tfdistribute.combinations.tpu_strategy_one_core,
-      tfdistribute.combinations.tpu_strategy_packed_var,
       # ParameterServerStrategy
       tfdistribute.combinations.parameter_server_strategy_3worker_2ps_cpu,
       tfdistribute.combinations.parameter_server_strategy_3worker_2ps_1gpu,
       tfdistribute.combinations.parameter_server_strategy_1worker_2ps_cpu,
       tfdistribute.combinations.parameter_server_strategy_1worker_2ps_1gpu,
+      # Temporarily disable TPU tests of CL (b/269648832, b/269249455).
+      # tfdistribute.combinations.tpu_strategy,
+      # tfdistribute.combinations.tpu_strategy_one_core,
+      # tfdistribute.combinations.tpu_strategy_packed_var,
   ]
-  return tftest.combinations.combine(distribution=strategies)
+  tasklist = [
+      tasks.DeepGraphInfomaxTask("node"),
+      tasks.BarlowTwinsTask("node"),
+      tasks.VicRegTask("node"),
+  ]
+  return tftest.combinations.combine(
+      distribution=strategies, task=tasklist
+  )
 
 
-class DatasetProvider(runner.DatasetProvider):
+class DatasetProviderFromTensors(runner.DatasetProvider):
 
   def __init__(self, elements: Sequence[Any]):
     self._elements = list(elements)
@@ -85,23 +92,29 @@ class DatasetProvider(runner.DatasetProvider):
 # TODO(b/265776928): Consider deduplication of distribute testing boilerplate.
 class DistributeTests(tf.test.TestCase, parameterized.TestCase):
 
-  @tfdistribute.combinations.generate(_all_eager_strategy_combinations())
-  def test_run(self, distribution: tf.distribute.Strategy):
+  @tfdistribute.combinations.generate(
+      _all_eager_strategy_and_task_combinations()
+  )
+  def test_run(self, distribution: tf.distribute.Strategy, task: runner.Task):
     schema = tfgnn.parse_schema(_SCHEMA)
     gtspec = tfgnn.create_graph_spec_from_schema_pb(schema)
     gts = [tfgnn.random_graph_tensor(gtspec) for _ in range(4)]
     serialized = [tfgnn.write_example(gt).SerializeToString() for gt in gts]
-    ds_provider = DatasetProvider(serialized)
+    ds_provider = DatasetProviderFromTensors(serialized)
 
     node_sets_fn = lambda node_set, node_set_name: node_set["features"]
     model_fn = runner.ModelFromInitAndUpdates(
         init=tfgnn.keras.layers.MapFeatures(node_sets_fn=node_sets_fn),
-        updates=[vanilla_mpnn.VanillaMPNNGraphUpdate(
-            units=1,
-            message_dim=2,
-            receiver_tag=tfgnn.SOURCE,
-            l2_regularization=5e-4,
-            dropout_rate=0.1)])
+        updates=[
+            vanilla_mpnn.VanillaMPNNGraphUpdate(
+                units=2,
+                message_dim=3,
+                receiver_tag=tfgnn.SOURCE,
+                l2_regularization=5e-4,
+                dropout_rate=0.1,
+            )
+        ],
+    )
 
     model_dir = self.create_tempdir()
 
@@ -130,12 +143,13 @@ class DistributeTests(tf.test.TestCase, parameterized.TestCase):
         optimizer_fn=tf.keras.optimizers.Adam,
         epochs=1,
         trainer=trainer,
-        task=tasks.DeepGraphInfomaxTask("node"),
+        task=task,
         gtspec=gtspec,
         global_batch_size=2,
         feature_processors=tuple(),
         valid_ds_provider=ds_provider,
-        valid_padding=valid_padding)
+        valid_padding=valid_padding,
+    )
 
     dataset = ds_provider.get_dataset(tf.distribute.InputContext())
     kwargs = {"examples": next(iter(dataset.batch(2)))}

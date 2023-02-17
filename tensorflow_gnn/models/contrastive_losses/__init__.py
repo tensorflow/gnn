@@ -22,13 +22,15 @@ from tensorflow_gnn.models import contrastive_losses
 ```
 """
 from tensorflow_gnn.models.contrastive_losses import layers as perturbation_layers
+from tensorflow_gnn.models.contrastive_losses import tasks
 from tensorflow_gnn.models.contrastive_losses.deep_graph_infomax import layers as dgi_layers
-from tensorflow_gnn.models.contrastive_losses.deep_graph_infomax import tasks as dgi_tasks
 
 ShuffleFeaturesGlobally = perturbation_layers.ShuffleFeaturesGlobally
 DeepGraphInfomaxLogits = dgi_layers.DeepGraphInfomaxLogits
-DeepGraphInfomaxTask = dgi_tasks.DeepGraphInfomaxTask
+DeepGraphInfomaxTask = tasks.DeepGraphInfomaxTask
+BarlowTwinsTask = tasks.BarlowTwinsTask
+VicRegTask = tasks.VicRegTask
 
 del perturbation_layers
+del tasks
 del dgi_layers
-del dgi_tasks

@@ -24,23 +24,13 @@ class DeepGraphInfomaxLogitsTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters([
       dict(
-          testcase_name="NonSequenceInput",
-          inputs=tf.constant(range(8)),
-          expected_error=r"Expected `Sequence` \(got .*\)",
-      ),
-      dict(
           testcase_name="InvalidSequenceInput",
-          inputs=[tf.constant(range(8))] * 4,
-          expected_error=r"Expected `Sequence` of length 2 \(got .*\)",
-      ),
-      dict(
-          testcase_name="IncompatabileShapeInput",
-          inputs=[tf.constant(range(8)), tf.constant(range(4))],
-          expected_error=r"Shapes \(8,\) and \(4,\) are incompatible",
+          inputs=[tf.constant(range(8))],
+          expected_error=r"Expected `TensorShape` \(got .*\)",
       ),
       dict(
           testcase_name="UndefinedInnerDimension",
-          inputs=[tf.keras.Input((2, None)), tf.keras.Input((2, None))],
+          inputs=tf.keras.Input((2, None)),
           expected_error=r"Expected a defined inner dimension \(got .*\)",
       ),
   ])
@@ -56,7 +46,9 @@ class DeepGraphInfomaxLogitsTest(tf.test.TestCase, parameterized.TestCase):
     """Verifies output logits shape."""
     x_clean = tf.random.uniform((1, 4))
     x_corrupted = tf.random.uniform((1, 4))
-    logits = layers.DeepGraphInfomaxLogits()((x_clean, x_corrupted))
+    logits = layers.DeepGraphInfomaxLogits()(
+        tf.stack((x_clean, x_corrupted), axis=1)
+    )
 
     # Clean and corrupted logits (i.e., shape (1, 2)).
     self.assertEqual(logits.shape, (1, 2))
