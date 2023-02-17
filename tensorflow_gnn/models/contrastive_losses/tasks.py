@@ -86,21 +86,18 @@ class _ConstrastiveLossTask(runner.Task, abc.ABC):
 
     # Clean representations: readout
     readout = tfgnn.keras.layers.ReadoutFirstNode(
-        node_set_name=self._node_set_name, feature_name=self._feature_name
-    )
+        node_set_name=self._node_set_name,
+        feature_name=self._feature_name)
     # Clean representations.
     submodule_clean = tf.keras.Model(
         model.input,
         readout(model.output),
-        name=self._representations_layer_name,
-    )
+        name=self._representations_layer_name)
     x_clean = submodule_clean(model.input)
 
     # Corrupted representations: shuffling, model application and readout
     shuffled = self._perturber(model.input)
-    x_corrupted = tfgnn.keras.layers.ReadoutFirstNode(
-        node_set_name=self._node_set_name
-    )(model(shuffled))
+    x_corrupted = readout(model(shuffled))
 
     return tf.keras.Model(
         model.input,
