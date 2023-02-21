@@ -166,6 +166,7 @@ combine_values = graph_tensor_ops.combine_values
 reorder_nodes = graph_tensor_ops.reorder_nodes
 shuffle_nodes = graph_tensor_ops.shuffle_nodes
 node_degree = graph_tensor_ops.node_degree
+convert_to_line_graph = graph_tensor_ops.convert_to_line_graph
 
 # Normalization operations.
 softmax = normalization_ops.softmax

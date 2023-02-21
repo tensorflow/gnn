@@ -1309,3 +1309,142 @@ def _where_scalar_or_field(condition: const.Field, true_scalar_value: tf.Tensor,
   else:
     true_value = true_scalar_value
   return tf.where(condition, true_value, false_value)
+
+
+def convert_to_line_graph(
+    graph_tensor: gt.GraphTensor,
+    *,
+    connect_from: const.IncidentNodeTag = const.TARGET,
+    connect_to: const.IncidentNodeTag = const.SOURCE,
+    use_node_features_as_line_graph_edge_features: bool = False,
+) -> gt.GraphTensor:
+  """Obtain a graph's line graph.
+
+  In the line graph, every edge in the original graph becomes a node.
+  See https://en.wikipedia.org/wiki/Line_graph. Line graph nodes are connected
+  whenever the corresponding edges share a specified endpoint. Note that
+  undirected edges will result in pairs of line graph nodes.
+
+  Example: Consider a triangle graph with the 3 edges a->b, b->c, and c->a.
+    The resulting line graph would contain the nodes ab, bc, and ca.
+    The default arguments connect_from=tfgnn.TARGET and connect_to=tfgnn.SOURCE
+    would create the edges ab->bc, bc->ca, and ca->ab.
+
+  Args:
+    graph_tensor: Graph to convert to a line graph.
+    connect_from: Specifies which endpoint of the original edges
+      will be the source for the line graph edges.
+    connect_to: Specifies which endpoint of the original edges
+      will be the target for the line graph edges.
+    use_node_features_as_line_graph_edge_features: Whether to use the original
+      graph's node features as edge features in the line graph.
+
+  Returns:
+    A GraphTensor defining the graph's line graph.
+  """
+  gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.convert_to_line_graph()')
+
+  line_node_sets = {
+      edge_set_name: gt.NodeSet.from_fields(
+          features=edge_set.get_features_dict(), sizes=edge_set.sizes
+      )
+      for edge_set_name, edge_set in graph_tensor.edge_sets.items()
+  }
+
+  line_edge_sets = {}
+  for edge_set_name_source, edge_set_source in graph_tensor.edge_sets.items():
+    node_set_name_source = edge_set_source.adjacency.node_set_name(
+        connect_from
+    )
+    node_set = graph_tensor.node_sets[node_set_name_source]
+    num_nodes = node_set.total_size
+
+    for edge_set_name_target, edge_set_target in graph_tensor.edge_sets.items():
+      if (
+          edge_set_target.adjacency.node_set_name(connect_to)
+          != node_set_name_source
+      ):
+        continue
+
+      # Get the number of edges on each side of a node
+      num_neighbors_source = pool_edges_to_node(
+          graph_tensor,
+          edge_set_name_source,
+          connect_from,
+          feature_value=tf.ones(
+              edge_set_source.total_size, dtype=graph_tensor.indices_dtype
+          ),
+      )
+      num_neighbors_target = pool_edges_to_node(
+          graph_tensor,
+          edge_set_name_target,
+          connect_to,
+          feature_value=tf.ones(
+              edge_set_target.total_size, dtype=graph_tensor.indices_dtype
+          ),
+      )
+      num_neighbors = num_neighbors_source * num_neighbors_target
+
+      # Sort source and target edges by the connecting node index,
+      # so they are matched after utils.repeat
+      edge_idx_sorted_source = tf.argsort(
+          edge_set_source.adjacency[connect_from]
+      )
+      edge_idx_sorted_target = tf.argsort(
+          edge_set_target.adjacency[connect_to]
+      )
+
+      # Repeat source line idx according to the number of neighbors per node
+      # (outer index loop)
+      # e.g. [0 0 1 1 2 2 2 3 3 3]
+      idx_line_source = utils.repeat(
+          edge_idx_sorted_source,
+          utils.repeat(num_neighbors_target, num_neighbors_source),
+      )
+
+      # Repeat target line idx according to the number of neighbors per node
+      # (inner index loop)
+      # via a ragged tensor
+      # e.g. [0 1 0 1 2 3 4 2 3 4]
+      edge_idx_target_grouped_by_node = tf.RaggedTensor.from_row_lengths(
+          edge_idx_sorted_target, num_neighbors_target
+      )
+      idx_line_target = utils.repeat(
+          edge_idx_target_grouped_by_node, num_neighbors_source
+      ).flat_values
+
+      # Calculate the number of edges per graph in a batch
+      num_neighbors_grouped_by_graph = tf.RaggedTensor.from_row_lengths(
+          num_neighbors, node_set.sizes
+      )
+      line_edge_sizes = tf.reduce_sum(
+          num_neighbors_grouped_by_graph, axis=1
+      )
+
+      if use_node_features_as_line_graph_edge_features:
+        # Create index mapping nodes to line graph edges
+        node_idx = utils.repeat(tf.range(num_nodes), num_neighbors)
+
+        # Create line graph feature dictionary
+        line_features = dict()
+        for feature_name, feature in node_set.get_features_dict().items():
+          line_features[feature_name] = tf.gather(feature, node_idx)
+      else:
+        line_features = None
+
+      line_edge_sets[
+          f'{edge_set_name_source}_to_{edge_set_name_target}'
+      ] = gt.EdgeSet.from_fields(
+          sizes=line_edge_sizes,
+          adjacency=adj.Adjacency.from_indices(
+              source=(edge_set_name_source, idx_line_source),
+              target=(edge_set_name_target, idx_line_target),
+          ),
+          features=line_features,
+      )
+
+  return gt.GraphTensor.from_pieces(
+      node_sets=line_node_sets,
+      edge_sets=line_edge_sets,
+      context=graph_tensor.context,
+  )

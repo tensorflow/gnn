@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for gt.GraphTensor extension type (go/tf-gnn-api)."""
-
 import collections
 import functools
 from typing import Mapping, Union
@@ -1776,6 +1775,202 @@ class EdgeMaskingTest(tf.test.TestCase, parameterized.TestCase):
         tf.errors.InvalidArgumentError,
         r'boolean_edge_mask should have the same shape with the adjacency.*'):
       ops.mask_edges(graph, 'edges', as_tensor([True, False]), 'masked')
+
+
+class LineGraphTest(tf.test.TestCase):
+
+  def _make_test_graph(self):
+    return gt.GraphTensor.from_pieces(
+        context=gt.Context.from_fields(
+            features={'fc': as_tensor([10]), 'f2': as_tensor([20])}
+        ),
+        node_sets={
+            'a': gt.NodeSet.from_fields(
+                features={'fa': tf.range(8), 'f2': 100 + tf.range(8)},
+                sizes=as_tensor([8]),
+            ),
+            'b': gt.NodeSet.from_fields(
+                features={'fb': tf.range(8), 'f2': 100 + tf.range(8)},
+                sizes=as_tensor([8]),
+            ),
+        },
+        edge_sets={
+            'aa': gt.EdgeSet.from_fields(
+                features={'faa': tf.range(3), 'f2': 100 + tf.range(3)},
+                sizes=as_tensor([3]),
+                adjacency=adj.HyperAdjacency.from_indices({
+                    const.SOURCE: ('a', as_tensor([0, 0, 2])),
+                    const.TARGET: ('a', as_tensor([0, 1, 3])),
+                }),
+            ),
+            'ab': gt.EdgeSet.from_fields(
+                features={'fab': tf.range(4), 'f2': 100 + tf.range(4)},
+                sizes=as_tensor([4]),
+                adjacency=adj.HyperAdjacency.from_indices({
+                    const.SOURCE: ('a', as_tensor([0, 2, 1, 7])),
+                    const.TARGET: ('b', as_tensor([1, 0, 1, 2])),
+                }),
+            ),
+            'ba': gt.EdgeSet.from_fields(
+                features={'fba': tf.range(5), 'f2': 100 + tf.range(5)},
+                sizes=as_tensor([5]),
+                adjacency=adj.HyperAdjacency.from_indices({
+                    const.SOURCE: ('b', as_tensor([0, 1, 1, 0, 1])),
+                    const.TARGET: ('a', as_tensor([7, 6, 5, 5, 4])),
+                }),
+            ),
+        },
+    )
+
+  def testContextFeatures(self):
+    graph_tensor = self._make_test_graph()
+    line_graph = ops.convert_to_line_graph(graph_tensor)
+    for feature_name, feature in graph_tensor.context.features.items():
+      self.assertAllEqual(line_graph.context.features[feature_name], feature)
+
+  def testNodeFeatures(self):
+    graph_tensor = self._make_test_graph()
+    line_graph = ops.convert_to_line_graph(graph_tensor)
+    for edge_set_name, edge_set in graph_tensor.edge_sets.items():
+      for feature_name, feature in edge_set.features.items():
+        self.assertAllEqual(
+            line_graph.node_sets[edge_set_name].features[feature_name], feature
+        )
+
+  def testEdgeFeatures(self):
+    graph_tensor = self._make_test_graph()
+    line_graph = ops.convert_to_line_graph(
+        graph_tensor,
+        use_node_features_as_line_graph_edge_features=True
+    )
+    self.assertAllEqual(
+        list(line_graph.edge_sets.keys()),
+        ['aa_to_aa', 'aa_to_ab', 'ab_to_ba', 'ba_to_aa', 'ba_to_ab'],
+    )
+
+    def _assert_features_equal(
+        node_set_name, edge_set_name, node_used_for_edge
+    ):
+      node_set = graph_tensor.node_sets[node_set_name]
+      edge_set = line_graph.edge_sets[edge_set_name]
+      for feature_name, node_feature in node_set.features.items():
+        edge_feature = edge_set.features[feature_name]
+        if node_used_for_edge:
+          self.assertAllEqual(
+              edge_feature, tf.gather(node_feature, node_used_for_edge)
+          )
+        else:
+          self.assertEqual(tf.size(edge_feature), 0)
+
+    _assert_features_equal('a', 'aa_to_aa', [0, 0])
+    _assert_features_equal('a', 'aa_to_ab', [0, 1])
+    _assert_features_equal('a', 'ba_to_aa', [])
+    _assert_features_equal('a', 'ba_to_ab', [7])
+    _assert_features_equal('b', 'ab_to_ba', [0, 0, 1, 1, 1, 1, 1, 1])
+
+  def testConnectivityTargetToSource(self):
+    graph_tensor = self._make_test_graph()
+    line_graph = ops.convert_to_line_graph(
+        graph_tensor,
+        connect_from=const.TARGET,
+        connect_to=const.SOURCE,
+    )
+    self.assertAllEqual(
+        list(line_graph.edge_sets.keys()),
+        ['aa_to_aa', 'aa_to_ab', 'ab_to_ba', 'ba_to_aa', 'ba_to_ab'],
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['aa_to_aa'].adjacency.source,
+        tf.constant([0, 0]),
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['aa_to_aa'].adjacency.target,
+        tf.constant([0, 1]),
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['aa_to_ab'].adjacency.source,
+        tf.constant([0, 1]),
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['aa_to_ab'].adjacency.target,
+        tf.constant([0, 2]),
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['ab_to_ba'].adjacency.source,
+        tf.constant([1, 1, 0, 0, 0, 2, 2, 2]),
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['ab_to_ba'].adjacency.target,
+        tf.constant([0, 3, 1, 2, 4, 1, 2, 4]),
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['ba_to_aa'].adjacency.source,
+        tf.constant([]),
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['ba_to_aa'].adjacency.target,
+        tf.constant([]),
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['ba_to_ab'].adjacency.source,
+        tf.constant([0]),
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['ba_to_ab'].adjacency.target,
+        tf.constant([3]),
+    )
+
+  def testConnectivityTargetToTarget(self):
+    graph_tensor = self._make_test_graph()
+    line_graph = ops.convert_to_line_graph(
+        graph_tensor,
+        connect_from=const.TARGET,
+        connect_to=const.TARGET,
+    )
+    self.assertAllEqual(
+        list(line_graph.edge_sets.keys()),
+        ['aa_to_aa', 'aa_to_ba', 'ab_to_ab', 'ba_to_aa', 'ba_to_ba'],
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['aa_to_aa'].adjacency.source,
+        tf.constant([0, 1, 2]),
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['aa_to_aa'].adjacency.target,
+        tf.constant([0, 1, 2]),
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['aa_to_ba'].adjacency.source,
+        tf.constant([]),
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['aa_to_ba'].adjacency.target,
+        tf.constant([]),
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['ab_to_ab'].adjacency.source,
+        tf.constant([1, 0, 0, 2, 2, 3]),
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['ab_to_ab'].adjacency.target,
+        tf.constant([1, 0, 2, 0, 2, 3]),
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['ba_to_aa'].adjacency.source,
+        tf.constant([]),
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['ba_to_aa'].adjacency.target,
+        tf.constant([]),
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['ba_to_ba'].adjacency.source,
+        tf.constant([4, 2, 2, 3, 3, 1, 0]),
+    )
+    self.assertAllEqual(
+        line_graph.edge_sets['ba_to_ba'].adjacency.target,
+        tf.constant([4, 2, 3, 2, 3, 1, 0]),
+    )
 
 
 if __name__ == '__main__':
