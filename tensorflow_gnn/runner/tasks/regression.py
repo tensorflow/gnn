@@ -21,6 +21,8 @@ import tensorflow_gnn as tfgnn
 from tensorflow_gnn.runner import interfaces
 
 AUTO = tf.keras.losses.Reduction.AUTO
+Field = tfgnn.Field
+GraphTensor = tfgnn.GraphTensor
 
 
 class _Regression(interfaces.Task):
@@ -30,11 +32,12 @@ class _Regression(interfaces.Task):
   by inheriting from the below mix ins.
   """
 
-  def __init__(self, units: int):
+  def __init__(self, units: int, label_fn: Callable[[GraphTensor], Field]):
     self._units = units
+    self._label_fn = label_fn
 
   @abc.abstractmethod
-  def gather_activations(self, gt: tfgnn.GraphTensor) -> tf.Tensor:
+  def gather_activations(self, inputs: GraphTensor) -> tf.Tensor:
     raise NotImplementedError()
 
   def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
@@ -55,8 +58,10 @@ class _Regression(interfaces.Task):
         name="logits")(activations)  # Name seen in SignatureDef.
     return tf.keras.Model(model.input, logits)
 
-  def preprocess(self, gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
-    return gt
+  def preprocess(
+      self,
+      inputs: GraphTensor) -> tuple[Optional[GraphTensor], Field]:
+    return None, self._label_fn(inputs)
 
   @abc.abstractmethod
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
@@ -74,40 +79,42 @@ class _GraphRegression(_Regression):
   """Graph context regression abstract class."""
 
   def __init__(self,
-               units: int = 1,
-               *,
                node_set_name: str,
+               *,
+               units: int = 1,
                state_name: str = tfgnn.HIDDEN_STATE,
-               reduce_type: str = "mean"):
-    super().__init__(units)
+               reduce_type: str = "mean",
+               label_fn: Callable[[GraphTensor], Field]):
+    super().__init__(units, label_fn=label_fn)
     self._node_set_name = node_set_name
     self._state_name = state_name
     self._reduce_type = reduce_type
 
-  def gather_activations(self, gt: tfgnn.GraphTensor) -> tf.Tensor:
+  def gather_activations(self, inputs: GraphTensor) -> tf.Tensor:
     return tfgnn.keras.layers.Pool(
         tfgnn.CONTEXT,
         self._reduce_type,
         node_set_name=self._node_set_name,
-        feature_name=self._state_name)(gt)
+        feature_name=self._state_name)(inputs)
 
 
 class _RootNodeRegression(_Regression):
   """Root node regression abstract class."""
 
   def __init__(self,
-               units: int = 1,
-               *,
                node_set_name: str,
-               state_name: str = tfgnn.HIDDEN_STATE):
-    super().__init__(units)
+               *,
+               units: int = 1,
+               state_name: str = tfgnn.HIDDEN_STATE,
+               label_fn: Callable[[GraphTensor], Field]):
+    super().__init__(units, label_fn=label_fn)
     self._node_set_name = node_set_name
     self._state_name = state_name
 
-  def gather_activations(self, gt: tfgnn.GraphTensor) -> tf.Tensor:
+  def gather_activations(self, inputs: GraphTensor) -> tf.Tensor:
     return tfgnn.keras.layers.ReadoutFirstNode(
         node_set_name=self._node_set_name,
-        feature_name=self._state_name)(gt)
+        feature_name=self._state_name)(inputs)
 
 
 class _MeanAbsoluteErrorLossMixIn:
@@ -142,8 +149,8 @@ class _MeanSquaredLogScaledError(tf.keras.losses.Loss):
   """Mean squared log scaled error task, see: go/xtzqv."""
 
   def __init__(self,
-               reduction: tf.keras.losses.Reduction,
-               name: str,
+               reduction: tf.keras.losses.Reduction = AUTO,
+               name: Optional[str] = None,
                *,
                alpha_loss_param: float,
                epsilon_loss_param: float):

@@ -16,7 +16,6 @@
 import collections
 import dataclasses
 import functools
-import itertools
 import os
 from typing import Callable, Optional, Sequence, Tuple, Union
 
@@ -111,62 +110,51 @@ def _make_parsing_model(gtspec: GraphTensorSpec) -> tf.keras.Model:
 
 def _make_preprocessing_model(
     gtspec: GraphTensorSpec,
-    preprocessors: Sequence[GraphTensorProcessorFn],
-    task_preprocessor: GraphTensorProcessorFn,
+    processors: Sequence[GraphTensorProcessorFn],
+    task_processor: Callable[
+        [tfgnn.GraphTensor],
+        Tuple[Optional[tfgnn.GraphTensor], tfgnn.Field]
+    ],
     size_constraints: Optional[SizeConstraints] = None) -> tf.keras.Model:
   """Builds a `tf.keras.Model` that applies preprocessing.
 
   Args:
     gtspec: The `GraphTensorSpec` for input.
-    preprocessors: The `GraphTensorProcessorFn` to apply.
-    task_preprocessor: A `Task` preprocessor, used to apply any final objective
-      specific processing.
+    processors: The `GraphTensorProcessorFn` to apply.
+    task_processor: A `Task` preprocessor, used to apply any final objective
+      specific processing and label generation.
     size_constraints: Any size constraints for padding.
 
   Returns:
     A `tf.keras.Model` with one, two or three outputs depending on the presence
-    of `size_constraints` and the return values of `preprocessors.` Where
+    of `size_constraints` and the return values of `processors.` Where
     outputs are (`GraphTensor`, `tfgnn.Field`, `tfgnn.Field`) as model
     input, label and mask (respectively).
   """
-  gt = tf.keras.Input(type_spec=gtspec)
-  x = gt.merge_batch_to_components()
+  inputs = tf.keras.Input(type_spec=gtspec)
+  gt = inputs.merge_batch_to_components()
 
   if size_constraints is not None:
-    x, mask = tfgnn.keras.layers.PadToTotalSizes(size_constraints)(x)
+    gt, mask = tfgnn.keras.layers.PadToTotalSizes(size_constraints)(gt)
   else:
     mask = None
 
-  # Apply preprocessors to GraphTensor x: exactly one may split out a label y.
-  y = None
+  gt = functools.reduce(lambda acc, fn: fn(acc), processors, gt)
+  gt_processed, labels = task_processor(gt)
 
-  for fn in itertools.chain(preprocessors, (task_preprocessor,)):
-    output = fn(x)
+  if gt_processed is not None and gt.spec != gt_processed.spec:
+    raise ValueError(
+        f"`GraphTensorSpec` mutated by a `task_processor` (gt={gt.spec} and "
+        f"gt_processed={gt_processed.spec})")
+  elif gt_processed is not None:
+    gt = gt_processed
 
-    if isinstance(output, collections.abc.Sequence):
-      x, *ys = output
-      if len(ys) == 1:
-        yy = ys[0]
-      else:
-        raise ValueError(f"Expected (`GraphTensor`, `Field`) (got {output})")
-      if y is not None and yy is not None:
-        raise ValueError(f"Expected one label (got {y} and {yy})")
-      else:
-        y = yy
-    else:
-      x = output
+  if labels is not None and mask is None:
+    return tf.keras.Model(inputs, (gt, labels))
+  elif labels is not None and mask is not None:
+    return tf.keras.Model(inputs, (gt, labels, mask))
 
-    if not tfgnn.is_graph_tensor(x):
-      raise ValueError(f"Expected `GraphTensor` (got {x})")
-
-  if y is None and mask is None:
-    return tf.keras.Model(gt, x)
-  elif y is not None and mask is None:
-    return tf.keras.Model(gt, (x, y))
-  elif y is not None and mask is not None:
-    return tf.keras.Model(gt, (x, y, mask))
-
-  raise ValueError(f"Expected labels with a mask (got None and {mask})")
+  raise ValueError(f"Expected labels (got labels={labels} and mask={mask})")
 
 
 _map_over_dataset = functools.partial(
@@ -244,7 +232,8 @@ def run(*,
       training on accelerators consider enabling it. For more info please see:
       https://www.tensorflow.org/api_docs/python/tf/data/experimental/service.
     steps_per_execution: The number of batches to run during each training
-      iteration. If not set, for TPU strategy default to 100 and to 1 otherwise.
+      iteration. If not set, for TPU strategy default to 100 and to `None`
+      otherwise.
   """
   validate = valid_ds_provider is not None
 

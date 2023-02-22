@@ -178,7 +178,8 @@ class ContrastiveTasksSharedTests(tf.test.TestCase, parameterized.TestCase):
     """Verifies an adapted model's fit."""
     ds = tf.data.Dataset.from_tensors(random_graph_tensor()).repeat()
     ds = ds.batch(2).map(tfgnn.GraphTensor.merge_batch_to_components)
-    ds = ds.map(task.preprocess).take(5)
+    # `preprocess` performs no manipulations on `x`.
+    ds = ds.map(lambda x: (x, task.preprocess(x)[1])).take(5)
 
     def get_loss():
       values = model.evaluate(ds)
@@ -200,7 +201,7 @@ class ContrastiveTasksSharedTests(tf.test.TestCase, parameterized.TestCase):
     expected = random_graph_tensor()
     actual, _ = task.preprocess(expected)
 
-    self.assertEqual(actual, expected)
+    self.assertIsNone(actual)
 
   @parameterized.named_parameters(all_tasks_inputs())
   def test_adapt(self, task: runner.Task):

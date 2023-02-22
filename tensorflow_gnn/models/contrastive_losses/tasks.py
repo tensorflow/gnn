@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Callable, Sequence
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -25,6 +25,9 @@ from tensorflow_gnn import runner
 from tensorflow_gnn.models.contrastive_losses import layers as perturbation_layers
 from tensorflow_gnn.models.contrastive_losses import losses
 from tensorflow_gnn.models.contrastive_losses.deep_graph_infomax import layers as dgi_layers
+
+Field = tfgnn.Field
+GraphTensor = tfgnn.GraphTensor
 
 
 class _ConstrastiveLossTask(runner.Task, abc.ABC):
@@ -51,8 +54,7 @@ class _ConstrastiveLossTask(runner.Task, abc.ABC):
       *,
       feature_name: str = tfgnn.HIDDEN_STATE,
       representations_layer_name: Optional[str] = None,
-      seed: Optional[int] = None,
-  ):
+      seed: Optional[int] = None):
     self._representations_layer_name = (
         representations_layer_name or "clean_representations"
     )
@@ -109,27 +111,7 @@ class _ConstrastiveLossTask(runner.Task, abc.ABC):
     """Returns the layer contrasting clean outputs with the correupted ones."""
     raise NotImplementedError()
 
-  @abc.abstractmethod
-  def preprocess(
-      self, gt: tfgnn.GraphTensor
-  ) -> tuple[tfgnn.GraphTensor, tfgnn.Field]:
-    """Returns the input GraphTensor."""
-    raise NotImplementedError()
-
-  @abc.abstractmethod
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    """Returns an empty losses tuple.
-
-    Loss signatures are according to `tf.keras.losses.Loss.`
-    """
-    raise NotImplementedError()
-
   def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    """Returns an empty metrics tuple.
-
-    Metric signatures are according to `tf.keras.metrics.Metric,` here: no
-    metrics are returned, because metrics are task-specific.
-    """
     return tuple()
 
 
@@ -140,11 +122,10 @@ class DeepGraphInfomaxTask(_ConstrastiveLossTask):
     return dgi_layers.DeepGraphInfomaxLogits()
 
   def preprocess(
-      self, gt: tfgnn.GraphTensor
-  ) -> tuple[tfgnn.GraphTensor, tfgnn.Field]:
+      self,
+      inputs: GraphTensor) -> Tuple[Optional[GraphTensor], Field]:
     """Creates labels--i.e., (positive, negative)--for Deep Graph Infomax."""
-    y = tf.tile(tf.constant(((1, 0),), dtype=tf.int32), (gt.num_components, 1))
-    return gt, y
+    return None, tf.tile(((1, 0),), (inputs.num_components, 1))
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     return (tf.keras.losses.BinaryCrossentropy(from_logits=True),)
@@ -167,14 +148,12 @@ class BarlowTwinsTask(_ConstrastiveLossTask):
       representations_layer_name: Optional[str] = None,
       seed: Optional[int] = None,
       lambda_: Optional[Union[tf.Tensor, float]] = None,
-      normalize_batch: bool = True,
-  ):
+      normalize_batch: bool = True):
     super().__init__(
         node_set_name,
         feature_name=feature_name,
         representations_layer_name=representations_layer_name,
-        seed=seed,
-    )
+        seed=seed)
     self._lambda = lambda_
     self._normalize_batch = normalize_batch
 
@@ -182,11 +161,10 @@ class BarlowTwinsTask(_ConstrastiveLossTask):
     return tf.keras.layers.Layer()
 
   def preprocess(
-      self, gt: tfgnn.GraphTensor
-  ) -> tuple[tfgnn.GraphTensor, tfgnn.Field]:
+      self,
+      inputs: GraphTensor) -> Tuple[Optional[GraphTensor], Field]:
     """Creates unused pseudo-labels."""
-    y = tf.zeros((gt.num_components, 0), dtype=tf.int32)
-    return gt, y
+    return None, tf.zeros((inputs.num_components, 0), dtype=tf.int32)
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     def loss_fn(_, x):
@@ -211,14 +189,12 @@ class VicRegTask(_ConstrastiveLossTask):
       seed: Optional[int] = None,
       sim_weight: Union[tf.Tensor, float] = 25.,
       var_weight: Union[tf.Tensor, float] = 25.,
-      cov_weight: Union[tf.Tensor, float] = 1.,
-  ):
+      cov_weight: Union[tf.Tensor, float] = 1.):
     super().__init__(
         node_set_name,
         feature_name=feature_name,
         representations_layer_name=representations_layer_name,
-        seed=seed,
-    )
+        seed=seed)
     self._sim_weight = sim_weight
     self._var_weight = var_weight
     self._cov_weight = cov_weight
@@ -227,11 +203,10 @@ class VicRegTask(_ConstrastiveLossTask):
     return tf.keras.layers.Layer()
 
   def preprocess(
-      self, gt: tfgnn.GraphTensor
-  ) -> tuple[tfgnn.GraphTensor, tfgnn.Field]:
+      self,
+      inputs: GraphTensor) -> Tuple[Optional[GraphTensor], Field]:
     """Creates unused pseudo-labels."""
-    y = tf.zeros((gt.num_components, 0), dtype=tf.int32)
-    return gt, y
+    return None, tf.zeros((inputs.num_components, 0), dtype=tf.int32)
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     def loss_fn(_, x):

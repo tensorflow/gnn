@@ -29,7 +29,7 @@ context {
   features {
     key: "label"
     value: {
-      dtype: DT_FLOAT
+      dtype: DT_INT64
       shape { dim { size: 1 } }
     }
   }
@@ -56,13 +56,19 @@ edge_sets {
 """ % tfgnn.HIDDEN_STATE
 
 
+def label_fn(inputs: tfgnn.GraphTensor) -> tfgnn.Field:
+  return inputs.context["label"]
+
+
 class Regression(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters([
       dict(
           testcase_name="GraphMeanAbsoluteError",
           schema=SCHEMA,
-          task=regression.GraphMeanAbsoluteError(node_set_name="nodes"),
+          task=regression.GraphMeanAbsoluteError(
+              "nodes",
+              label_fn=label_fn),
           y_true=[[.8191]],
           expected_y_pred=[[0.06039321]],
           expected_loss=[0.7587068]),
@@ -70,14 +76,17 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           testcase_name="GraphMeanAbsolutePercentageError",
           schema=SCHEMA,
           task=regression.GraphMeanAbsolutePercentageError(
-              node_set_name="nodes"),
+              "nodes",
+              label_fn=label_fn),
           y_true=[[.8191]],
           expected_y_pred=[[0.06039321]],
           expected_loss=[92.626884]),
       dict(
           testcase_name="GraphMeanSquaredError",
           schema=SCHEMA,
-          task=regression.GraphMeanSquaredError(node_set_name="nodes"),
+          task=regression.GraphMeanSquaredError(
+              "nodes",
+              label_fn=label_fn),
           y_true=[[.8191]],
           expected_y_pred=[[0.06039321]],
           expected_loss=[0.575636]),
@@ -85,8 +94,9 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           testcase_name="GraphMeanSquaredLogarithmicError",
           schema=SCHEMA,
           task=regression.GraphMeanSquaredLogarithmicError(
-              node_set_name="nodes",
-              units=3),
+              "nodes",
+              units=3,
+              label_fn=label_fn),
           y_true=[[-0.407, -0.8191, 0.1634]],
           expected_y_pred=[[-0.4915728, -0.6728454, -0.8126122]],
           expected_loss=[0.00763526]),
@@ -94,15 +104,18 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           testcase_name="GraphMeanSquaredLogScaledError",
           schema=SCHEMA,
           task=regression.GraphMeanSquaredLogScaledError(
-              node_set_name="nodes",
-              units=2),
+              "nodes",
+              units=2,
+              label_fn=label_fn),
           y_true=[[0.8208, 0.9]],
           expected_y_pred=[[0.74617755, -0.8193765]],
           expected_loss=[839.05788329]),
       dict(
           testcase_name="RootNodeMeanAbsoluteError",
           schema=SCHEMA,
-          task=regression.RootNodeMeanAbsoluteError(node_set_name="nodes"),
+          task=regression.RootNodeMeanAbsoluteError(
+              "nodes",
+              label_fn=label_fn),
           y_true=[[.8191]],
           expected_y_pred=[[-0.01075031]],
           expected_loss=[0.8298503]),
@@ -110,14 +123,17 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           testcase_name="RootNodeMeanAbsolutePercentageError",
           schema=SCHEMA,
           task=regression.RootNodeMeanAbsolutePercentageError(
-              node_set_name="nodes"),
+              "nodes",
+              label_fn=label_fn),
           y_true=[[.8191]],
           expected_y_pred=[[-0.01075031]],
           expected_loss=[101.31245]),
       dict(
           testcase_name="RootNodeMeanSquaredError",
           schema=SCHEMA,
-          task=regression.RootNodeMeanSquaredError(node_set_name="nodes"),
+          task=regression.RootNodeMeanSquaredError(
+              "nodes",
+              label_fn=label_fn),
           y_true=[[.8191]],
           expected_y_pred=[[-0.01075031]],
           expected_loss=[0.68865156]),
@@ -125,8 +141,9 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           testcase_name="RootNodeMeanSquaredLogarithmicError",
           schema=SCHEMA,
           task=regression.RootNodeMeanSquaredLogarithmicError(
-              node_set_name="nodes",
-              units=3),
+              "nodes",
+              units=3,
+              label_fn=label_fn),
           y_true=[[-0.407, -0.8191, 0.1634]],
           expected_y_pred=[[-0.24064127, -0.6996877, -0.6812314]],
           expected_loss=[0.00763526]),
@@ -134,8 +151,9 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           testcase_name="RootNodeMeanSquaredLogScaledError",
           schema=SCHEMA,
           task=regression.RootNodeMeanSquaredLogScaledError(
-              node_set_name="nodes",
-              units=2),
+              "nodes",
+              units=2,
+              label_fn=label_fn),
           y_true=[[0.8208, 0.9]],
           expected_y_pred=[[0.7054771, -1.0065091]],
           expected_loss=[839.09634471]),

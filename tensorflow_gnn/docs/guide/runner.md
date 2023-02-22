@@ -39,17 +39,16 @@ train_ds_provider = runner.TFRecordDatasetProvider(file_pattern="...")
 # len(valid_ds_provider.get_dataset(...)) == 1634.
 valid_ds_provider = runner.TFRecordDatasetProvider(file_pattern="...")
 
-# Extract labels from the graph context, importantly: this lambda matches
-# the `GraphTensorProcessorFn` protocol (see below).
-extract_labels = lambda gt: gt, gt.context["label"]
-
 # Use `embedding` feature as the only node feature.
 initial_node_states = lambda node_set, node_set_name: node_set["embedding"]
 # This `tf.keras.layers.Layer` matches the `GraphTensorProcessorFn` protocol.
 map_features = tfgnn.keras.layers.MapFeatures(node_sets_fn=initial_node_states)
 
+# Extract labels from the graph context.
+extract_labels = lambda inputs: inputs.context["label"]
+
 # Binary classification by the root node.
-task = runner.RootNodeBinaryClassification(node_set_name="nodes")
+task = runner.RootNodeBinaryClassification("nodes", label_fn=extract_labels)
 
 trainer = runner.KerasTrainer(
     strategy=tf.distribute.TPUStrategy(...),
@@ -258,7 +257,7 @@ example, a custom training loop with look ahead gradients.
 ```python
 class GraphTensorProcessorFn(Protocol):
 
-  def __call__(self, gt: tfgnn.GraphTensor) -> Union[tfgnn.GraphTensor, Tuple[tfgnn.GraphTensor, tfgnn.Field]]:
+  def __call__(self, inputs: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
     raise NotImplementedError()
 ```
 
@@ -271,10 +270,7 @@ dataset. Importantly: all `GraphTensorProcessorFn` are applied in a
 `tf.data.Dataset.map` call (and correspondingly executed on CPU). All
 `GraphTensorProcessorFn` are collected in a `tf.keras.Model` specifically for
 feature processing. The final model exported by [orchestration](#orchestration)
-will contain both the feature processing model and the client GNN. Any
-`GraphTensorProcessorFn` may return a processed `GraphTensor` or a processed
-`GraphTensor` *and* `Field` (e.g., where the field is used as a supervision
-target).
+will contain both the feature processing model and the client GNN.
 
 TIP: A `tf.keras.Model` or `tf.keras.layers.Layer`, whose inputs and outputs are
 scalar `GraphTensor`, matches the `GraphTensorProcessorFn` protocol (and may be

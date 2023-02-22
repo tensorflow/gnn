@@ -20,6 +20,7 @@ from tensorflow_gnn.runner.tasks import classification
 from tensorflow_gnn.runner.tasks import regression
 from tensorflow_gnn.runner.trainers import keras_fit
 from tensorflow_gnn.runner.utils import attribution
+from tensorflow_gnn.runner.utils import label_fns
 from tensorflow_gnn.runner.utils import model as model_utils
 from tensorflow_gnn.runner.utils import model_dir
 from tensorflow_gnn.runner.utils import model_export
@@ -42,6 +43,10 @@ GraphTensorProcessorFn = interfaces.GraphTensorProcessorFn
 ModelExporter = interfaces.ModelExporter
 Trainer = interfaces.Trainer
 Task = interfaces.Task
+
+# Label fns
+ContextLabelFn = label_fns.ContextLabelFn
+RootNodeLabelFn = label_fns.RootNodeLabelFn
 
 # Model directory
 incrementing_model_dir = model_dir.incrementing_model_dir

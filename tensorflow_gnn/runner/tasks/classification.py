@@ -14,13 +14,14 @@
 # ==============================================================================
 """Classification tasks."""
 import abc
-from typing import Any, Callable, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Mapping, Optional, Sequence
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.runner import interfaces
 
-Tensor = Union[tf.Tensor, tf.RaggedTensor]
+Field = tfgnn.Field
+GraphTensor = tfgnn.GraphTensor
 
 
 class _FromLogitsMixIn(tf.keras.metrics.Metric):
@@ -94,11 +95,12 @@ class _Classification(interfaces.Task):
   `metrics`, usually by inheriting from the classes below.
   """
 
-  def __init__(self, units: int):
+  def __init__(self, units: int, label_fn: Callable[[GraphTensor], Field]):
     self._units = units
+    self._label_fn = label_fn
 
   @abc.abstractmethod
-  def gather_activations(self, gt: tfgnn.GraphTensor) ->  Tensor:
+  def gather_activations(self, inputs: GraphTensor) -> Field:
     raise NotImplementedError()
 
   def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
@@ -119,9 +121,10 @@ class _Classification(interfaces.Task):
         name="logits")(activations)  # Name seen in SignatureDef.
     return tf.keras.Model(model.input, logits)
 
-  @abc.abstractmethod
-  def preprocess(self, gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
-    raise NotImplementedError()
+  def preprocess(
+      self,
+      inputs: GraphTensor) -> tuple[Optional[GraphTensor], Field]:
+    return None, self._label_fn(inputs)
 
   @abc.abstractmethod
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
@@ -135,11 +138,12 @@ class _Classification(interfaces.Task):
 class _BinaryClassification(_Classification):
   """Binary classification."""
 
-  def __init__(self, *args, units: int = 1, **kwargs):
-    super().__init__(units, *args, **kwargs)
-
-  def preprocess(self, gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
-    return gt
+  def __init__(
+      self,
+      units: int = 1,
+      *,
+      label_fn: Callable[[GraphTensor], Field]):
+    super().__init__(units, label_fn)
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     return (tf.keras.losses.BinaryCrossentropy(from_logits=True),)
@@ -157,25 +161,22 @@ class _MulticlassClassification(_Classification):
   """Multiclass classification."""
 
   def __init__(self,
-               *args,
+               *,
                num_classes: Optional[int] = None,
                class_names: Optional[Sequence[str]] = None,
                per_class_statistics: bool = False,
-               **kwargs):  # pylint: disable=useless-super-delegation
+               label_fn: Callable[[GraphTensor], Field]):
     if (num_classes is None) == (class_names is None):
       raise ValueError(
           "Exactly one of `num_classes` or `class_names` must be specified")
     if num_classes is None:
       num_classes = len(class_names)
-    super().__init__(num_classes, *args, **kwargs)
+    super().__init__(num_classes, label_fn)
     if class_names is None:
       self._class_names = [f"class_{i}" for i in range(num_classes)]
     else:
       self._class_names = class_names
     self._per_class_statistics = per_class_statistics
-
-  def preprocess(self, gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
-    return gt
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     """Sparse categorical crossentropy loss."""
@@ -204,8 +205,8 @@ class _GraphClassification(_Classification):
   """Classification by the label provided in the graph context."""
 
   def __init__(self,
-               *args,
                node_set_name: str,
+               *,
                state_name: str = tfgnn.HIDDEN_STATE,
                reduce_type: str = "mean",
                **kwargs):
@@ -217,32 +218,31 @@ class _GraphClassification(_Classification):
     Labels are expected to be sparse, i.e.: scalars.
 
     Args:
-      *args: Additional positional arguments.
       node_set_name: Node set to pool representations from.
       state_name: The feature name for node activations
         (typically: tfgnn.HIDDEN_STATE).
       reduce_type: The context pooling reduction type.
       **kwargs: Additional keyword arguments.
     """
-    super().__init__(*args, **kwargs)
+    super().__init__(**kwargs)
     self._node_set_name = node_set_name
     self._state_name = state_name
     self._reduce_type = reduce_type
 
-  def gather_activations(self, gt: tfgnn.GraphTensor) ->  Tensor:
+  def gather_activations(self, inputs: GraphTensor) -> Field:
     return tfgnn.keras.layers.Pool(
         tfgnn.CONTEXT,
         self._reduce_type,
         node_set_name=self._node_set_name,
-        feature_name=self._state_name)(gt)
+        feature_name=self._state_name)(inputs)
 
 
 class _RootNodeClassification(_Classification):
   """Classification by root node label."""
 
   def __init__(self,
-               *args,
                node_set_name: str,
+               *,
                state_name: str = tfgnn.HIDDEN_STATE,
                **kwargs):
     """Classification by root node label.
@@ -257,21 +257,20 @@ class _RootNodeClassification(_Classification):
     Any labels are expected to be sparse, i.e.: scalars.
 
     Args:
-      *args: Additional positional arguments.
       node_set_name: The node set containing the root node.
       state_name: The feature name for activations
         (typically: tfgnn.HIDDEN_STATE).
       **kwargs: Additional keyword arguments.
     """
-    super().__init__(*args, **kwargs)
+    super().__init__(**kwargs)
     self._node_set_name = node_set_name
     self._state_name = state_name
 
-  def gather_activations(self, gt: tfgnn.GraphTensor) ->  Tensor:
+  def gather_activations(self, inputs: GraphTensor) -> Field:
     """Gather activations from root nodes."""
     return tfgnn.keras.layers.ReadoutFirstNode(
         node_set_name=self._node_set_name,
-        feature_name=self._state_name)(gt)
+        feature_name=self._state_name)(inputs)
 
 
 class GraphBinaryClassification(_GraphClassification, _BinaryClassification):

@@ -18,6 +18,17 @@ pytype_strict_library(
 )
 
 pytype_strict_library(
+    name = "label_fns",
+    srcs = ["label_fns.py"],
+    srcs_version = "PY3",
+    visibility = ["//tensorflow_gnn/runner:__pkg__"],
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+    ],
+)
+
+pytype_strict_library(
     name = "model",
     srcs = ["model.py"],
     srcs_version = "PY3",

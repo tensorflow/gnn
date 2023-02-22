@@ -25,6 +25,15 @@ as_tensor = tf.convert_to_tensor
 as_ragged = tf.ragged.constant
 
 SCHEMA = """
+context {
+features {
+  key: "label"
+  value {
+    dtype: DT_INT64
+      shape { dim { size: 1 } }
+    }
+  }
+}
 node_sets {
   key: "nodes"
   value {
@@ -47,13 +56,19 @@ edge_sets {
 """ % tfgnn.HIDDEN_STATE
 
 
+def label_fn(inputs: tfgnn.GraphTensor) -> tfgnn.Field:
+  return inputs.context["label"]
+
+
 class Classification(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters([
       dict(
           testcase_name="GraphBinaryClassification",
           schema=SCHEMA,
-          task=classification.GraphBinaryClassification(node_set_name="nodes"),
+          task=classification.GraphBinaryClassification(
+              "nodes",
+              label_fn=label_fn),
           y_true=[[1]],
           expected_y_pred=[[-0.4159315]],
           expected_loss=[0.9225837]),
@@ -61,7 +76,9 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
           testcase_name="GraphMulticlassClassification",
           schema=SCHEMA,
           task=classification.GraphMulticlassClassification(
-              num_classes=4, node_set_name="nodes"),
+              "nodes",
+              num_classes=4,
+              label_fn=label_fn),
           y_true=[3],
           expected_y_pred=[[0.35868323, -0.4112632, -0.23154753, 0.20909603]],
           expected_loss=[1.2067872]),
@@ -69,7 +86,8 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
           testcase_name="RootNodeBinaryClassification",
           schema=SCHEMA,
           task=classification.RootNodeBinaryClassification(
-              node_set_name="nodes"),
+              "nodes",
+              label_fn=label_fn),
           y_true=[[1]],
           expected_y_pred=[[-0.3450081]],
           expected_loss=[0.8804569]),
@@ -77,7 +95,9 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
           testcase_name="RootNodeMulticlassClassification",
           schema=SCHEMA,
           task=classification.RootNodeMulticlassClassification(
-              num_classes=3, node_set_name="nodes"),
+              "nodes",
+              num_classes=3,
+              label_fn=label_fn),
           y_true=[2],
           expected_y_pred=[[-0.4718209, 0.04619305, -0.5249821]],
           expected_loss=[1.3415444]),
@@ -115,48 +135,62 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
       dict(
           testcase_name="GraphBinaryClassification",
           schema=SCHEMA,
-          task=classification.GraphBinaryClassification(node_set_name="nodes"),
+          task=classification.GraphBinaryClassification(
+              "nodes",
+              label_fn=label_fn),
           batch_size=1),
       dict(
           testcase_name="GraphMulticlassClassification",
           schema=SCHEMA,
           task=classification.GraphMulticlassClassification(
-              num_classes=4, node_set_name="nodes"),
+              "nodes",
+              num_classes=4,
+              label_fn=label_fn),
           batch_size=1),
       dict(
           testcase_name="RootNodeBinaryClassification",
           schema=SCHEMA,
           task=classification.RootNodeBinaryClassification(
-              node_set_name="nodes"),
+              "nodes",
+              label_fn=label_fn),
           batch_size=1),
       dict(
           testcase_name="RootNodeMulticlassClassification",
           schema=SCHEMA,
           task=classification.RootNodeMulticlassClassification(
-              num_classes=3, node_set_name="nodes"),
+              "nodes",
+              num_classes=3,
+              label_fn=label_fn),
           batch_size=1),
       dict(
           testcase_name="GraphBinaryClassificationBatchSize2",
           schema=SCHEMA,
-          task=classification.GraphBinaryClassification(node_set_name="nodes"),
+          task=classification.GraphBinaryClassification(
+              "nodes",
+              label_fn=label_fn),
           batch_size=2),
       dict(
           testcase_name="GraphMulticlassClassificationBatchSize2",
           schema=SCHEMA,
           task=classification.GraphMulticlassClassification(
-              num_classes=4, node_set_name="nodes"),
+              "nodes",
+              num_classes=4,
+              label_fn=label_fn),
           batch_size=2),
       dict(
           testcase_name="RootNodeBinaryClassificationBatchSize2",
           schema=SCHEMA,
           task=classification.RootNodeBinaryClassification(
-              node_set_name="nodes"),
+              "nodes",
+              label_fn=label_fn),
           batch_size=2),
       dict(
           testcase_name="RootNodeMulticlassClassificationBatchSize2",
           schema=SCHEMA,
           task=classification.RootNodeMulticlassClassification(
-              num_classes=3, node_set_name="nodes"),
+              "nodes",
+              num_classes=3,
+              label_fn=label_fn),
           batch_size=2),
   ])
   def test_fit(self, schema: str, task: classification._Classification,
@@ -184,7 +218,10 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
 
   def test_per_class_metrics_with_num_classes(self):
     task = classification.GraphMulticlassClassification(
-        num_classes=5, node_set_name="nodes", per_class_statistics=True)
+        "nodes",
+        num_classes=5,
+        per_class_statistics=True,
+        label_fn=label_fn)
     metric_names = [metric.name for metric in task.metrics()]
     self.assertContainsSubset([
         "precision_for_class_0", "precision_for_class_1",
@@ -195,9 +232,10 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
 
   def test_per_class_metrics_with_class_names(self):
     task = classification.RootNodeMulticlassClassification(
-        node_set_name="nodes",
+        "nodes",
         per_class_statistics=True,
-        class_names=["foo", "bar", "baz"])
+        class_names=["foo", "bar", "baz"],
+        label_fn=label_fn)
     metric_names = [metric.name for metric in task.metrics()]
     self.assertContainsSubset([
         "precision_for_foo", "precision_for_bar", "precision_for_baz",
@@ -209,13 +247,16 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
         ValueError,
         r"Exactly one of `num_classes` or `class_names` must be specified"):
       classification.GraphMulticlassClassification(
-          num_classes=5, node_set_name="nodes", class_names=["foo", "bar"])
+          "nodes",
+          num_classes=5,
+          class_names=["foo", "bar"],
+          label_fn=label_fn)
 
   def test_invalid_no_num_classes_or_class_names(self):
     with self.assertRaisesRegex(
         ValueError,
         r"Exactly one of `num_classes` or `class_names` must be specified"):
-      classification.GraphMulticlassClassification(node_set_name="nodes")
+      classification.GraphMulticlassClassification("nodes", label_fn=label_fn)
 
 if __name__ == "__main__":
   tf.test.main()

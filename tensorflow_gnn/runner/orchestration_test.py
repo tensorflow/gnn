@@ -23,7 +23,7 @@ from tensorflow_gnn.models import vanilla_mpnn
 from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.tasks import classification
 from tensorflow_gnn.runner.trainers import keras_fit
-from tensorflow_gnn.runner.utils import model_templates
+from tensorflow_gnn.runner.utils import label_fns
 
 _LABELS = tuple(range(32))
 
@@ -128,25 +128,26 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
       gtspec: tfgnn.GraphTensorSpec,
       ds_provider: orchestration.DatasetProvider,
       examples: Sequence[str]):
-    def extract_labels(gt):
-      return gt, gt.context["label"]
 
     def node_sets_fn(node_set, node_set_name):
       del node_set_name
       return node_set["features"]
 
-    model_fn = model_templates.ModelFromInitAndUpdates(
-        init=tfgnn.keras.layers.MapFeatures(node_sets_fn=node_sets_fn),
-        updates=[vanilla_mpnn.VanillaMPNNGraphUpdate(
-            units=1,
-            message_dim=2,
-            receiver_tag=tfgnn.SOURCE,
-            l2_regularization=5e-4,
-            dropout_rate=0.1)])
+    def model_fn(gtspec):
+      inputs = x = tf.keras.layers.Input(type_spec=gtspec)
+      x = tfgnn.keras.layers.MapFeatures(node_sets_fn=node_sets_fn)(x)
+      outputs = vanilla_mpnn.VanillaMPNNGraphUpdate(
+          units=1,
+          message_dim=2,
+          receiver_tag=tfgnn.SOURCE,
+          l2_regularization=5e-4,
+          dropout_rate=0.1)(x)
+      return tf.keras.Model(inputs, outputs)
 
     task = classification.RootNodeMulticlassClassification(
-        node_set_name="node",
-        num_classes=len(_LABELS))
+        "node",
+        num_classes=len(_LABELS),
+        label_fn=label_fns.ContextLabelFn("label"))
 
     model_dir = self.create_tempdir()
 
@@ -167,7 +168,6 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
         gtspec=gtspec,
         drop_remainder=False,
         global_batch_size=4,
-        feature_processors=(extract_labels,),
         valid_ds_provider=ds_provider)
 
     saved_model = tf.saved_model.load(os.path.join(model_dir, "export"))

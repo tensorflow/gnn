@@ -32,7 +32,9 @@ from tensorflow_gnn.runner.utils import model_templates
 from tensorflow_gnn.runner.utils import padding
 
 _LABELS = tuple(range(32))
+
 _SAMPLE_DICT = immutabledict({(tfgnn.CONTEXT, None, "label"): _LABELS})
+
 _SCHEMA = """
   context {
     features {
@@ -63,8 +65,6 @@ _SCHEMA = """
   }
 """
 
-TaskAndProcessor = tuple[interfaces.Task, interfaces.GraphTensorProcessorFn]
-
 
 def _all_eager_strategy_combinations():
   strategies = [
@@ -90,55 +90,68 @@ def _all_eager_strategy_combinations():
   return tftest.combinations.combine(distribution=strategies)
 
 
-def _all_task_and_processors_combinations():
+def _all_task_combinations():
 
-  def extract_binary_labels(gt):
-    return gt, gt.context["label"] % 2
+  def extract_binary_labels(inputs):
+    return inputs.context["label"] % 2
 
-  def extract_multiclass_labels(gt):
-    return gt, gt.context["label"]
+  def extract_multiclass_labels(inputs):
+    return inputs.context["label"]
 
-  def extract_regression_labels(gt):
-    return gt, tf.ones_like(gt.context["label"], dtype=tf.float32)
+  def extract_regression_labels(inputs):
+    return tf.ones_like(inputs.context["label"], dtype=tf.float32)
 
-  task_and_processor = {
+  tasks = [
       # Root node classification
-      classification.RootNodeBinaryClassification(node_set_name="node"):
-          extract_binary_labels,
+      classification.RootNodeBinaryClassification(
+          "node",
+          label_fn=extract_binary_labels),
       classification.RootNodeMulticlassClassification(
-          node_set_name="node",
-          num_classes=len(_LABELS)): extract_multiclass_labels,
+          "node",
+          num_classes=len(_LABELS),
+          label_fn=extract_multiclass_labels),
       # Graph classification
-      classification.GraphBinaryClassification(node_set_name="node"):
-          extract_binary_labels,
+      classification.GraphBinaryClassification(
+          "node",
+          label_fn=extract_binary_labels),
       classification.GraphMulticlassClassification(
-          node_set_name="node",
-          num_classes=len(_LABELS)): extract_multiclass_labels,
+          "node",
+          num_classes=len(_LABELS),
+          label_fn=extract_multiclass_labels),
       # Root node regression
-      regression.RootNodeMeanAbsoluteError(node_set_name="node"):
-          extract_regression_labels,
-      regression.RootNodeMeanAbsolutePercentageError(node_set_name="node"):
-          extract_regression_labels,
-      regression.RootNodeMeanSquaredError(node_set_name="node"):
-          extract_regression_labels,
-      regression.RootNodeMeanSquaredLogarithmicError(node_set_name="node"):
-          extract_regression_labels,
-      regression.RootNodeMeanSquaredLogScaledError(node_set_name="node"):
-          extract_regression_labels,
+      regression.RootNodeMeanAbsoluteError(
+          "node",
+          label_fn=extract_regression_labels),
+      regression.RootNodeMeanAbsolutePercentageError(
+          "node",
+          label_fn=extract_regression_labels),
+      regression.RootNodeMeanSquaredError(
+          "node",
+          label_fn=extract_regression_labels),
+      regression.RootNodeMeanSquaredLogarithmicError(
+          "node",
+          label_fn=extract_regression_labels),
+      regression.RootNodeMeanSquaredLogScaledError(
+          "node",
+          label_fn=extract_regression_labels),
       # Graph regression
-      regression.GraphMeanAbsoluteError(node_set_name="node"):
-          extract_regression_labels,
-      regression.GraphMeanAbsolutePercentageError(node_set_name="node"):
-          extract_regression_labels,
-      regression.GraphMeanSquaredError(node_set_name="node"):
-          extract_regression_labels,
-      regression.GraphMeanSquaredLogarithmicError(node_set_name="node"):
-          extract_regression_labels,
-      regression.GraphMeanSquaredLogScaledError(node_set_name="node"):
-          extract_regression_labels,
-  }
-  items = list(task_and_processor.items())
-  return tftest.combinations.combine(task_and_processor=items)
+      regression.GraphMeanAbsoluteError(
+          "node",
+          label_fn=extract_regression_labels),
+      regression.GraphMeanAbsolutePercentageError(
+          "node",
+          label_fn=extract_regression_labels),
+      regression.GraphMeanSquaredError(
+          "node",
+          label_fn=extract_regression_labels),
+      regression.GraphMeanSquaredLogarithmicError(
+          "node",
+          label_fn=extract_regression_labels),
+      regression.GraphMeanSquaredLogScaledError(
+          "node",
+          label_fn=extract_regression_labels),
+  ]
+  return tftest.combinations.combine(task=tasks)
 
 
 class DatasetProvider(interfaces.DatasetProvider):
@@ -155,13 +168,13 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
   @tfdistribute.combinations.generate(
       tftest.combinations.times(
           _all_eager_strategy_combinations(),
-          _all_task_and_processors_combinations()
+          _all_task_combinations()
       )
   )
   def test_run(
       self,
       distribution: tf.distribute.Strategy,
-      task_and_processor: TaskAndProcessor):
+      task: interfaces.Task):
     schema = tfgnn.parse_schema(_SCHEMA)
     gtspec = tfgnn.create_graph_spec_from_schema_pb(schema)
     gt = tfgnn.write_example(tfgnn.random_graph_tensor(
@@ -199,8 +212,6 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
       train_padding = None
       valid_padding = None
 
-    task, processor = task_and_processor
-
     orchestration.run(
         train_ds_provider=ds_provider,
         train_padding=train_padding,
@@ -211,7 +222,6 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
         task=task,
         gtspec=gtspec,
         global_batch_size=2,
-        feature_processors=(processor,),
         valid_ds_provider=ds_provider,
         valid_padding=valid_padding)
 

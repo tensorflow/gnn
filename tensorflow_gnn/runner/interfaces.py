@@ -15,7 +15,7 @@
 """Interfaces for the runner entry point."""
 import abc
 import sys
-from typing import Callable, Optional, Sequence, Tuple, Union
+from typing import Callable, Optional, Sequence, Tuple
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -29,8 +29,8 @@ else:
   from typing_extensions import runtime_checkable
 # pylint:enable=g-import-not-at-top
 
+Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
-GraphTensorAndField = Tuple[GraphTensor, tfgnn.Field]
 SizeConstraints = tfgnn.SizeConstraints
 
 
@@ -60,17 +60,8 @@ class GraphTensorPadding(abc.ABC):
 class GraphTensorProcessorFn(Protocol):
   """A class for `GraphTensor` processing."""
 
-  def __call__(
-      self,
-      gt: GraphTensor) -> Union[GraphTensor, GraphTensorAndField]:
-    """Processes a `GraphTensor` with optional `Field` extraction.
-
-    Args:
-      gt: A `GraphTensor` for processing.
-
-    Returns:
-      A processed `GraphTensor` or a processed `GraphTensor` and `Field.`
-    """
+  def __call__(self, inputs: GraphTensor) -> GraphTensor:
+    """Processes a `GraphTensor`."""
     raise NotImplementedError()
 
 
@@ -137,8 +128,23 @@ class Task(abc.ABC):
   @abc.abstractmethod
   def preprocess(
       self,
-      gt: GraphTensor) -> Union[GraphTensor, GraphTensorAndField]:
-    """Preprocess a scalar (after `merge_batch_to_components`) `GraphTensor`."""
+      inputs: GraphTensor) -> Tuple[Optional[GraphTensor], Field]:
+    """Preprocess a scalar (after `merge_batch_to_components`) `GraphTensor`.
+
+    `preprocess` returns labels and an (optionally) mutated `GraphTensor`: any
+    returned `GraphTensor` must have a spec matching the input `GraphTensor`.
+    `preprocess` may return `None` for the output `GraphTensor` for the identity
+    transformation.
+
+    Args:
+      inputs: A `GraphTensor` for processing.
+
+    Returns:
+      A processed `GraphTensor` and `Field` (to be used as labels). Optionally,
+      the returned `GraphTensor` may be `None` for the identity transformation.
+      The returned `GraphTensor` spec must match the spec of the input
+      `GraphTensor`.
+    """
     raise NotImplementedError()
 
   @abc.abstractmethod
