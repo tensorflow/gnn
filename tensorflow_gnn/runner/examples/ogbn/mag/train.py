@@ -232,17 +232,9 @@ def main(
   gtspec = tfgnn.create_graph_spec_from_schema_pb(graph_schema)
 
   def extract_labels(graphtensor: tfgnn.GraphTensor):
-    labels = tfgnn.keras.layers.ReadoutFirstNode(
+    return tfgnn.keras.layers.ReadoutFirstNode(
         node_set_name="paper",
         feature_name="labels")(graphtensor)
-    # Need labels for masking
-    if not _MASKED_LABELS.value:
-      logging.info("Removing graph labels.")
-      graphtensor = graphtensor.remove_features(node_sets={"paper": ["labels"]})
-    else:
-      logging.info("Not removing graph labels yet for masking later.")
-      logging.warning("Make sure that label information is not propagated.")
-    return graphtensor, labels
 
   def drop_all_features(_, **unused_kwargs):
     return {}
@@ -265,6 +257,7 @@ def main(
           node_set, label_feature_name="labels", mask_value=_NUM_CLASSES,
           extra_label_mask=extra_label_mask)
       return {"feat": node_set["feat"], "masked_labels": masked_labels}
+    # Otherwise: omit labels.
     return {"feat": node_set["feat"]}
 
   def  process_node_features(node_set: tfgnn.NodeSet, node_set_name: str):
@@ -324,7 +317,8 @@ def main(
   task_node_set_name = "paper"
   task = runner.RootNodeMulticlassClassification(
       node_set_name=task_node_set_name,
-      num_classes=_NUM_CLASSES)
+      num_classes=_NUM_CLASSES,
+      label_fn=extract_labels)
 
   def model_fn(gtspec: tfgnn.GraphTensorSpec):
     model_inputs = tf.keras.layers.Input(type_spec=gtspec)
@@ -400,7 +394,6 @@ def main(
       gtspec=gtspec,
       global_batch_size=global_batch_size,
       feature_processors=[
-          extract_labels,  # Extract any labels first!
           tfgnn.keras.layers.MapFeatures(
               context_fn=drop_all_features,
               node_sets_fn=process_node_features,
