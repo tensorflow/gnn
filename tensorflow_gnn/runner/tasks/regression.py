@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Regression tasks."""
+from __future__ import annotations
+
 import abc
 from typing import Callable, Optional, Sequence
 

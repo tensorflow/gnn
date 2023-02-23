@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Classification tasks."""
+from __future__ import annotations
+
 import abc
 from typing import Any, Callable, Mapping, Optional, Sequence
 
