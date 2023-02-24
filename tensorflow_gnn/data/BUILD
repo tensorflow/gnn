@@ -4,8 +4,6 @@ licenses(["notice"])
 
 package(default_visibility = ["//visibility:public"])
 
-GOOGLE_INTERNAL_UNIGRAPH_DEPENDENCIES = []
-
 pytype_strict_library(
     name = "unigraph",
     srcs = ["unigraph.py"],
@@ -16,7 +14,7 @@ pytype_strict_library(
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
         "//tensorflow_gnn/proto:graph_schema_py_proto",
-    ] + GOOGLE_INTERNAL_UNIGRAPH_DEPENDENCIES,
+    ],
 )
 
 pytype_strict_contrib_test(
