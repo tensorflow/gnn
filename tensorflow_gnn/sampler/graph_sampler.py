@@ -42,7 +42,6 @@ from tensorflow_gnn.sampler import sampling_spec_pb2
 from tensorflow_gnn.sampler import subgraph
 
 from google.protobuf import text_format
-# Placeholder for Google-internal runner import
 
 _DIRECT_RUNNER = "DirectRunner"
 _DATAFLOW_RUNNER = "DataflowRunner"

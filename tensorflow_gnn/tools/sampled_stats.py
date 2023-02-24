@@ -29,9 +29,6 @@ import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.tools import sampled_stats_pb2 as sspb
 
-# Placeholder for Google-internal runner import
-# Placeholder for Google-internal sorted string file format pipeline import
-
 
 def define_flags():
   """Define commandline flags."""
