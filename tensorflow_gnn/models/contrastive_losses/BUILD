@@ -56,12 +56,33 @@ tf_py_test(
 )
 
 pytype_strict_library(
+    name = "metrics",
+    srcs = ["metrics.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+tf_py_test(
+    name = "metrics_test",
+    srcs = ["metrics_test.py"],
+    python_version = "PY3",
+    srcs_version = "PY3",
+    deps = [
+        ":metrics",
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+pytype_strict_library(
     name = "tasks",
     srcs = ["tasks.py"],
     srcs_version = "PY3",
     deps = [
         ":layers",
         ":losses",
+        ":metrics",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
         "//tensorflow_gnn/models/contrastive_losses/deep_graph_infomax:layers",

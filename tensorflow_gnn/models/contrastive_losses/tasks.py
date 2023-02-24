@@ -17,13 +17,15 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Callable, Sequence
-from typing import Optional, Tuple, Union
+import functools
+from typing import Optional, Union, Tuple
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn import runner
 from tensorflow_gnn.models.contrastive_losses import layers as perturbation_layers
 from tensorflow_gnn.models.contrastive_losses import losses
+from tensorflow_gnn.models.contrastive_losses import metrics
 from tensorflow_gnn.models.contrastive_losses.deep_graph_infomax import layers as dgi_layers
 
 Field = tfgnn.Field
@@ -137,6 +139,19 @@ class DeepGraphInfomaxTask(_ConstrastiveLossTask):
     )
 
 
+def _unstack_y_pred(
+    metric_fn: Callable[[tf.Tensor], tf.Tensor]
+) -> Callable[[tf.Tensor, tf.Tensor], tf.Tensor]:
+  """Wraps a `metric_fn` to operate on clean representations only."""
+
+  @functools.wraps(metric_fn)
+  def wrapper_fn(_, y_pred):
+    representations_clean, _ = tf.unstack(y_pred, axis=1)
+    return metric_fn(representations_clean)
+
+  return wrapper_fn
+
+
 class BarlowTwinsTask(_ConstrastiveLossTask):
   """A Barlow Twins (BT) Task."""
 
@@ -175,6 +190,9 @@ class BarlowTwinsTask(_ConstrastiveLossTask):
       )
 
     return (loss_fn,)
+
+  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+    return (_unstack_y_pred(metrics.self_clustering),)
 
 
 class VicRegTask(_ConstrastiveLossTask):
@@ -218,3 +236,6 @@ class VicRegTask(_ConstrastiveLossTask):
       )
 
     return (loss_fn,)
+
+  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+    return (_unstack_y_pred(metrics.self_clustering),)

@@ -256,6 +256,17 @@ class BarlowTwinsTaskTest(tf.test.TestCase):
     _, pseudolabels = self.task.preprocess(gt)
     self.assertAllEqual(pseudolabels, ((),))
 
+  def test_metrics(self):
+    adapted = self.task.adapt(gnn())
+    gt = random_graph_tensor()
+    _, fake_y = self.task.preprocess(gt)
+    logits = adapted(gt)
+    metric_fns = self.task.metrics()
+    self.assertLen(metric_fns, 1)
+    for metric_fn in metric_fns:
+      metric_value = metric_fn(fake_y, logits)
+      self.assertEqual(metric_value.shape, ())
+
   def test_loss_e2e(self):
     # A separate task here to not have a trivial case of the loss with BN
     task = tasks.BarlowTwinsTask("node", seed=8191, normalize_batch=False)
@@ -295,6 +306,17 @@ class VicRegTaskTest(tf.test.TestCase):
     gt = random_graph_tensor()
     _, pseudolabels = self.task.preprocess(gt)
     self.assertAllEqual(pseudolabels, ((),))
+
+  def test_metrics(self):
+    adapted = self.task.adapt(gnn())
+    gt = random_graph_tensor()
+    _, fake_y = self.task.preprocess(gt)
+    logits = adapted(gt)
+    metric_fns = self.task.metrics()
+    self.assertLen(metric_fns, 1)
+    for metric_fn in metric_fns:
+      metric_value = metric_fn(fake_y, logits)
+      self.assertEqual(metric_value.shape, ())
 
   def test_loss_e2e(self):
     # A separate task here to have an analytic solution to the loss function.
