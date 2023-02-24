@@ -41,14 +41,12 @@ import pyarrow
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.proto import graph_schema_pb2
-# Placeholder for Google-internal record file format pipeline import
-# Placeholder for Google-internal sorted string file format pipeline import
-# Placeholder for Google-internal sorted string file format utils
-
+# Placeholder for optional Google-internal record file format pipeline import
+# Placeholder for optional Google-internal record file format import
+# Placeholder for optional Google-internal sorted string file format utils
 try:
-  # pytype: disable=import-error
-  import google.cloud.bigquery_storage_v1 as bq_storage  # pylint: disable=g-import-not-at-top
-  # pytype: enable=import-error
+  # pylint: disable-next=g-import-not-at-top
+  import google.cloud.bigquery_storage_v1 as bq_storage  # pytype: disable=import-error
 except ImportError:
   bq_storage = None
 
@@ -888,16 +886,17 @@ class DictStreams:
       yield _csv_fields_to_example(csv_record.items(), converters=converters)
 
   @staticmethod
-  def fn_iter_from_file(file_format) -> Callable[
+  def fn_iter_from_file(file_format) -> Callable[  # pylint: disable=missing-function-docstring
       [str, Union[None, graph_schema_pb2.NodeSet, graph_schema_pb2.EdgeSet]],
       Iterable[Example]]:
-    return {
-        # Iterator for Google-internal data file type.
+    lookup = {
         "csv": DictStreams.iter_csv_examples,
         "tfrecord": DictStreams.iter_tfrecord_examples,
         # "capacitor": lambda path, fset: raise ValueError("Not implemented")
         # "recordio": lambda path, fset: raise ValueError("Not implemented")
-    }[file_format]
+    }
+        # Iterator for Google-internal data file type.
+    return lookup[file_format]
 
   @staticmethod
   def iter_records_from_filepattern(
