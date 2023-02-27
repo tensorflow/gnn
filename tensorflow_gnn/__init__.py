@@ -149,7 +149,6 @@ random_graph_tensor = graph_tensor_random.random_graph_tensor
 mask_edges = graph_tensor_ops.mask_edges
 add_self_loops = graph_tensor_ops.add_self_loops
 broadcast_node_to_edges = graph_tensor_ops.broadcast_node_to_edges
-is_graph_tensor = graph_tensor_ops.is_graph_tensor
 pool_edges_to_node = graph_tensor_ops.pool_edges_to_node
 broadcast_context_to_nodes = graph_tensor_ops.broadcast_context_to_nodes
 broadcast_context_to_edges = graph_tensor_ops.broadcast_context_to_edges
@@ -196,7 +195,11 @@ assert_constraints = schema_validation.assert_constraints
 # Tensor Validation Utils
 check_scalar_graph_tensor = graph_tensor.check_scalar_graph_tensor
 check_homogeneous_graph_tensor = graph_tensor.check_homogeneous_graph_tensor
+
+# Type check helpers
+is_dense_tensor = tensor_utils.is_dense_tensor
 is_ragged_tensor = tensor_utils.is_ragged_tensor
+is_graph_tensor = graph_tensor_ops.is_graph_tensor
 
 # Prune imported module symbols so they're not accessible implicitly,
 # except those meant to be used as subpackages, like tfgnn.keras.*.

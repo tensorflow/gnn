@@ -489,6 +489,7 @@ def is_ragged_tensor(value: Value) -> bool:
 
 
 def is_dense_tensor(value: Value) -> bool:
+  """Returns whether a tensor (TF or Keras) is a Tensor."""
   if isinstance(value, tf.Tensor):
     return True
 
