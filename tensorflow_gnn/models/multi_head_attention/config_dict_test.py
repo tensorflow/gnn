@@ -47,11 +47,12 @@ class ConfigDictTest(tf.test.TestCase):
     self.assertEqual(to_model_config(actual), to_model_config(expected))
 
 
+# TODO(b/265776928): De-duplicate the multiple copies of this test helper.
 def to_model_config(layer: tf.keras.layers.Layer):
   """Returns a parsed model config for `layer`, without `"name"` fields."""
   # Need a full model to serialize *recursively*.
   model = tf.keras.Sequential([layer])
-  # Subobjects are only build in the first call.
+  # Subobjects are only built in the first call.
   _ = model(_make_test_graph_loop())
   model_config = json.loads(model.to_json())
   # The names of layers are uniquified and impede the hparam comparison.
