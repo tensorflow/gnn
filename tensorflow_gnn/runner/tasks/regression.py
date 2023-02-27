@@ -185,6 +185,14 @@ class _MeanSquaredLogScaledError(tf.keras.losses.Loss):
     return config
 
 
+class _MeanAbsoluteLogarithmicErrorLoss(tf.keras.losses.Loss):
+  """Mean absolute log scaled error task."""
+
+  def call(self, y_true, y_pred):
+    """See tf.keras.losses.Loss."""
+    return _mean_absolute_logarithmic_error(y_true, y_pred)
+
+
 class _MeanSquaredLogScaledErrorLossMixIn:
   """Mean squared log scaled error task."""
 
@@ -207,6 +215,69 @@ class _MeanSquaredLogScaledErrorLossMixIn:
         self._name,
         alpha_loss_param=self._alpha_loss_param,
         epsilon_loss_param=self._epsilon_loss_param),)
+
+
+def _mean_absolute_logarithmic_error(y_true, y_pred):
+  """Computes the mean absolute logarithmic error between labels and predictions.
+
+  `loss = mean((log(y_true + 1) - log(y_pred + 1)), axis=-1)`
+  Args:
+    y_true: Ground truth values. shape = `[batch_size, d0, .. dN]`.
+    y_pred: The predicted values. shape = `[batch_size, d0, .. dN]`.
+
+  Returns:
+    Mean absolute logarithmic error values. shape = `[batch_size, d0, .. dN-1]`.
+  """
+  y_pred = tf.math.log1p(tf.convert_to_tensor(y_pred))
+  y_true = tf.math.log1p(tf.cast(y_true, y_pred.dtype))
+  return tf.math.reduce_mean(tf.abs(y_pred - y_true), axis=-1)
+
+
+class _MeanAbsoluteLogarithmicErrorLossMixIn:
+  """Mean absolute logarithmic error task."""
+
+  def __init__(
+      self,
+      *args,
+      name: Optional[str] = None,
+      reduction: tf.keras.losses.Reduction = AUTO,
+      **kwargs,
+  ):
+    self._name = name
+    self._reduction = reduction
+    super().__init__(*args, **kwargs)
+
+  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+    return (
+        _MeanAbsoluteLogarithmicErrorLoss(
+            name=self._name,
+            reduction=self._reduction,
+        ),
+    )
+
+
+class RootNodeMeanAbsoluteLogarithmicError(
+    _MeanAbsoluteLogarithmicErrorLossMixIn, _RootNodeRegression
+):
+  """Root node mean absolute logarithmic error task."""
+
+  def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
+    """Append a linear head with ReLU for nonnegative regression.
+
+    Multiple `tf.keras.Model` outputs are not supported.
+
+    Args:
+      model: A `tf.keras.Model` to adapt.
+
+    Returns:
+      An adapted `tf.keras.Model.`
+    """
+    tfgnn.check_scalar_graph_tensor(model.output, name="Regression")
+    activations = self.gather_activations(model.output)
+    logits = tf.keras.layers.Dense(
+        self._units, activation="relu", name="logits"
+    )(activations)
+    return tf.keras.Model(model.input, logits)
 
 
 class GraphMeanAbsoluteError(_MeanAbsoluteErrorLossMixIn, _GraphRegression):

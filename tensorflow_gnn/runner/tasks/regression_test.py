@@ -66,97 +66,107 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
       dict(
           testcase_name="GraphMeanAbsoluteError",
           schema=SCHEMA,
-          task=regression.GraphMeanAbsoluteError(
-              "nodes",
-              label_fn=label_fn),
-          y_true=[[.8191]],
+          task=regression.GraphMeanAbsoluteError("nodes", label_fn=label_fn),
+          y_true=[[0.8191]],
           expected_y_pred=[[0.06039321]],
-          expected_loss=[0.7587068]),
+          expected_loss=[0.7587068],
+      ),
       dict(
           testcase_name="GraphMeanAbsolutePercentageError",
           schema=SCHEMA,
           task=regression.GraphMeanAbsolutePercentageError(
-              "nodes",
-              label_fn=label_fn),
-          y_true=[[.8191]],
+              "nodes", label_fn=label_fn
+          ),
+          y_true=[[0.8191]],
           expected_y_pred=[[0.06039321]],
-          expected_loss=[92.626884]),
+          expected_loss=[92.626884],
+      ),
       dict(
           testcase_name="GraphMeanSquaredError",
           schema=SCHEMA,
-          task=regression.GraphMeanSquaredError(
-              "nodes",
-              label_fn=label_fn),
-          y_true=[[.8191]],
+          task=regression.GraphMeanSquaredError("nodes", label_fn=label_fn),
+          y_true=[[0.8191]],
           expected_y_pred=[[0.06039321]],
-          expected_loss=[0.575636]),
+          expected_loss=[0.575636],
+      ),
       dict(
           testcase_name="GraphMeanSquaredLogarithmicError",
           schema=SCHEMA,
           task=regression.GraphMeanSquaredLogarithmicError(
-              "nodes",
-              units=3,
-              label_fn=label_fn),
+              "nodes", units=3, label_fn=label_fn
+          ),
           y_true=[[-0.407, -0.8191, 0.1634]],
           expected_y_pred=[[-0.4915728, -0.6728454, -0.8126122]],
-          expected_loss=[0.00763526]),
+          expected_loss=[0.00763526],
+      ),
       dict(
           testcase_name="GraphMeanSquaredLogScaledError",
           schema=SCHEMA,
           task=regression.GraphMeanSquaredLogScaledError(
-              "nodes",
-              units=2,
-              label_fn=label_fn),
+              "nodes", units=2, label_fn=label_fn
+          ),
           y_true=[[0.8208, 0.9]],
           expected_y_pred=[[0.74617755, -0.8193765]],
-          expected_loss=[839.05788329]),
+          expected_loss=[839.05788329],
+      ),
       dict(
           testcase_name="RootNodeMeanAbsoluteError",
           schema=SCHEMA,
-          task=regression.RootNodeMeanAbsoluteError(
-              "nodes",
-              label_fn=label_fn),
-          y_true=[[.8191]],
+          task=regression.RootNodeMeanAbsoluteError("nodes", label_fn=label_fn),
+          y_true=[[0.8191]],
           expected_y_pred=[[-0.01075031]],
-          expected_loss=[0.8298503]),
+          expected_loss=[0.8298503],
+      ),
       dict(
           testcase_name="RootNodeMeanAbsolutePercentageError",
           schema=SCHEMA,
           task=regression.RootNodeMeanAbsolutePercentageError(
-              "nodes",
-              label_fn=label_fn),
-          y_true=[[.8191]],
+              "nodes", label_fn=label_fn
+          ),
+          y_true=[[0.8191]],
           expected_y_pred=[[-0.01075031]],
-          expected_loss=[101.31245]),
+          expected_loss=[101.31245],
+      ),
       dict(
           testcase_name="RootNodeMeanSquaredError",
           schema=SCHEMA,
-          task=regression.RootNodeMeanSquaredError(
-              "nodes",
-              label_fn=label_fn),
-          y_true=[[.8191]],
+          task=regression.RootNodeMeanSquaredError("nodes", label_fn=label_fn),
+          y_true=[[0.8191]],
           expected_y_pred=[[-0.01075031]],
-          expected_loss=[0.68865156]),
+          expected_loss=[0.68865156],
+      ),
       dict(
           testcase_name="RootNodeMeanSquaredLogarithmicError",
           schema=SCHEMA,
           task=regression.RootNodeMeanSquaredLogarithmicError(
-              "nodes",
-              units=3,
-              label_fn=label_fn),
+              "nodes", units=3, label_fn=label_fn
+          ),
           y_true=[[-0.407, -0.8191, 0.1634]],
           expected_y_pred=[[-0.24064127, -0.6996877, -0.6812314]],
-          expected_loss=[0.00763526]),
+          expected_loss=[0.00763526],
+      ),
       dict(
           testcase_name="RootNodeMeanSquaredLogScaledError",
           schema=SCHEMA,
           task=regression.RootNodeMeanSquaredLogScaledError(
-              "nodes",
-              units=2,
-              label_fn=label_fn),
+              "nodes", units=2, label_fn=label_fn
+          ),
           y_true=[[0.8208, 0.9]],
           expected_y_pred=[[0.7054771, -1.0065091]],
-          expected_loss=[839.09634471]),
+          expected_loss=[839.09634471],
+      ),
+      dict(
+          testcase_name="RootNodeMeanAbsoluteLogarithmicError",
+          schema=SCHEMA,
+          task=regression.RootNodeMeanAbsoluteLogarithmicError(
+              node_set_name="nodes",
+              units=2,
+              label_fn=label_fn,
+          ),
+          y_true=[[0.8208, 0.9]],
+          expected_y_pred=[[0.7054771, 0.0]],
+          expected_loss=[0.35364246],
+      ),
   ])
   def test_adapt(self,
                  schema: str,

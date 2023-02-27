@@ -94,6 +94,9 @@ RootNodeMeanAbsolutePercentageError = regression.RootNodeMeanAbsolutePercentageE
 RootNodeMeanSquaredError = regression.RootNodeMeanSquaredError
 RootNodeMeanSquaredLogarithmicError = regression.RootNodeMeanSquaredLogarithmicError
 RootNodeMeanSquaredLogScaledError = regression.RootNodeMeanSquaredLogScaledError
+RootNodeMeanAbsoluteLogarithmicError = (
+    regression.RootNodeMeanAbsoluteLogarithmicError
+)
 
 # Training
 KerasTrainer = keras_fit.KerasTrainer
