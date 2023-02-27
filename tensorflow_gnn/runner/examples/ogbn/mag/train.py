@@ -257,8 +257,8 @@ def main(
           node_set, label_feature_name="labels", mask_value=_NUM_CLASSES,
           extra_label_mask=extra_label_mask)
       return {"feat": node_set["feat"], "masked_labels": masked_labels}
-    # Otherwise: omit labels.
-    return {"feat": node_set["feat"]}
+    # Otherwise: omit `masked_labels` but keep `labels` for eventual extraction.
+    return {"feat": node_set["feat"], "labels": node_set["labels"]}
 
   def  process_node_features(node_set: tfgnn.NodeSet, node_set_name: str):
     if node_set_name == "field_of_study":
