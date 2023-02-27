@@ -690,6 +690,7 @@ def MultiHeadAttentionHomGraphUpdate(
 
 
 def MultiHeadAttentionMPNNGraphUpdate(  # To be called like a class initializer.  pylint: disable=invalid-name
+    # LINT.IfChange(MultiHeadAttentionMPNNGraphUpdate_args)
     *,
     units: int,
     message_dim: int,
@@ -705,6 +706,7 @@ def MultiHeadAttentionMPNNGraphUpdate(  # To be called like a class initializer.
     activation: Union[str, Callable[..., Any]] = "relu",
     kernel_initializer: Union[
         None, str, tf.keras.initializers.Initializer] = "glorot_uniform",
+    # LINT.ThenChange(./config_dict.py:graph_update_get_config_dict)
 ) -> tf.keras.layers.Layer:
   """Returns a GraphUpdate layer for message passing with MultiHeadAttention pooling.
 

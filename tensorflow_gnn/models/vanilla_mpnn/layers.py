@@ -20,6 +20,7 @@ import tensorflow_gnn as tfgnn
 
 
 def VanillaMPNNGraphUpdate(  # To be called like a class initializer.  pylint: disable=invalid-name
+    # LINT.IfChange(VanillaMPNNGraphUpdate_args)
     *,
     units: int,
     message_dim: int,
@@ -32,6 +33,7 @@ def VanillaMPNNGraphUpdate(  # To be called like a class initializer.  pylint: d
     kernel_initializer: Union[
         None, str, tf.keras.initializers.Initializer] = "glorot_uniform",
     use_layer_normalization: bool = False,
+    # LINT.ThenChange(./config_dict.py:graph_update_get_config_dict)
 ) -> tf.keras.layers.Layer:
   r"""Returns a GraphUpdate layer for a Vanilla MPNN.
 

@@ -21,7 +21,7 @@ from tensorflow_gnn.models.vanilla_mpnn import layers
 
 def graph_update_get_config_dict() -> config_dict.ConfigDict:
   """Returns ConfigDict for graph_update_from_config_dict() with defaults."""
-  # Keep in sync with default args of VanillaMPNNGraphUpdate.__init__.
+  # LINT.IfChange(graph_update_get_config_dict)
   cfg = config_dict.ConfigDict()
   cfg.units = config_dict.placeholder(int)  # Sets type to Optional[int].
   cfg.message_dim = config_dict.placeholder(int)
@@ -31,6 +31,7 @@ def graph_update_get_config_dict() -> config_dict.ConfigDict:
   cfg.dropout_rate = 0.0
   cfg.use_layer_normalization = False
   cfg.lock()
+  # LINT.ThenChange(./layers.py:VanillaMPNNGraphUpdate_args)
   return cfg
 
 
