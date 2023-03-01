@@ -15,6 +15,8 @@
 """Tests for int_arithmetics_sampler."""
 
 import collections
+import functools
+import os
 from typing import Mapping, MutableMapping, Tuple
 
 from absl.testing import parameterized
@@ -287,6 +289,73 @@ class IntArithmeticSamplerTest(tf.test.TestCase, parameterized.TestCase):
       return True
 
     self.assertTrue(are_all_edges_valid(eats_src, eats_tgt))
+
+  @parameterized.named_parameters(
+      ('WithEagerMode', 'Layer'),
+      ('TFLoadSavedModel', 'TFLoadModel'),
+      ('KerasLoadSavedModel', 'KerasLoadModel'),
+      ('AsKerasFunctional', 'KerasFunctionalModel'))
+  def test_edge_sampler_layer(self, operation_mode):
+    strategy = ia_sampler.EdgeSampling.WITHOUT_REPLACEMENT
+    toy_dataset = ToyDataset()
+    sampler = ia_sampler.GraphSampler(toy_dataset, sampling_mode=strategy)
+    edge_layer = sampler.make_edge_sampler(edge_set_name='eats', sample_size=3)
+    seeds = tf.keras.layers.Input(shape=[None], dtype=tf.int32, ragged=True)
+    if operation_mode == 'Layer':
+      edge_model = edge_layer
+    elif operation_mode == 'KerasFunctionalModel':
+      edge_model = tf.keras.Model(inputs=seeds, outputs=edge_layer(seeds))
+    elif operation_mode == 'TFLoadModel':
+      edge_model = tf.keras.Model(inputs=seeds, outputs=edge_layer(seeds))
+      export_dir = os.path.join(self.get_temp_dir(), 'sampler')
+      edge_model.save(export_dir, include_optimizer=False)
+      edge_model = tf.saved_model.load(export_dir)
+    elif operation_mode == 'KerasLoadModel':
+      edge_model = tf.keras.Model(inputs=seeds, outputs=edge_layer(seeds))
+      export_dir = os.path.join(self.get_temp_dir(), 'sampler')
+      edge_model.save(export_dir, include_optimizer=False)
+      edge_model = tf.keras.models.load_model(export_dir)
+
+    cat_id = toy_dataset.animal2id['cat']
+    dog_id = toy_dataset.animal2id['dog']
+    monkey_id = toy_dataset.animal2id['monkey']
+    ragged_ids = tf.ragged.constant([[cat_id, dog_id], [monkey_id]])
+    edge_dict = edge_model(ragged_ids)
+    self.assertEqual(tuple(sorted(edge_dict.keys())), ('#source', '#target'))
+
+    # Cats eat 3 things while dogs and monkeys eat only 2.
+    self.assertAllClose(
+        edge_dict['#source'],
+        tf.ragged.constant([[cat_id, cat_id, cat_id, dog_id, dog_id],
+                            [monkey_id, monkey_id]]))
+    cat_eats = edge_dict['#target'][0][:3].numpy()
+    dog_eats = edge_dict['#target'][0][3:].numpy()
+    monkey_eats = edge_dict['#target'][1].numpy()
+    cat_eats = [toy_dataset.id2food[f] for f in cat_eats]
+    dog_eats = [toy_dataset.id2food[f] for f in dog_eats]
+    monkey_eats = [toy_dataset.id2food[f] for f in monkey_eats]
+    self.assertSetEqual(set(cat_eats), set(toy_dataset.eats['cat']))
+    self.assertSetEqual(set(dog_eats), set(toy_dataset.eats['dog']))
+    self.assertSetEqual(set(monkey_eats), set(toy_dataset.eats['monkey']))
+
+  def test_edge_sampler_layer_invalid_input_raises_exceptions(self):
+    strategy = ia_sampler.EdgeSampling.WITHOUT_REPLACEMENT
+    toy_dataset = ToyDataset()
+    sampler = ia_sampler.GraphSampler(toy_dataset, sampling_mode=strategy)
+    self.assertRaises(
+        ValueError,
+        functools.partial(
+            sampler.make_edge_sampler, edge_set_name='invalid_name',
+            sample_size=3))
+
+  def test_graph_sampler_constructor_without_edgesets_raises_exception(self):
+    strategy = ia_sampler.EdgeSampling.WITHOUT_REPLACEMENT
+    toy_dataset = ToyDataset()
+    # Mock the edge_sets() to return empty edge-sets:
+    toy_dataset.edge_sets = lambda: {}
+    self.assertRaises(ValueError, functools.partial(ia_sampler.GraphSampler,
+                                                    toy_dataset,
+                                                    sampling_mode=strategy))
 
 
 if __name__ == '__main__':

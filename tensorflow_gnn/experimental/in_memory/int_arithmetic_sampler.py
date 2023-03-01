@@ -471,6 +471,70 @@ class EdgeSampling(enum.Enum):
   WITHOUT_REPLACEMENT = 'without_replacement'
 
 
+class EdgeSampler(tf.keras.layers.Layer):
+  """Samples neighbors given nodes. Follows Edge-sampling API.
+
+  To an instance, EdgeSampler you must first create `sampler = GraphSampler()`.
+  Then:
+
+  ```python
+  edge_sampler = sampler.make_edge_sampler("nameOfEdgeSet")
+  ```
+
+  Finally, you may invoke as:
+
+  ```python
+  nodes = tf.ragged.constant([[0, 1], [2]])
+  edges = edge_sampler(nodes)  # Must be dict with keys "#source" and "#target".
+
+  print(edges['#source'])  # Should print ragged tensor with source node IDs,
+                           # e.g., [[0, 0, 0, 1, 1], [2]], if node 0 has 3
+                           # connections, node 1 has 2 connections, and node 2
+                           # has only one connection.
+  print(edges['#target'])  # Must be same shape as above, e.g.,
+                           # [[5, 6, 7, 8, 9], [20]], implying sampled edges
+                           # 0-5, 0-6, 0-7, 1-8, 1-9, and 2-20.
+  ```
+  """
+
+  def __init__(
+      self, sampler: 'GraphSampler', sample_size: int,
+      edge_set_name: tfgnn.EdgeSetName,
+      sampling_mode: Optional[EdgeSampling] = None):
+    super().__init__()
+    self._sampler = sampler
+    self._edge_set_name = edge_set_name
+    self._sample_size = sample_size
+    self._sampling_mode = sampling_mode
+
+  def call(self, source_node_ids: Union[tf.Tensor, tf.RaggedTensor]) -> Mapping[
+      str, tf.RaggedTensor]:
+    endpoint_spec = tf.RaggedTensorSpec(
+        shape=[None], dtype=source_node_ids.dtype, ragged_rank=0)
+    edges_src, edges_tgt = tf.map_fn(
+        self._sample_from_tensor_node_ids, source_node_ids,
+        fn_output_signature=(endpoint_spec, endpoint_spec))
+    return {tfgnn.SOURCE_NAME: edges_src, tfgnn.TARGET_NAME: edges_tgt}
+
+  def _sample_from_tensor_node_ids(self, nodes: tf.Tensor) -> Tuple[
+      tf.Tensor, tf.Tensor]:
+    """Given dense `nodes` (of any shape), returns (num_edges, 2) Tensor."""
+    src = tf.expand_dims(nodes, -1)  # In case `nodes` is scalar.
+    tgt, valid_mask = self._sampler.sample_one_hop_with_valid_mask(
+        src, edge_set_name=self._edge_set_name, sample_size=self._sample_size,
+        sampling_mode=self._sampling_mode)
+    # Now, `tgt` has an additional dimension over `src`. The size of this
+    # (last) dimension must be equal to `self._sample_size`. Let's repeat `src`
+    # along that axis:
+    src = tf.expand_dims(src, -1) + tf.zeros_like(tgt)
+
+    # Filter only to valid tgt (and associated valid src) and return pair
+    valid_reshaped = tf.reshape(valid_mask, [-1])
+    valid_src = tf.boolean_mask(tf.reshape(src, [-1]), valid_reshaped)
+    valid_tgt = tf.boolean_mask(tf.reshape(tgt, [-1]), valid_reshaped)
+    return valid_src, valid_tgt
+
+
 class GraphSampler:
   """Yields random sub-graphs from `InMemoryGraphData`.
 
@@ -502,6 +566,9 @@ class GraphSampler:
           (np.ones(edges_src.shape, dtype='int8'), (edges_src, edges_tgt)),
           shape=(size_src, size_tgt))
 
+    if not edge_sets:
+      raise ValueError('graph_data has no edge-sets.')
+
     # Compute data structures required for sampling.
     self.edge_lists = {}      # Edge set name -> (optional src_ids, target_ids).
     self.degrees = {}         # Edge set name -> [deg_1, deg_2, ... deg_|V|].
@@ -520,12 +587,25 @@ class GraphSampler:
     if reduce_memory_footprint:
       self.adjacency = None
 
-  def make_sampling_layer(self, edge_set_name, sample_size=3,
-                          sampling_mode=None):
+  def make_edge_sampler(self, sample_size: int,
+                        edge_set_name: Optional[tfgnn.EdgeSetName] = None,
+                        sampling_mode=None) -> EdgeSampler:
     """Makes layer out of `sample_one_hop`."""
-    return functools.partial(
-        self.sample_one_hop, edge_set_name=edge_set_name,
-        sample_size=sample_size, sampling_mode=sampling_mode)
+    available_edge_set_names = self.graph_data.edge_sets().keys()
+    # Validation.
+    if edge_set_name is None:
+      available_edge_set_names = self.graph_data.edge_sets().keys()
+      if len(available_edge_set_names) > 1:
+        raise ValueError(
+            'You must provide `edge_set_name` as your graph has multiple edge '
+            'sets: ' + ', '.join(available_edge_set_names))
+      edge_set_name = list(available_edge_set_names)[0]
+    else:
+      if edge_set_name not in available_edge_set_names:
+        raise ValueError('Edge-set "%s" is not one of: %s' % (
+            edge_set_name, ', '.join(available_edge_set_names)))
+
+    return EdgeSampler(self, sample_size, edge_set_name, sampling_mode)
 
   def sample_one_hop(
       self, source_nodes: tf.Tensor, edge_set_name: tfgnn.EdgeSetName,

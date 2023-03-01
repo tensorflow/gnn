@@ -62,6 +62,7 @@ class UnigraphData(datasets.InMemoryGraphData):
       use_tqdm: If set, all node set and edge set iterators will be wrapped with
         `tqdm.tqdm`.
     """
+    super().__init__()
     self._graph_schema = graph_schema
 
     # Node Set Name -> Node ID ->  auto-incrementing int (`node_idx`)`.
