@@ -14,6 +14,7 @@
 # ==============================================================================
 """Tests for orchestration."""
 import os
+import sys
 from typing import Any, Sequence, Union
 
 from absl.testing import parameterized
@@ -24,6 +25,8 @@ from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.tasks import classification
 from tensorflow_gnn.runner.trainers import keras_fit
 from tensorflow_gnn.runner.utils import label_fns
+
+assert not sys.version.startswith("3.8.")
 
 _LABELS = tuple(range(32))
 
