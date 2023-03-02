@@ -77,6 +77,17 @@ class ResidualNextStateTest(tf.test.TestCase, parameterized.TestCase):
     actual = next_state((first_input, second_input, third_input))
     self.assertAllEqual([[1. + 2. + 4.]], actual)
 
+  def testMissingDictionaryThrowsException(self):
+    first_input = tf.constant([[32.0]])
+    init_div2 = tf.keras.initializers.Constant(0.5)
+    next_state = next_state_lib.ResidualNextState(
+        tf.keras.layers.Dense(1, use_bias=False, kernel_initializer=init_div2),
+        skip_connection_feature_name="my_feature",
+    )
+
+    with self.assertRaises(KeyError):
+      _ = next_state((first_input))
+
 
 class SingleInputNextStateTest(tf.test.TestCase, parameterized.TestCase):
 

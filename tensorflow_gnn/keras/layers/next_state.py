@@ -93,7 +93,7 @@ for the benefit of human readers, but pytype cannot actually check the
 interface requirements beyond being any Keras layer.
 """
 
-from typing import Any, Tuple
+from typing import Any, Optional, Tuple
 
 import tensorflow as tf
 
@@ -167,20 +167,22 @@ class ResidualNextState(tf.keras.layers.Layer):
       or vice versa.
     skip_connection_feature_name: Controls which input from the updated graph
       piece is added back after the residual block. If the input from the
-      updated graph piece is a single tensor, that one is used. If it is
-      a dict, this key is used; defaults to `tfgnn.HIDDEN_STATE`.
+      updated graph piece is a single tensor, that tensor is used, and this arg
+      must not be set. If the input is a dict, this key is used; if unset, it
+      defaults to `tfgnn.HIDDEN_STATE`.
 
   Call returns:
     A tensor to use as the new state.
   """
 
-  def __init__(self,
-               residual_block: tf.keras.layers.Layer,
-               *,
-               activation: Any = None,
-               skip_connection_feature_name: const.FieldName
-               = const.HIDDEN_STATE,
-               **kwargs):
+  def __init__(
+      self,
+      residual_block: tf.keras.layers.Layer,
+      *,
+      activation: Any = None,
+      skip_connection_feature_name: Optional[const.FieldName] = None,
+      **kwargs,
+  ):
     super().__init__(**kwargs)
     self._residual_block = residual_block
     if isinstance(activation, tf.keras.layers.Layer):
@@ -203,19 +205,30 @@ class ResidualNextState(tf.keras.layers.Layer):
     # Extract the feature for a skip connection.
     self_input = inputs[0]
     if isinstance(self_input, (tf.Tensor, tf.RaggedTensor)):
+      if self._skip_connection_feature_name is not None:
+        raise KeyError(
+            "ResidualNextState() invoked with explicit skip connection feature"
+            f" '{self._skip_connection_feature_name}', but the "
+            " updated graph piece does not have this key (it's not a"
+            f" dictionary) {self_input}."
+        )
       skip_connection_feature = self_input
       skip_connection_msg = "single input"
     else:
+      if self._skip_connection_feature_name is None:
+        skip_connection_feature_name = const.HIDDEN_STATE
+      else:
+        skip_connection_feature_name = self._skip_connection_feature_name
       try:
-        skip_connection_feature = self_input[self._skip_connection_feature_name]
+        skip_connection_feature = self_input[skip_connection_feature_name]
       except KeyError as e:
         raise KeyError(
             "ResidualNextState() could not find the "
-            f"skip connection feature '{self._skip_connection_feature_name}' "
+            f"skip connection feature '{skip_connection_feature_name}' "
             f"in the features of the updated graph piece: {list(self_input)}"
         ) from e
       skip_connection_msg = (
-          f"input feature '{self._skip_connection_feature_name}'")
+          f"input feature '{skip_connection_feature_name}'")
 
     # Compute the state update.
     net = tf.nest.flatten(inputs)
@@ -266,4 +279,3 @@ class SingleInputNextState(tf.keras.layers.Layer):
           " This layer should take only a single input."
       ) from e
     return single_input
-
