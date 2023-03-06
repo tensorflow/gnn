@@ -61,8 +61,7 @@ def VanillaMPNNGraphUpdate(  # To be called like a class initializer.  pylint: d
 
   Args:
     units: The dimension of output hidden states for each node.
-    message_dim: The dimension of messages (attention values) computed on
-      each edge.  Must be divisible by `num_heads`.
+    message_dim: The dimension of messages computed on each edge.
     receiver_tag: one of `tfgnn.TARGET` or `tfgnn.SOURCE`, to select the
       incident node of each edge that receives the message.
     node_set_names: The names of node sets to update. If unset, updates all
