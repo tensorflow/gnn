@@ -66,6 +66,7 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
   """
 
   def __init__(
+      # LINT.IfChange(HGTGraphUpdate_args)
       self,
       *,
       num_heads: int,
@@ -80,6 +81,7 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
       activation: Union[str, Callable[..., Any]] = 'gelu',
       feature_name: str = tfgnn.HIDDEN_STATE,
       **kwargs,
+      # LINT.ThenChange(./config_dict.py:graph_update_get_config_dict)
   ):
     kwargs.setdefault('name', 'hgt_graph_update')
     super().__init__(**kwargs)

@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """An e2e training example for OGBN-MAG."""
+
 import functools
 from typing import Any, Callable, Mapping, Optional, Sequence
 
@@ -21,15 +22,15 @@ from absl import flags
 from absl import logging
 from ml_collections import config_dict
 from ml_collections import config_flags
-
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
-
 from tensorflow_gnn import runner
+from tensorflow_gnn.models import hgt
 from tensorflow_gnn.models import mt_albis
 from tensorflow_gnn.models import multi_head_attention
 from tensorflow_gnn.models import vanilla_mpnn
 from tensorflow_gnn.runner.examples.ogbn.mag import utils
+
 
 FLAGS = flags.FLAGS
 
@@ -120,6 +121,16 @@ def get_config_dict() -> config_dict.ConfigDict:
   # For each supported gnn.type="foo", there is a config gnn.foo for that type's
   # GraphUpdate class, overridden with the defaults for this training.
   cfg.gnn.type = "vanilla_mpnn"
+  # For gnn.type="hgt":
+  cfg.gnn.hgt = hgt.graph_update_get_config_dict()
+  cfg.gnn.hgt.per_head_channels = 64
+  cfg.gnn.hgt.num_heads = 8
+  cfg.gnn.hgt.receiver_tag = tfgnn.SOURCE
+  cfg.use_weighted_skip = True
+  cfg.dropout_rate = 0.2
+  cfg.use_layer_norm = True
+  cfg.use_bias = True
+  cfg.activation = "gelu"
   # For gnn.type="mt_albis":
   cfg.gnn.mt_albis = mt_albis.graph_update_get_config_dict()
   cfg.gnn.mt_albis.units = 128
@@ -153,7 +164,9 @@ _CONFIG = config_flags.DEFINE_config_dict("config", get_config_dict())
 def _graph_update_from_config(
     cfg: config_dict.ConfigDict) -> tf.keras.layers.Layer:
   """Returns one instance of the configured GraphUpdate layer."""
-  if cfg.gnn.type == "mt_albis":
+  if cfg.gnn.type == "hgt":
+    return hgt.graph_update_from_config_dict(cfg.gnn.hgt)
+  elif cfg.gnn.type == "mt_albis":
     return mt_albis.graph_update_from_config_dict(cfg.gnn.mt_albis)
   elif cfg.gnn.type == "multi_head_attention":
     return multi_head_attention.graph_update_from_config_dict(
