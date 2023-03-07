@@ -17,7 +17,7 @@
 This file contains an implementation of HGT from Hu et al. 2020.
 """
 import collections
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -44,7 +44,7 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
 
   Init args:
     num_heads: The number of attention heads.
-    per_head_channels: The dimentionality of each attention head
+    per_head_channels: The dimensionality of each attention head
     receiver_tag: `tfgnn.TARGET` or `tfgnn.SOURCE`, (Source and target are
       conventional names for the incident nodes of a directed edge, data flow in
       a GNN may happen in either direction.)
@@ -56,11 +56,11 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     use_layer_norm: If True, applies layer normalization to the resulting
       node transformation.
     kernel_initializer: Can be set to a `kernel_initializer` as understood
-      by tf.keras.layers.Dense etc.
+      by `tf.keras.layers.Dense` etc.
+      An `Initializer` object gets cloned before use to ensure a fresh seed,
+      if not set explicitly. For more, see `tfgnn.keras.clone_initializer()`.
     use_bias: If True, bias terms are added to the transformations of query,
       key, message, and aggregation inputs.
-    attention_weight_initializer: Can be set to an `initializer` as understood
-      by tf.keras.add_weight
     name: Optionally, a name for the layer returned.
     **kwargs: Any optional arguments to HgtGraphUpdate.
   """
@@ -75,8 +75,7 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
       use_weighted_skip: bool = True,
       dropout_rate: float = 0.2,
       use_layer_norm: bool = True,
-      kernel_initializer: Union[None, str,
-                                tf.keras.initializers.Initializer] = None,
+      kernel_initializer: Any = None,
       use_bias: bool = True,
       activation: Union[str, Callable[..., Any]] = 'gelu',
       feature_name: str = tfgnn.HIDDEN_STATE,
@@ -92,6 +91,7 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     self._use_weighted_skip = use_weighted_skip
     self._dropout_rate = dropout_rate
     self._use_layer_norm = use_layer_norm
+    # IMPORTANT: Use with tfgnn.keras.clone_initializer(), b/268648226.
     self._kernel_initializer = tf.keras.initializers.get(kernel_initializer)
     self._use_bias = use_bias
     self._activation = tf.keras.activations.get(activation)
@@ -104,17 +104,6 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
           'HGTGraphUpdate requires tf.keras.layers.EinsumDense from '
           f'TensorFlow 2.10 or newer, got TensorFlow {tf.__version__}'
       ) from e
-
-  # Utility function that clones the kernel initializer to ensure we get
-  # different initial values every time it is used.
-  def _create_kernel_initializer(
-      self,
-  ) -> Optional[tf.keras.initializers.Initializer]:
-    if self._kernel_initializer is None:
-      return None
-    return self._kernel_initializer.__class__.from_config(
-        self._kernel_initializer.get_config()
-    )
 
   def get_config(self):
     return dict(
@@ -151,12 +140,14 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     for node_set_name in self._senders:
       self._key_projections[node_set_name] = tf.keras.layers.Dense(
           units,
-          kernel_initializer=self._create_kernel_initializer(),
+          kernel_initializer=tfgnn.keras.clone_initializer(
+              self._kernel_initializer),
           use_bias=self._use_bias,
           name=f'key_node_{node_set_name}')
       self._message_projections[node_set_name] = tf.keras.layers.Dense(
           units,
-          kernel_initializer=self._create_kernel_initializer(),
+          kernel_initializer=tfgnn.keras.clone_initializer(
+              self._kernel_initializer),
           use_bias=self._use_bias,
           name=f'message_node_{node_set_name}')
 
@@ -168,12 +159,14 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     for node_set_name in self._receivers:
       self._query_projections[node_set_name] = tf.keras.layers.Dense(
           units,
-          kernel_initializer=self._create_kernel_initializer(),
+          kernel_initializer=tfgnn.keras.clone_initializer(
+              self._kernel_initializer),
           use_bias=self._use_bias,
           name=f'query_node_{node_set_name}')
       self._aggr_projections[node_set_name] = tf.keras.layers.Dense(
           units,
-          kernel_initializer=self._create_kernel_initializer(),
+          kernel_initializer=tfgnn.keras.clone_initializer(
+              self._kernel_initializer),
           use_bias=self._use_bias,
           name=f'aggr_node_{node_set_name}',
       )
@@ -219,14 +212,16 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
           edge_set_name] = tf.keras.layers.EinsumDense(
               equation='...jk,jkl->...jl',
               output_shape=(self._num_heads, self._per_head_channels),
-              kernel_initializer=self._create_kernel_initializer(),
+              kernel_initializer=tfgnn.keras.clone_initializer(
+                  self._kernel_initializer),
               name=f'attention_edge_{edge_set_name}'
           )
       self._edge_type_message_projections[
           edge_set_name] = tf.keras.layers.EinsumDense(
               equation='...jk,jkl->...jl',
               output_shape=(self._num_heads, self._per_head_channels),
-              kernel_initializer=self._create_kernel_initializer(),
+              kernel_initializer=tfgnn.keras.clone_initializer(
+                  self._kernel_initializer),
               name=f'message_edge_{edge_set_name}'
           )
       self._edge_type_priors[edge_set_name] = self.add_weight(

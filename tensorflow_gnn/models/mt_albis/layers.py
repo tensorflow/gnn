@@ -33,10 +33,8 @@ def MtAlbisSimpleConv(  # To be called like a class initializer.  pylint: disabl
     edge_dropout_rate: float = 0.0,
     use_receiver_state: bool = True,
     edge_feature_name: Optional[tfgnn.FieldName] = None,
-    kernel_initializer: Union[
-        None, str, tf.keras.initializers.Initializer] = "glorot_uniform",
-    kernel_regularizer: Union[None, str,
-                              tf.keras.regularizers.Regularizer] = None,
+    kernel_initializer: Any = "glorot_uniform",
+    kernel_regularizer: Any = None,
     name: Optional[str] = None,
 ) -> tf.keras.layers.Layer:
   """Returns a Layer object for the non-attention flavor of Conv in MtAlbis.
@@ -52,7 +50,7 @@ def MtAlbisSimpleConv(  # To be called like a class initializer.  pylint: disabl
       receiver node.
     activation: The nonlinearity used on each message before pooling.
       This can be specified as a Keras layer, a tf.keras.activations.*
-      function, or a string understood by tf.keras.layers.Activation().
+      function, or a string understood by `tf.keras.layers.Activation`.
     dropout_rate: Can be set to a dropout rate for entries in message values
       (independently for each edge and entry).
     edge_dropout_rate: Can be set to a dropout rate for entire edges:
@@ -64,7 +62,9 @@ def MtAlbisSimpleConv(  # To be called like a class initializer.  pylint: disabl
       message computation on edges.
     kernel_initializer: Can be set to a `kernel_initializer` as understood
       by `tf.keras.layers.Dense` etc.
-    kernel_regularizer: Can be set to a `kernel_regularized` as understood
+      An `Initializer` object gets cloned before use to ensure a fresh seed,
+      if not set explicitly. For more, see `tfgnn.keras.clone_initializer()`.
+    kernel_regularizer: Can be set to a `kernel_regularizer` as understood
       by `tf.keras.layers.Dense` etc.
     name: Optionally, a Layer.name for the returned object.
   """
@@ -73,7 +73,7 @@ def MtAlbisSimpleConv(  # To be called like a class initializer.  pylint: disabl
           units,
           activation=activation,
           use_bias=True,
-          kernel_initializer=kernel_initializer,
+          kernel_initializer=tfgnn.keras.clone_initializer(kernel_initializer),
           bias_initializer="zeros",
           kernel_regularizer=kernel_regularizer,
           bias_regularizer=None,  # Intentionally different from VanillaMPNN.
@@ -116,10 +116,12 @@ class MtAlbisNextNodeState(tf.keras.layers.Layer):
       computation.
     activation: The nonlinearity applied to the output. This can be specified
       as a Keras layer, a tf.keras.activations.* function, or a string
-      understood by tf.keras.layers.Activation().
+      understood by `tf.keras.layers.Activation`.
     kernel_initializer: Can be set to a `kernel_initializer` as understood
       by `tf.keras.layers.Dense` etc.
-    kernel_regularizer: Can be set to a `kernel_regularized` as understood
+      An `Initializer` object gets cloned before use to ensure a fresh seed,
+      if not set explicitly. For more, see `tfgnn.keras.clone_initializer()`.
+    kernel_regularizer: Can be set to a `kernel_regularizer` as understood
       by `tf.keras.layers.Dense` etc.
   """
 
@@ -133,10 +135,8 @@ class MtAlbisNextNodeState(tf.keras.layers.Layer):
       batch_normalization_momentum: float = 0.99,
       edge_set_combine_type: str = "concat",
       activation: Union[str, Callable[..., Any]] = "relu",
-      kernel_initializer: Union[
-          None, str, tf.keras.initializers.Initializer] = "glorot_uniform",
-      kernel_regularizer: Union[None, str,
-                                tf.keras.regularizers.Regularizer] = None,
+      kernel_initializer: Any = "glorot_uniform",
+      kernel_regularizer: Any = None,
       **kwargs):
     super().__init__(**kwargs)
     self._next_state_type = next_state_type
@@ -144,7 +144,8 @@ class MtAlbisNextNodeState(tf.keras.layers.Layer):
         units,
         activation=None,  # Applied later.
         use_bias=True,
-        kernel_initializer=tf.keras.initializers.get(kernel_initializer),
+        kernel_initializer=tfgnn.keras.clone_initializer(
+            tf.keras.initializers.get(kernel_initializer)),
         bias_initializer="zeros",
         kernel_regularizer=tf.keras.regularizers.get(kernel_regularizer),
         bias_regularizer=None,  # Intentionally different from VanillaMPNN.
@@ -252,8 +253,7 @@ def MtAlbisGraphUpdate(  # To be called like a class initializer.  pylint: disab
     # TODO(b/265755983): Fix dropped-out edges between GraphUpdates?
     edge_dropout_rate: float = 0.0,
     l2_regularization: float = 0.0,
-    kernel_initializer: Union[
-        None, str, tf.keras.initializers.Initializer] = "glorot_uniform",
+    kernel_initializer: Any = "glorot_uniform",
     # TODO(b/265755923): Should normalization_type apply to Convs, too?
     # TODO(b/265755923): Relative order of relu, dropout and normalization.
     normalization_type: Literal["layer", "batch", "none"] = "layer",
@@ -296,6 +296,8 @@ def MtAlbisGraphUpdate(  # To be called like a class initializer.  pylint: disab
       (Unlike VanillaMPNN, this is not applied to biases.)
     kernel_initializer: Can be set to a `kernel_initializer` as understood
       by `tf.keras.layers.Dense` etc.
+      An `Initializer` object gets cloned before use to ensure a fresh seed,
+      if not set explicitly. For more, see `tfgnn.keras.clone_initializer()`.
     normalization_type: controls the normalization of output node states.
       By default (`"layer"`), LayerNormalization is used. Can be set to
       `"none"`, or to `"batch"` for BatchNormalization.
@@ -333,7 +335,7 @@ def MtAlbisGraphUpdate(  # To be called like a class initializer.  pylint: disab
           edge_dropout_rate=edge_dropout_rate,
           use_receiver_state=simple_conv_use_receiver_state,
           edge_feature_name=edge_feature_name,
-          kernel_initializer=kernel_initializer,
+          kernel_initializer=kernel_initializer,  # Cloned by the layer.
           kernel_regularizer=kernel_regularizer)
 
     if message_dim % attention_num_heads:
@@ -346,7 +348,7 @@ def MtAlbisGraphUpdate(  # To be called like a class initializer.  pylint: disab
           per_head_channels=per_head_channels,
           receiver_tag=receiver_tag,
           edge_dropout=edge_dropout_rate,
-          kernel_initializer=kernel_initializer,
+          kernel_initializer=kernel_initializer,  # Cloned by the layer.
           kernel_regularizer=kernel_regularizer,
           sender_edge_feature=edge_feature_name)
     elif attention_type == "gat_v2":
@@ -355,7 +357,7 @@ def MtAlbisGraphUpdate(  # To be called like a class initializer.  pylint: disab
           per_head_channels=per_head_channels,
           receiver_tag=receiver_tag,
           edge_dropout=edge_dropout_rate,
-          kernel_initializer=kernel_initializer,
+          kernel_initializer=kernel_initializer,  # Cloned by the layer.
           kernel_regularizer=kernel_regularizer,
           sender_edge_feature=edge_feature_name)
     else:
@@ -371,7 +373,7 @@ def MtAlbisGraphUpdate(  # To be called like a class initializer.  pylint: disab
         batch_normalization_momentum=batch_normalization_momentum,
         edge_set_combine_type=edge_set_combine_type,
         activation="relu",
-        kernel_initializer=kernel_initializer,
+        kernel_initializer=kernel_initializer,  # Cloned by the layer.
         kernel_regularizer=kernel_regularizer)
 
   gnn_builder = tfgnn.keras.ConvGNNBuilder(

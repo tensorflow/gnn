@@ -131,7 +131,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       is derived from this input.)
     sender_node_feature: Can be set to override `tfgnn.HIDDEN_STATE`
       for use as the input feature from sender nodes to attention.
-      IMPORANT: Must be set to `None` for use with `receiver_tag=tfgnn.CONTEXT`
+      IMPORTANT: Must be set to `None` for use with `receiver_tag=tfgnn.CONTEXT`
       on an edge set, or for pooling from edges without sender node states.
     sender_edge_feature: Can be set to a feature name of the edge set to select
       it as an input feature. By default, this set to `None`, which disables
@@ -147,13 +147,15 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       (query, and keys if `transform_keys` is `True`) before computing the
       attention scores. This can be specified as a Keras layer, a
       tf.keras.activations.* function, or a string understood by
-      tf.keras.layers.Activation(). Defaults to None.
+      `tf.keras.layers.Activation`. Defaults to None.
     activation: The nonlinearity applied to the final result of attention,
       specified in the same ways as attention_activation.
     kernel_initializer: Can be set to a `kernel_initializer` as understood
-      by tf.keras.layers.Dense etc.
-    kernel_regularizer: Can be set to a `kernel_regularizer` as understood
-      by tf.keras.layers.Dense etc.
+      by `tf.keras.layers.Dense` etc.
+      An `Initializer` object gets cloned before use to ensure a fresh seed,
+      if not set explicitly. For more, see `tfgnn.keras.clone_initializer()`.
+    kernel_regularizer: Can be set to a `kernel_regularized` as understood
+      by `tf.keras.layers.Dense` etc.
     transform_keys: If true, transform both queries and keys inputs. Otherwise,
       only queries are transformed since the two transformations on queries and
       keys are equivalent to one. (The presence of transformations on values is
@@ -190,10 +192,8 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       edge_dropout: float = 0.,
       attention_activation: Optional[Union[str, Callable[..., Any]]] = None,
       activation: Union[str, Callable[..., Any]] = "relu",
-      kernel_initializer: Union[None, str,
-                                tf.keras.initializers.Initializer] = None,
-      kernel_regularizer: Union[None, str,
-                                tf.keras.regularizers.Regularizer] = None,
+      kernel_initializer: Any = None,
+      kernel_regularizer: Any = None,
       transform_keys: bool = True,
       score_scaling: Literal["none", "rsqrt_dim",
                              "trainable_sigmoid"] = "rsqrt_dim",
@@ -245,6 +245,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
 
     self._attention_activation = tf.keras.activations.get(attention_activation)
     self._activation = tf.keras.activations.get(activation)
+    # IMPORTANT: Use with tfgnn.keras.clone_initializer(), b/268648226.
     self._kernel_initializer = tf.keras.initializers.get(kernel_initializer)
     self._kernel_regularizer = tf.keras.regularizers.get(kernel_regularizer)
     self._transform_keys = transform_keys
@@ -264,7 +265,8 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       if self.takes_sender_node_input:
         self._w_sender_node_to_key = tf.keras.layers.Dense(
             per_head_channels * num_heads,
-            kernel_initializer=self._create_kernel_initializer(),
+            kernel_initializer=tfgnn.keras.clone_initializer(
+                self._kernel_initializer),
             kernel_regularizer=kernel_regularizer,
             use_bias=use_bias,
             name="key_node")
@@ -273,7 +275,8 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       if self.takes_sender_edge_input:
         self._w_sender_edge_to_key = tf.keras.layers.Dense(
             per_head_channels * num_heads,
-            kernel_initializer=self._create_kernel_initializer(),
+            kernel_initializer=tfgnn.keras.clone_initializer(
+                self._kernel_initializer),
             kernel_regularizer=kernel_regularizer,
             # This bias would be redundant with self._w_sender_node_to_key.
             use_bias=use_bias and self._w_sender_node_to_key is None,
@@ -285,7 +288,8 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       if self.takes_sender_node_input:
         self._w_sender_node_to_value = tf.keras.layers.Dense(
             per_head_channels * num_heads,
-            kernel_initializer=self._create_kernel_initializer(),
+            kernel_initializer=tfgnn.keras.clone_initializer(
+                self._kernel_initializer),
             kernel_regularizer=kernel_regularizer,
             use_bias=use_bias,
             name="value_node")
@@ -294,7 +298,8 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       if self.takes_sender_edge_input:
         self._w_sender_edge_to_value = tf.keras.layers.Dense(
             per_head_channels * num_heads,
-            kernel_initializer=self._create_kernel_initializer(),
+            kernel_initializer=tfgnn.keras.clone_initializer(
+                self._kernel_initializer),
             kernel_regularizer=kernel_regularizer,
             # This bias would be redundant with self._w_sender_node_to_value.
             use_bias=use_bias and self._w_sender_node_to_value is None,
@@ -315,21 +320,13 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
           equation="...hv,hvc->...hc",
           output_shape=(num_heads, per_head_channels),
           bias_axes="hc" if use_bias else None,
-          kernel_initializer=self._create_kernel_initializer(),
+          kernel_initializer=tfgnn.keras.clone_initializer(
+              self._kernel_initializer),
           kernel_regularizer=kernel_regularizer,
           name="value_pooled")
 
     if self._score_scaling == "trainable_sigmoid":
       self._score_scaling_weight = None
-
-  # Utility function that clones the kernel initializer to ensure we get
-  # different initial values every time it is used.
-  def _create_kernel_initializer(
-      self) -> Optional[tf.keras.initializers.Initializer]:
-    if self._kernel_initializer is None:
-      return None
-    return self._kernel_initializer.__class__.from_config(
-        self._kernel_initializer.get_config())
 
   def get_config(self):
     return dict(
@@ -386,14 +383,16 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
             keys_width += sender_edge_input.shape[-1]
           self._w_query = tf.keras.layers.Dense(
               keys_width * self._num_heads,
-              kernel_initializer=self._kernel_initializer,
+              kernel_initializer=tfgnn.keras.clone_initializer(
+                  self._kernel_initializer),
               kernel_regularizer=self._kernel_regularizer,
               use_bias=self._use_bias,
               name="query")
         else:
           self._w_query = tf.keras.layers.Dense(
               self._per_head_channels * self._num_heads,
-              kernel_initializer=self._kernel_initializer,
+              kernel_initializer=tfgnn.keras.clone_initializer(
+                  self._kernel_initializer),
               kernel_regularizer=self._kernel_regularizer,
               use_bias=self._use_bias,
               name="query")
@@ -409,7 +408,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     queries = broadcast_from_receiver(self._split_heads(queries))
 
     # Form the attention key for each head.
-    # If transform_keys is ture, the pieces of keys inputs are transformed to
+    # If transform_keys is true, the pieces of keys inputs are transformed to
     # [num_items, *extra_dims, num_heads, channels_per_head] and the results
     # are added, which allows transformation for the piece from the nodes before
     # broadcasting it and equals to first concatenating the pieces and
@@ -485,7 +484,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
 
     # Compute the pooled values by
     #   * transforming the inputs and
-    #   * computing their weighted sum according to the attention coefficents.
+    #   * computing their weighted sum according to the attention coefficients.
     # These two operations are linear, so, mathematically, they can be applied
     # in either order. It depends on input/output dimensions, the ratio of
     # num_items to num_receivers and the platform which one is faster.
@@ -678,7 +677,7 @@ def MultiHeadAttentionHomGraphUpdate(
                             receiver_tag=receiver_tag,
                             sender_node_feature=feature_name,
                             receiver_feature=feature_name,
-                            **kwargs)
+                            **kwargs)  # kernel_initializer cloned by layer.
                 },
                 next_state=tfgnn.keras.layers.SingleInputNextState(),
                 node_input_feature=feature_name)
@@ -704,8 +703,7 @@ def MultiHeadAttentionMPNNGraphUpdate(  # To be called like a class initializer.
     attention_activation: Optional[Union[str, Callable[..., Any]]] = None,
     conv_activation: Union[str, Callable[..., Any]] = "relu",
     activation: Union[str, Callable[..., Any]] = "relu",
-    kernel_initializer: Union[
-        None, str, tf.keras.initializers.Initializer] = "glorot_uniform",
+    kernel_initializer: Any = "glorot_uniform",
     # LINT.ThenChange(./config_dict.py:graph_update_get_config_dict)
 ) -> tf.keras.layers.Layer:
   """Returns a GraphUpdate layer for message passing with MultiHeadAttention pooling.
@@ -739,13 +737,15 @@ def MultiHeadAttentionMPNNGraphUpdate(  # To be called like a class initializer.
     attention_activation: The nonlinearity used on the transformed inputs before
       multiplying with the trained weights of the attention layer. This can be
       specified as a Keras layer, a tf.keras.activations.* function, or a string
-      understood by tf.keras.layers.Activation(). Defaults to None.
+      understood by `tf.keras.layers.Activation`. Defaults to None.
     conv_activation: The nonlinearity applied to the result of attention on one
       edge set, specified in the same ways as attention_activation.
     activation: The nonlinearity applied to the new node states computed by this
       graph update.
-    kernel_initializer: Can be set to a `kerner_initializer` as understood by
-      `tf.keras.layers.Dense` etc.
+    kernel_initializer: Can be set to a `kernel_initializer` as understood
+      by `tf.keras.layers.Dense` etc.
+      An `Initializer` object gets cloned before use to ensure a fresh seed,
+      if not set explicitly. For more, see `tfgnn.keras.clone_initializer()`.
 
   Returns:
     A GraphUpdate layer for use on a scalar GraphTensor with
@@ -763,7 +763,8 @@ def MultiHeadAttentionMPNNGraphUpdate(  # To be called like a class initializer.
             units,
             activation=activation,
             use_bias=True,
-            kernel_initializer=kernel_initializer,
+            kernel_initializer=tfgnn.keras.clone_initializer(
+                kernel_initializer),
             bias_initializer="zeros",
             kernel_regularizer=regularizer,
             bias_regularizer=regularizer),
@@ -780,7 +781,7 @@ def MultiHeadAttentionMPNNGraphUpdate(  # To be called like a class initializer.
           sender_edge_feature=edge_feature,
           attention_activation=attention_activation,
           activation=conv_activation,
-          kernel_initializer=kernel_initializer),
+          kernel_initializer=kernel_initializer),  # Cloned by the layer.
       lambda node_set_name: tfgnn.keras.layers.NextStateFromConcat(
           dense(units)),
       receiver_tag=receiver_tag)

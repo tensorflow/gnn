@@ -93,7 +93,7 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       from this input.)
     sender_node_feature: Can be set to override `tfgnn.HIDDEN_STATE` for use as
       the input feature from sender nodes to attention.
-      IMPORANT: Must be set to `None` for use with `receiver_tag=tfgnn.CONTEXT`
+      IMPORTANT: Must be set to `None` for use with `receiver_tag=tfgnn.CONTEXT`
       on an edge set, or for pooling from edges without sender node states.
     sender_edge_feature: Can be set to a feature name of the edge set to select
       it as an input feature. By default, this set to `None`, which disables
@@ -108,7 +108,7 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     attention_activation: The nonlinearity used on the transformed inputs
       before multiplying with the trained weights of the attention layer.
       This can be specified as a Keras layer, a tf.keras.activations.*
-      function, or a string understood by tf.keras.layers.Activation().
+      function, or a string understood by `tf.keras.layers.Activation()`.
       Defaults to "leaky_relu", which in turn defaults to a negative slope
       of `alpha=0.2`.
     heads_merge_type: The merge operation for combining output from
@@ -118,8 +118,10 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       by setting to `"mean"`.
     activation: The nonlinearity applied to the final result of attention,
       specified in the same ways as attention_activation.
-    kernel_initializer: Can be set to a `kerner_initializer` as understood
+    kernel_initializer: Can be set to a `kernel_initializer` as understood
       by `tf.keras.layers.Dense` etc.
+      An `Initializer` object gets cloned before use to ensure a fresh seed,
+      if not set explicitly. For more, see `tfgnn.keras.clone_initializer()`.
     kernel_regularizer: If given, will be used to regularize all layer kernels.
   """
 
@@ -138,10 +140,8 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
                                            Callable[..., Any]] = "leaky_relu",
                heads_merge_type: str = "concat",
                activation: Union[str, Callable[..., Any]] = "relu",
-               kernel_initializer: Union[
-                   None, str, tf.keras.initializers.Initializer] = None,
-               kernel_regularizer: Union[
-                   None, str, tf.keras.regularizers.Regularizer] = None,
+               kernel_initializer: Any = None,
+               kernel_regularizer: Any = None,
                **kwargs):
     kwargs.setdefault("name", "gat_v2_conv")
     super().__init__(
@@ -175,14 +175,16 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
 
     self._attention_activation = tf.keras.activations.get(attention_activation)
     self._activation = tf.keras.activations.get(activation)
-    self._kernel_initializer = kernel_initializer
+    # IMPORTANT: Use with tfgnn.keras.clone_initializer(), b/268648226.
+    self._kernel_initializer = tf.keras.initializers.get(kernel_initializer)
     self._kernel_regularizer = tf.keras.regularizers.get(kernel_regularizer)
     self._heads_merge_type = heads_merge_type
 
     # Create the transformations for the query input in all heads.
     self._w_query = tf.keras.layers.Dense(
         per_head_channels * num_heads,
-        kernel_initializer=kernel_initializer,
+        kernel_initializer=tfgnn.keras.clone_initializer(
+            self._kernel_initializer),
         # This bias gets added to the attention features but not the outputs.
         use_bias=use_bias,
         kernel_regularizer=kernel_regularizer,
@@ -192,7 +194,8 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     if self.takes_sender_node_input:
       self._w_sender_node = tf.keras.layers.Dense(
           per_head_channels * num_heads,
-          kernel_initializer=kernel_initializer,
+          kernel_initializer=tfgnn.keras.clone_initializer(
+              self._kernel_initializer),
           # This bias gets added to the attention features and the outputs.
           use_bias=use_bias,
           kernel_regularizer=kernel_regularizer,
@@ -203,7 +206,8 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     if self.takes_sender_edge_input:
       self._w_sender_edge = tf.keras.layers.Dense(
           per_head_channels * num_heads,
-          kernel_initializer=kernel_initializer,
+          kernel_initializer=tfgnn.keras.clone_initializer(
+              self._kernel_initializer),
           # This bias would be redundant with self._w_sender_node.
           use_bias=use_bias and self._w_sender_node is None,
           kernel_regularizer=kernel_regularizer,
@@ -221,7 +225,8 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     self._attention_logits_fn = tf.keras.layers.experimental.EinsumDense(
         "...ik,ki->...i",
         output_shape=(None, num_heads, 1),  # TODO(b/205825425): (num_heads,)
-        kernel_initializer=kernel_initializer,
+        kernel_initializer=tfgnn.keras.clone_initializer(
+            self._kernel_initializer),
         kernel_regularizer=kernel_regularizer,
         name="attn_logits")
 
@@ -234,8 +239,11 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
         heads_merge_type=self._heads_merge_type,
         attention_activation=self._attention_activation,
         activation=self._activation,
-        kernel_initializer=self._kernel_initializer,
-        kernel_regularizer=tf.keras.regularizers.serialize(  # b/238163789.
+        # Regularizers and initializers need explicit serialization here
+        # (and deserialization in __init__ via .get()) due to b/238163789.
+        kernel_initializer=tf.keras.initializers.serialize(
+            self._kernel_initializer),
+        kernel_regularizer=tf.keras.regularizers.serialize(
             self._kernel_regularizer),
         **super().get_config())
 
@@ -499,9 +507,8 @@ def GATv2MPNNGraphUpdate(  # To be called like a class initializer.  pylint: dis
     attention_activation: Union[str, Callable[..., Any]] = "leaky_relu",
     conv_activation: Union[str, Callable[..., Any]] = "relu",
     activation: Union[str, Callable[..., Any]] = "relu",
-    kernel_initializer: Union[
-        None, str, tf.keras.initializers.Initializer] = "glorot_uniform",
-    ) -> tf.keras.layers.Layer:
+    kernel_initializer: Any = "glorot_uniform",
+) -> tf.keras.layers.Layer:
   """Returns a GraphUpdate layer for message passing with GATv2 pooling.
 
   The returned layer performs one round of message passing between the nodes
@@ -533,14 +540,14 @@ def GATv2MPNNGraphUpdate(  # To be called like a class initializer.  pylint: dis
     attention_activation: The nonlinearity used on the transformed inputs
       before multiplying with the trained weights of the attention layer.
       This can be specified as a Keras layer, a tf.keras.activations.*
-      function, or a string understood by tf.keras.layers.Activation().
+      function, or a string understood by `tf.keras.layers.Activation()`.
       Defaults to "leaky_relu", which in turn defaults to a negative slope
       of `alpha=0.2`.
     conv_activation: The nonlinearity applied to the result of attention on one
       edge set, specified in the same ways as attention_activation.
     activation: The nonlinearity applied to the new node states computed by
       this graph update.
-    kernel_initializer: Can be set to a `kerner_initializer` as understood
+    kernel_initializer: Can be set to a `kernel_initializer` as understood
       by `tf.keras.layers.Dense` etc.
 
   Returns:
@@ -559,7 +566,8 @@ def GATv2MPNNGraphUpdate(  # To be called like a class initializer.  pylint: dis
             units,
             activation=activation,
             use_bias=True,
-            kernel_initializer=kernel_initializer,
+            kernel_initializer=tfgnn.keras.clone_initializer(
+                kernel_initializer),
             bias_initializer="zeros",
             kernel_regularizer=regularizer,
             bias_regularizer=regularizer),
@@ -574,7 +582,7 @@ def GATv2MPNNGraphUpdate(  # To be called like a class initializer.  pylint: dis
           sender_edge_feature=edge_feature,
           attention_activation=attention_activation, activation=conv_activation,
           kernel_regularizer=regularizer,
-          kernel_initializer=kernel_initializer),
+          kernel_initializer=tfgnn.keras.clone_initializer(kernel_initializer)),
       lambda node_set_name: tfgnn.keras.layers.NextStateFromConcat(
           dense(units)),
       receiver_tag=receiver_tag)

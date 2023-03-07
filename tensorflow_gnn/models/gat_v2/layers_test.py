@@ -212,6 +212,8 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
         receiver_tag=tfgnn.TARGET,
         sender_edge_feature=tfgnn.HIDDEN_STATE,  # Activate edge input.
         kernel_regularizer=tf.keras.regularizers.l2(l2reg),
+        # Test with a non-None initializer for b/238163789.
+        kernel_initializer=tf.keras.initializers.GlorotNormal(),
         attention_activation="relu")
 
     _ = layer(gt_input)  # Build weights.

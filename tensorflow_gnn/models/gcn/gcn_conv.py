@@ -17,12 +17,10 @@
 This file implements the fundamental transformation which can be wrapped in
 NodeSetUpdate and EdgeSetUpdate.
 """
-from typing import Optional, Union
+from typing import Any, Optional
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
-
-_RegularizerType = Union[tf.keras.regularizers.Regularizer, str]
 
 
 @tf.keras.utils.register_keras_serializable(package='GNN>models>gcn')
@@ -35,7 +33,7 @@ class GCNConv(tf.keras.layers.Layer):
   The original algorithm proposed in the Graph Convolutional Network paper
   expects a symmetric graph as input. That is, if there is an edge from node i
   to node j, there is also an edge from node j to node i. This implementation,
-  however, is able to take assymetric graphs as input.
+  however, is able to take asymmetric graphs as input.
 
   Let $w_{ij}$ be the weight of the edge from sender i to receiver j.
   Let $\deg^{in}_i$ be the number of incoming edges to i (in the direction
@@ -83,7 +81,10 @@ class GCNConv(tf.keras.layers.Layer):
     add_self_loops: Whether to compute the result as if a loop from each node
       to itself had been added to the edge set. The self-loop edges are added
       with an edge weight of one.
-    kernel_initializer: initializer of type tf.keras.initializers .
+    kernel_initializer: Can be set to a `kernel_initializer` as understood
+      by `tf.keras.layers.Dense` etc.
+      An `Initializer` object gets cloned before use to ensure a fresh seed,
+      if not set explicitly. For more, see `tfgnn.keras.clone_initializer()`.
     node_feature: Name of the node feature to transform.
     edge_weight_feature_name: Can be set to the name of a feature on the edge
       set that supplies a scalar weight for each edge. The GCN computation uses
@@ -135,9 +136,9 @@ class GCNConv(tf.keras.layers.Layer):
       activation='relu',
       use_bias: bool = True,
       add_self_loops: bool = False,
-      kernel_initializer: bool = None,
+      kernel_initializer: Any = None,
       node_feature: Optional[str] = tfgnn.HIDDEN_STATE,
-      kernel_regularizer: Optional[_RegularizerType] = None,
+      kernel_regularizer: Any = None,
       edge_weight_feature_name: Optional[tfgnn.FieldName] = None,
       degree_normalization: str = 'in_out',
       **kwargs,
@@ -148,7 +149,7 @@ class GCNConv(tf.keras.layers.Layer):
         activation=activation,
         use_bias=use_bias,
         kernel_regularizer=kernel_regularizer,
-        kernel_initializer=kernel_initializer)
+        kernel_initializer=tfgnn.keras.clone_initializer(kernel_initializer))
     self._add_self_loops = add_self_loops
     self._node_feature = node_feature
     self._receiver = receiver_tag
@@ -330,7 +331,8 @@ def GCNHomGraphUpdate(*,  # To be called like a class initializer.  pylint: disa
                 receiver_tag=receiver_tag,
                 add_self_loops=add_self_loops,
                 node_feature=feature_name,
-                **kwargs)},
+                **kwargs,  # Any kernel_initializer gets cloned by GCNConv.
+            )},
             next_state=tfgnn.keras.layers.SingleInputNextState(),
             node_input_feature=feature_name)}
     return dict(node_sets=node_set_updates)

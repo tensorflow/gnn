@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the Vanilla MPNN layers."""
-from typing import Collection, Optional, Union
+from typing import Any, Collection, Optional
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -30,8 +30,7 @@ def VanillaMPNNGraphUpdate(  # To be called like a class initializer.  pylint: d
     reduce_type: str = "sum",
     l2_regularization: float = 0.0,
     dropout_rate: float = 0.0,
-    kernel_initializer: Union[
-        None, str, tf.keras.initializers.Initializer] = "glorot_uniform",
+    kernel_initializer: Any = "glorot_uniform",
     use_layer_normalization: bool = False,
     # LINT.ThenChange(./config_dict.py:graph_update_get_config_dict)
 ) -> tf.keras.layers.Layer:
@@ -76,8 +75,10 @@ def VanillaMPNNGraphUpdate(  # To be called like a class initializer.  pylint: d
       biases.
     dropout_rate: The dropout rate applied to messages on each edge and to the
       new node state.
-    kernel_initializer: Can be set to a `kerner_initializer` as understood
+    kernel_initializer: Can be set to a `kernel_initializer` as understood
       by `tf.keras.layers.Dense` etc.
+      An `Initializer` object gets cloned before use to ensure a fresh seed,
+      if not set explicitly. For more, see `tfgnn.keras.clone_initializer()`.
     use_layer_normalization: Flag to determine whether to apply layer
       normalization to the new node state.
 
@@ -92,7 +93,8 @@ def VanillaMPNNGraphUpdate(  # To be called like a class initializer.  pylint: d
             units,
             activation="relu",
             use_bias=True,
-            kernel_initializer=kernel_initializer,
+            kernel_initializer=tfgnn.keras.clone_initializer(
+                kernel_initializer),
             bias_initializer="zeros",
             kernel_regularizer=regularizer,
             bias_regularizer=regularizer),
