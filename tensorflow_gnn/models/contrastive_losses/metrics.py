@@ -55,3 +55,30 @@ def self_clustering(
       tf.square(tf.matmul(representations, representations, transpose_b=True))
   )
   return (actual - expected) / (batch_size * batch_size - expected)
+
+
+@tf.function
+def pseudo_condition_number(
+    representations: tf.Tensor,
+    *,
+    subtract_mean: bool = True,
+    epsilon: float = 1e-6,
+) -> tf.Tensor:
+  """Pseudo-condition number metric implementation.
+
+  Computes a metric that measures the decay rate of the singular values.
+
+  Args:
+    representations: Input representations.
+    subtract_mean: Whether to subtract the mean from representations.
+    epsilon: To avoid division by zero, we divide by max(min(sigma), epsilon).
+
+  Returns:
+    Metric value as scalar `tf.Tensor`.
+  """
+  if representations.shape.rank != 2:
+    raise ValueError(f"Expected 2D tensor (got shape {representations.shape})")
+  if subtract_mean:
+    representations -= tf.reduce_mean(representations, axis=0)
+  sigma, _, _ = tf.linalg.svd(representations)
+  return sigma[0] / tf.maximum(sigma[-1], epsilon)

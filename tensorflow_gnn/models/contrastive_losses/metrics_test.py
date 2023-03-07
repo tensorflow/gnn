@@ -47,6 +47,20 @@ class MetricsTest(tf.test.TestCase):
     metric_value = metrics.self_clustering(x)
     self.assertAllClose(metric_value, 1.0)
 
+  def test_pseudo_condition_number_value(self):
+    # Check metric value for collapsed representations.
+    x = tf.convert_to_tensor([[1.0, 1.0], [1.0, 1.0]])
+    metric_value = metrics.pseudo_condition_number(x)
+    self.assertAllClose(metric_value, 0.0)
+
+    # Verify a hand-constructed example. In this case, right singular vectors
+    # are [1, 0] and [0, 1] respectively.
+    x = tf.convert_to_tensor(
+        [[1.0, 1.0], [1.0, -1.0], [-1.0, 1.0], [-1.0, -1.0]]
+    )
+    metric_value = metrics.pseudo_condition_number(x)
+    self.assertAllClose(metric_value, 1.0)
+
 
 if __name__ == "__main__":
   tf.test.main()

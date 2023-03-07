@@ -262,7 +262,7 @@ class BarlowTwinsTaskTest(tf.test.TestCase):
     _, fake_y = self.task.preprocess(gt)
     logits = adapted(gt)
     metric_fns = self.task.metrics()
-    self.assertLen(metric_fns, 1)
+    self.assertLen(metric_fns, 2)
     for metric_fn in metric_fns:
       metric_value = metric_fn(fake_y, logits)
       self.assertEqual(metric_value.shape, ())
@@ -313,7 +313,7 @@ class VicRegTaskTest(tf.test.TestCase):
     _, fake_y = self.task.preprocess(gt)
     logits = adapted(gt)
     metric_fns = self.task.metrics()
-    self.assertLen(metric_fns, 1)
+    self.assertLen(metric_fns, 2)
     for metric_fn in metric_fns:
       metric_value = metric_fn(fake_y, logits)
       self.assertEqual(metric_value.shape, ())
