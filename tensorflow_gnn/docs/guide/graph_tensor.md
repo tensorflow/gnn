@@ -108,7 +108,7 @@ each of shape `[m]`, such that edge `i` connects nodes `adjacency.source[i]`
 and `adjacency.target[i]` of the node sets `adjacency.source_name` and
 `adjacency.target_name`. Code that treats the choice of incident node as a
 parameter can also spell these properties as `adjacency[incident_node_tag]` and
-`adjacency.node_set_name[incident_node_tag]` using the symbolic constants
+`adjacency.node_set_name(incident_node_tag)` using the symbolic constants
 `tfgnn.SOURCE` or `tfgnn.TARGET` as tags to distinguish the two incident nodes
 of every edge.
 
