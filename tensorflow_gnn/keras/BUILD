@@ -14,6 +14,7 @@ pytype_strict_library(
     srcs = ["__init__.py"],
     deps = [
         ":builders",
+        ":initializers",
         ":keras_tensors",
         "//tensorflow_gnn/keras/layers",
     ],
@@ -82,5 +83,25 @@ tf_py_test(
         "//tensorflow_gnn/graph:graph_tensor",
         "//tensorflow_gnn/keras/layers:convolutions",
         "//tensorflow_gnn/keras/layers:next_state",
+    ],
+)
+
+pytype_strict_library(
+    name = "initializers",
+    srcs = ["initializers.py"],
+    srcs_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+tf_py_test(
+    name = "initializers_test",
+    srcs = ["initializers_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":initializers",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
     ],
 )

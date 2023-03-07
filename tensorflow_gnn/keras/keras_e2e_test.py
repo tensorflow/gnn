@@ -59,6 +59,9 @@ class ExportedKerasNamesTest(tf.test.TestCase):
   def testBuilders(self):
     self.assertIsSubclass(tfgnn.keras.ConvGNNBuilder, object)
 
+  def testInitializers(self):
+    self.assertCallable(tfgnn.keras.clone_initializer)
+
 
 # An example of a custom Keras layer used by tests below.
 class AddWeightedSwappedInEdges(tf.keras.layers.Layer):
