@@ -59,10 +59,7 @@ def self_clustering(
 
 @tf.function
 def pseudo_condition_number(
-    representations: tf.Tensor,
-    *,
-    subtract_mean: bool = True,
-    epsilon: float = 1e-6,
+    representations: tf.Tensor, *, subtract_mean: bool = True
 ) -> tf.Tensor:
   """Pseudo-condition number metric implementation.
 
@@ -71,7 +68,6 @@ def pseudo_condition_number(
   Args:
     representations: Input representations.
     subtract_mean: Whether to subtract the mean from representations.
-    epsilon: To avoid division by zero, we divide by max(min(sigma), epsilon).
 
   Returns:
     Metric value as scalar `tf.Tensor`.
@@ -80,5 +76,5 @@ def pseudo_condition_number(
     raise ValueError(f"Expected 2D tensor (got shape {representations.shape})")
   if subtract_mean:
     representations -= tf.reduce_mean(representations, axis=0)
-  sigma, _, _ = tf.linalg.svd(representations)
-  return sigma[0] / tf.maximum(sigma[-1], epsilon)
+  sigma = tf.linalg.svd(representations, compute_uv=False)
+  return tf.math.divide_no_nan(sigma[0], sigma[-1])
