@@ -82,7 +82,6 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
       **kwargs,
       # LINT.ThenChange(./config_dict.py:graph_update_get_config_dict)
   ):
-    kwargs.setdefault('name', 'hgt_graph_update')
     super().__init__(**kwargs)
     self._is_initialized = False
     self._num_heads = num_heads
