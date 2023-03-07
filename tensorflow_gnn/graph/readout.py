@@ -138,7 +138,7 @@ def readout_named(
     *,
     feature_name: str,
     readout_node_set: const.NodeSetName = "_readout",
-    validate=True) -> const.Field:
+    validate: bool = True) -> const.Field:
   """Reads out a feature value from select nodes (or edges) in a graph.
 
   This helper function addresses the need to read out final hidden states
@@ -184,7 +184,7 @@ def readout_named(
   Args:
     graph: A scalar GraphTensor with the auxiliary graph pieces described above.
     key: A string key to select between possibly multiple named readouts
-      (such as `"source"` and `"target"` for link prediction),
+      (such as `"source"` and `"target"` for link prediction).
     feature_name: The name of a feature that is present on the node set(s)
       (or edge set(s)) referenced by the auxiliary edge sets. The feature
       must have shape `[num_items, *feature_dims]` with the same `feature_dims`

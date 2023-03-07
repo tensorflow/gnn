@@ -87,6 +87,7 @@ pytype_strict_library(
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
         "//tensorflow_gnn/graph:graph_tensor_ops",
+        "//tensorflow_gnn/graph:readout",
     ],
 )
 

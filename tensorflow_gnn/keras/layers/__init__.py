@@ -23,6 +23,7 @@ Broadcast = graph_ops.Broadcast
 Pool = graph_ops.Pool
 Readout = graph_ops.Readout
 ReadoutFirstNode = graph_ops.ReadoutFirstNode
+ReadoutNamed = graph_ops.ReadoutNamed
 
 AnyToAnyConvolutionBase = convolution_base.AnyToAnyConvolutionBase
 SimpleConv = convolutions.SimpleConv

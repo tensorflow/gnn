@@ -21,6 +21,7 @@ import tensorflow as tf
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_ops as ops
+from tensorflow_gnn.graph import readout
 
 
 @tf.keras.utils.register_keras_serializable(package="GNN")
@@ -217,6 +218,10 @@ class ReadoutFirstNode(tf.keras.layers.Layer):
   first node may be arbitrary -- or nonexistant, in which case this operation
   must not be used and may raise an error at runtime.)
 
+  This implicit convention is inflexible and hard to validate. New models are
+  encouraged to use `ReadoutNamed` instead, provided their source data can be
+  equipped with the auxiliary node sets it needs.
+
   Init args:
     node_set_name: If set, the feature will be read from this node set.
     feature_name: The name of the feature to read. If unset (also in call),
@@ -287,6 +292,97 @@ class ReadoutFirstNode(tf.keras.layers.Layer):
   def feature_name(self) -> Optional[gt.FieldName]:
     """Returns the feature_name argument to init, or None if unset."""
     return self._feature_name
+
+
+@tf.keras.utils.register_keras_serializable(package="GNN")
+class ReadoutNamed(tf.keras.layers.Layer):
+  """Reads out a feature value from select nodes (or edges) in a graph.
+
+  This Keras layer wraps the `tfgnn.readout_named()` function. It addresses
+  the need to read out final hidden states from a GNN computation to make
+  predictions for some nodes (or edges) of interest. Its typical usage looks
+  as follows:
+
+  ```python
+  input_graph = tf.keras.Input(type_spec=graph_tensor_spec)
+  graph = SomeGraphUpdate(...)(input_graph)  # Run your GNN here.
+  seed_node_states = tfgnn.keras.layers.ReadoutNamed("seed")(graph)
+  logits = tf.keras.layers.Dense(num_classes)(seed_node_states)
+  model = tf.keras.Model(inputs, logits)
+  ```
+
+  ...where `"seed"` is an arbitrary key. There can be multiple of those. For
+  example, a link prediction model could read out `"source"` and `"target"` node
+  states from the graph.
+
+  Please see the documentation of `tfgnn.readout_named()` for the auxiliary
+  node set and edge sets that encode how values are read out from the graph.
+  Whenever these are available, it is strongly recommended to make use of them
+  with this layer and avoid the older `tfgnn.keras.layers.ReadoutFirstNode`.
+
+  Init args:
+    key: A string key to select between possibly multiple named readouts
+      (such as `"source"` and `"target"` for link prediction). Can be fixed
+      in init, or selected for each call.
+    feature_name: The name of the feature to read. If unset (also in call),
+      tfgnn.HIDDEN_STATE will be read.
+    readout_node_set: A string, defaults to `"_readout"`. This is used as the
+      name for the readout node set and as a name prefix for its edge sets.
+    validate: Setting this to false disables the validity checks for the
+      auxiliary edge sets. This is stronlgy discouraged, unless great care is
+      taken to run `tfgnn.validate_graph_tensor_for_readout()` earlier on
+      structurally unchanged GraphTensors.
+
+  Call args:
+    graph: The scalar GraphTensor to read from.
+    key: Same meaning as for init. Must be passed to init, or to call,
+      or to both (with the same value).
+
+  Returns:
+    A tensor of read-out feature values, shaped like a feature of the
+    `readout_node_set`.
+  """
+
+  def __init__(self,
+               key: Optional[str] = None,
+               *,
+               feature_name: str = const.HIDDEN_STATE,
+               readout_node_set: const.NodeSetName = "_readout",
+               validate: bool = True,
+               **kwargs):
+    super().__init__(**kwargs)
+    self._key = key
+    self._feature_name = feature_name
+    self._readout_node_set = readout_node_set
+    self._validate = validate
+
+  def get_config(self):
+    return dict(
+        key=self._key,
+        feature_name=self._feature_name,
+        readout_node_set=self._readout_node_set,
+        validate=self._validate,
+        **super().get_config())
+
+  def call(self,
+           graph: gt.GraphTensor,
+           *,
+           key: Optional[str] = None) -> gt.Field:
+    _check_init_call_arg_consistency("ReadoutNamed", "key",
+                                     self._key, key)
+    if key is None:
+      key = self._key
+    if key is None:
+      raise ValueError("The ReadoutNamed layer requires a readout key "
+                       "to be set at init or call time")
+
+    gt.check_scalar_graph_tensor(graph, "ReadoutNamed")
+    return readout.readout_named(
+        graph,
+        key=key,
+        feature_name=self._feature_name,
+        readout_node_set=self._readout_node_set,
+        validate=self._validate)
 
 
 class BroadcastPoolBase(tf.keras.layers.Layer):

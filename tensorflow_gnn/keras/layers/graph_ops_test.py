@@ -218,6 +218,96 @@ class ReadoutFirstNodeTest(tf.test.TestCase, parameterized.TestCase):
     return graph
 
 
+class ReadoutNamedTest(tf.test.TestCase, parameterized.TestCase):
+
+  def testBasic(self):
+    test_graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            "users": gt.NodeSet.from_fields(
+                sizes=tf.constant([3]),
+                features={const.HIDDEN_STATE: tf.constant(
+                    [[1., 1.],  # Read out as "source" 1.
+                     [1., 2.],  # Read out as "source" 0.
+                     [1., 3.]])}),
+            "items": gt.NodeSet.from_fields(
+                sizes=tf.constant([4]),
+                features={const.HIDDEN_STATE: tf.constant(
+                    [[2., 1.],
+                     [2., 2.],  # Read out as "target" 1.
+                     [2., 3.],  # Read out as "target" 3.
+                     [2., 4.]])}),
+            "_readout": gt.NodeSet.from_fields(
+                sizes=tf.constant([2]),
+                features={"labels": tf.constant([0, 1])})},
+        edge_sets={
+            "has_purchased": gt.EdgeSet.from_fields(
+                sizes=tf.constant([2]),
+                adjacency=adj.Adjacency.from_indices(
+                    ("users", tf.constant([1, 2])),
+                    ("items", tf.constant([0, 3])))),
+            "_readout/source/1": gt.EdgeSet.from_fields(
+                sizes=tf.constant([2]),
+                adjacency=adj.Adjacency.from_indices(
+                    # The "source" users are defined here.
+                    ("users", tf.constant([1, 0])),
+                    ("_readout", tf.constant([0, 1])))),
+            "_readout/target/1": gt.EdgeSet.from_fields(
+                sizes=tf.constant([2]),
+                adjacency=adj.Adjacency.from_indices(
+                    # The "target" items are defined here.
+                    ("items", tf.constant([1, 2])),
+                    ("_readout", tf.constant([0, 1]))))})
+    expected_sources = [[1., 2.], [1., 1.]]
+    expected_targets = [[2., 2.], [2., 3.]]
+
+    # Test common usages that set the key exactly once.
+    readout_source = graph_ops.ReadoutNamed("source")
+    self.assertAllEqual(expected_sources, readout_source(test_graph))
+    readout = graph_ops.ReadoutNamed()
+    self.assertAllEqual(expected_sources, readout(test_graph, key="source"))
+    self.assertAllEqual(expected_targets, readout(test_graph, key="target"))
+
+    # Test setting the key not exactly once.
+    # Redundant keys are ok.
+    self.assertAllEqual(expected_sources,
+                        readout_source(test_graph, key="source"))
+    # No key is an error.
+    with self.assertRaisesRegex(ValueError, r"requires a readout key"):
+      _ = readout(test_graph)
+    # Contradicting keys are an error, too.
+    with self.assertRaisesRegex(ValueError, r"but called with"):
+      _ = readout_source(test_graph, key="target")
+
+  def testExplicitNames(self):
+    test_graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            "objects": gt.NodeSet.from_fields(
+                sizes=tf.constant([2]),
+                features={
+                    "right_feature": tf.constant([[1., 1.], [1., 2.]]),
+                    "wrong_feature": tf.constant([[9.], [9.]])}),
+            "_out_it_reads_from_here": gt.NodeSet.from_fields(
+                sizes=tf.constant([1]))},
+        edge_sets={
+            "relations": gt.EdgeSet.from_fields(
+                sizes=tf.constant([1]),
+                adjacency=adj.Adjacency.from_indices(
+                    ("objects", tf.constant([1])),
+                    ("objects", tf.constant([0])))),
+            "_out_it_reads_from_here/widget": gt.EdgeSet.from_fields(
+                sizes=tf.constant([1]),
+                adjacency=adj.Adjacency.from_indices(
+                    ("objects", tf.constant([1])),
+                    ("_out_it_reads_from_here", tf.constant([0]))))})
+
+    readout = graph_ops.ReadoutNamed(
+        key="widget",
+        feature_name="right_feature",
+        readout_node_set="_out_it_reads_from_here",
+        name="my_test_readout")
+    self.assertAllEqual([[1., 2.]], readout(test_graph))
+
+
 class BroadcastTest(tf.test.TestCase, parameterized.TestCase):
 
   def testFeatureName(self):
