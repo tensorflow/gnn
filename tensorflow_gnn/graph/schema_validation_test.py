@@ -251,6 +251,46 @@ class GraphValidationTest(tf.test.TestCase):
     with self.assertRaises(sv.ValidationError):
       sv._validate_schema_node_set_references(empty_target_schema)
 
+  def test_validate_schema_readout(self):
+    schema = text_format.Parse("""
+      node_sets {
+        key: "queries"
+      }
+      node_sets {
+        key: "documents"
+      }
+      node_sets {
+        key: "_readout"
+      }
+      edge_sets {
+        key: "_readout/foo"
+        value {
+          source: "queries"
+          target: "_readout"
+        }
+      }
+    """, schema_pb2.GraphSchema())
+    sv._validate_schema_readout(schema, readout_node_sets=['_readout'])
+    sv._validate_schema_readout(schema)
+
+    schema_without = copy.copy(schema)
+    del schema_without.edge_sets['_readout/foo']
+    del schema_without.node_sets['_readout']
+    sv._validate_schema_readout(schema_without)
+
+    with self.assertRaisesRegex(
+        sv.ValidationError,
+        r'lacks auxiliary node set.*_shmeatout'):
+      sv._validate_schema_readout(schema,
+                                  readout_node_sets=['_readout', '_shmeatout'])
+
+    bad_schema = copy.copy(schema)
+    bad_schema.edge_sets['_readout/foo'].target = 'documents'
+    with self.assertRaisesRegex(
+        sv.ValidationError,
+        r'validate_graph_tensor_spec_for_readout'):
+      sv._validate_schema_readout(bad_schema)
+
 
 class SchemaTests(tf.test.TestCase):
 

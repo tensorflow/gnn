@@ -180,6 +180,7 @@ pytype_strict_library(
         ":adjacency",
         ":graph_constants",
         ":graph_tensor",
+        ":readout",
         ":schema_utils",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/proto:graph_schema_py_proto",

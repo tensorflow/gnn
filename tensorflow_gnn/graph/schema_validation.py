@@ -12,20 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Graph schema validation routines.
+"""Graph schema validation routines."""
 
-This module provides a simple container for the ragged tensors associated with
-multiple sets of nodes, edges, and graph-global data. See go/graph-tensor for
-details.
-"""
-
-from typing import List
+from typing import List, Optional, Sequence
 
 from absl import logging  # TODO(blais): Remove, see below.
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
+from tensorflow_gnn.graph import readout
 from tensorflow_gnn.graph import schema_utils as su
 import tensorflow_gnn.proto.graph_schema_pb2 as schema_pb2
 
@@ -45,7 +41,10 @@ class ValidationError(ValueError):
   """
 
 
-def validate_schema(schema: schema_pb2.GraphSchema) -> List[Exception]:
+def validate_schema(
+    schema: schema_pb2.GraphSchema,
+    readout_node_sets: Optional[Sequence[const.NodeSetName]] = None,
+) -> List[Exception]:
   """Validates the correctness of a graph schema instance.
 
   `GraphSchema` configuration messages are created by users in order to describe
@@ -55,9 +54,15 @@ def validate_schema(schema: schema_pb2.GraphSchema) -> List[Exception]:
 
   Args:
     schema: An instance of the graph schema.
+    readout_node_sets: By default, this function checks the "_readout" node set,
+      if present, if it meets the requirements of `tfgnn.readout_named()`.
+      That's sufficient for most cases. Optionally, you can pass a list of
+      `readout_node_set` names to (a) require their presence and (b) check them.
+
   Returns:
     A list of exceptions describing optional warnings.
     Render those to your favorite stream (or ignore).
+
   Raises:
     ValidationError: If a validation check fails.
   """
@@ -67,6 +72,7 @@ def validate_schema(schema: schema_pb2.GraphSchema) -> List[Exception]:
   _validate_schema_reserved_feature_names(schema)
   _validate_schema_context_references(schema)
   _validate_schema_node_set_references(schema)
+  _validate_schema_readout(schema, readout_node_sets)
   return _warn_schema_scalar_shapes(schema)
 
 
@@ -266,6 +272,27 @@ def _validate_schema_node_set_references(schema: schema_pb2.GraphSchema):
         raise ValidationError(
             "Edge set '{}' referencing unknown node set '{}'".format(
                 set_name, feature_name))
+
+
+def _validate_schema_readout(
+    schema: schema_pb2.GraphSchema,
+    readout_node_sets: Optional[Sequence[const.NodeSetName]] = None,
+) -> None:
+  """Applies validate_graph_tensor_spec_for_readout()."""
+  if readout_node_sets is None:
+    if "_readout" not in schema.node_sets:
+      return
+    readout_node_sets = ["_readout"]
+
+  spec = su.create_graph_spec_from_schema_pb(schema)
+  for readout_node_set in readout_node_sets:
+    try:
+      readout.validate_graph_tensor_spec_for_readout(
+          spec, readout_node_set=readout_node_set)
+    except (ValueError, KeyError) as e:
+      raise ValidationError(
+          "tfgnn.validate_graph_tensor_spec_for_readout(..., "
+          f"readout_node_set='{readout_node_set}') failed: {e}") from e
 
 
 # TODO(blais): This code could eventually be folded into the various
