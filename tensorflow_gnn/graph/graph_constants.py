@@ -14,7 +14,6 @@
 # ==============================================================================
 """Constant strings used throughout the package."""
 
-import re
 from typing import Any, List, Mapping, Optional, Sequence, Tuple, Union
 
 import tensorflow as tf
@@ -36,15 +35,14 @@ SIZE_NAME = '#size'
 SOURCE_NAME = '#source'
 TARGET_NAME = '#target'
 RESERVED_FEATURES = frozenset({SIZE_NAME, SOURCE_NAME, TARGET_NAME})
+# The pattern of feature names (present and future) that are not allowed on a
+# graph tensor and schema, for use with re.fullmatch(pattern, feature_name).
+RESERVED_FEATURE_NAME_PATTERN = r'#.*'
 
 # The conventional feature name for the hidden state (neuron activations) of
 # an edge set, a node set or the context. Not special in GraphTensor, but used
 # in some modeling libraries on top if explicit names are not needed.
 HIDDEN_STATE = 'hidden_state'
-
-# The pattern of feature names that are not allowed on a graph tensor and
-# schema.
-RESERVED_REGEX = re.compile(r'#.*')
 
 # The internal metadata key prefix to use for hyper adjacency.
 INDEX_KEY_PREFIX = '#index.'

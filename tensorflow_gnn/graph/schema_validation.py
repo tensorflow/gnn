@@ -14,6 +14,7 @@
 # ==============================================================================
 """Graph schema validation routines."""
 
+import re
 from typing import List, Optional, Sequence
 
 from absl import logging  # TODO(blais): Remove, see below.
@@ -235,7 +236,7 @@ def _validate_schema_reserved_feature_names(schema: schema_pb2.GraphSchema):
   # TODO(blais): Make this compulsory after we remove the hardcoded
   # feature names from the sampler.
   for set_type, set_name, feature_name, feature in su.iter_features(schema):
-    if const.RESERVED_REGEX.match(feature_name):
+    if re.fullmatch(const.RESERVED_FEATURE_NAME_PATTERN, feature_name):
       logging.error("Invalid %s feature name '%s' on set '%s': reserved names "
                     "are not allowed", set_type, feature_name, set_name)
 
