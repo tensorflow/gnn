@@ -25,6 +25,8 @@ from tensorflow_gnn.models.contrastive_losses import layers as perturbation_laye
 from tensorflow_gnn.models.contrastive_losses import tasks
 from tensorflow_gnn.models.contrastive_losses.deep_graph_infomax import layers as dgi_layers
 
+CorruptionSpec = perturbation_layers.CorruptionSpec
+DropoutFeatures = perturbation_layers.DropoutFeatures
 ShuffleFeaturesGlobally = perturbation_layers.ShuffleFeaturesGlobally
 DeepGraphInfomaxLogits = dgi_layers.DeepGraphInfomaxLogits
 DeepGraphInfomaxTask = tasks.DeepGraphInfomaxTask
