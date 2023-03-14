@@ -83,12 +83,12 @@ class KerasTrainer(interfaces.Trainer):
         `os.path.join(model_dir, "ckpnt")` is used.
       backup_dir: An optional directory for backup, if unset;
         `(os.path.join(model_dir, "backup"),)` is used.
-      steps_per_epoch: An optional steps per epoch, if unspecified: epochs are
-        at `tf.data.Dataset` end.
-      validation_steps: An optional numer of validation steps, if unspecified:
-        the entire validation `tf.data.Dataset` is evaluated.
-      validation_per_epoch: An optional validations per epoch, if unspecified:
-        one evaluation per training epoch is performed.
+      steps_per_epoch: The number of training steps per epoch. Optional,
+        if unspecified: epochs are at `tf.data.Dataset` end.
+      validation_steps: The number of steps used during validation. Optional,
+        if unspecified: the entire validation `tf.data.Dataset` is evaluated.
+      validation_per_epoch: The number of validations done per training epoch.
+        Optional, if unspecified: Perform one validation per training epoch.
       summarize_every_n_steps: The frequency for writing TensorBoard summaries,
         as an integer number of steps, or "epoch" for once per epoch, or
         "never".
