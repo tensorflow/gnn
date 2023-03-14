@@ -56,10 +56,23 @@ _GRAPH_SCHEMA = flags.DEFINE_string(
 _BASE_DIR = flags.DEFINE_string(
     "base_dir",
     None,
-    "The training and export base directory "
-    "(`runner.incrementing_model_dir(...)` is used to generate the model "
-    "directory).",
-    required=True)
+    (
+        "The training base directory ("
+        "`runner.incrementing_model_dir(...)` is used to generate the model "
+        "directory)."
+    ),
+    required=True,
+)
+
+_EXPORT_DIR = flags.DEFINE_string(
+    "export_dir",
+    None,
+    (
+        "Directory where the model will be exported to. If not specified, a "
+        "default is chosen by the TF-GNN runner. See `runner.run()` for "
+        "details."
+    ),
+)
 
 _TPU_ADDRESS = flags.DEFINE_string(
     "tpu_address",
@@ -396,6 +409,7 @@ def main(
                                 else "never"),
   )
 
+  export_dirs = [_EXPORT_DIR.value] if _EXPORT_DIR.value is not None else None
   runner.run(
       train_ds_provider=train_ds_provider,
       train_padding=train_padding,
@@ -406,14 +420,17 @@ def main(
       task=task,
       gtspec=gtspec,
       global_batch_size=global_batch_size,
+      export_dirs=export_dirs,
       feature_processors=[
           tfgnn.keras.layers.MapFeatures(
               context_fn=drop_all_features,
               node_sets_fn=process_node_features,
-              edge_sets_fn=drop_all_features)
+              edge_sets_fn=drop_all_features,
+          ),
       ],
       valid_ds_provider=valid_ds_provider,
-      valid_padding=valid_padding)
+      valid_padding=valid_padding,
+  )
 
 
 if __name__ == "__main__":
