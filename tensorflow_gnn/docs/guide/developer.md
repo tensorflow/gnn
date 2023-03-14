@@ -90,8 +90,9 @@ bazel test --build_tag_filters=-no_oss --test_tag_filters=-no_oss --test_output=
 The `--define=no_tfgnn_py_deps=true` flag directs bazel to assume that all
 dependencies are provided in the environment (where we just installed the .whl)
 
-The flags `--build_tag_filters=-no_oss` and `--test_tag_filters=-no_oss` disable
-tests that pass in the internal production environment but fail on GitHub.
+The flags `--build_tag_filters=-no_oss` and
+`--test_tag_filters=-no_oss` disable tests that pass in the
+internal production environment but fail on GitHub.
 
 ### Run a single test file
 
