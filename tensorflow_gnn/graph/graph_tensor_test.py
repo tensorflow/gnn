@@ -1227,40 +1227,58 @@ class CheckScalarGraphTensorTest(tf.test.TestCase):
 
 class CheckHomogeneousGraphTensorTest(tf.test.TestCase, parameterized.TestCase):
 
-  def testSuccess(self):
-    graph = _make_test_graph_from_num_pieces(1, 1)
-    gt.check_homogeneous_graph_tensor(graph)  # Doesn't raise.
-    gt.check_homogeneous_graph_tensor(graph.spec)  # Doesn't raise.
+  @parameterized.named_parameters(('', False), ('WithReadout', True))
+  def testSuccess(self, add_readout):
+    graph = _make_test_graph_from_num_pieces(1, 1, add_readout=add_readout)
+    expected = ('atoms_0', 'bonds_0')
+    # These calls don't raise.
+    self.assertEqual(expected,
+                     gt.get_homogeneous_node_and_edge_set_name(graph))
+    self.assertEqual(expected,
+                     gt.get_homogeneous_node_and_edge_set_name(graph.spec))
 
   @parameterized.named_parameters(
-      ('ZeroNodeSets', 0, 0), ('ThreeNodeSets', 3, 1), ('ZeroEdgeSets', 1, 0),
-      ('SevenEdgeSets', 1, 7), ('ManyPieces', 4, 5))
-  def testFailure(self, num_node_sets, num_edge_sets):
-    graph = _make_test_graph_from_num_pieces(num_node_sets, num_edge_sets)
+      ('ZeroNodeSets', 0, 0),
+      ('ThreeNodeSets', 3, 1),
+      ('ZeroEdgeSetsButReadout', 1, 0, True),
+      ('SevenEdgeSets', 1, 7),
+      ('ManyPieces', 4, 5),
+      ('ManyPiecesAndReadout', 4, 5, True))
+  def testFailure(self, num_node_sets, num_edge_sets, add_readout=False):
+    graph = _make_test_graph_from_num_pieces(num_node_sets, num_edge_sets,
+                                             add_readout)
     with self.assertRaisesRegex(ValueError,
                                 r'a graph with 1 node set and 1 edge set'):
-      gt.check_homogeneous_graph_tensor(graph)
+      gt.get_homogeneous_node_and_edge_set_name(graph)
     with self.assertRaisesRegex(ValueError,
                                 r'a graph with 1 node set and 1 edge set'):
-      gt.check_homogeneous_graph_tensor(graph.spec)
+      gt.get_homogeneous_node_and_edge_set_name(graph.spec)
 
 
-def _make_test_graph_from_num_pieces(num_node_sets, num_edge_sets):
+def _make_test_graph_from_num_pieces(num_node_sets, num_edge_sets, add_readout):
   # pylint: disable=g-complex-comprehension
-  return gt.GraphTensor.from_pieces(
-      node_sets={
-          f'atoms_{i}': gt.NodeSet.from_fields(
-              sizes=[2, 1], features={'f': [[1.], [2.], [3.]]})
-          for i in range(num_node_sets)
-      },
-      edge_sets={
-          f'bonds_{j}': gt.EdgeSet.from_fields(
-              sizes=as_tensor([2, 0]),
-              adjacency=adj.Adjacency.from_indices(
-                  source=('atoms_1', as_ragged([[0, 1], []])),
-                  target=('atoms_1', as_ragged([[1, 2], []]))))
-          for j in range(num_edge_sets)
-      })
+  node_sets = {
+      f'atoms_{i}': gt.NodeSet.from_fields(
+          sizes=[2, 1], features={'f': [[1.], [2.], [3.]]})
+      for i in range(num_node_sets)
+  }
+  edge_sets = {
+      f'bonds_{j}': gt.EdgeSet.from_fields(
+          sizes=[2, 0],
+          adjacency=adj.Adjacency.from_indices(
+              source=('atoms_0', [0, 2]),
+              target=('atoms_0', [1, 2])))
+      for j in range(num_edge_sets)
+  }
+  if add_readout:
+    node_sets['_readout'] = gt.NodeSet.from_fields(sizes=[1, 1])
+    edge_sets['_readout/seed'] = gt.EdgeSet.from_fields(
+        sizes=[1, 1],
+        adjacency=adj.Adjacency.from_indices(
+            source=('atoms_0', [1, 2]),
+            target=('atoms_0', [0, 2])))
+
+  return gt.GraphTensor.from_pieces(node_sets=node_sets, edge_sets=edge_sets)
 
 
 class SpecRelaxationTest(tu.GraphTensorTestBase):

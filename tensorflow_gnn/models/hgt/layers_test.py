@@ -54,27 +54,33 @@ def _homogeneous_cycle_graph(node_state, edge_state=None):
   )
 
 
-def _heterogeneous_example_graph():
-  return tfgnn.GraphTensor.from_pieces(
-      node_sets={
-          "airframe": tfgnn.NodeSet.from_fields(
-              sizes=[4], features={tfgnn.HIDDEN_STATE: tf.eye(4, 3)}
+def _heterogeneous_example_graph(add_readout=False):
+  node_sets = {
+      "airframe": tfgnn.NodeSet.from_fields(
+          sizes=[4], features={tfgnn.HIDDEN_STATE: tf.eye(4, 3)}
+      ),
+      "engine": tfgnn.NodeSet.from_fields(
+          sizes=[3], features={tfgnn.HIDDEN_STATE: tf.eye(3, 2)}
+      ),
+  }
+  edge_sets = {
+      "powerplant": tfgnn.EdgeSet.from_fields(
+          sizes=[4],
+          features={},
+          adjacency=tfgnn.Adjacency.from_indices(
+              source=("airframe", [0, 1, 2, 3]),
+              target=("engine", [0, 1, 2, 1]),
           ),
-          "engine": tfgnn.NodeSet.from_fields(
-              sizes=[3], features={tfgnn.HIDDEN_STATE: tf.eye(3, 2)}
-          ),
-      },
-      edge_sets={
-          "powerplant": tfgnn.EdgeSet.from_fields(
-              sizes=[4],
-              features={},
-              adjacency=tfgnn.Adjacency.from_indices(
-                  source=("airframe", [0, 1, 2, 3]),
-                  target=("engine", [0, 1, 2, 1]),
-              ),
-          )
-      },
-  )
+      )
+  }
+  if add_readout:
+    node_sets["_readout"] = tfgnn.NodeSet.from_fields(sizes=[1])
+    edge_sets["_readout/seed"] = tfgnn.EdgeSet.from_fields(
+        sizes=[1],
+        adjacency=tfgnn.Adjacency.from_indices(
+            source=("engine", [1]),
+            target=("_readout", [0])))
+  return tfgnn.GraphTensor.from_pieces(node_sets=node_sets, edge_sets=edge_sets)
 
 
 def _parallel_vee_example_graph():
@@ -126,6 +132,7 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
           lambda: layers.HGTGraphUpdate(**kwargs),
       )
 
+  # TODO(b/269076334): Test with "_readout" node set.
   def test_ndim_input(self):
     """Tests that HGT can handle inputs with more than 2 dimensions."""
     self._skip_if_unsupported()
@@ -253,6 +260,7 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
     )
     _ = conv(test_graph)
     weights = {v.name: v for v in conv.trainable_weights}
+    self.assertLen(weights, 11)  # Includes biases and edge type priors.
     # Use identity transformations for the initial key/message/query states.
     weights["hgt_graph_update/key_node_nodes/kernel:0"].assign(tf.eye(4))
     weights["hgt_graph_update/message_node_nodes/kernel:0"].assign(tf.eye(4))
@@ -332,6 +340,7 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
     )
     _ = conv(test_graph)
     weights = {v.name: v for v in conv.trainable_weights}
+    self.assertLen(weights, 19)  # Includes biases and edge type priors.
     weights["hgt_graph_update/key_node_sender0/kernel:0"].assign(tf.eye(4))
     weights["hgt_graph_update/message_node_sender0/kernel:0"].assign(tf.eye(4))
     weights["hgt_graph_update/key_node_sender1/kernel:0"].assign(tf.eye(4))
@@ -408,6 +417,7 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
     )
     _ = conv(test_graph)
     weights = {v.name: v for v in conv.trainable_weights}
+    self.assertLen(weights, 18)  # Includes biases and edge type priors.
     weights["hgt_graph_update/key_node_sender/kernel:0"].assign(tf.eye(4))
     weights["hgt_graph_update/message_node_sender/kernel:0"].assign(tf.eye(4))
     weights["hgt_graph_update/query_node_receiver0/kernel:0"].assign(tf.eye(4))
@@ -494,6 +504,7 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
     )
     _ = conv(test_graph)
     weights = {v.name: v for v in conv.trainable_weights}
+    self.assertLen(weights, 27)  # Includes biases and edge type priors.
     weights["hgt_graph_update/key_node_sender0/kernel:0"].assign(tf.eye(4))
     weights["hgt_graph_update/message_node_sender0/kernel:0"].assign(tf.eye(4))
     weights["hgt_graph_update/key_node_sender1/kernel:0"].assign(tf.eye(4))
@@ -656,6 +667,41 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
     ):
       self.skipTest("Bad Test: Known issue in Keras model reloading")
     self.assertAllEqual(got, layer_before_engine_state)
+
+  @parameterized.named_parameters(
+      ("baseline", False),
+      ("", True))
+  def test_ignores_readout(self, add_readout):
+    self._skip_if_unsupported()
+    test_graph = _heterogeneous_example_graph(add_readout=add_readout)
+    conv = layers.HGTGraphUpdate(
+        num_heads=2,
+        per_head_channels=1,
+        receiver_tag=tfgnn.TARGET,
+    )
+    _ = conv(test_graph)
+    # Adding "_readout" does not change the node and edge sets used.
+    self.assertCountEqual(
+        [v.name for v in conv.trainable_weights],
+        [
+            # Source node set "airframe".
+            "hgt_graph_update/key_node_airframe/kernel:0",
+            "hgt_graph_update/key_node_airframe/bias:0",
+            "hgt_graph_update/message_node_airframe/kernel:0",
+            "hgt_graph_update/message_node_airframe/bias:0",
+            # Target node set "engine".
+            "hgt_graph_update/query_node_engine/kernel:0",
+            "hgt_graph_update/query_node_engine/bias:0",
+            "hgt_graph_update/aggr_node_engine/kernel:0",
+            "hgt_graph_update/aggr_node_engine/bias:0",
+            "hgt_graph_update/skip_engine:0",
+            "hgt_graph_update/normalization_engine/gamma:0",
+            "hgt_graph_update/normalization_engine/beta:0",
+            # Edge set "powerplant".
+            "hgt_graph_update/message_edge_powerplant/kernel:0",
+            "hgt_graph_update/attention_edge_powerplant/kernel:0",
+            "hgt_graph_update/priors_powerplant:0",
+        ])
 
 
 if __name__ == "__main__":

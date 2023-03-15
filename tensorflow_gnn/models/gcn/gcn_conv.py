@@ -320,10 +320,10 @@ def GCNHomGraphUpdate(*,  # To be called like a class initializer.  pylint: disa
   # That needs to be deferred until we see a GraphTensorSpec that tells us
   # the node_set_name.
   def deferred_init_callback(spec: tfgnn.GraphTensorSpec):
-    tfgnn.check_homogeneous_graph_tensor(spec, 'GCNHomGraphUpdate')
-    edge_set_name, = spec.edge_sets_spec.keys()
-    node_set_name = spec.edge_sets_spec[
-        edge_set_name].adjacency_spec.node_set_name(receiver_tag)
+    node_set_name, edge_set_name = tfgnn.get_homogeneous_node_and_edge_set_name(
+        spec, 'GCNHomGraphUpdate',
+        # TODO(b/269076334): Pass through aux_graph_piece_pattern here?
+    )
     node_set_updates = {
         node_set_name: tfgnn.keras.layers.NodeSetUpdate(
             {edge_set_name: GCNConv(

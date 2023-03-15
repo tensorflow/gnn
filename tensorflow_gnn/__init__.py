@@ -196,6 +196,7 @@ assert_constraints = schema_validation.assert_constraints
 # Tensor Validation Utils
 check_scalar_graph_tensor = graph_tensor.check_scalar_graph_tensor
 check_homogeneous_graph_tensor = graph_tensor.check_homogeneous_graph_tensor
+get_homogeneous_node_and_edge_set_name = graph_tensor.get_homogeneous_node_and_edge_set_name
 
 # Type check helpers
 is_dense_tensor = tensor_utils.is_dense_tensor

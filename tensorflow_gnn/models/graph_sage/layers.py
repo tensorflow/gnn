@@ -473,6 +473,8 @@ class GCNGraphSAGENodeSetUpdate(tf.keras.layers.Layer):
     return {self._self_node_feature: result}
 
 
+# TODO(b/269076334): Refactor in terms of ConvGNNBuilder to get support for
+# AUX_GRAPH_PIECE_PATTERN.
 @tf.keras.utils.register_keras_serializable(package="GraphSAGE")
 def GraphSAGEGraphUpdate(*,
                          units: int,

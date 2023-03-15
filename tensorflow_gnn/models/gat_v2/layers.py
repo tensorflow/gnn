@@ -459,10 +459,10 @@ def GATv2HomGraphUpdate(
   # That needs to be deferred until we see a GraphTensorSpec that tells us
   # the node_set_name.
   def deferred_init_callback(spec: tfgnn.GraphTensorSpec):
-    tfgnn.check_homogeneous_graph_tensor(spec, "GATv2HomGraphUpdate")
-    edge_set_name, = spec.edge_sets_spec.keys()
-    node_set_name = spec.edge_sets_spec[
-        edge_set_name].adjacency_spec.node_set_name(receiver_tag)
+    node_set_name, edge_set_name = tfgnn.get_homogeneous_node_and_edge_set_name(
+        spec, "GATv2HomGraphUpdate",
+        # TODO(b/269076334): Pass through aux_graph_piece_pattern here?
+    )
     node_set_updates = {
         node_set_name: tfgnn.keras.layers.NodeSetUpdate(
             {edge_set_name: GATv2Conv(
@@ -585,5 +585,7 @@ def GATv2MPNNGraphUpdate(  # To be called like a class initializer.  pylint: dis
           kernel_initializer=tfgnn.keras.clone_initializer(kernel_initializer)),
       lambda node_set_name: tfgnn.keras.layers.NextStateFromConcat(
           dense(units)),
-      receiver_tag=receiver_tag)
+      receiver_tag=receiver_tag,
+      # TODO(b/269076334): Pass through aux_graph_piece_pattern here?
+  )
   return gnn_builder.Convolve(node_set_names)

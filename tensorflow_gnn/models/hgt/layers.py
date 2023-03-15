@@ -17,6 +17,7 @@
 This file contains an implementation of HGT from Hu et al. 2020.
 """
 import collections
+import re
 from typing import Any, Callable, Union
 
 import tensorflow as tf
@@ -95,6 +96,8 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     self._use_bias = use_bias
     self._activation = tf.keras.activations.get(activation)
     self._feature_name = feature_name
+    # TODO(b/269076334): Does this class need an init kwarg to override this?
+    self._aux_graph_piece_re = re.compile(tfgnn.AUX_GRAPH_PIECE_PATTERN)
     # TODO(b/266868417): Remove when TF2.10+ is required by all of TF-GNN.
     try:
       _ = tf.keras.layers.EinsumDense
@@ -122,15 +125,25 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
 
   def _init_from_spec(self, spec: tfgnn.GraphTensorSpec):
     units = self._num_heads * self._per_head_channels
-
     receiver_tag = self._receiver_tag
     sender_tag = tfgnn.reverse_tag(receiver_tag)
+
+    edge_sets_spec = {k: v for k, v in spec.edge_sets_spec.items()
+                      if not self._aux_graph_piece_re.fullmatch(k)}
     self._receivers = {
         edge_set_spec.adjacency_spec.node_set_name(receiver_tag)
-        for edge_set_spec in spec.edge_sets_spec.values()}
+        for edge_set_spec in edge_sets_spec.values()}
     self._senders = {
         edge_set_spec.adjacency_spec.node_set_name(sender_tag)
-        for edge_set_spec in spec.edge_sets_spec.values()}
+        for edge_set_spec in edge_sets_spec.values()}
+    bad_node_set_names = {
+        name for name in list(self._receivers) + list(self._receivers)
+        if self._aux_graph_piece_re.fullmatch(name)}
+    if bad_node_set_names:
+      raise ValueError(
+          f"Node sets {bad_node_set_names} match "
+          f"aux_graph_piece_pattern r'{self._aux_graph_piece_re.pattern}' "
+          f"but are incident to non-auxiliary edge sets.")
 
     self._dropout = tf.keras.layers.Dropout(self._dropout_rate)
 
@@ -206,7 +219,7 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     self._edge_type_attention_projections = {}
     self._edge_type_message_projections = {}
     self._edge_type_priors = {}
-    for edge_set_name in spec.edge_sets_spec:
+    for edge_set_name in edge_sets_spec:
       self._edge_type_attention_projections[
           edge_set_name] = tf.keras.layers.EinsumDense(
               equation='...jk,jkl->...jl',
@@ -288,6 +301,8 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     scores_by_receiver = collections.defaultdict(dict)
     rsqrt_dim = tf.math.rsqrt(tf.cast(self._per_head_channels, tf.float32))
     for edge_set_name, edge_set in graph.edge_sets.items():
+      if self._aux_graph_piece_re.fullmatch(edge_set_name):
+        continue
       sender_name = edge_set.adjacency.node_set_name(sender_tag)
       receiver_name = edge_set.adjacency.node_set_name(receiver_tag)
 
@@ -330,9 +345,9 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
 
     # Scale the messages and pool them to the receiver nodes
     pooled_messages_by_receiver = collections.defaultdict(list)
-    for edge_set_name, edge_set in graph.edge_sets.items():
+    for edge_set_name, messages_on_edge in messages_by_edge_set.items():
+      edge_set = graph.edge_sets[edge_set_name]
       receiver_name = edge_set.adjacency.node_set_name(receiver_tag)
-      messages_on_edge = messages_by_edge_set[edge_set_name]
       coefficients_on_edge = coefficients_by_receiver[receiver_name][
           edge_set_name]
       scaled_messages = (

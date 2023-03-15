@@ -44,18 +44,24 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual([[100.]],
                         graph.edge_sets["node->node"][const.HIDDEN_STATE])
 
-  def testNoDuplicateNodeSets(self):
-    calls_for_node_sets = collections.defaultdict(lambda: 0)
+  @parameterized.named_parameters(
+      ("DuplicateNodeSets", False, ["node", "node", "node"]),
+      ("ReadoutIgnored", True, None))
+  def testCallCounts(self, add_readout, node_sets):
+    call_counts = collections.defaultdict(lambda: 0)
+    def convolutions_factory(edge_set_name, receiver_tag):
+      call_counts[edge_set_name] += 1
+      return convolutions.SimpleConv(IdentityLayer(), receiver_tag=receiver_tag)
     def nodes_next_state_factory(node_set_name):
-      calls_for_node_sets[node_set_name] += 1
+      call_counts[node_set_name] += 1
       return next_state_lib.NextStateFromConcat(IdentityLayer())
     input_graph = _make_test_graph_with_singleton_node_sets(
-        [("node", [1.])], [("node", "node", [100.])])
-    gnn_builder = builders.ConvGNNBuilder(
-        lambda _: convolutions.SimpleConv(IdentityLayer()),
-        nodes_next_state_factory)
-    graph = gnn_builder.Convolve(["node", "node", "node"])(input_graph)
-    self.assertDictEqual({"node": 1}, calls_for_node_sets)
+        [("node", [1.])], [("node", "node", [100.])], add_readout=add_readout)
+    gnn_builder = builders.ConvGNNBuilder(convolutions_factory,
+                                          nodes_next_state_factory,
+                                          receiver_tag=const.TARGET)
+    graph = gnn_builder.Convolve(node_sets)(input_graph)
+    self.assertDictEqual({"node": 1, "node->node": 1}, call_counts)
     self.assertAllEqual([[1., 1., 1.]],
                         graph.node_sets["node"][const.HIDDEN_STATE])
     self.assertAllEqual([[100.]],
@@ -197,25 +203,72 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual([[100.]], edge_state("c->a"))
     self.assertAllEqual([[100.]], edge_state("b->a"))
 
+  def testAuxNodeSetRequested(self):
+    def convolutions_factory(edge_set_name, receiver_tag):
+      del edge_set_name  # Unused.
+      return convolutions.SimpleConv(IdentityLayer(), receiver_tag=receiver_tag)
+    def nodes_next_state_factory(node_set_name):
+      del node_set_name  # Unused.
+      return next_state_lib.NextStateFromConcat(IdentityLayer())
+    input_graph = _make_test_graph_with_singleton_node_sets(
+        [("node", [1.]), ("_extra", [9.])],
+        [])
+    gnn_builder = builders.ConvGNNBuilder(convolutions_factory,
+                                          nodes_next_state_factory,
+                                          receiver_tag=const.TARGET)
+    _ = gnn_builder.Convolve(["node"])(input_graph)
+    with self.assertRaises(ValueError):
+      _ = gnn_builder.Convolve(["node", "_extra"])(input_graph)
 
-def _make_test_graph_with_singleton_node_sets(nodes, edges):
+  def testAuxNodeSetDiscoveredFromEdgeSet(self):
+    def convolutions_factory(edge_set_name, receiver_tag):
+      del edge_set_name  # Unused.
+      return convolutions.SimpleConv(IdentityLayer(), receiver_tag=receiver_tag)
+    def nodes_next_state_factory(node_set_name):
+      del node_set_name  # Unused.
+      return next_state_lib.NextStateFromConcat(IdentityLayer())
+    input_graph = _make_test_graph_with_singleton_node_sets(
+        [("node", [1.]), ("_extra", [9.])],
+        [("node", "_extra", [100.])])
+    self.assertCountEqual(
+        ["node->_extra"],  # This edge set name looks non-auxiliary.
+        input_graph.edge_sets)
+    gnn_builder = builders.ConvGNNBuilder(convolutions_factory,
+                                          nodes_next_state_factory,
+                                          receiver_tag=const.TARGET)
+    with self.assertRaisesRegex(
+        ValueError,
+        r"matches aux.* but incident edge set .* does not"):
+      _ = gnn_builder.Convolve()(input_graph)
+
+
+def _make_test_graph_with_singleton_node_sets(nodes, edges, add_readout=False):
   """Returns graph with singleton node sets and edge sets of given values."""
   # pylint: disable=g-complex-comprehension
-  return gt.GraphTensor.from_pieces(
-      node_sets={
-          name: gt.NodeSet.from_fields(
-              sizes=tf.constant([1]),
-              features={const.HIDDEN_STATE: tf.constant([value])})
-          for name, value in nodes
-      },
-      edge_sets={
-          f"{src}->{dst}": gt.EdgeSet.from_fields(
-              sizes=tf.constant([1]),
-              adjacency=adj.Adjacency.from_indices((src, tf.constant([0])),
-                                                   (dst, tf.constant([0]))),
-              features={const.HIDDEN_STATE: tf.constant([value])})
-          for src, dst, value in edges
-      })
+  node_sets = {
+      name: gt.NodeSet.from_fields(
+          sizes=tf.constant([1]),
+          features={const.HIDDEN_STATE: tf.constant([value])})
+      for name, value in nodes
+  }
+  edge_sets = {
+      f"{src}->{dst}": gt.EdgeSet.from_fields(
+          sizes=tf.constant([1]),
+          adjacency=adj.Adjacency.from_indices((src, tf.constant([0])),
+                                               (dst, tf.constant([0]))),
+          features={const.HIDDEN_STATE: tf.constant([value])})
+      for src, dst, value in edges
+  }
+
+  if add_readout:
+    source_name = next(iter(node_sets.keys()))
+    node_sets["_readout"] = gt.NodeSet.from_fields(sizes=tf.constant([1]))
+    edge_sets["_readout/seed"] = gt.EdgeSet.from_fields(
+        sizes=tf.constant([1]),
+        adjacency=adj.Adjacency.from_indices((source_name, tf.constant([0])),
+                                             ("_readout", tf.constant([0]))))
+
+  return gt.GraphTensor.from_pieces(node_sets=node_sets, edge_sets=edge_sets)
 
 
 if __name__ == "__main__":

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import abc
 import collections.abc
+import re
 from typing import Any, Callable, cast, Dict, Mapping, Optional, Sequence, Union
 
 import tensorflow as tf
@@ -1535,11 +1536,54 @@ def homogeneous(
   )
 
 
-def check_homogeneous_graph_tensor(graph: Union[GraphTensor, GraphTensorSpec],
-                                   name='This operation') -> None:
-  """Raises ValueError unless there is exactly one node set and edge set."""
+def get_homogeneous_node_and_edge_set_name(
+    graph: Union[GraphTensor, GraphTensorSpec],
+    name: str = 'This operation',
+    *,
+    aux_graph_piece_pattern: str = const.AUX_GRAPH_PIECE_PATTERN,
+) -> tuple[str, str]:
+  """Returns the sole `node_set_name, edge_set_name` or raises ValueError.
+
+  By default, this function ignores auxiliary node sets and edge sets
+  (e.g., those needed for `tfgnn.readout_named()`), as appropriate for
+  model-building code, but see `aux_graph_piece_pattern`.
+
+  Args:
+    graph: the `GraphTensor` or `GraphTensorSpec` to check.
+    name: Optionally, the name of the operation (library function, class, ...)
+      to mention in the user-visible error message in case an exception is
+      raised.
+    aux_graph_piece_pattern: Optionally, can be set to override
+      `tfgnn.AUX_GRAPH_PIECE_PATTERN` to select which graph pieces are ignored,
+      according to Python's `re.fullmatch(pattern, piece_name)`.
+      To not ignore any graph pieces, pass `""`: the empty string is not
+      allowed as node set name or edge set name.
+
+  Returns:
+    A tuple `node_set_name, edge_set_name` with the unique node set and
+    edge set, resp., in `graph`, except any node sets and edge sets whose
+    name matches `aux_graph_piece_pattern`.
+  """
   spec = get_graph_tensor_spec(graph)
-  if len(spec.node_sets_spec) != 1 or len(spec.edge_sets_spec) != 1:
+  node_set_names = [node_set_name for node_set_name in spec.node_sets_spec
+                    if not re.fullmatch(aux_graph_piece_pattern, node_set_name)]
+  edge_set_names = [edge_set_name for edge_set_name in spec.edge_sets_spec
+                    if not re.fullmatch(aux_graph_piece_pattern, edge_set_name)]
+  if len(node_set_names) != 1 or len(edge_set_names) != 1:
     raise ValueError(
         f'{name} requires a graph with 1 node set and 1 edge set '
-        f'but got {len(spec.node_sets_spec)} and {len(spec.edge_sets_spec)}')
+        f'but got {len(node_set_names)} node sets and '
+        f'{len(edge_set_names)} edge sets.')
+  return node_set_names[0], edge_set_names[0]
+
+
+def check_homogeneous_graph_tensor(
+    graph: Union[GraphTensor, GraphTensorSpec],
+    name: str = 'This operation',
+    *,
+    aux_graph_piece_pattern: str = const.AUX_GRAPH_PIECE_PATTERN,
+) -> None:
+  """Raises ValueError when tfgnn.get_homogeneous_node_and_edge_set_name() does.
+  """
+  _ = get_homogeneous_node_and_edge_set_name(
+      graph, name=name, aux_graph_piece_pattern=aux_graph_piece_pattern)
