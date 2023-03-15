@@ -392,7 +392,7 @@ class SimpleSampleDatasetsProvider(interfaces.DatasetProvider):
     `extra_datasets.` `positives` and `negatives` where `len(negatives)` >>
     `len(positives)` and with `positives` corresponding to `principal_dataset,`
     the desired behavior of epochs determined by the exhaustion of `positives`
-    and the contined mixing of unique elements from `negatives` may not occur:
+    and the continued mixing of unique elements from `negatives` may not occur:
     On sampled dataset reiteration `positives` will again be exhausted but
     elements from `negatives` may be those same seen in the previous epoch
     (as they occur at the beginning of the same, reiterated underlying
