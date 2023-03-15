@@ -322,8 +322,8 @@ def get_validated_edge_set_map_for_readout(
     target_node_set = adjacency_spec.node_set_name(const.TARGET)
     if target_node_set != readout_node_set:
       raise ValueError(
-          f"Malformed auxiliary edge set '{edge_set_name}': Expected "
-          f"target node set '{readout_node_set}' but found {target_node_set}.")
+          f"Malformed auxiliary edge set '{edge_set_name}': Expected target "
+          f"node set '{readout_node_set}' but found '{target_node_set}'.")
     source_node_set = adjacency_spec.node_set_name(const.SOURCE)
     if source_node_set.startswith(_SHADOW_PREFIX):
       set_type = const.EDGES

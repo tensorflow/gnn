@@ -150,6 +150,10 @@ def random_graph_tensor(
     validate: bool = True) -> gt.GraphTensor:
   """Generate a graph tensor from a schema, with random features.
 
+  NOTE: This function does not (yet?) support the generation of the auxiliary
+  node set for `tfgnn.readout_named()`. It should not be included in the `spec`,
+  and if needed, should be added separately in a later step.
+
   Args:
     spec: A GraphTensorSpec instance that describes the graph tensor.
     sample_dict: A dict of (set-type, set-name, field-name) to list-of-values to

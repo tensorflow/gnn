@@ -240,6 +240,7 @@ tf_py_test(
         ":graph_constants",
         ":graph_tensor",
         ":graph_tensor_ops",
+        ":readout",
         "//:expect_tensorflow_installed",
     ],
 )

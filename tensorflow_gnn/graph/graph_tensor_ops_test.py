@@ -23,6 +23,7 @@ from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_ops as ops
+from tensorflow_gnn.graph import readout
 
 partial = functools.partial
 
@@ -1221,12 +1222,22 @@ class ShuffleNodesTest(tf.test.TestCase, parameterized.TestCase):
                         's': ['a', 'b'],
                         'v': [[1, 2], [3, 4]],
                         'r': as_ragged([[1], [2, 3]]),
-                    })
+                    }),
+            '_readout':  # To be ignored.
+                gt.NodeSet.from_fields(
+                    sizes=[2],
+                    features={'label': [42, 105]}),
         },
         edge_sets={
             'edge':
                 gt.EdgeSet.from_fields(
                     sizes=[3], adjacency=adjacency, features={'s': [1, 2, 3]}),
+            '_readout/thingy':
+                gt.EdgeSet.from_fields(
+                    sizes=[2],
+                    adjacency=adj.Adjacency.from_indices(
+                        source=('node', [0, 1]),
+                        target=('_readout', [0, 1]))),
         })
     a_first_count = 0
     for _ in range(30):
@@ -1249,6 +1260,12 @@ class ShuffleNodesTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllEqual(features['r'], as_ragged([[2, 3], [1]]))
         self.assertAllEqual(edge_set.adjacency[const.SOURCE], [0, 1, 1])
         self.assertAllEqual(edge_set.adjacency[const.TARGET], [1, 0, 1])
+
+      # Readout is invariant to the shuffling of "all" node sets by default.
+      self.assertAllEqual(result.node_sets['_readout']['label'], [42, 105])
+      self.assertAllEqual(
+          readout.readout_named(result, 'thingy', feature_name='s'),
+          ['a', 'b'])
 
     self.assertBetween(a_first_count, 1, 29)
 

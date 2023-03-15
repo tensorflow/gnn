@@ -14,7 +14,9 @@
 # ==============================================================================
 """Operations on the GraphTensor."""
 import functools
+import re
 from typing import Any, Callable, Collection, List, Mapping, Optional, Union
+
 import tensorflow as tf
 
 from tensorflow_gnn.graph import adjacency as adj
@@ -984,10 +986,11 @@ def shuffle_features_globally(graph_tensor: GraphTensor,
     A scalar GraphTensor `result` with the same graph structure as the input,
     but randomly shuffled feature tensors. More precisely, the result satisfies
     `result.node_sets[ns][ft][i] = graph_tensor.node_sets[ns][ft][sigma(i)]`
-    for all node set names `ns`, all feature names `ft` and all indices `i`
-    in `range(n)`, where `n` is the total_size of the node set and `sigma`
-    is a permutation of `range(n)`. Moreover, the result satisfies the
-    the analogous equations for all features of all edge sets and the context.
+    for all node set names `ns` (including auxiliary node sets), all feature
+    names `ft` and all indices `i` in `range(n)`, where `n` is the total_size
+    of the node set and `sigma` is a permutation of `range(n)`.
+    Moreover, the result satisfies the the analogous equations for all features
+    of all edge sets (including auxiliary edge sets) and the context.
     The permutation `sigma` is drawn uniformly at random, independently for
     each graph piece and each feature(!). That is, separate features are
     permuted differently, and features on any one item (edge, node, component)
@@ -999,6 +1002,8 @@ def shuffle_features_globally(graph_tensor: GraphTensor,
   context = _shuffle_features(graph_tensor.context.features, seed=seed)
   node_sets, edge_sets = {}, {}
 
+  # NOTE(b/269076334): "_shadow/" node sets (for readout from edge sets)
+  # are not exempted here, because they have no features anyways.
   for node_set_name, node_set in graph_tensor.node_sets.items():
     node_sets[node_set_name] = _shuffle_features(node_set.features, seed=seed)
 
@@ -1116,19 +1121,26 @@ def reorder_nodes(graph_tensor: GraphTensor,
 def shuffle_nodes(graph_tensor: GraphTensor,
                   *,
                   node_sets: Optional[Collection[gt.NodeSetName]] = None,
+                  aux_graph_piece_pattern: str = const.AUX_GRAPH_PIECE_PATTERN,
                   seed: Optional[int] = None) -> GraphTensor:
   """Randomly reorders nodes of given node sets, within each graph component.
 
   The order of edges does not change; only their adjacency is modified to match
   the new order of shuffled nodes. The order of graph components (as created
   by `merge_graph_to_components()`) does not change, nodes are shuffled
-  separatelty within each component.
+  separately within each component.
+
+  Auxiliary node sets are not shuffled, unless they are explicitly included in
+  `node_sets`. Not shuffling is the correct behavior for the auxiliary node
+  sets used by `tfgnn.readout_named()`.
 
   Args:
     graph_tensor: A scalar GraphTensor.
     node_sets: An optional collection of node sets names to shuffle. If None,
       all node sets are shuffled.  Should not overlap with `shuffle_indices`.
-    seed: A seed for random uniform shuffle.
+    aux_graph_piece_pattern: Optionally (and rarely needed), can be set to
+      override `tfgnn.AUX_GRAPH_PIECE_PATTERN`.
+    seed: Optionally, a fixed seed for random uniform shuffle.
 
   Returns:
     A scalar GraphTensor with randomly shuffled nodes within `node_sets`.
@@ -1139,7 +1151,9 @@ def shuffle_nodes(graph_tensor: GraphTensor,
   gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.shuffle_nodes()')
 
   if node_sets is None:
-    target_node_sets = set(graph_tensor.node_sets.keys())
+    target_node_sets = set(
+        node_set_name for node_set_name in graph_tensor.node_sets
+        if not re.fullmatch(aux_graph_piece_pattern, node_set_name))
   else:
     target_node_sets = set(node_sets)
     diff = target_node_sets - set(graph_tensor.node_sets.keys())
@@ -1311,6 +1325,7 @@ def _where_scalar_or_field(condition: const.Field, true_scalar_value: tf.Tensor,
   return tf.where(condition, true_value, false_value)
 
 
+# TODO(b/272682651): What should happen to auxiliary node sets and edge sets?
 def convert_to_line_graph(
     graph_tensor: gt.GraphTensor,
     *,
