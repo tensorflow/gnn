@@ -121,7 +121,7 @@ distribute_py_test(
     name = "distribute_test",
     size = "large",
     srcs = ["distribute_test.py"],
-    shard_count = 4,
+    shard_count = 8,
     tags = [
         "no_oss",  # TODO(b/238827505)
         "nomultivm",  # TODO(b/170502145)
