@@ -55,6 +55,20 @@ class TFDataServiceConfig:
   tf_data_service_mode: Union[str, tf.data.experimental.service.ShardingPolicy]
 
 
+@dataclasses.dataclass
+class RunResult:
+  """Holds the return values of `run()`.
+
+  Attributes:
+    preprocess_model: Keras model containing only the computation for
+      preprocessing inputs. It's not trained or trainable.
+    trained_model: Keras model for the trained GNN. It takes the output of
+      `preprocess_model` as its input.
+  """
+  preprocess_model: tf.keras.Model
+  trained_model: tf.keras.Model
+
+
 class _WrappedDatasetProvider(DatasetProvider):
   """Wraps a `DatasetProvider` with batching and processing."""
 
@@ -234,6 +248,9 @@ def run(*,
     steps_per_execution: The number of batches to run during each training
       iteration. If not set, for TPU strategy default to 100 and to `None`
       otherwise.
+
+  Returns:
+    A `RunResult` object containing models and information about this run.
   """
   validate = valid_ds_provider is not None
 
@@ -352,3 +369,5 @@ def run(*,
   for export_dir in export_dirs or [os.path.join(trainer.model_dir, "export")]:
     for exporter in model_exporters:
       exporter.save(parsing_and_preprocess_model, model, export_dir)
+
+  return RunResult(parsing_and_preprocess_model, model)
