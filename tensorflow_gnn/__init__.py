@@ -57,6 +57,7 @@ NODES = graph_constants.NODES
 EDGES = graph_constants.EDGES
 HIDDEN_STATE = graph_constants.HIDDEN_STATE
 DEFAULT_STATE_NAME = graph_constants.DEFAULT_STATE_NAME  # Deprecated.
+AUX_GRAPH_PIECE_PATTERN = graph_constants.AUX_GRAPH_PIECE_PATTERN
 
 # Integer tags.
 SOURCE = graph_constants.SOURCE

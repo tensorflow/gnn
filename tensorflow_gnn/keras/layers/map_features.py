@@ -14,7 +14,8 @@
 # ==============================================================================
 """The MapFeatures layer and related definitions."""
 
-from typing import Mapping, Union
+import re
+from typing import Mapping, Optional, Union
 
 import tensorflow as tf
 
@@ -32,6 +33,10 @@ class MapFeatures(tf.keras.layers.Layer):
   are built by user-supplied callbacks that receive a KerasTensor for the
   graph piece as input and return a dict of output features computed with
   the Keras functional API, see https://tensorflow.org/guide/keras/functional.
+
+  Auxiliary graph pieces (e.g., those for `tfgnn.keras.layers.ReadoutNamed`)
+  are skipped, unless explicitly requested via `allowed_aux_node_sets_pattern`
+  or `allowed_aux_edge_sets_pattern`.
 
   Examples:
 
@@ -62,11 +67,14 @@ class MapFeatures(tf.keras.layers.Layer):
   ```
 
   ```python
-  # Doubles all feature values, with one callback used for all graph pieces.
+  # Doubles all feature values, with one callback used for all graph pieces,
+  # including auxiliary ones.
   def fn(inputs, **unused_kwargs):
     return {k: tf.add(v, v) for k, v in inputs.features.items()}
   graph = tfgnn.keras.layers.MapFeatures(
-      context_fn=fn, node_sets_fn=fn, edge_sets_fn=fn)(graph)
+      context_fn=fn, node_sets_fn=fn, edge_sets_fn=fn,
+      allowed_aux_node_sets_pattern=r".*", allowed_aux_edge_sets_pattern=r".*"
+  )(graph)
   ```
 
   When this layer is called on a GraphTensor, it transforms the feature map
@@ -78,6 +86,9 @@ class MapFeatures(tf.keras.layers.Layer):
     * It is an error to call with a node set or edge set that was not present
       in the first call. (After the first call, it is too late to initialize
       another model for it and find out what the callback would have done.)
+      An exception is made for auxiliary node sets and edge sets: If they would
+      have been ignored in the first call anyways, they may be present in later
+      calls and get ignored there.
     * It is an error to call with a set of feature names of some graph piece
       that has changed since the first call, except for those graph pieces for
       which the callback was `None` or returned `None` to request passthrough.
@@ -140,6 +151,14 @@ class MapFeatures(tf.keras.layers.Layer):
       `edge_sets_fn(g.edge_sets[edge_set_name], edge_set_name=edge_set_name)`.
       Leaving this at the default `None` is equivalent to returning `None`
       for every edge set.
+    allowed_aux_node_sets_pattern: If set, `node_sets_fn` is also invoked for
+      those auxiliary node sets that match this pattern, according to Python's
+      `re.fullmatch(pattern, node_set_name)`.
+    allowed_aux_edge_sets_pattern: If set, `edge_sets_fn` is also invoked for
+      those auxiliary edge sets that match this pattern, according to Python's
+      `re.fullmatch(pattern, edge_set_name)`.
+    aux_graph_piece_pattern: Optionally (and rarely needed), can be set to
+      override `tfgnn.AUX_GRAPH_PIECE_PATTERN`.
 
   Call args:
     graph: A GraphTensor. The very first call triggers the building of
@@ -155,6 +174,10 @@ class MapFeatures(tf.keras.layers.Layer):
                context_fn=None,
                node_sets_fn=None,
                edge_sets_fn=None,
+               *,
+               allowed_aux_node_sets_pattern: Optional[str] = None,
+               allowed_aux_edge_sets_pattern: Optional[str] = None,
+               aux_graph_piece_pattern: str = const.AUX_GRAPH_PIECE_PATTERN,
                **kwargs):
     from_config = kwargs.pop("_from_config", False)
     if from_config:
@@ -184,6 +207,9 @@ class MapFeatures(tf.keras.layers.Layer):
       self._node_set_models = node_set_models
       self._edge_set_models = edge_set_models
       self._is_initialized = True
+    self._allowed_aux_node_sets_pattern = allowed_aux_node_sets_pattern
+    self._allowed_aux_edge_sets_pattern = allowed_aux_edge_sets_pattern
+    self._aux_graph_piece_re = re.compile(aux_graph_piece_pattern)  # Never None
 
   def get_config(self):
     if not self._is_initialized:
@@ -194,6 +220,9 @@ class MapFeatures(tf.keras.layers.Layer):
         # Sublayers need to be top-level objects in the config (b/209560043).
         **du.with_key_prefix(self._node_set_models, "node_set_models/"),
         **du.with_key_prefix(self._edge_set_models, "edge_set_models/"),
+        allowed_aux_node_sets_pattern=self._allowed_aux_node_sets_pattern,
+        allowed_aux_edge_sets_pattern=self._allowed_aux_edge_sets_pattern,
+        aux_graph_piece_pattern=self._aux_graph_piece_re.pattern,
         **super().get_config())
 
   @classmethod
@@ -209,12 +238,16 @@ class MapFeatures(tf.keras.layers.Layer):
     # All node sets seen at initialization time. Value `None` means ignore.
     self._node_set_models = {}
     for node_set_name, node_set_spec in spec.node_sets_spec.items():
+      if self._ignore_node_set(node_set_name):
+        continue
       self._node_set_models[node_set_name] = _make_model_or_none(
           self._node_sets_fn, node_set_spec, node_set_name=node_set_name)
 
     # All edge sets seen at initialization time. Value `None` means ignore.
     self._edge_set_models = {}
     for edge_set_name, edge_set_spec in spec.edge_sets_spec.items():
+      if self._ignore_edge_set(edge_set_name):
+        continue
       self._edge_set_models[edge_set_name] = _make_model_or_none(
           self._edge_sets_fn, edge_set_spec, edge_set_name=edge_set_name)
 
@@ -236,10 +269,12 @@ class MapFeatures(tf.keras.layers.Layer):
     for node_set_name, node_set in graph.node_sets.items():
       try:
         model = self._node_set_models[node_set_name]
+        if model is None: continue  # Was explicitly ignored in initialization.
       except KeyError as e:
+        if self._ignore_node_set(node_set_name):
+          continue  # Would have been ignored in initialization.
         raise KeyError(f"Unexpected node set '{node_set_name}' "
                        "not seen in first call") from e
-      if model is None: continue  # Initialized to be ignored.
       node_set_features[node_set_name] = _call_model(
           model, node_set, logging_name=f"node_set '{node_set_name}'")
 
@@ -247,10 +282,12 @@ class MapFeatures(tf.keras.layers.Layer):
     for edge_set_name, edge_set in graph.edge_sets.items():
       try:
         model = self._edge_set_models[edge_set_name]
+        if model is None: continue  # Was explicitly ignored in initialization.
       except KeyError as e:
+        if self._ignore_edge_set(edge_set_name):
+          continue  # Would have been ignored in initialization.
         raise KeyError(f"Unexpected edge set '{edge_set_name}' "
                        "not seen in first call") from e
-      if model is None: continue  # Initialized to be ignored.
       edge_set_features[edge_set_name] = _call_model(
           model, edge_set, logging_name=f"edge_set '{edge_set_name}'")
 
@@ -258,6 +295,20 @@ class MapFeatures(tf.keras.layers.Layer):
                                     node_sets=node_set_features,
                                     edge_sets=edge_set_features)
     return result
+
+  def _ignore_node_set(self, node_set_name):
+    if not self._aux_graph_piece_re.fullmatch(node_set_name):
+      return False
+    if self._allowed_aux_node_sets_pattern is None:
+      return True
+    return not re.fullmatch(self._allowed_aux_node_sets_pattern, node_set_name)
+
+  def _ignore_edge_set(self, edge_set_name):
+    if not self._aux_graph_piece_re.fullmatch(edge_set_name):
+      return False
+    if self._allowed_aux_edge_sets_pattern is None:
+      return True
+    return not re.fullmatch(self._allowed_aux_edge_sets_pattern, edge_set_name)
 
 
 def _make_model_or_none(model_fn, graph_piece_spec, **kwargs):

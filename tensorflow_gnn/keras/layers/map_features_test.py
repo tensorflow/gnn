@@ -14,6 +14,7 @@
 # ==============================================================================
 """Tests for MapFeatures."""
 
+import collections
 import enum
 import functools
 import os
@@ -83,6 +84,54 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(
         rc([[2], [4, 8]] if map_edges else [[1], [2, 4]]),
         edges["e_ragged"])
+
+  @parameterized.named_parameters(
+      ("Default", {}, {"ordinary_nodes": 1, "ordinary_edges": 1}),
+      ("AllowReadoutNodes",
+       {"allowed_aux_node_sets_pattern": r"_readout\W.*"},
+       {"ordinary_nodes": 1, "ordinary_edges": 1,
+        "_readout.test": 1, "_readout.train": 1}),
+      ("AllowExtraEdges",
+       {"allowed_aux_edge_sets_pattern": r"_extra.*"},
+       {"ordinary_nodes": 1, "ordinary_edges": 1, "_extra_edges": 1}))
+  def testAuxPieces(self, kwargs_to_test, expected_call_counts):
+    input_graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            "ordinary_nodes": gt.NodeSet.from_fields(sizes=tf.constant([1])),
+            "_extra_nodes": gt.NodeSet.from_fields(sizes=tf.constant([1])),
+            "_readout.train": gt.NodeSet.from_fields(sizes=tf.constant([1])),
+            "_readout.test": gt.NodeSet.from_fields(sizes=tf.constant([1])),
+        },
+        edge_sets={
+            "ordinary_edges": gt.EdgeSet.from_fields(
+                sizes=tf.constant([]),
+                adjacency=adj.Adjacency.from_indices(
+                    ("ordinary_nodes", tf.constant([0])),
+                    ("ordinary_nodes", tf.constant([0])))),
+            "_extra_edges": gt.EdgeSet.from_fields(
+                sizes=tf.constant([]),
+                adjacency=adj.Adjacency.from_indices(
+                    ("_extra_nodes", tf.constant([0])),
+                    ("_extra_nodes", tf.constant([0])))),
+            "_readout.train/seed": gt.EdgeSet.from_fields(
+                sizes=tf.constant([]),
+                adjacency=adj.Adjacency.from_indices(
+                    ("ordinary_nodes", tf.constant([0])),
+                    ("_readout.train", tf.constant([0])))),
+        })
+
+    call_counts = collections.defaultdict(lambda: 0)
+    def node_sets_fn(node_set, node_set_name):
+      call_counts[node_set_name] += 1
+      return node_set.features
+    def edge_sets_fn(edge_set, edge_set_name):
+      call_counts[edge_set_name] += 1
+      return edge_set.features
+    layer = map_features.MapFeatures(node_sets_fn=node_sets_fn,
+                                     edge_sets_fn=edge_sets_fn,
+                                     **kwargs_to_test)
+    _ = layer(input_graph)
+    self.assertDictEqual(expected_call_counts, call_counts)
 
   def testFilterFeatures(self):
     input_graph = _make_scalar_test_graph()
@@ -298,14 +347,17 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
       ("NodeSet", "node_sets_fn",
        dict(nodes=False, edges=False), dict(nodes=True, edges=False)))
   def testCheckUnexpected(self, kwarg_to_test, make_without, make_with):
-    graph_with = _make_scalar_test_graph(**make_with)
     graph_without = _make_scalar_test_graph(**make_without)
+    graph_with_readout = _make_scalar_test_graph(**make_without, readout=True)
+    graph_with_unexpected = _make_scalar_test_graph(**make_with)
     def keep_all(graph_piece, **_):
       return graph_piece.features
     layer = map_features.MapFeatures(**{kwarg_to_test: keep_all})
     _ = layer(graph_without)  # First call defines the known graph pieces.
+    _ = layer(graph_without)  # OK to call again.
+    _ = layer(graph_with_readout)  # OK to call with new aux pieces.
     with self.assertRaisesRegex(KeyError, r"Unexpected"):
-      _ = layer(graph_with)
+      _ = layer(graph_with_unexpected)
 
   def testBatchedGraphTensorRaggedReduce(self):
     rc = tf.ragged.constant
@@ -385,7 +437,7 @@ class MyRangeInitializer(tf.keras.initializers.Initializer):
 
 
 def _make_scalar_test_graph(*, context=True, nodes=True, edges=True,
-                            dense=True, ragged=True):
+                            dense=True, ragged=True, readout=False):
   c = tf.constant
   rc = tf.ragged.constant
 
@@ -415,6 +467,13 @@ def _make_scalar_test_graph(*, context=True, nodes=True, edges=True,
         **({"e_ragged": rc([[1], [2, 4]])} if ragged else {})}
     edge_sets["edges"] = gt.EdgeSet.from_fields(
         sizes=c([2]), adjacency=adjacency, features=features)
+
+  if readout:  # Independent of ordinary nodes and edges.
+    node_sets["_readout"] = gt.NodeSet.from_fields(sizes=c([1]))
+    edge_sets["_readout/seed"] = gt.EdgeSet.from_fields(
+        sizes=c([1]),
+        adjacency=adj.Adjacency.from_indices(("nodes", c([0])),
+                                             ("nodes", c([0]))))
 
   return gt.GraphTensor.from_pieces(
       context=context_obj, node_sets=node_sets, edge_sets=edge_sets)
