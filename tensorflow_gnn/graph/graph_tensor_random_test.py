@@ -131,11 +131,6 @@ class TestRandomGraphTensor(tf.test.TestCase, parameterized.TestCase):
     for graph in random_graph_tensor_generator(self.spec).take(4):
       self.assertIsInstance(graph, gt.GraphTensor)
 
-  def test_random_graph_tensor_from_schema(self):
-    # This form of generation does not require a spec, and works fine.
-    graph = gr.random_graph_tensor_from_schema(self.schema)
-    self.assertIsInstance(graph, gt.GraphTensor)
-
 
 if __name__ == '__main__':
   tf.test.main()

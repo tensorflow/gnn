@@ -23,7 +23,6 @@ import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as gc
 from tensorflow_gnn.graph import graph_tensor as gt
-from tensorflow_gnn.graph import schema_utils
 import tensorflow_gnn.proto.graph_schema_pb2 as schema_pb2
 
 
@@ -267,40 +266,6 @@ def _get_sample_values_dict(schema: schema_pb2.GraphSchema) -> SampleDict:
       key = (gc.EDGES, set_name, fname)
       sample_dict[key] = _get_feature_values(feature.sample_values)
   return sample_dict
-
-
-def random_graph_tensor_from_schema(
-    schema: schema_pb2.GraphSchema,
-    row_lengths_range: Tuple[int, int] = (2, 8),
-    row_splits_dtype: tf.dtypes.DType = tf.int32,
-    validate: bool = True) -> gt.GraphTensor:
-  """Generate a graph tensor from a schema, with random features.
-
-  THIS FUNCTION IS DEPRECATED. TODO(b/266790186): Remove it.
-
-  If example values are provided, the corresponding graph tensor features
-  contain a sample of those values instead of fully random bogus values.
-
-  Args:
-    schema: The GraphSchema instance that describes the graph tensor.
-    row_lengths_range: Minimum and maximum values for each row lengths in a
-      ragged range.
-    row_splits_dtype: Data type for row splits.
-    validate: If true, then use assertions to check that the arguments form a
-      valid RaggedTensor. Note: these assertions incur a runtime cost, since
-      they must be checked for each tensor value.
-
-  Returns:
-    An instance of a GraphTensor.
-
-  """
-  spec = schema_utils.create_graph_spec_from_schema_pb(
-      schema, indices_dtype=row_splits_dtype)
-  return random_graph_tensor(spec=spec,
-                             sample_dict=_get_sample_values_dict(schema),
-                             row_lengths_range=row_lengths_range,
-                             row_splits_dtype=row_splits_dtype,
-                             validate=validate)
 
 
 def _assert_rank0_int(t: tf.Tensor, tensor_name: Text) -> None:
