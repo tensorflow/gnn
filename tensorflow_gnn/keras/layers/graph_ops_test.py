@@ -16,7 +16,6 @@
 from unittest import mock
 
 from absl.testing import parameterized
-from packaging import version
 import tensorflow as tf
 
 from tensorflow_gnn.graph import adjacency as adj
@@ -148,13 +147,8 @@ class ReadoutFirstNodeTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
       ("Dense", "dense", [[11.], [13.]]),
-      ("Ragged", "ragged", [[110., 111.], [130.]]))
+      ("Ragged", "ragged", tf.ragged.constant([[110., 111.], [130.]])))
   def testFeatureName(self, feature_name, expected):
-    # TODO(b/266817638): Remove when fixed
-    if version.parse(tf.__version__) < version.parse(
-        "2.11.0"
-    ) and feature_name == "ragged":
-      self.skipTest("Bad Test")
 
     graph = self._make_test_graph_22()
 
