@@ -377,6 +377,49 @@ class HomogeneousTest(tu.GraphTensorTestBase):
   )
   def testHomogeneous(self, actual, expected):
     """Tests for homogeneous()."""
+    self.assertGraphTensorsEqual(actual, expected)
+
+  def testInGraphMode(self):
+
+    @tf.function
+    def create(source, target, node_features, edge_features, context_features):
+      return gt.homogeneous(
+          source=source,
+          target=target,
+          node_features=node_features,
+          edge_features=edge_features,
+          context_features=context_features,
+      )
+    actual = create(
+        source=tf.constant([0, 3, 4, 5]),
+        target=tf.constant([1, 2, 6, 4]),
+        node_features={'onehots': tf.eye(7)},
+        edge_features={'floats': tf.ones([4, 3])},
+        context_features={'labels': tf.zeros(5)},
+    )
+    expected = gt.GraphTensor.from_pieces(
+        context=gt.Context.from_fields(
+            features={'labels': tf.zeros(5)}, sizes=tf.constant([1])
+        ),
+        node_sets={
+            const.NODES: gt.NodeSet.from_fields(
+                features={'onehots': tf.eye(7)}, sizes=tf.constant([7])
+            )
+        },
+        edge_sets={
+            const.EDGES: gt.EdgeSet.from_fields(
+                features={'floats': tf.ones([4, 3])},
+                sizes=tf.constant([4]),
+                adjacency=adj.Adjacency.from_indices(
+                    source=(const.NODES, tf.constant([0, 3, 4, 5])),
+                    target=(const.NODES, tf.constant([1, 2, 6, 4])),
+                ),
+            ),
+        },
+    )
+    self.assertGraphTensorsEqual(actual, expected)
+
+  def assertGraphTensorsEqual(self, actual, expected):
     self.assertFieldsEqual(
         actual.node_sets['nodes'].features,
         expected.node_sets['nodes'].features,

@@ -1496,7 +1496,7 @@ def homogeneous(
   if node_features is None and node_set_sizes is None:
     raise ValueError('node_set_sizes must be provided if node_features is not')
 
-  if tf.rank(source) != 1 or tf.rank(target) != 1:
+  if source.shape.rank != 1 or target.shape.rank != 1:
     raise ValueError('source and target must be rank-1 dense tensors')
 
   node_features, num_nodes = _fields_and_size_from_fieldorfields(
