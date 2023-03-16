@@ -106,12 +106,14 @@ KerasTrainerCheckpointOptions = keras_fit.KerasTrainerCheckpointOptions
 # Model templates
 ModelFromInitAndUpdates = model_templates.ModelFromInitAndUpdates
 
+del interfaces
 del orchestration
 del datasets
 del classification
 del regression
 del keras_fit
 del attribution
+del label_fns
 del model_utils
 del model_dir
 del model_export
