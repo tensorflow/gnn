@@ -16,7 +16,6 @@ pytype_strict_library(
     deps = [
         ":layers",
         ":tasks",
-        "//tensorflow_gnn/models/contrastive_losses/deep_graph_infomax:layers",
     ],
 )
 
@@ -98,7 +97,6 @@ pytype_strict_library(
         ":metrics",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-        "//tensorflow_gnn/models/contrastive_losses/deep_graph_infomax:layers",
         "//tensorflow_gnn/runner",
     ],
 )

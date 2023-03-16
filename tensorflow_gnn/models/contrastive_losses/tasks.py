@@ -23,10 +23,9 @@ from typing import Optional, Union, Tuple
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn import runner
-from tensorflow_gnn.models.contrastive_losses import layers as corruption_layers
+from tensorflow_gnn.models.contrastive_losses import layers
 from tensorflow_gnn.models.contrastive_losses import losses
 from tensorflow_gnn.models.contrastive_losses import metrics
-from tensorflow_gnn.models.contrastive_losses.deep_graph_infomax import layers as dgi_layers
 
 Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
@@ -56,8 +55,9 @@ class _ConstrastiveLossTask(runner.Task, abc.ABC):
       *,
       feature_name: str = tfgnn.HIDDEN_STATE,
       representations_layer_name: Optional[str] = None,
-      corruptor: Optional[corruption_layers._Corruptor] = None,
-      seed: Optional[int] = None):
+      corruptor: Optional[layers._Corruptor] = None,
+      seed: Optional[int] = None,
+  ):
     self._representations_layer_name = (
         representations_layer_name or "clean_representations"
     )
@@ -65,7 +65,7 @@ class _ConstrastiveLossTask(runner.Task, abc.ABC):
     self._node_set_name = node_set_name
     self._seed = seed
     if corruptor is None:
-      self._corruptor = corruption_layers.ShuffleFeaturesGlobally(seed=seed)
+      self._corruptor = layers.ShuffleFeaturesGlobally(seed=seed)
     else:
       self._corruptor = corruptor
 
@@ -125,7 +125,7 @@ class DeepGraphInfomaxTask(_ConstrastiveLossTask):
   """A Deep Graph Infomax (DGI) Task."""
 
   def make_contrastive_layer(self) -> tf.keras.layers.Layer:
-    return dgi_layers.DeepGraphInfomaxLogits()
+    return layers.DeepGraphInfomaxLogits()
 
   def preprocess(
       self,
@@ -249,4 +249,3 @@ class VicRegTask(_ConstrastiveLossTask):
         _unstack_y_pred(metrics.self_clustering),
         _unstack_y_pred(metrics.pseudo_condition_number),
     )
-

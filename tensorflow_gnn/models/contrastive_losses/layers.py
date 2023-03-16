@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Perturbation layers."""
+from __future__ import annotations
+
 import dataclasses
 import functools
 from typing import Callable, Mapping, Optional
@@ -273,3 +275,39 @@ def _corrupt_features(
         feature_value if not rate else corruption_fn(feature_value, rate)
     )
   return output
+
+
+@tf.keras.utils.register_keras_serializable(package=_PACKAGE)
+class DeepGraphInfomaxLogits(tf.keras.layers.Layer):
+  """Computes clean and corrupted logits for Deep Graph Infomax (DGI)."""
+
+  def build(self, input_shape: tf.TensorShape) -> None:
+    """Builds a bilinear layer."""
+    if not isinstance(input_shape, tf.TensorShape):
+      raise ValueError(f"Expected `TensorShape` (got {type(input_shape)})")
+    units = input_shape.as_list()[-1]
+    if units is None:
+      raise ValueError(f"Expected a defined inner dimension (got {units})")
+    # Bilinear layer.
+    self._bilinear = tf.keras.layers.Dense(units, use_bias=False)
+
+  def call(self, inputs: tf.Tensor) -> tuple[tf.Tensor, tf.Tensor]:
+    """Computes clean and corrupted logits for DGI.
+
+    Args:
+      inputs: A stacked tensor with clean and corrupted (in order)
+        representations stacked like `[batch, 2, representation dim]`.
+
+    Returns:
+      A concatenated (clean, corrupted) logits, respectively.
+    """
+    x_clean, x_corrupted = tf.unstack(inputs, axis=1)
+    # Summary.
+    summary = tf.math.reduce_mean(x_clean, axis=0, keepdims=True)
+    # Clean logits.
+    logits_clean = tf.matmul(x_clean, self._bilinear(summary), transpose_b=True)
+    # Corrupted logits.
+    logits_corrupted = tf.matmul(
+        x_corrupted, self._bilinear(summary), transpose_b=True
+    )
+    return tf.keras.layers.Concatenate()((logits_clean, logits_corrupted))
