@@ -23,7 +23,7 @@ from typing import Optional, Union, Tuple
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn import runner
-from tensorflow_gnn.models.contrastive_losses import layers as corruption_layers
+from tensorflow_gnn.models.contrastive_losses import layers as perturbation_layers
 from tensorflow_gnn.models.contrastive_losses import losses
 from tensorflow_gnn.models.contrastive_losses import metrics
 from tensorflow_gnn.models.contrastive_losses.deep_graph_infomax import layers as dgi_layers
@@ -45,7 +45,7 @@ class _ConstrastiveLossTask(runner.Task, abc.ABC):
   If the loss involves labels for each example, subclasses should leverage
   `losses` and `metrics` methods to specify task's losses. When the loss only
   involves model outputs, `make_contrastive_layer` should output both positive
-  and corrupt examples, and the `losses` should use pseudolabels.
+  and perturb examples, and the `losses` should use pseudolabels.
 
   Any model-specific preprocessing should be implemented in the `preprocess`.
   """
@@ -56,7 +56,6 @@ class _ConstrastiveLossTask(runner.Task, abc.ABC):
       *,
       feature_name: str = tfgnn.HIDDEN_STATE,
       representations_layer_name: Optional[str] = None,
-      corruptor: Optional[corruption_layers._Corruptor] = None,
       seed: Optional[int] = None):
     self._representations_layer_name = (
         representations_layer_name or "clean_representations"
@@ -64,10 +63,7 @@ class _ConstrastiveLossTask(runner.Task, abc.ABC):
     self._feature_name = feature_name
     self._node_set_name = node_set_name
     self._seed = seed
-    if corruptor is None:
-      self._corruptor = corruption_layers.ShuffleFeaturesGlobally(seed=seed)
-    else:
-      self._corruptor = corruptor
+    self._perturber = perturbation_layers.ShuffleFeaturesGlobally(seed=seed)
 
   def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
     """Adapt a `tf.keras.Model` for use with various contrastive losses.
@@ -104,7 +100,7 @@ class _ConstrastiveLossTask(runner.Task, abc.ABC):
     x_clean = submodule_clean(model.input)
 
     # Corrupted representations: shuffling, model application and readout
-    shuffled = self._corruptor(model.input)
+    shuffled = self._perturber(model.input)
     x_corrupted = readout(model(shuffled))
 
     return tf.keras.Model(
