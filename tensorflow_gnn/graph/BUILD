@@ -452,6 +452,33 @@ tf_py_test(
 )
 
 pytype_strict_library(
+    name = "pooling",
+    srcs = ["pooling.py"],
+    deps = [
+        ":adjacency",
+        ":graph_constants",
+        ":graph_tensor",
+        ":graph_tensor_ops",
+        ":tensor_utils",
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+tf_py_test(
+    name = "pooling_test",
+    srcs = ["pooling_test.py"],
+    deps = [
+        ":adjacency",
+        ":graph_constants",
+        ":graph_tensor",
+        ":graph_tensor_ops",
+        ":pooling",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+pytype_strict_library(
     name = "batching_utils",
     srcs = ["batching_utils.py"],
     srcs_version = "PY3",
