@@ -257,11 +257,6 @@ def main(
   graph_schema = tfgnn.read_schema(_GRAPH_SCHEMA.value)
   gtspec = tfgnn.create_graph_spec_from_schema_pb(graph_schema)
 
-  def extract_labels(graphtensor: tfgnn.GraphTensor):
-    return tfgnn.keras.layers.ReadoutFirstNode(
-        node_set_name="paper",
-        feature_name="labels")(graphtensor)
-
   def drop_all_features(_, **unused_kwargs):
     return {}
 
@@ -282,8 +277,11 @@ def main(
       masked_labels = utils.mask_paper_labels(
           node_set, label_feature_name="labels", mask_value=_NUM_CLASSES,
           extra_label_mask=extra_label_mask)
-      return {"feat": node_set["feat"], "masked_labels": masked_labels}
-    # Otherwise: omit `masked_labels` but keep `labels` for eventual extraction.
+      return {
+          "feat": node_set["feat"],
+          "labels": node_set["labels"],
+          "masked_labels": masked_labels,
+      }
     return {"feat": node_set["feat"], "labels": node_set["labels"]}
 
   def  process_node_features(node_set: tfgnn.NodeSet, node_set_name: str):
@@ -344,7 +342,7 @@ def main(
   task = runner.RootNodeMulticlassClassification(
       node_set_name=task_node_set_name,
       num_classes=_NUM_CLASSES,
-      label_fn=extract_labels)
+      label_fn=runner.RootNodeLabelFn("paper", feature_name="labels"))
 
   def model_fn(gtspec: tfgnn.GraphTensorSpec):
     model_inputs = tf.keras.layers.Input(type_spec=gtspec)
