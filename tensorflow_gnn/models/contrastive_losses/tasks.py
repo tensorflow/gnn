@@ -18,7 +18,7 @@ from __future__ import annotations
 import abc
 from collections.abc import Callable, Sequence
 import functools
-from typing import Optional, Union, Tuple
+from typing import Optional, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -35,12 +35,12 @@ GraphTensor = tfgnn.GraphTensor
 class _ConstrastiveLossTask(runner.Task, abc.ABC):
   """Base class for unsupervised contrastive representation learning tasks.
 
-  The default `adapt` method implementation shuffles feature across batch
+  The default `predict` method implementation shuffles feature across batch
   examples to create positive and negative activations. There are multiple ways
   proposed in the literature to learn representations based on the activations.
 
-  Any subclass must implement `make_contrastive_layer` method, which re-adapts
-  the input `tf.keras.Model` to prepare task-specific outputs.
+  Any subclass must implement `make_contrastive_layer` method, which produces
+  the final prediction outputs.
 
   If the loss involves labels for each example, subclasses should leverage
   `losses` and `metrics` methods to specify task's losses. When the loss only
@@ -60,53 +60,41 @@ class _ConstrastiveLossTask(runner.Task, abc.ABC):
     self._representations_layer_name = (
         representations_layer_name or "clean_representations"
     )
-    self._feature_name = feature_name
-    self._node_set_name = node_set_name
-    self._seed = seed
+    self._readout = tfgnn.keras.layers.ReadoutFirstNode(
+        node_set_name=node_set_name,
+        feature_name=feature_name)
     self._perturber = perturbation_layers.ShuffleFeaturesGlobally(seed=seed)
 
-  def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
-    """Adapt a `tf.keras.Model` for use with various contrastive losses.
-
-    The input `tf.keras.Model` must have a single `GraphTensor` input and a
-    single `GraphTensor` output.
+  def predict(self, *args: tfgnn.GraphTensor) -> tfgnn.Field:
+    """Apply a readout head for use with various contrastive losses.
 
     Args:
-      model: A `tf.keras.Model` to be adapted.
+      *args: A tuple of (clean, corrupted) `tfgnn.GraphTensor`s.
 
     Returns:
-      A `tf.keras.Model` with output logits for contrastive loss as produced by
-      the implementing subclass.
+      The logits for some contrastive loss as produced by the implementing
+      subclass.
     """
-    if not tfgnn.is_graph_tensor(model.input):
-      raise ValueError(f"Expected a `GraphTensor` input (got {model.input})")
-    if not tfgnn.is_graph_tensor(model.output):
-      raise ValueError(f"Expected a `GraphTensor` output (got {model.output})")
+    gt_clean, gt_corrupted = args
 
+    if not tfgnn.is_graph_tensor(gt_clean):
+      raise ValueError(f"Expected a `GraphTensor` input (got {gt_clean})")
+    if not tfgnn.is_graph_tensor(gt_corrupted):
+      raise ValueError(f"Expected a `GraphTensor` input (got {gt_corrupted})")
     if isinstance(tf.distribute.get_strategy(), tf.distribute.TPUStrategy):
       raise AssertionError(
           "Contrastive learning tasks do not support TPU (see b/269648832)."
       )
 
-    # Clean representations: readout
-    readout = tfgnn.keras.layers.ReadoutFirstNode(
-        node_set_name=self._node_set_name,
-        feature_name=self._feature_name)
     # Clean representations.
-    submodule_clean = tf.keras.Model(
-        model.input,
-        readout(model.output),
-        name=self._representations_layer_name)
-    x_clean = submodule_clean(model.input)
-
-    # Corrupted representations: shuffling, model application and readout
-    shuffled = self._perturber(model.input)
-    x_corrupted = readout(model(shuffled))
-
-    return tf.keras.Model(
-        model.input,
-        self.make_contrastive_layer()(tf.stack((x_clean, x_corrupted), axis=1)),
+    x_clean = tf.keras.layers.Layer(name=self._representations_layer_name)(
+        self._readout(gt_clean)
     )
+    # Corrupted representations.
+    x_corrupted = self._readout(gt_corrupted)
+
+    outputs = tf.stack((x_clean, x_corrupted), axis=1)
+    return self.make_contrastive_layer()(outputs)
 
   @abc.abstractmethod
   def make_contrastive_layer(self) -> tf.keras.layers.Layer:
@@ -125,9 +113,11 @@ class DeepGraphInfomaxTask(_ConstrastiveLossTask):
 
   def preprocess(
       self,
-      inputs: GraphTensor) -> Tuple[Optional[GraphTensor], Field]:
+      inputs: GraphTensor) -> tuple[Sequence[GraphTensor], Field]:
     """Creates labels--i.e., (positive, negative)--for Deep Graph Infomax."""
-    return None, tf.tile(((1, 0),), (inputs.num_components, 1))
+    x = (inputs, self._perturber(inputs))
+    y = tf.tile(((1, 0),), (inputs.num_components, 1))
+    return x, y
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     return (tf.keras.losses.BinaryCrossentropy(from_logits=True),)
@@ -177,9 +167,11 @@ class BarlowTwinsTask(_ConstrastiveLossTask):
 
   def preprocess(
       self,
-      inputs: GraphTensor) -> Tuple[Optional[GraphTensor], Field]:
+      inputs: GraphTensor) -> tuple[Sequence[GraphTensor], Field]:
     """Creates unused pseudo-labels."""
-    return None, tf.zeros((inputs.num_components, 0), dtype=tf.int32)
+    x = (inputs, self._perturber(inputs))
+    y = tf.zeros((inputs.num_components, 0), dtype=tf.int32)
+    return x, y
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     def loss_fn(_, x):
@@ -225,9 +217,11 @@ class VicRegTask(_ConstrastiveLossTask):
 
   def preprocess(
       self,
-      inputs: GraphTensor) -> Tuple[Optional[GraphTensor], Field]:
+      inputs: GraphTensor) -> tuple[Sequence[GraphTensor], Field]:
     """Creates unused pseudo-labels."""
-    return None, tf.zeros((inputs.num_components, 0), dtype=tf.int32)
+    x = (inputs, self._perturber(inputs))
+    y = tf.zeros((inputs.num_components, 0), dtype=tf.int32)
+    return x, y
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     def loss_fn(_, x):

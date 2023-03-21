@@ -25,6 +25,7 @@ from tensorflow_gnn.runner import interfaces
 AUTO = tf.keras.losses.Reduction.AUTO
 Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
+LabelFn = Callable[[GraphTensor], tuple[GraphTensor, Field]]
 
 
 class _Regression(interfaces.Task):
@@ -34,36 +35,32 @@ class _Regression(interfaces.Task):
   by inheriting from the below mix ins.
   """
 
-  def __init__(self, units: int, label_fn: Callable[[GraphTensor], Field]):
+  def __init__(self, units: int, label_fn: LabelFn):
     self._units = units
     self._label_fn = label_fn
 
   @abc.abstractmethod
-  def gather_activations(self, inputs: GraphTensor) -> tf.Tensor:
+  def gather_activations(self, inputs: GraphTensor) -> Field:
     raise NotImplementedError()
 
-  def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
-    """Append a linear head with `units` output units.
-
-    Multiple `tf.keras.Model` outputs are not supported.
+  def predict(self, inputs: tfgnn.GraphTensor) -> tf.Tensor:
+    """Apply a linear head for regression.
 
     Args:
-      model: A `tf.keras.Model` to adapt.
+      inputs: A `tfgnn.GraphTensor` for regression.
 
     Returns:
-      An adapted `tf.keras.Model.`
+      The regression logits.
     """
-    tfgnn.check_scalar_graph_tensor(model.output, name="Regression")
-    activations = self.gather_activations(model.output)
+    tfgnn.check_scalar_graph_tensor(inputs, name="_Regression")
+    activations = self.gather_activations(inputs)
     logits = tf.keras.layers.Dense(
         self._units,
         name="logits")(activations)  # Name seen in SignatureDef.
-    return tf.keras.Model(model.input, logits)
+    return logits
 
-  def preprocess(
-      self,
-      inputs: GraphTensor) -> tuple[Optional[GraphTensor], Field]:
-    return None, self._label_fn(inputs)
+  def preprocess(self, inputs: GraphTensor) -> tuple[GraphTensor, Field]:
+    return self._label_fn(inputs)
 
   @abc.abstractmethod
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
@@ -86,7 +83,7 @@ class _GraphRegression(_Regression):
                units: int = 1,
                state_name: str = tfgnn.HIDDEN_STATE,
                reduce_type: str = "mean",
-               label_fn: Callable[[GraphTensor], Field]):
+               label_fn: LabelFn):
     super().__init__(units, label_fn=label_fn)
     self._node_set_name = node_set_name
     self._state_name = state_name
@@ -108,7 +105,7 @@ class _RootNodeRegression(_Regression):
                *,
                units: int = 1,
                state_name: str = tfgnn.HIDDEN_STATE,
-               label_fn: Callable[[GraphTensor], Field]):
+               label_fn: LabelFn):
     super().__init__(units, label_fn=label_fn)
     self._node_set_name = node_set_name
     self._state_name = state_name
@@ -189,7 +186,6 @@ class _MeanAbsoluteLogarithmicErrorLoss(tf.keras.losses.Loss):
   """Mean absolute log scaled error task."""
 
   def call(self, y_true, y_pred):
-    """See tf.keras.losses.Loss."""
     return _mean_absolute_logarithmic_error(y_true, y_pred)
 
 
@@ -218,9 +214,10 @@ class _MeanSquaredLogScaledErrorLossMixIn:
 
 
 def _mean_absolute_logarithmic_error(y_true, y_pred):
-  """Computes the mean absolute logarithmic error between labels and predictions.
+  """Computes the mean absolute logarithmic error between `y_true` and `y_pred`.
 
-  `loss = mean((log(y_true + 1) - log(y_pred + 1)), axis=-1)`
+  loss = mean((log(y_true + 1) - log(y_pred + 1)), axis=-1)
+
   Args:
     y_true: Ground truth values. shape = `[batch_size, d0, .. dN]`.
     y_pred: The predicted values. shape = `[batch_size, d0, .. dN]`.
@@ -238,22 +235,15 @@ class _MeanAbsoluteLogarithmicErrorLossMixIn:
 
   def __init__(
       self,
-      *args,
-      name: Optional[str] = None,
       reduction: tf.keras.losses.Reduction = AUTO,
-      **kwargs,
-  ):
-    self._name = name
+      name: Optional[str] = None,
+      **kwargs):
+    super().__init__(**kwargs)
     self._reduction = reduction
-    super().__init__(*args, **kwargs)
+    self._name = name
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return (
-        _MeanAbsoluteLogarithmicErrorLoss(
-            name=self._name,
-            reduction=self._reduction,
-        ),
-    )
+    return (_MeanAbsoluteLogarithmicErrorLoss(self._reduction, self._name),)
 
 
 class RootNodeMeanAbsoluteLogarithmicError(
@@ -261,23 +251,24 @@ class RootNodeMeanAbsoluteLogarithmicError(
 ):
   """Root node mean absolute logarithmic error task."""
 
-  def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
-    """Append a linear head with ReLU for nonnegative regression.
-
-    Multiple `tf.keras.Model` outputs are not supported.
+  def predict(self, inputs: tfgnn.GraphTensor) -> tf.Tensor:
+    """Apply a head with ReLU for nonnegative regression.
 
     Args:
-      model: A `tf.keras.Model` to adapt.
+      inputs: A `tfgnn.GraphTensor` use for prediction.
 
     Returns:
-      An adapted `tf.keras.Model.`
+      The nonnegative logits.
     """
-    tfgnn.check_scalar_graph_tensor(model.output, name="Regression")
-    activations = self.gather_activations(model.output)
+    tfgnn.check_scalar_graph_tensor(
+        inputs,
+        name="RootNodeMeanAbsoluteLogarithmicError")
+    activations = self.gather_activations(inputs)
     logits = tf.keras.layers.Dense(
-        self._units, activation="relu", name="logits"
-    )(activations)
-    return tf.keras.Model(model.input, logits)
+        self._units,
+        activation="relu",
+        name="logits")(activations)  # Name seen in SignatureDef.
+    return logits
 
 
 class GraphMeanAbsoluteError(_MeanAbsoluteErrorLossMixIn, _GraphRegression):

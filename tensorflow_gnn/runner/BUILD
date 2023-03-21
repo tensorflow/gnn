@@ -70,6 +70,7 @@ distribute_py_test(
         "//tensorflow_gnn/runner/tasks:classification",
         "//tensorflow_gnn/runner/tasks:regression",
         "//tensorflow_gnn/runner/trainers:keras_fit",
+        "//tensorflow_gnn/runner/utils:label_fns",
         "//tensorflow_gnn/runner/utils:model_templates",
         "//tensorflow_gnn/runner/utils:padding",
     ],

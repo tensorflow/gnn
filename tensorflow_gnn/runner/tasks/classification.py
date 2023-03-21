@@ -24,6 +24,7 @@ from tensorflow_gnn.runner import interfaces
 
 Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
+LabelFn = Callable[[GraphTensor], tuple[GraphTensor, Field]]
 
 
 class _FromLogitsMixIn(tf.keras.metrics.Metric):
@@ -97,7 +98,7 @@ class _Classification(interfaces.Task):
   `metrics`, usually by inheriting from the classes below.
   """
 
-  def __init__(self, units: int, label_fn: Callable[[GraphTensor], Field]):
+  def __init__(self, units: int, label_fn: LabelFn):
     self._units = units
     self._label_fn = label_fn
 
@@ -105,28 +106,24 @@ class _Classification(interfaces.Task):
   def gather_activations(self, inputs: GraphTensor) -> Field:
     raise NotImplementedError()
 
-  def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
-    """Append a linear head with `units` output units.
-
-    Multiple `tf.keras.Model` outputs are not supported.
+  def predict(self, inputs: tfgnn.GraphTensor) -> Field:
+    """Apply a linear head for classification.
 
     Args:
-      model: A `tf.keras.Model` to adapt.
+      inputs: A `tfgnn.GraphTensor` for classification.
 
     Returns:
-      An adapted `tf.keras.Model.`
+      The classification logits.
     """
-    tfgnn.check_scalar_graph_tensor(model.output, name="Classification")
-    activations = self.gather_activations(model.output)
+    tfgnn.check_scalar_graph_tensor(inputs, name="Classification")
+    activations = self.gather_activations(inputs)
     logits = tf.keras.layers.Dense(
         self._units,
         name="logits")(activations)  # Name seen in SignatureDef.
-    return tf.keras.Model(model.input, logits)
+    return logits
 
-  def preprocess(
-      self,
-      inputs: GraphTensor) -> tuple[Optional[GraphTensor], Field]:
-    return None, self._label_fn(inputs)
+  def preprocess(self, inputs: GraphTensor) -> tuple[GraphTensor, Field]:
+    return self._label_fn(inputs)
 
   @abc.abstractmethod
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
@@ -140,11 +137,7 @@ class _Classification(interfaces.Task):
 class _BinaryClassification(_Classification):
   """Binary classification."""
 
-  def __init__(
-      self,
-      units: int = 1,
-      *,
-      label_fn: Callable[[GraphTensor], Field]):
+  def __init__(self, units: int = 1, *, label_fn: LabelFn):
     super().__init__(units, label_fn)
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
@@ -167,7 +160,7 @@ class _MulticlassClassification(_Classification):
                num_classes: Optional[int] = None,
                class_names: Optional[Sequence[str]] = None,
                per_class_statistics: bool = False,
-               label_fn: Callable[[GraphTensor], Field]):
+               label_fn: LabelFn):
     if (num_classes is None) == (class_names is None):
       raise ValueError(
           "Exactly one of `num_classes` or `class_names` must be specified")

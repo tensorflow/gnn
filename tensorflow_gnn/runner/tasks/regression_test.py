@@ -13,23 +13,21 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for node regression."""
-from typing import Sequence
+from typing import Type
 
 from absl.testing import parameterized
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
+from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner.tasks import regression
 
-as_tensor = tf.convert_to_tensor
-as_ragged = tf.ragged.constant
-
-SCHEMA = """
+GT_SCHEMA = """
 context {
-  features {
-    key: "label"
-    value: {
-      dtype: DT_INT64
+features {
+  key: "label"
+  value {
+    dtype: DT_FLOAT
       shape { dim { size: 1 } }
     }
   }
@@ -55,9 +53,20 @@ edge_sets {
 }
 """ % tfgnn.HIDDEN_STATE
 
+GT_SPEC = tfgnn.create_graph_spec_from_schema_pb(tfgnn.parse_schema(GT_SCHEMA))
 
-def label_fn(inputs: tfgnn.GraphTensor) -> tfgnn.Field:
-  return inputs.context["label"]
+as_tensor = tf.convert_to_tensor
+as_ragged = tf.ragged.constant
+merge_batch_to_components = tfgnn.GraphTensor.merge_batch_to_components
+
+GraphTensor = tfgnn.GraphTensor
+Field = tfgnn.Field
+
+
+def label_fn(inputs: GraphTensor) -> tuple[GraphTensor, Field]:
+  y = inputs.context["label"]
+  x = inputs.remove_features(context=("label",))
+  return x, y
 
 
 class Regression(tf.test.TestCase, parameterized.TestCase):
@@ -65,141 +74,201 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters([
       dict(
           testcase_name="GraphMeanAbsoluteError",
-          schema=SCHEMA,
-          task=regression.GraphMeanAbsoluteError("nodes", label_fn=label_fn),
-          y_true=[[0.8191]],
-          expected_y_pred=[[0.06039321]],
-          expected_loss=[0.7587068],
-      ),
+          task=regression.GraphMeanAbsoluteError(
+              "nodes",
+              label_fn=label_fn),
+          expected_activation="linear",
+          expected_loss=tf.keras.losses.MeanAbsoluteError,
+          expected_shape=tf.TensorShape((None, 1))),
       dict(
           testcase_name="GraphMeanAbsolutePercentageError",
-          schema=SCHEMA,
           task=regression.GraphMeanAbsolutePercentageError(
-              "nodes", label_fn=label_fn
-          ),
-          y_true=[[0.8191]],
-          expected_y_pred=[[0.06039321]],
-          expected_loss=[92.626884],
-      ),
+              "nodes",
+              label_fn=label_fn),
+          expected_activation="linear",
+          expected_loss=tf.keras.losses.MeanAbsolutePercentageError,
+          expected_shape=tf.TensorShape((None, 1))),
       dict(
           testcase_name="GraphMeanSquaredError",
-          schema=SCHEMA,
-          task=regression.GraphMeanSquaredError("nodes", label_fn=label_fn),
-          y_true=[[0.8191]],
-          expected_y_pred=[[0.06039321]],
-          expected_loss=[0.575636],
-      ),
+          task=regression.GraphMeanSquaredError(
+              "nodes",
+              label_fn=label_fn),
+          expected_activation="linear",
+          expected_loss=tf.keras.losses.MeanSquaredError,
+          expected_shape=tf.TensorShape((None, 1))),
       dict(
           testcase_name="GraphMeanSquaredLogarithmicError",
-          schema=SCHEMA,
           task=regression.GraphMeanSquaredLogarithmicError(
-              "nodes", units=3, label_fn=label_fn
-          ),
-          y_true=[[-0.407, -0.8191, 0.1634]],
-          expected_y_pred=[[-0.4915728, -0.6728454, -0.8126122]],
-          expected_loss=[0.00763526],
-      ),
+              "nodes",
+              units=3,
+              label_fn=label_fn),
+          expected_activation="linear",
+          expected_loss=tf.keras.losses.MeanSquaredLogarithmicError,
+          expected_shape=tf.TensorShape((None, 3))),
       dict(
           testcase_name="GraphMeanSquaredLogScaledError",
-          schema=SCHEMA,
           task=regression.GraphMeanSquaredLogScaledError(
-              "nodes", units=2, label_fn=label_fn
-          ),
-          y_true=[[0.8208, 0.9]],
-          expected_y_pred=[[0.74617755, -0.8193765]],
-          expected_loss=[839.05788329],
-      ),
+              "nodes",
+              units=2,
+              label_fn=label_fn),
+          expected_activation="linear",
+          expected_loss=regression._MeanSquaredLogScaledError,
+          expected_shape=tf.TensorShape((None, 2))),
       dict(
           testcase_name="RootNodeMeanAbsoluteError",
-          schema=SCHEMA,
-          task=regression.RootNodeMeanAbsoluteError("nodes", label_fn=label_fn),
-          y_true=[[0.8191]],
-          expected_y_pred=[[-0.01075031]],
-          expected_loss=[0.8298503],
-      ),
+          task=regression.RootNodeMeanAbsoluteError(
+              "nodes",
+              label_fn=label_fn),
+          expected_activation="linear",
+          expected_loss=tf.keras.losses.MeanAbsoluteError,
+          expected_shape=tf.TensorShape((None, 1))),
       dict(
           testcase_name="RootNodeMeanAbsolutePercentageError",
-          schema=SCHEMA,
           task=regression.RootNodeMeanAbsolutePercentageError(
-              "nodes", label_fn=label_fn
-          ),
-          y_true=[[0.8191]],
-          expected_y_pred=[[-0.01075031]],
-          expected_loss=[101.31245],
-      ),
+              "nodes",
+              label_fn=label_fn),
+          expected_activation="linear",
+          expected_loss=tf.keras.losses.MeanAbsolutePercentageError,
+          expected_shape=tf.TensorShape((None, 1))),
       dict(
           testcase_name="RootNodeMeanSquaredError",
-          schema=SCHEMA,
-          task=regression.RootNodeMeanSquaredError("nodes", label_fn=label_fn),
-          y_true=[[0.8191]],
-          expected_y_pred=[[-0.01075031]],
-          expected_loss=[0.68865156],
-      ),
+          task=regression.RootNodeMeanSquaredError(
+              "nodes",
+              label_fn=label_fn),
+          expected_activation="linear",
+          expected_loss=tf.keras.losses.MeanSquaredError,
+          expected_shape=tf.TensorShape((None, 1))),
       dict(
           testcase_name="RootNodeMeanSquaredLogarithmicError",
-          schema=SCHEMA,
           task=regression.RootNodeMeanSquaredLogarithmicError(
-              "nodes", units=3, label_fn=label_fn
-          ),
-          y_true=[[-0.407, -0.8191, 0.1634]],
-          expected_y_pred=[[-0.24064127, -0.6996877, -0.6812314]],
-          expected_loss=[0.00763526],
-      ),
+              "nodes",
+              units=3,
+              label_fn=label_fn),
+          expected_activation="linear",
+          expected_loss=tf.keras.losses.MeanSquaredLogarithmicError,
+          expected_shape=tf.TensorShape((None, 3))),
       dict(
           testcase_name="RootNodeMeanSquaredLogScaledError",
-          schema=SCHEMA,
           task=regression.RootNodeMeanSquaredLogScaledError(
-              "nodes", units=2, label_fn=label_fn
-          ),
-          y_true=[[0.8208, 0.9]],
-          expected_y_pred=[[0.7054771, -1.0065091]],
-          expected_loss=[839.09634471],
-      ),
+              "nodes",
+              units=2,
+              label_fn=label_fn),
+          expected_activation="linear",
+          expected_loss=regression._MeanSquaredLogScaledError,
+          expected_shape=tf.TensorShape((None, 2))),
       dict(
           testcase_name="RootNodeMeanAbsoluteLogarithmicError",
-          schema=SCHEMA,
           task=regression.RootNodeMeanAbsoluteLogarithmicError(
               node_set_name="nodes",
               units=2,
               label_fn=label_fn,
           ),
-          y_true=[[0.8208, 0.9]],
-          expected_y_pred=[[0.7054771, 0.0]],
-          expected_loss=[0.35364246],
-      ),
+          expected_activation="relu",
+          expected_loss=regression._MeanAbsoluteLogarithmicErrorLoss,
+          expected_shape=tf.TensorShape((None, 2))),
   ])
-  def test_adapt(self,
-                 schema: str,
-                 task: regression._Regression,
-                 y_true: Sequence[float],
-                 expected_y_pred: Sequence[float],
-                 expected_loss: Sequence[float]):
-    gtspec = tfgnn.create_graph_spec_from_schema_pb(tfgnn.parse_schema(schema))
-    inputs = graph = tf.keras.layers.Input(type_spec=gtspec)
+  def test_predict(
+      self,
+      task: interfaces.Task,
+      expected_activation: str,
+      expected_loss: Type[tf.keras.losses.Loss],
+      expected_shape: tf.TensorShape):
+    # Assert head readout, activation and shape.
+    inputs = tf.keras.layers.Input(type_spec=GT_SPEC)
+    model = tf.keras.Model(inputs, task.predict(inputs))
+    self.assertLen(model.layers, 3)
+    self.assertIsInstance(model.layers[0], tf.keras.layers.InputLayer)
+    self.assertIsInstance(
+        model.layers[1],
+        (tfgnn.keras.layers.ReadoutFirstNode, tfgnn.keras.layers.Pool))
+    self.assertIsInstance(model.layers[2], tf.keras.layers.Dense)
 
-    values = graph.node_sets["nodes"][tfgnn.HIDDEN_STATE]
-    outputs = graph.replace_features(node_sets={
-        "nodes": {
-            tfgnn.HIDDEN_STATE: tf.keras.layers.Dense(8)(values)
-        }
-    })
+    _, _, dense = model.layers
+    self.assertEqual(dense.get_config()["activation"], expected_activation)
+    self.assertTrue(expected_shape.is_compatible_with(dense.output_shape))
 
+    # Assert losses.
+    losses = task.losses()
+    self.assertLen(losses, 1)
+
+    [loss] = losses
+    self.assertIsInstance(loss, expected_loss)
+
+  @parameterized.named_parameters([
+      dict(
+          testcase_name="GraphMeanAbsoluteError",
+          task=regression.GraphMeanAbsoluteError(
+              "nodes",
+              label_fn=label_fn)),
+      dict(
+          testcase_name="GraphMeanAbsolutePercentageError",
+          task=regression.GraphMeanAbsolutePercentageError(
+              "nodes",
+              label_fn=label_fn)),
+      dict(
+          testcase_name="GraphMeanSquaredError",
+          task=regression.GraphMeanSquaredError(
+              "nodes",
+              label_fn=label_fn)),
+      dict(
+          testcase_name="GraphMeanSquaredLogarithmicError",
+          task=regression.GraphMeanSquaredLogarithmicError(
+              "nodes",
+              units=3,
+              label_fn=label_fn)),
+      dict(
+          testcase_name="GraphMeanSquaredLogScaledError",
+          task=regression.GraphMeanSquaredLogScaledError(
+              "nodes",
+              units=2,
+              label_fn=label_fn)),
+      dict(
+          testcase_name="RootNodeMeanAbsoluteError",
+          task=regression.RootNodeMeanAbsoluteError(
+              "nodes",
+              label_fn=label_fn)),
+      dict(
+          testcase_name="RootNodeMeanAbsolutePercentageError",
+          task=regression.RootNodeMeanAbsolutePercentageError(
+              "nodes",
+              label_fn=label_fn)),
+      dict(
+          testcase_name="RootNodeMeanSquaredError",
+          task=regression.RootNodeMeanSquaredError(
+              "nodes",
+              label_fn=label_fn)),
+      dict(
+          testcase_name="RootNodeMeanSquaredLogarithmicError",
+          task=regression.RootNodeMeanSquaredLogarithmicError(
+              "nodes",
+              units=3,
+              label_fn=label_fn)),
+      dict(
+          testcase_name="RootNodeMeanSquaredLogScaledError",
+          task=regression.RootNodeMeanSquaredLogScaledError(
+              "nodes",
+              units=2,
+              label_fn=label_fn)),
+      dict(
+          testcase_name="RootNodeMeanAbsoluteLogarithmicError",
+          task=regression.RootNodeMeanAbsoluteLogarithmicError(
+              node_set_name="nodes",
+              units=2,
+              label_fn=label_fn)),
+  ])
+  def test_fit(
+      self,
+      task: interfaces.Task):
+    inputs = tf.keras.layers.Input(type_spec=GT_SPEC)
+    outputs = task.predict(inputs)
     model = tf.keras.Model(inputs, outputs)
-    model = task.adapt(model)
 
-    # TODO(b/266817638): Remove when fixed.
-    if tf.__version__.startswith("2.9."):
-      self.skipTest("Bad test: exepected values depend on TF2.10+ RNG seeds")
+    ds = tf.data.Dataset.from_tensors(tfgnn.random_graph_tensor(GT_SPEC))
+    ds = ds.repeat().batch(2).map(merge_batch_to_components).take(1)
+    ds = ds.map(task.preprocess)
 
-    self.assertIs(model.input, inputs)
-    self.assertAllEqual(as_tensor(expected_y_pred).shape, model.output.shape)
-
-    y_pred = model(tfgnn.random_graph_tensor(gtspec))
-    self.assertAllClose(expected_y_pred, y_pred)
-
-    loss = [loss_fn(y_true, y_pred) for loss_fn in task.losses()]
-    self.assertAllClose(expected_loss, loss)
-
+    model.compile(loss=task.losses(), metrics=task.metrics())
+    model.fit(ds)
 
 if __name__ == "__main__":
   tf.test.main()

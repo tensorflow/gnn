@@ -28,6 +28,7 @@ from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.tasks import classification
 from tensorflow_gnn.runner.tasks import regression
 from tensorflow_gnn.runner.trainers import keras_fit
+from tensorflow_gnn.runner.utils import label_fns
 from tensorflow_gnn.runner.utils import model_templates
 from tensorflow_gnn.runner.utils import padding
 
@@ -93,13 +94,15 @@ def _all_eager_strategy_combinations():
 def _all_task_combinations():
 
   def extract_binary_labels(inputs):
-    return inputs.context["label"] % 2
+    x, y = label_fns.ContextLabelFn("label")(inputs)
+    return x, y % 2
 
   def extract_multiclass_labels(inputs):
-    return inputs.context["label"]
+    return label_fns.ContextLabelFn("label")(inputs)
 
   def extract_regression_labels(inputs):
-    return tf.ones_like(inputs.context["label"], dtype=tf.float32)
+    x, y = label_fns.ContextLabelFn("label")(inputs)
+    return x, tf.ones_like(y, dtype=tf.float32)
 
   tasks = [
       # Root node classification

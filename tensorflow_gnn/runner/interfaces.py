@@ -13,9 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 """Interfaces for the runner entry point."""
+from __future__ import annotations
+
 import abc
 import sys
-from typing import Callable, Optional, Sequence, Tuple
+from typing import Callable, Optional, Sequence, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -88,73 +90,94 @@ class ModelExporter(abc.ABC):
 
 
 class Task(abc.ABC):
-  """Collects the ancillary, supporting pieces to train a Keras model.
+  """Defines a learning objective for a GNN.
 
-  `Task`s are applied and used to compile a `tf.keras.Model` in the scope
-  of a training invocation: they are subject to the executing context
-  of the `Trainer` and should, when needed, override it (e.g., a global
-  policy, like `tf.keras.mixed_precision.global_policy()` and its implications
-  over logit and activation layers).
+  A `Task` represents a learning objective for a GNN model and defines all the
+  non-GNN pieces around the base GNN. Specifically:
 
-  A `Task` is expected to coordinate all of its methods and their return values
-  to define a graph learning objective. Precisely:
-
-  1) `preprocess` is expected to return a `GraphTensor` or
-     (`GraphTensor`, `Field`) where the `GraphTensor` matches the input of the
-     model returned by `adapt` and the `Field` is a training label
-  2) `adapt` is expected to return a `tf.keras.Model` that accepts a
-     `GraphTensor` matching the output of `preprocess`
+  1) `preprocess` is expected to return a `GraphTensor` (or `GraphTensor`s) and
+     a `Field` where (a) the base GNN's output for each `GraphTensor` is passed
+     to `predict` and (b) the `Field` is used as the training label (for
+     supervised tasks);
+  2) `predict` is expected to (a) take the base GNN's output for each
+     `GraphTensor` returned by `preprocess` and (b) return a tensor with the
+     model's prediction for this task;
   3) `losses` is expected to return callables (`tf.Tensor`, `tf.Tensor`) ->
      `tf.Tensor` that accept (`y_true`, `y_pred`) where `y_true` is produced
-     by some dataset and `y_pred` is output of the adapted model (see (2))
+     by some dataset and `y_pred` is the model's prediction from (2);
   4) `metrics` is expected to return callables (`tf.Tensor`, `tf.Tensor`) ->
      `tf.Tensor` that accept (`y_true`, `y_pred`) where `y_true` is produced
-     by some dataset and `y_pred` is output of the adapted model (see (2)).
+     by some dataset and `y_pred` is the model's prediction from (2).
 
-  No constraints are made on the `adapt` method; e.g.: it may adapt its input by
-  appending a head, it may add losses to its input, it may add metrics to its
-  input or it may do any combination of the aforementioned modifications. The
-  `adapt` method is expected to adapt an arbitrary `tf.keras.Model` to the graph
-  learning objective. (The entire `Tasks` coordinates what that means with
-  respect to input—via `preprocess`—, modeling—via `adapt`— and optimization—via
-  `losses.`)
+  No constraints are made on the `predict` method; e.g.: it may append a head
+  with learnable weights or it may perform tensor computations only. (The entire
+  `Task` coordinates what that means with respect to dataset—via `preprocess`—,
+  modeling—via `predict`— and optimization—via `losses`.)
+
+  `Task`s are applied in the scope of a training invocation: they are subject to
+  the executing context of the `Trainer` and should, when needed, override it
+  (e.g., a global policy, like `tf.keras.mixed_precision.global_policy()` and
+  its implications over logit and activation layers).
   """
-
-  @abc.abstractmethod
-  def adapt(self, model: tf.keras.Model) -> tf.keras.Model:
-    """Adapt a model to a task by appending arbitrary head(s)."""
-    raise NotImplementedError()
 
   @abc.abstractmethod
   def preprocess(
       self,
-      inputs: GraphTensor) -> Tuple[Optional[GraphTensor], Field]:
-    """Preprocess a scalar (after `merge_batch_to_components`) `GraphTensor`.
+      inputs: GraphTensor
+  ) -> tuple[Union[GraphTensor, Sequence[GraphTensor]], Field]:
+    """Preprocesses a scalar (after `merge_batch_to_components`) `GraphTensor`.
 
-    `preprocess` returns labels and an (optionally) mutated `GraphTensor`: any
-    returned `GraphTensor` must have a spec matching the input `GraphTensor`.
-    `preprocess` may return `None` for the output `GraphTensor` for the identity
-    transformation.
+    This function does non-trainable transformations of the input `GraphTensor`
+    during dataset preprocessing. (It is executed as part of a
+    `tf.data.Dataset.map(...)` operation.) It has two responsibilities:
+
+     1. Splitting the training label out of the input for training. It must be
+        returned as a separate tensor.
+     2. Optionally, transforming input features. Some advanced modeling
+        techniques require running the same base GNN on multiple different
+        transformations, so this function may return a single `GraphTensor`
+        or a non-empty sequence of `GraphTensors`. The corresponding base GNN
+        output for each `GraphTensor` is provided to the `predict(...)` method.
 
     Args:
       inputs: A `GraphTensor` for processing.
 
     Returns:
-      A processed `GraphTensor` and `Field` (to be used as labels). Optionally,
-      the returned `GraphTensor` may be `None` for the identity transformation.
-      The returned `GraphTensor` spec must match the spec of the input
-      `GraphTensor`.
+      A tuple of processed `GraphTensor`(s) and a `Field` to be used as labels.
+    """
+    raise NotImplementedError()
+
+  @abc.abstractmethod
+  def predict(self, *args: GraphTensor) -> Field:
+    """Produces prediction outputs for the learning objective.
+
+    Overall model composition* makes use of the Keras Functional API
+    (https://www.tensorflow.org/guide/keras/functional) to map symbolic Keras
+    `GraphTensor` inputs to symbolic Keras `Field` outputs.
+
+    *) `outputs = predict(GNN(inputs))` where `inputs` are those `GraphTensor`
+       returned by `preprocess(...)`, `GNN` is the base GNN, `predict` is this
+       method and `outputs` are the prediction outputs for the learning
+       objective.
+
+    Args:
+      *args: The `GraphTensor` inputs(s). These inputs correspond (in sequence)
+        to the base GNN output of each `GraphTensor` returned by
+        `preprocess(...)`.
+
+    Returns:
+      The model's prediction output for this task.
     """
     raise NotImplementedError()
 
   @abc.abstractmethod
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    """Arbitrary losses matching any head(s)."""
+    """Returns arbitrary task specific losses."""
     raise NotImplementedError()
 
   @abc.abstractmethod
   def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    """Arbitrary task specific metrics."""
+    """Returns arbitrary task specific metrics."""
     raise NotImplementedError()
 
 
@@ -194,6 +217,6 @@ class Trainer(abc.ABC):
         `GraphTensor.merge_batch_to_components()` has been applied.
 
     Returns:
-      A trained `tf.keras.Model.`
+      A trained `tf.keras.Model`.
     """
     raise NotImplementedError()

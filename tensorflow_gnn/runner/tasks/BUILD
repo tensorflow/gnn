@@ -24,6 +24,7 @@ py_strict_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//tensorflow_gnn/runner:interfaces",
     ],
 )
 
@@ -48,5 +49,6 @@ py_strict_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//tensorflow_gnn/runner:interfaces",
     ],
 )

@@ -243,19 +243,19 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
           testcase_name="DuplicateSubmodules",
           model=_duplicate_submodules("abc123"),
           submodule_name="abc123",
-          expected_error=r"More than one submodule found \(\[.*\]\)",
+          expected_error=r"More than one intermediate layer found \(\[.*\]\)",
       ),
       dict(
           testcase_name="NoSubmodule",
           model=_no_submodule(1, 1, "abc123"),
           submodule_name="abc123",
-          expected_error="No submodule `abc123` found",
+          expected_error="No intermediate layer `.*` found",
       ),
       dict(
           testcase_name="TFModuleAsSubmodule",
           model=_tf_module_as_submodule("abc123"),
           submodule_name="abc123",
-          expected_error=r"Submodule \(.*\) is neither a Keras Model nor Layer",
+          expected_error="No intermediate layer `.*` found",
       ),
   ])
   def test_submodule_exporter_fails(

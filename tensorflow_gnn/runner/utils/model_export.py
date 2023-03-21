@@ -27,23 +27,15 @@ Field = Union[tf.Tensor, tf.RaggedTensor]
 def _rename_output(output: Any, names: Any) -> Any:
   """Renames atoms of `output` with `names` for two matching structures."""
   tf.nest.assert_same_structure(output, names, check_types=False)
-
-  if not tf.nest.is_nested(output):
-    if names is not None:
-      return tf.keras.layers.Layer(name=names)(output)
-    else:
-      return output
-
   renamed_output = [
       tf.keras.layers.Layer(name=atom2)(atom1) if atom2 is not None else atom1
       for atom1, atom2 in zip(tf.nest.flatten(output), tf.nest.flatten(names))
   ]
-
   return tf.nest.pack_sequence_as(names, renamed_output)
 
 
 class KerasModelExporter(interfaces.ModelExporter):
-  """Exports a Keras model (with Keras API) via tf.keras.models.save_model."""
+  """Exports a Keras model (with Keras API) via `tf.keras.models.save_model`."""
 
   def __init__(self,
                *,
@@ -66,7 +58,7 @@ class KerasModelExporter(interfaces.ModelExporter):
       subdirectory: An optional subdirectory, if set: models are exported to
         `os.path.join(export_dir, subdirectory).`
       include_preprocessing: Whether to include any `preprocess_model.`
-      options: Options for saving to SavedModel.
+      options: Options for saving to a TensorFlow `SavedModel`.
     """
     self._output_names = output_names
     self._subdirectory = subdirectory
@@ -89,6 +81,11 @@ class KerasModelExporter(interfaces.ModelExporter):
       model: A `tf.keras.Model` to save.
       export_dir: A destination directory for the model.
     """
+    if preprocess_model and not preprocess_model.built:
+      raise ValueError("`preprocess_model` is expected to have been built")
+    elif not model.built:
+      raise ValueError("`model` is expected to have been built")
+
     if preprocess_model is not None and self._include_preprocessing:
       model = model_utils.chain_first_output(preprocess_model, model)
     if self._output_names is not None:
@@ -100,10 +97,23 @@ class KerasModelExporter(interfaces.ModelExporter):
 
 
 class SubmoduleExporter(interfaces.ModelExporter):
-  """Exports a Keras model submodule (`getarr(model, 'submodules')`) by name."""
+  """Exports a Keras submodule.
+
+  Given a Keras model, this exporter creates and exports a submodule with inputs
+  identical to the model and outputs from some intermediate layer (named
+  `sublayer_name`). For example, with pseudocode:
+
+  `model = tf.keras.Sequential([layer1, layer2, layer3, layer3])`
+  and
+  `SubmoduleExporter(sublayer_name='layer3')`
+
+  The exported submodule is:
+
+  `submodule = tf.keras.Sequential([layer1, layer2, layer3])`
+  """
 
   def __init__(self,
-               submodule_name: str,
+               sublayer_name: str,
                *,
                output_names: Optional[Any] = None,
                subdirectory: Optional[str] = None,
@@ -112,16 +122,16 @@ class SubmoduleExporter(interfaces.ModelExporter):
     """Captures the args shared across `save(...)` calls.
 
     Args:
-      submodule_name: The name of the submodule to export.
-      output_names: The names for output Tensor(s), see: `KerasModelExporter.`
+      sublayer_name: The name of the submodule's final layer.
+      output_names: The names for output Tensor(s), see: `KerasModelExporter`.
       subdirectory: An optional subdirectory, if set: submodules are exported
-        to `os.path.join(export_dir, subdirectory).`
-      include_preprocessing: Whether to include any `preprocess_model.`
-      options: Options for saving to SavedModel.
+        to `os.path.join(export_dir, subdirectory)`.
+      include_preprocessing: Whether to include any `preprocess_model`.
+      options: Options for saving to a TensorFlow `SavedModel`.
     """
+    self._sublayer_name = sublayer_name
     self._output_names = output_names
     self._subdirectory = subdirectory
-    self._submodule_name = submodule_name
     self._include_preprocessing = include_preprocessing
     self._options = options
 
@@ -132,33 +142,31 @@ class SubmoduleExporter(interfaces.ModelExporter):
     """Saves a Keras model submodule.
 
     Importantly: the `preprocess_model`, if provided, and `model` are
-    concatenated before any export.
+    concatenated before any export, see: `KerasModelExporter`.
 
     Args:
       preprocess_model: An optional `tf.keras.Model` for preprocessing.
-      model: A `tf.keras.Model` to save.
+      model: A `tf.keras.Model` to search for `sublayer_name`.
       export_dir: A destination directory for the model.
     """
-    submodules = [m for m in model.submodules if self._submodule_name == m.name]
+    if preprocess_model and not preprocess_model.built:
+      raise ValueError("`preprocess_model` is expected to have been built")
+    elif not model.built:
+      raise ValueError("`model` is expected to have been built")
 
-    if not submodules:
-      raise ValueError(f"No submodule `{self._submodule_name}` found")
-    elif len(submodules) > 1:
-      raise ValueError(f"More than one submodule found ({submodules})")
-    elif isinstance(submodules[0], tf.keras.Model):
-      [submodel] = submodules
-    elif isinstance(submodules[0], tf.keras.layers.Layer):
-      [sublayer] = submodules
-      submodel = tf.keras.Model(sublayer.input, sublayer.output)
-    else:
-      [submodel] = submodules
-      raise ValueError(
-          f"Submodule ({submodel}) is neither a Keras Model nor Layer`")
+    layers = [l for l in model.layers if self._sublayer_name == l.name]
+
+    if not layers:
+      raise ValueError(f"No intermediate layer `{self._sublayer_name}` found")
+    elif len(layers) > 1:
+      raise ValueError(f"More than one intermediate layer found ({layers})")
+
+    [layer] = layers
+    submodule = tf.keras.Model(model.input, layer.output)
 
     exporter = KerasModelExporter(
         output_names=self._output_names,
         subdirectory=self._subdirectory,
         include_preprocessing=self._include_preprocessing,
         options=self._options)
-
-    exporter.save(preprocess_model, submodel, export_dir)
+    exporter.save(preprocess_model, submodule, export_dir)

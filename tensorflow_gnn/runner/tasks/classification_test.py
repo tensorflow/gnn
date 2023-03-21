@@ -13,18 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for classification."""
-from typing import Sequence
+from typing import Callable, Type
 
 from absl.testing import parameterized
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
+from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner.tasks import classification
 
-as_tensor = tf.convert_to_tensor
-as_ragged = tf.ragged.constant
-
-SCHEMA = """
+GT_SCHEMA = """
 context {
 features {
   key: "label"
@@ -55,9 +53,22 @@ edge_sets {
 }
 """ % tfgnn.HIDDEN_STATE
 
+GT_SPEC = tfgnn.create_graph_spec_from_schema_pb(tfgnn.parse_schema(GT_SCHEMA))
 
-def label_fn(inputs: tfgnn.GraphTensor) -> tfgnn.Field:
-  return inputs.context["label"]
+as_tensor = tf.convert_to_tensor
+as_ragged = tf.ragged.constant
+merge_batch_to_components = tfgnn.GraphTensor.merge_batch_to_components
+
+GraphTensor = tfgnn.GraphTensor
+Field = tfgnn.Field
+
+
+def label_fn(num_labels: int) -> Callable[..., tuple[GraphTensor, Field]]:
+  def fn(inputs):
+    y = inputs.context["label"]
+    x = inputs.remove_features(context=("label",))
+    return x, y % num_labels
+  return fn
 
 
 class Classification(tf.test.TestCase, parameterized.TestCase):
@@ -65,182 +76,170 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters([
       dict(
           testcase_name="GraphBinaryClassification",
-          schema=SCHEMA,
           task=classification.GraphBinaryClassification(
               "nodes",
-              label_fn=label_fn),
-          y_true=[[1]],
-          expected_y_pred=[[-0.4159315]],
-          expected_loss=[0.9225837]),
+              label_fn=label_fn(2)),
+          expected_loss=tf.keras.losses.BinaryCrossentropy,
+          expected_shape=tf.TensorShape((None, 1))),
       dict(
           testcase_name="GraphMulticlassClassification",
-          schema=SCHEMA,
           task=classification.GraphMulticlassClassification(
               "nodes",
               num_classes=4,
-              label_fn=label_fn),
-          y_true=[3],
-          expected_y_pred=[[0.35868323, -0.4112632, -0.23154753, 0.20909603]],
-          expected_loss=[1.2067872]),
+              label_fn=label_fn(4)),
+          expected_loss=tf.keras.losses.SparseCategoricalCrossentropy,
+          expected_shape=tf.TensorShape((None, 4))),
       dict(
           testcase_name="RootNodeBinaryClassification",
-          schema=SCHEMA,
           task=classification.RootNodeBinaryClassification(
               "nodes",
-              label_fn=label_fn),
-          y_true=[[1]],
-          expected_y_pred=[[-0.3450081]],
-          expected_loss=[0.8804569]),
+              label_fn=label_fn(2)),
+          expected_loss=tf.keras.losses.BinaryCrossentropy,
+          expected_shape=tf.TensorShape((None, 1))),
       dict(
           testcase_name="RootNodeMulticlassClassification",
-          schema=SCHEMA,
           task=classification.RootNodeMulticlassClassification(
               "nodes",
               num_classes=3,
-              label_fn=label_fn),
-          y_true=[2],
-          expected_y_pred=[[-0.4718209, 0.04619305, -0.5249821]],
-          expected_loss=[1.3415444]),
+              label_fn=label_fn(3)),
+          expected_loss=tf.keras.losses.SparseCategoricalCrossentropy,
+          expected_shape=tf.TensorShape((None, 3))),
   ])
-  def test_adapt(self,
-                 schema: str,
-                 task: classification._Classification,
-                 y_true: Sequence[float],
-                 expected_y_pred: Sequence[float],
-                 expected_loss: Sequence[float]):
-    gtspec = tfgnn.create_graph_spec_from_schema_pb(tfgnn.parse_schema(schema))
-    inputs = tf.keras.layers.Input(type_spec=gtspec)
-    hidden_state = inputs.node_sets["nodes"][tfgnn.HIDDEN_STATE]
-    output = inputs.replace_features(
-        node_sets={"nodes": {
-            tfgnn.HIDDEN_STATE: tf.keras.layers.Dense(16)(hidden_state)
-        }})
-    model = tf.keras.Model(inputs, output)
-    model = task.adapt(model)
+  def test_predict(
+      self,
+      task: interfaces.Task,
+      expected_loss: Type[tf.keras.losses.Loss],
+      expected_shape: tf.TensorShape):
+    # Assert head readout, activation and shape.
+    inputs = tf.keras.layers.Input(type_spec=GT_SPEC)
+    model = tf.keras.Model(inputs, task.predict(inputs))
+    self.assertLen(model.layers, 3)
+    self.assertIsInstance(model.layers[0], tf.keras.layers.InputLayer)
+    self.assertIsInstance(
+        model.layers[1],
+        (tfgnn.keras.layers.ReadoutFirstNode, tfgnn.keras.layers.Pool))
+    self.assertIsInstance(model.layers[2], tf.keras.layers.Dense)
 
-    self.assertIs(model.input, inputs)
-    # TODO(b/266817638): Remove when fixed.
-    if tf.__version__.startswith("2.9."):
-      self.skipTest("Bad test: exepected values depend on TF2.10+ RNG seeds")
+    _, _, dense = model.layers
+    self.assertEqual(dense.get_config()["activation"], "linear")
+    self.assertTrue(expected_shape.is_compatible_with(dense.output_shape))
 
-    self.assertAllEqual(as_tensor(expected_y_pred).shape, model.output.shape)
+    # Assert losses.
+    losses = task.losses()
+    self.assertLen(losses, 1)
 
-    y_pred = model(tfgnn.random_graph_tensor(gtspec))
-    self.assertAllClose(expected_y_pred, y_pred)
-
-    loss = [loss_fn(y_true, y_pred) for loss_fn in task.losses()]
-    self.assertAllClose(expected_loss, loss)
+    [loss] = losses
+    self.assertIsInstance(loss, expected_loss)
+    self.assertTrue(loss.get_config()["from_logits"])
 
   @parameterized.named_parameters([
       dict(
           testcase_name="GraphBinaryClassification",
-          schema=SCHEMA,
           task=classification.GraphBinaryClassification(
               "nodes",
-              label_fn=label_fn),
+              label_fn=label_fn(2)),
           batch_size=1),
       dict(
           testcase_name="GraphMulticlassClassification",
-          schema=SCHEMA,
           task=classification.GraphMulticlassClassification(
               "nodes",
               num_classes=4,
-              label_fn=label_fn),
+              label_fn=label_fn(4)),
           batch_size=1),
       dict(
           testcase_name="RootNodeBinaryClassification",
-          schema=SCHEMA,
           task=classification.RootNodeBinaryClassification(
               "nodes",
-              label_fn=label_fn),
+              label_fn=label_fn(2)),
           batch_size=1),
       dict(
           testcase_name="RootNodeMulticlassClassification",
-          schema=SCHEMA,
           task=classification.RootNodeMulticlassClassification(
               "nodes",
               num_classes=3,
-              label_fn=label_fn),
+              label_fn=label_fn(3)),
           batch_size=1),
       dict(
           testcase_name="GraphBinaryClassificationBatchSize2",
-          schema=SCHEMA,
           task=classification.GraphBinaryClassification(
               "nodes",
-              label_fn=label_fn),
+              label_fn=label_fn(2)),
           batch_size=2),
       dict(
           testcase_name="GraphMulticlassClassificationBatchSize2",
-          schema=SCHEMA,
           task=classification.GraphMulticlassClassification(
               "nodes",
               num_classes=4,
-              label_fn=label_fn),
+              label_fn=label_fn(4)),
           batch_size=2),
       dict(
           testcase_name="RootNodeBinaryClassificationBatchSize2",
-          schema=SCHEMA,
           task=classification.RootNodeBinaryClassification(
               "nodes",
-              label_fn=label_fn),
+              label_fn=label_fn(2)),
           batch_size=2),
       dict(
           testcase_name="RootNodeMulticlassClassificationBatchSize2",
-          schema=SCHEMA,
           task=classification.RootNodeMulticlassClassification(
               "nodes",
               num_classes=3,
-              label_fn=label_fn),
+              label_fn=label_fn(3)),
           batch_size=2),
   ])
-  def test_fit(self, schema: str, task: classification._Classification,
-               batch_size: int):
-    gtspec = tfgnn.create_graph_spec_from_schema_pb(tfgnn.parse_schema(schema))
-    inputs = tf.keras.layers.Input(type_spec=gtspec)
-    hidden_state = inputs.node_sets["nodes"][tfgnn.HIDDEN_STATE]
-    output = inputs.replace_features(
-        node_sets={"nodes": {
-            tfgnn.HIDDEN_STATE: tf.keras.layers.Dense(16)(hidden_state)
-        }})
-    model = tf.keras.Model(inputs, output)
-    model = task.adapt(model)
+  def test_fit(
+      self,
+      task: interfaces.Task,
+      batch_size: int):
+    inputs = tf.keras.layers.Input(type_spec=GT_SPEC)
+    outputs = task.predict(inputs)
+    model = tf.keras.Model(inputs, outputs)
 
-    examples = tf.data.Dataset.from_tensors(tfgnn.random_graph_tensor(gtspec))
-    # In the batched case, prepare exactly 1 batch by copying the graph tensor.
-    examples = examples.repeat(batch_size).batch(batch_size).map(
-        tfgnn.GraphTensor.merge_batch_to_components)
-    labels = tf.data.Dataset.from_tensors([1.] * batch_size)
+    ds = tf.data.Dataset.from_tensors(tfgnn.random_graph_tensor(GT_SPEC))
+    ds = ds.repeat().batch(batch_size).map(merge_batch_to_components).take(1)
+    ds = ds.map(task.preprocess)
 
-    dataset = tf.data.Dataset.zip((examples.repeat(2), labels.repeat(2)))
-
-    model.compile(loss=task.losses(), metrics=task.metrics(), run_eagerly=True)
-    model.fit(dataset)
+    model.compile(loss=task.losses(), metrics=task.metrics())
+    model.fit(ds)
 
   def test_per_class_metrics_with_num_classes(self):
     task = classification.GraphMulticlassClassification(
         "nodes",
         num_classes=5,
         per_class_statistics=True,
-        label_fn=label_fn)
+        label_fn=label_fn(5))
     metric_names = [metric.name for metric in task.metrics()]
-    self.assertContainsSubset([
-        "precision_for_class_0", "precision_for_class_1",
-        "precision_for_class_2", "precision_for_class_3",
-        "precision_for_class_4", "recall_for_class_0", "recall_for_class_1",
-        "recall_for_class_2", "recall_for_class_3", "recall_for_class_4"
-    ], metric_names)
+    self.assertContainsSubset(
+        [
+            "precision_for_class_0",
+            "precision_for_class_1",
+            "precision_for_class_2",
+            "precision_for_class_3",
+            "precision_for_class_4",
+            "recall_for_class_0",
+            "recall_for_class_1",
+            "recall_for_class_2",
+            "recall_for_class_3",
+            "recall_for_class_4",
+        ],
+        metric_names)
 
   def test_per_class_metrics_with_class_names(self):
     task = classification.RootNodeMulticlassClassification(
         "nodes",
         per_class_statistics=True,
         class_names=["foo", "bar", "baz"],
-        label_fn=label_fn)
+        label_fn=label_fn(3))
     metric_names = [metric.name for metric in task.metrics()]
-    self.assertContainsSubset([
-        "precision_for_foo", "precision_for_bar", "precision_for_baz",
-        "recall_for_foo", "recall_for_bar", "recall_for_baz"
-    ], metric_names)
+    self.assertContainsSubset(
+        [
+            "precision_for_foo",
+            "precision_for_bar",
+            "precision_for_baz",
+            "recall_for_foo",
+            "recall_for_bar",
+            "recall_for_baz",
+        ],
+        metric_names)
 
   def test_invalid_both_num_classes_and_class_names(self):
     with self.assertRaisesRegex(
@@ -250,13 +249,15 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
           "nodes",
           num_classes=5,
           class_names=["foo", "bar"],
-          label_fn=label_fn)
+          label_fn=label_fn(2))
 
   def test_invalid_no_num_classes_or_class_names(self):
     with self.assertRaisesRegex(
         ValueError,
         r"Exactly one of `num_classes` or `class_names` must be specified"):
-      classification.GraphMulticlassClassification("nodes", label_fn=label_fn)
+      classification.GraphMulticlassClassification(
+          "nodes",
+          label_fn=label_fn(2))
 
 if __name__ == "__main__":
   tf.test.main()

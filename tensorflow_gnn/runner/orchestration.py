@@ -13,11 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 """The runner entry point."""
+from __future__ import annotations
+
 import collections
 import dataclasses
 import functools
 import os
-from typing import Callable, Optional, Sequence, Tuple, Union
+from typing import Callable, Optional, Sequence, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -26,8 +28,9 @@ from tensorflow_gnn.runner.utils import model as model_utils
 from tensorflow_gnn.runner.utils import model_export
 from tensorflow_gnn.runner.utils import parsing as parsing_utils
 
+Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
-GraphTensorAndField = Tuple[GraphTensor, tfgnn.Field]
+GraphTensorAndField = tuple[GraphTensor, Field]
 GraphTensorSpec = tfgnn.GraphTensorSpec
 SizeConstraints = tfgnn.SizeConstraints
 
@@ -78,7 +81,6 @@ class _WrappedDatasetProvider(DatasetProvider):
                drop_remainder: bool,
                global_batch_size: int,
                tf_data_service_config: Optional[TFDataServiceConfig] = None):
-    super().__init__()
     self._apply_fn = apply_fn
     self._delegate = delegate
     self._drop_remainder = drop_remainder
@@ -125,10 +127,7 @@ def _make_parsing_model(gtspec: GraphTensorSpec) -> tf.keras.Model:
 def _make_preprocessing_model(
     gtspec: GraphTensorSpec,
     processors: Sequence[GraphTensorProcessorFn],
-    task_processor: Callable[
-        [tfgnn.GraphTensor],
-        Tuple[Optional[tfgnn.GraphTensor], tfgnn.Field]
-    ],
+    task_processor: Callable[[GraphTensor], tuple[GraphTensor, Field]],
     size_constraints: Optional[SizeConstraints] = None) -> tf.keras.Model:
   """Builds a `tf.keras.Model` that applies preprocessing.
 
@@ -140,10 +139,9 @@ def _make_preprocessing_model(
     size_constraints: Any size constraints for padding.
 
   Returns:
-    A `tf.keras.Model` with one, two or three outputs depending on the presence
-    of `size_constraints` and the return values of `processors.` Where
-    outputs are (`GraphTensor`, `tfgnn.Field`, `tfgnn.Field`) as model
-    input, label and mask (respectively).
+    A `tf.keras.Model` with two or three outputs depending on the presence
+    of `size_constraints`. Where outputs are (`GraphTensor`, `Field`, `Field`)
+    as model input, label and mask (respectively).
   """
   inputs = tf.keras.Input(type_spec=gtspec)
   gt = inputs.merge_batch_to_components()
@@ -154,19 +152,18 @@ def _make_preprocessing_model(
     mask = None
 
   gt = functools.reduce(lambda acc, fn: fn(acc), processors, gt)
-  gt_processed, labels = task_processor(gt)
+  gts_processed, labels = task_processor(gt)
 
-  if gt_processed is not None and gt.spec != gt_processed.spec:
-    raise ValueError(
-        f"`GraphTensorSpec` mutated by a `task_processor` (gt={gt.spec} and "
-        f"gt_processed={gt_processed.spec})")
-  elif gt_processed is not None:
-    gt = gt_processed
+  if isinstance(gts_processed, collections.abc.Sequence):
+    specs = [gt.spec for gt in gts_processed]
+    if any(specs[0] != spec for spec in specs[1:]):
+      raise ValueError(
+          f"All `GraphTensorSpec` expected to be the same (got specs={specs})")
 
   if labels is not None and mask is None:
-    return tf.keras.Model(inputs, (gt, labels))
+    return tf.keras.Model(inputs, (gts_processed, labels))
   elif labels is not None and mask is not None:
-    return tf.keras.Model(inputs, (gt, labels, mask))
+    return tf.keras.Model(inputs, (gts_processed, labels, mask))
 
   raise ValueError(f"Expected labels (got labels={labels} and mask={mask})")
 
@@ -204,37 +201,34 @@ def run(*,
         steps_per_execution: Optional[int] = None):
   """Runs training (and validation) of a model on a task with the given data.
 
-  This includes preprocessing the input data, adapting the model by appending
-  the suitable head(s), and running training (and validation) with the
-  requested distribution strategy.
+  This includes preprocessing the input data, appending the suitable head(s),
+  and running training (and validation) with the requested distribution
+  strategy.
 
   Args:
     train_ds_provider: A `DatasetProvider` for training. The `tf.data.Dataset`
       is not batched and contains scalar `GraphTensor` values.
     model_fn: Returns a `tf.keras.Model` for use in training and validation.
     optimizer_fn: Returns a `tf.keras.optimizers.Optimizer` for use in training.
-    trainer: A `Trainer.`
-    task: A `Task.`
+    trainer: A `Trainer`.
+    task: A `Task`.
     gtspec: A `GraphTensorSpec` matching the elements of `train` and `valid`
       datasets. If `train` or `valid` contain `tf.string` elements, this
       `GraphTensorSpec` is used for parsing; otherwise, `train` or `valid` are
       expected to contain `GraphTensor` elements whose relaxed spec matches
-      `gtspec.`
+      `gtspec`.
     global_batch_size: The `tf.data.Dataset` global batch size for both training
       and validation.
     epochs: The epochs to train.
     drop_remainder: Whether to drop a `tf.data.Dataset` remainder at batching.
     export_dirs: Optional directories for exports (SavedModels); if unset,
-      default behavior is `os.path.join(model_dir, "export").`
+      default behavior is `os.path.join(model_dir, "export")`.
     model_exporters: Zero or more `ModelExporter` for exporting (SavedModels) to
-      `export_dirs.` If unset, default behavior is `[KerasModelExporter()].`
-    feature_processors: `GraphTensor` functions for feature processing:
-      These may change some `GraphTensorSpec.` Functions are composed in
-      order using `functools.reduce`; each function should accept a scalar
-      `GraphTensor.`. All except one function should return a scalar
-      `GraphTensor` with a single component; a single function, anywhere
-      within `feature_processors` may return a tuple (`GraphTensor`,
-      `tfgnn.Field`) where the `tfgnn.Field` is used for training labels.
+      `export_dirs`. If unset, default behavior is `[KerasModelExporter()]`.
+    feature_processors: `GraphTensor` functions for feature processing: these
+      may change some `GraphTensorSpec`. Functions are composed in order. Each
+      function should accept and return a single scalar `GraphTensor`. Functions
+      are executed on CPU as part of a `tf.data.Dataset.map` operation.
     valid_ds_provider: A `DatasetProvider` for validation. The `tf.data.Dataset`
       is not batched and contains scalar `GraphTensor` values.
     train_padding: `GraphTensor` padding for training. Required if training on
@@ -272,10 +266,11 @@ def run(*,
       feature_processors or (),
       task.preprocess)
 
-  def apply_fn(ds,
-               *,
-               filter_fn: Optional[Callable[..., bool]] = None,
-               size_constraints: Optional[SizeConstraints] = None):
+  def apply_fn(
+      ds,
+      *,
+      filter_fn: Optional[Callable[..., bool]] = None,
+      size_constraints: Optional[SizeConstraints] = None):
     ds = parsing_utils.maybe_parse_graph_tensor_dataset(ds, gtspec)
     if filter_fn is not None:
       ds = ds.filter(filter_fn)
@@ -331,27 +326,27 @@ def run(*,
         global_batch_size)
 
   def adapted_model_fn():
-    if isinstance(preprocess_model.output, collections.abc.Sequence):
-      x, *_ = preprocess_model.output
-    else:
-      x = preprocess_model.output
-    m = task.adapt(model_fn(x.spec))
-    optimizer = optimizer_fn()
+    xs, *_ = preprocess_model.output
+    if not isinstance(xs, collections.abc.Sequence):
+      xs = [xs]
+    # All specs are the same (asserted in `_make_preprocessing_model`).
+    model = model_fn(xs[0].spec)
+    inputs = [tf.keras.Input(type_spec=x.spec) for x in xs]
+    outputs = task.predict(*[model(i) for i in inputs])
+    model = tf.keras.Model(inputs, outputs)
     if train_padding is None:
-      m.compile(
-          optimizer,
+      model.compile(
+          optimizer_fn(),
           loss=task.losses(),
           metrics=task.metrics(),
-          steps_per_execution=steps_per_execution,
-      )
+          steps_per_execution=steps_per_execution)
     else:
-      m.compile(
-          optimizer,
+      model.compile(
+          optimizer_fn(),
           loss=task.losses(),
           weighted_metrics=task.metrics(),
-          steps_per_execution=steps_per_execution,
-      )
-    return m
+          steps_per_execution=steps_per_execution)
+    return model
 
   model = trainer.train(
       adapted_model_fn,
