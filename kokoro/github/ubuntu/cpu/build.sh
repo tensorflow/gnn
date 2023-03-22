@@ -34,7 +34,7 @@ TEST_ROOT=$(pwd)/${PIP_TEST_PREFIX}
 rm -rf "$TEST_ROOT"
 mkdir -p "$TEST_ROOT"
 ln -s "$(pwd)"/tensorflow_gnn "$TEST_ROOT"/tensorflow_gnn
-tag_filters="-no_oss"
+tag_filters="-no_oss,-oss_excluded"
 
 bazel clean
 pip install -r requirements-dev.txt --progress-bar off

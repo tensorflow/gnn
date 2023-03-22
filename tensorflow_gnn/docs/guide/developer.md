@@ -84,14 +84,15 @@ After setting up the test directory, you can run all tests locally by running
 the following command in the repo root directory.
 
 ```
-bazel test --build_tag_filters=-no_oss --test_tag_filters=-no_oss --test_output=errors --verbose_failures=true --build_tests_only --define=no_tfgnn_py_deps=true --keep_going --experimental_repo_remote_exec //bazel_pip/tensorflow_gnn/...
+bazel test --build_tag_filters=-no_oss,-oss_excluded --test_tag_filters=-no_oss,-oss_excluded --test_output=errors --verbose_failures=true --build_tests_only --define=no_tfgnn_py_deps=true --keep_going --experimental_repo_remote_exec //bazel_pip/tensorflow_gnn/...
 ```
 
 The `--define=no_tfgnn_py_deps=true` flag directs bazel to assume that all
 dependencies are provided in the environment (where we just installed the .whl)
 
-The flags `--build_tag_filters=-no_oss` and `--test_tag_filters=-no_oss` disable
-tests that pass in the internal production environment but fail on GitHub.
+The flags `--build_tag_filters=-no_oss,-oss_excluded` and
+`--test_tag_filters=-no_oss,-oss_excluded` disable tests that pass in the
+internal production environment but fail on GitHub.
 
 ### Run a single test file
 
