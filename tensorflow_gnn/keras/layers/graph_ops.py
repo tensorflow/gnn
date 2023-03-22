@@ -206,7 +206,7 @@ class AddSelfLoops(tf.keras.layers.Layer):
 
 @tf.keras.utils.register_keras_serializable(package="GNN")
 class ReadoutFirstNode(tf.keras.layers.Layer):
-  """Reads a feature from the first node of each graph conponent.
+  """Reads a feature from the first node of each graph component.
 
   Given a particular node set (identified by `node_set_name`), this layer
   will gather the given feature from the first node of each graph component.
