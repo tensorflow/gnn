@@ -293,50 +293,38 @@ class PoolingTest(tf.test.TestCase, parameterized.TestCase):
 class BroadcastingTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for broadcasting operations."""
 
-  @parameterized.parameters([
-      dict(
-          description='source and target node features to edges broadcasting',
-          node_set=gt.NodeSet.from_fields(
-              sizes=as_tensor([3]),
-              features={
-                  'scalar': as_tensor([1., 2., 3]),
-                  'vector': as_tensor([[1., 3.], [2., 2.], [3., 1.]]),
-                  'matrix': as_tensor([[[1.]], [[2.]], [[3.]]]),
-                  'ragged': as_ragged([[1, 2], [3], []])
-              }),
-          edge_set=gt.EdgeSet.from_fields(
-              sizes=as_tensor([2, 2]),
-              adjacency=adj.HyperAdjacency.from_indices({
-                  const.SOURCE: ('node', as_tensor([0, 0, 0, 2, 2])),
-                  const.TARGET: ('node', as_tensor([2, 1, 0, 0, 0]))
-              }),
-              features={}),
-          expected_source_fields={
-              'scalar':
-                  as_tensor([1., 1., 1., 3., 3.]),
-              'vector':
-                  as_tensor([[1., 3.], [1., 3.], [1., 3.], [3., 1.], [3., 1.]]),
-              'matrix':
-                  as_tensor([[[1.]], [[1.]], [[1.]], [[3.]], [[3.]]]),
-              'ragged':
-                  as_ragged([[1, 2], [1, 2], [1, 2], [], []])
-          },
-          expected_target_fields={
-              'scalar':
-                  as_tensor([3., 2., 1., 1., 1.]),
-              'vector':
-                  as_tensor([[3., 1.], [2., 2.], [1., 3.], [1., 3.], [1., 3.]]),
-              'matrix':
-                  as_tensor([[[3.]], [[2.]], [[1.]], [[1.]], [[1.]]]),
-              'ragged':
-                  as_ragged([[], [3], [1, 2], [1, 2], [1, 2]])
-          })
-  ])
-  def testEdgeFieldFromNode(self, description: str, node_set: gt.NodeSet,
-                            edge_set: gt.EdgeSet,
-                            expected_source_fields: Mapping[str, const.Field],
-                            expected_target_fields: Mapping[str, const.Field]):
-    del description
+  @parameterized.named_parameters(
+      ('WithAdjacency', False),
+      ('WithHyperAdjacency', True))
+  def testEdgeFieldFromNode(self, use_hyper_adjacency=False):
+    node_set = gt.NodeSet.from_fields(
+        sizes=as_tensor([3]),
+        features={
+            'scalar': as_tensor([1., 2., 3]),
+            'vector': as_tensor([[1., 3.], [2., 2.], [3., 1.]]),
+            'matrix': as_tensor([[[1.]], [[2.]], [[3.]]]),
+            'ragged': as_ragged([[1, 2], [3], []])
+        })
+    edge_source = ('node', as_tensor([0, 0, 0, 2, 2]))
+    edge_target = ('node', as_tensor([2, 1, 0, 0, 0]))
+    if use_hyper_adjacency:
+      adjacency = adj.HyperAdjacency.from_indices({const.SOURCE: edge_source,
+                                                   const.TARGET: edge_target})
+    else:
+      adjacency = adj.Adjacency.from_indices(edge_source, edge_target)
+    edge_set = gt.EdgeSet.from_fields(
+        sizes=as_tensor([2, 2]), adjacency=adjacency, features={})
+    expected_source_fields = {
+        'scalar': as_tensor([1., 1., 1., 3., 3.]),
+        'vector': as_tensor([[1., 3.], [1., 3.], [1., 3.], [3., 1.], [3., 1.]]),
+        'matrix': as_tensor([[[1.]], [[1.]], [[1.]], [[3.]], [[3.]]]),
+        'ragged': as_ragged([[1, 2], [1, 2], [1, 2], [], []])}
+    expected_target_fields = {
+        'scalar': as_tensor([3., 2., 1., 1., 1.]),
+        'vector': as_tensor([[3., 1.], [2., 2.], [1., 3.], [1., 3.], [1., 3.]]),
+        'matrix': as_tensor([[[3.]], [[2.]], [[1.]], [[1.]], [[1.]]]),
+        'ragged': as_ragged([[], [3], [1, 2], [1, 2], [1, 2]])}
+
     graph = gt.GraphTensor.from_pieces(
         node_sets={'node': node_set}, edge_sets={'edge': edge_set})
 
