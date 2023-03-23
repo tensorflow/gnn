@@ -131,7 +131,7 @@ def parse_single_example(spec: gt.GraphTensorSpec,
 
 def get_io_spec(spec: gt.GraphTensorSpec,
                 prefix: Optional[str] = None,
-                validate: bool = False) -> Dict[str, IOFeature]:
+                validate: bool = True) -> Dict[str, IOFeature]:
   """Returns tf.io parsing features for `GraphTensorSpec` type spec.
 
   This function returns a mapping of `tf.train.Feature` names to configuration
