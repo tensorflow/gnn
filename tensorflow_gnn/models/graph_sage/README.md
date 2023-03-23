@@ -14,6 +14,7 @@ TensorFlow programs can import and use it as described in its
 
 ## Maintenance and stability
 
-This code is experimental for now, with no promises of maintenance or stability,
-and no assigned maintainer. Use at your own risk.
+This code is being maintained together with the TF-GNN library.
+However, its API may change between library versions.
+
 
