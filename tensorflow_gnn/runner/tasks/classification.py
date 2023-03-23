@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Callable, Mapping, Optional, Sequence
+from typing import Any, Callable, Mapping, Optional, Sequence, Tuple
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -24,7 +24,9 @@ from tensorflow_gnn.runner import interfaces
 
 Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
-LabelFn = Callable[[GraphTensor], tuple[GraphTensor, Field]]
+# TODO(b/274672364): make this tuple[...] in Python 3.9 style
+# when we drop py38 support.
+LabelFn = Callable[[GraphTensor], Tuple[GraphTensor, Field]]
 
 
 class _FromLogitsMixIn(tf.keras.metrics.Metric):

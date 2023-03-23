@@ -19,7 +19,7 @@ import collections
 import dataclasses
 import functools
 import os
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Optional, Sequence, Tuple, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -30,7 +30,9 @@ from tensorflow_gnn.runner.utils import parsing as parsing_utils
 
 Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
-GraphTensorAndField = tuple[GraphTensor, Field]
+# TODO(b/274672364): make this tuple[...] in Python 3.9 style
+# when we drop py38 support.
+GraphTensorAndField = Tuple[GraphTensor, Field]
 GraphTensorSpec = tfgnn.GraphTensorSpec
 SizeConstraints = tfgnn.SizeConstraints
 

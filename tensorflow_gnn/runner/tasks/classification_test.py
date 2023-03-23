@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for classification."""
+from __future__ import annotations
 from typing import Callable, Type
 
 from absl.testing import parameterized

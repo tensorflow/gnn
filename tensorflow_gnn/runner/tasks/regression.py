@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Callable, Optional, Sequence
+from typing import Callable, Optional, Sequence, Tuple
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -25,7 +25,9 @@ from tensorflow_gnn.runner import interfaces
 AUTO = tf.keras.losses.Reduction.AUTO
 Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
-LabelFn = Callable[[GraphTensor], tuple[GraphTensor, Field]]
+# TODO(b/274672364): make this tuple[...] in Python 3.9 style
+# when we drop py38 support.
+LabelFn = Callable[[GraphTensor], Tuple[GraphTensor, Field]]
 
 
 class _Regression(interfaces.Task):
@@ -144,7 +146,7 @@ class _MeanSquaredLogarithmicErrorLossMixIn:
     return (tf.keras.losses.MeanSquaredLogarithmicError(),)
 
 
-class _MeanSquaredLogScaledError(tf.keras.losses.Loss):
+class MeanSquaredLogScaledError(tf.keras.losses.Loss):
   """Mean squared log scaled error task, see: go/xtzqv."""
 
   def __init__(self,
@@ -182,7 +184,7 @@ class _MeanSquaredLogScaledError(tf.keras.losses.Loss):
     return config
 
 
-class _MeanAbsoluteLogarithmicErrorLoss(tf.keras.losses.Loss):
+class MeanAbsoluteLogarithmicErrorLoss(tf.keras.losses.Loss):
   """Mean absolute log scaled error task."""
 
   def call(self, y_true, y_pred):
@@ -206,7 +208,7 @@ class _MeanSquaredLogScaledErrorLossMixIn:
     self._name = name
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return (_MeanSquaredLogScaledError(
+    return (MeanSquaredLogScaledError(
         self._reduction,
         self._name,
         alpha_loss_param=self._alpha_loss_param,
@@ -243,7 +245,7 @@ class _MeanAbsoluteLogarithmicErrorLossMixIn:
     self._name = name
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return (_MeanAbsoluteLogarithmicErrorLoss(self._reduction, self._name),)
+    return (MeanAbsoluteLogarithmicErrorLoss(self._reduction, self._name),)
 
 
 class RootNodeMeanAbsoluteLogarithmicError(

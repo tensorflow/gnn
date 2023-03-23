@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for node regression."""
+from __future__ import annotations
 from typing import Type
 
 from absl.testing import parameterized
@@ -112,7 +113,7 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
               units=2,
               label_fn=label_fn),
           expected_activation="linear",
-          expected_loss=regression._MeanSquaredLogScaledError,
+          expected_loss=regression.MeanSquaredLogScaledError,
           expected_shape=tf.TensorShape((None, 2))),
       dict(
           testcase_name="RootNodeMeanAbsoluteError",
@@ -154,7 +155,7 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
               units=2,
               label_fn=label_fn),
           expected_activation="linear",
-          expected_loss=regression._MeanSquaredLogScaledError,
+          expected_loss=regression.MeanSquaredLogScaledError,
           expected_shape=tf.TensorShape((None, 2))),
       dict(
           testcase_name="RootNodeMeanAbsoluteLogarithmicError",
@@ -164,7 +165,7 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
               label_fn=label_fn,
           ),
           expected_activation="relu",
-          expected_loss=regression._MeanAbsoluteLogarithmicErrorLoss,
+          expected_loss=regression.MeanAbsoluteLogarithmicErrorLoss,
           expected_shape=tf.TensorShape((None, 2))),
   ])
   def test_predict(
