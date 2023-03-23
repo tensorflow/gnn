@@ -1082,9 +1082,9 @@ class GraphTensor(gp.GraphPieceBase):
 
   def remove_features(
       self,
-      context: Optional[Sequence[NodeSetName]] = None,
-      node_sets: Optional[Mapping[NodeSetName, Sequence[NodeSetName]]] = None,
-      edge_sets: Optional[Mapping[NodeSetName, Sequence[EdgeSetName]]] = None,
+      context: Optional[Sequence[FieldName]] = None,
+      node_sets: Optional[Mapping[NodeSetName, Sequence[FieldName]]] = None,
+      edge_sets: Optional[Mapping[NodeSetName, Sequence[FieldName]]] = None,
   ) -> 'GraphTensor':
     """Returns a new GraphTensor with some features removed.
 
