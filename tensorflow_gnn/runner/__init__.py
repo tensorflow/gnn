@@ -62,6 +62,7 @@ integrated_gradients = attribution.integrated_gradients
 
 # Orchestration
 run = orchestration.run
+RunResult = orchestration.RunResult
 TFDataServiceConfig = orchestration.TFDataServiceConfig
 
 # Padding
