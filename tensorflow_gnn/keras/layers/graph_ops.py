@@ -631,9 +631,8 @@ class Pool(BroadcastPoolBase):
       (For more on components, see GraphTensor.merge_batch_to_components().)
 
   Feature values are aggregated into a single value by a reduction function
-  from `tfgnn.get_registered_reduce_operation_names()`, see also
-  `tfgnn.register_reduce_operation()`. The pre-configured choices include
-  "sum", "mean", "max" and "min".
+  from `tfgnn.get_registered_reduce_operation_names()`. The pre-configured
+  choices include "sum", "mean", "max" and "min".
 
   Both the initialization of and the call to this layer accept arguments for
   the receiver tag, the node/edge_set_name, the reduce_type and the

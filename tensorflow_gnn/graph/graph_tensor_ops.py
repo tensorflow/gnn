@@ -140,7 +140,6 @@ def pool_edges_to_node(graph_tensor: GraphTensor,
       identified by its tag in the edge set.
     reduce_type: A pooling operation name, like 'sum', 'mean' or 'max'. For the
       list of supported values use `get_registered_reduce_operation_names()`.
-      You may use `register_reduce_operation()` to register new ops.
     feature_value: A ragged or dense edge feature value. Has a shape
       `[num_edges, *feature_shape]`, where `num_edges` is the number of edges in
       the `edge_set_name` edge set and `feature_shape` is the shape of the
@@ -270,7 +269,6 @@ def pool_nodes_to_context(graph_tensor: GraphTensor,
     node_set_name: A node set name.
     reduce_type: A pooling operation name, like 'sum', 'mean' or 'max'. For the
       list of supported values use `get_registered_reduce_operation_names()`.
-      You may `register_reduce_operation()` to register new ops.
     feature_value: A ragged or dense node feature value. Has a shape
       `[num_nodes, *feature_shape]`, where `num_nodes` is the number of nodes in
       the `node_set_name` node set and `feature_shape` is the shape of the
@@ -318,7 +316,6 @@ def pool_edges_to_context(graph_tensor: GraphTensor,
     edge_set_name: An edge set name.
     reduce_type: A pooling operation name, like 'sum', 'mean' or 'max'. For the
       list of supported values use `get_registered_reduce_operation_names()`.
-      You may `register_reduce_operation()` to register new ops.
     feature_value: A ragged or dense edge feature value. Has a shape
       `[num_edges, *feature_shape]`, where `num_edges` is the number of edges in
       the `edge_set_name` edge set and `feature_shape` is the shape of the
@@ -887,11 +884,13 @@ def get_registered_reduce_operation_names() -> List[str]:
   return list(_REGISTERED_REDUCE_OPS.keys())
 
 
-def register_reduce_operation(reduce_type: str,
-                              *,
-                              unsorted_reduce_op: UnsortedReduceOp,
-                              allow_override: bool = False) -> None:
+def legacy_register_reduce_operation(reduce_type: str,
+                                     *,
+                                     unsorted_reduce_op: UnsortedReduceOp,
+                                     allow_override: bool = False) -> None:
   """Register a new reduction operation for pooling.
+
+  THIS FUNCTION IS DEPRECATED. -- TODO(b/265760014): remove it asap.
 
   This function can be used to insert a reduction operation in the supported
   list of `reduce_type` aggregations for all the pooling operations defined in
