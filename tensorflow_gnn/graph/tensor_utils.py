@@ -15,8 +15,9 @@
 """Utils for tensors and ragged tensors."""
 from typing import List, Optional, Text, Union, Mapping
 
-from keras.engine import keras_tensor as kt
 import tensorflow as tf
+
+from tensorflow_gnn.graph import tf_internal
 
 Value = Union[tf.Tensor, tf.RaggedTensor]
 ValueSpec = Union[tf.TensorSpec, tf.RaggedTensorSpec]
@@ -485,7 +486,7 @@ def with_undefined_outer_dimension(spec: ValueSpec) -> ValueSpec:
 
 def is_ragged_tensor(value: Value) -> bool:
   """Returns whether a tensor (TF or Keras) is a RaggedTensor."""
-  return isinstance(value, (tf.RaggedTensor, kt.RaggedKerasTensor))
+  return isinstance(value, (tf.RaggedTensor, tf_internal.RaggedKerasTensor))
 
 
 def is_dense_tensor(value: Value) -> bool:
@@ -493,7 +494,7 @@ def is_dense_tensor(value: Value) -> bool:
   if isinstance(value, tf.Tensor):
     return True
 
-  if isinstance(value, kt.KerasTensor):
+  if isinstance(value, tf_internal.KerasTensor):
     # KerasTensor is the base class for all Keras tensors, including the
     # RaggedKerasTensor. Below we rely on the type spec to resolve actual type.
     return isinstance(value.type_spec, tf.TensorSpec)
