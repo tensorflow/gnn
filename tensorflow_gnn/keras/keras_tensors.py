@@ -13,14 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 """KerasTensor specializations for GraphTensor pieces."""
-from keras.engine import keras_tensor as kt
-from keras.layers import core
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
+from tensorflow_gnn.graph import tf_internal
 
 
-class GraphPieceKerasTensor(kt.KerasTensor):
+class GraphPieceKerasTensor(tf_internal.KerasTensor):
   """Base class for graph pieces Keras tensors.
 
   Each graph piece (e.g. `tfgnn.Context`, `tfgnn.NodeSet`, etc.) must define
@@ -118,7 +117,7 @@ for cls, gt_properties in [
     (AdjacencyKerasTensor, GRAPH_PIECE_PROPERTIES + ('source', 'target'))
 ]:
   for gt_property in gt_properties:
-    core._delegate_property(cls, gt_property)
+    tf_internal.delegate_property(cls, gt_property)
 
 GRAPH_PIECE_WITH_FEATURES_METHODS = ('get_features_dict', 'replace_features')
 for cls, gt_methods in [(EdgeSetKerasTensor, GRAPH_PIECE_WITH_FEATURES_METHODS),
@@ -129,7 +128,7 @@ for cls, gt_methods in [(EdgeSetKerasTensor, GRAPH_PIECE_WITH_FEATURES_METHODS),
                                             'merge_batch_to_components')),
                         (HyperAdjacencyKerasTensor, ('get_indices_dict',))]:
   for gt_method in gt_methods:
-    core._delegate_method(cls, gt_method)
+    tf_internal.delegate_method(cls, gt_method)
 
 # TODO(b/191957072): dispatch class methods.
 # for cls, class_methods in [
@@ -141,14 +140,15 @@ for cls, gt_methods in [(EdgeSetKerasTensor, GRAPH_PIECE_WITH_FEATURES_METHODS),
 #     (gt.GraphTensor, ('from_pieces',)),
 # ]:
 #   for class_method in class_methods:
-#     core.TFClassMethodDispatcher(cls, class_method).register(
+#     tf_internal.TFClassMethodDispatcher(cls, class_method).register(
 #         getattr(cls, class_method))
 
-kt.register_keras_tensor_specialization(adj.Adjacency, AdjacencyKerasTensor)
-kt.register_keras_tensor_specialization(adj.HyperAdjacency,
-                                        HyperAdjacencyKerasTensor)
-
-kt.register_keras_tensor_specialization(gt.GraphTensor, GraphKerasTensor)
-kt.register_keras_tensor_specialization(gt.Context, ContextKerasTensor)
-kt.register_keras_tensor_specialization(gt.NodeSet, NodeSetKerasTensor)
-kt.register_keras_tensor_specialization(gt.EdgeSet, EdgeSetKerasTensor)
+tf_internal.register_keras_tensor_specialization(adj.Adjacency,
+                                                 AdjacencyKerasTensor)
+tf_internal.register_keras_tensor_specialization(adj.HyperAdjacency,
+                                                 HyperAdjacencyKerasTensor)
+tf_internal.register_keras_tensor_specialization(gt.GraphTensor,
+                                                 GraphKerasTensor)
+tf_internal.register_keras_tensor_specialization(gt.Context, ContextKerasTensor)
+tf_internal.register_keras_tensor_specialization(gt.NodeSet, NodeSetKerasTensor)
+tf_internal.register_keras_tensor_specialization(gt.EdgeSet, EdgeSetKerasTensor)

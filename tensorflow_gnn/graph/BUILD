@@ -103,7 +103,10 @@ pytype_strict_library(
     name = "tensor_utils",
     srcs = ["tensor_utils.py"],
     srcs_version = "PY3",
-    deps = ["//:expect_tensorflow_installed"],
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn/graph:tf_internal",
+    ],
 )
 
 tf_py_test(

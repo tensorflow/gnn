@@ -39,6 +39,7 @@ pytype_strict_library(
         "//tensorflow_gnn/graph:adjacency",
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
+        "//tensorflow_gnn/graph:tf_internal",
     ],
 )
 
