@@ -23,10 +23,9 @@ from typing import Optional, Union
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn import runner
-from tensorflow_gnn.models.contrastive_losses import layers as perturbation_layers
+from tensorflow_gnn.models.contrastive_losses import layers
 from tensorflow_gnn.models.contrastive_losses import losses
 from tensorflow_gnn.models.contrastive_losses import metrics
-from tensorflow_gnn.models.contrastive_losses.deep_graph_infomax import layers as dgi_layers
 
 Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
@@ -56,14 +55,19 @@ class _ConstrastiveLossTask(runner.Task, abc.ABC):
       *,
       feature_name: str = tfgnn.HIDDEN_STATE,
       representations_layer_name: Optional[str] = None,
-      seed: Optional[int] = None):
+      corruptor: Optional[layers._Corruptor] = None,
+      seed: Optional[int] = None,
+  ):
     self._representations_layer_name = (
         representations_layer_name or "clean_representations"
     )
     self._readout = tfgnn.keras.layers.ReadoutFirstNode(
         node_set_name=node_set_name,
         feature_name=feature_name)
-    self._perturber = perturbation_layers.ShuffleFeaturesGlobally(seed=seed)
+    if corruptor is None:
+      self._corruptor = layers.ShuffleFeaturesGlobally(seed=seed)
+    else:
+      self._corruptor = corruptor
 
   def predict(self, *args: tfgnn.GraphTensor) -> tfgnn.Field:
     """Apply a readout head for use with various contrastive losses.
@@ -109,13 +113,13 @@ class DeepGraphInfomaxTask(_ConstrastiveLossTask):
   """A Deep Graph Infomax (DGI) Task."""
 
   def make_contrastive_layer(self) -> tf.keras.layers.Layer:
-    return dgi_layers.DeepGraphInfomaxLogits()
+    return layers.DeepGraphInfomaxLogits()
 
   def preprocess(
       self,
       inputs: GraphTensor) -> tuple[Sequence[GraphTensor], Field]:
     """Creates labels--i.e., (positive, negative)--for Deep Graph Infomax."""
-    x = (inputs, self._perturber(inputs))
+    x = (inputs, self._corruptor(inputs))
     y = tf.tile(((1, 0),), (inputs.num_components, 1))
     return x, y
 
@@ -169,7 +173,7 @@ class BarlowTwinsTask(_ConstrastiveLossTask):
       self,
       inputs: GraphTensor) -> tuple[Sequence[GraphTensor], Field]:
     """Creates unused pseudo-labels."""
-    x = (inputs, self._perturber(inputs))
+    x = (inputs, self._corruptor(inputs))
     y = tf.zeros((inputs.num_components, 0), dtype=tf.int32)
     return x, y
 
@@ -219,7 +223,7 @@ class VicRegTask(_ConstrastiveLossTask):
       self,
       inputs: GraphTensor) -> tuple[Sequence[GraphTensor], Field]:
     """Creates unused pseudo-labels."""
-    x = (inputs, self._perturber(inputs))
+    x = (inputs, self._corruptor(inputs))
     y = tf.zeros((inputs.num_components, 0), dtype=tf.int32)
     return x, y
 
@@ -239,4 +243,3 @@ class VicRegTask(_ConstrastiveLossTask):
         _unstack_y_pred(metrics.self_clustering),
         _unstack_y_pred(metrics.pseudo_condition_number),
     )
-

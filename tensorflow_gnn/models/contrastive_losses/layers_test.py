@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import functools
-from typing import Callable, Mapping, Union
+from typing import Any, Callable, Mapping, Union
 
 from absl.testing import parameterized
 import tensorflow as tf
@@ -348,6 +348,36 @@ class LayersTest(tf.test.TestCase, parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, r"At least one of .*"):
       _ = layers._Corruptor(corruption_fn=lambda: None)
 
+  @parameterized.named_parameters([
+      dict(
+          testcase_name="InvalidSequenceInput",
+          inputs=[tf.constant(range(8))],
+          expected_error=r"Expected `TensorShape` \(got .*\)",
+      ),
+      dict(
+          testcase_name="UndefinedInnerDimension",
+          inputs=tf.keras.Input((2, None)),
+          expected_error=r"Expected a defined inner dimension \(got .*\)",
+      ),
+  ])
+  def test_dgi_logits_value_error(
+      self,
+      inputs: Any,
+      expected_error: str):
+    """Verifies invalid input raises `ValueError`."""
+    with self.assertRaisesRegex(ValueError, expected_error):
+      _ = layers.DeepGraphInfomaxLogits()(inputs)
+
+  def test_deep_graph_infomax(self):
+    """Verifies output logits shape."""
+    x_clean = tf.random.uniform((1, 4))
+    x_corrupted = tf.random.uniform((1, 4))
+    logits = layers.DeepGraphInfomaxLogits()(
+        tf.stack((x_clean, x_corrupted), axis=1)
+    )
+
+    # Clean and corrupted logits (i.e., shape (1, 2)).
+    self.assertEqual(logits.shape, (1, 2))
 
 if __name__ == "__main__":
   tf.test.main()

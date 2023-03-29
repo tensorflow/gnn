@@ -21,18 +21,17 @@ import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models import contrastive_losses
 ```
 """
-from tensorflow_gnn.models.contrastive_losses import layers as perturbation_layers
+from tensorflow_gnn.models.contrastive_losses import layers
 from tensorflow_gnn.models.contrastive_losses import tasks
-from tensorflow_gnn.models.contrastive_losses.deep_graph_infomax import layers as dgi_layers
 
-CorruptionSpec = perturbation_layers.CorruptionSpec
-DropoutFeatures = perturbation_layers.DropoutFeatures
-ShuffleFeaturesGlobally = perturbation_layers.ShuffleFeaturesGlobally
-DeepGraphInfomaxLogits = dgi_layers.DeepGraphInfomaxLogits
-DeepGraphInfomaxTask = tasks.DeepGraphInfomaxTask
+CorruptionSpec = layers.CorruptionSpec
+DeepGraphInfomaxLogits = layers.DeepGraphInfomaxLogits
+DropoutFeatures = layers.DropoutFeatures
+ShuffleFeaturesGlobally = layers.ShuffleFeaturesGlobally
+
 BarlowTwinsTask = tasks.BarlowTwinsTask
+DeepGraphInfomaxTask = tasks.DeepGraphInfomaxTask
 VicRegTask = tasks.VicRegTask
 
-del perturbation_layers
+del layers
 del tasks
-del dgi_layers
