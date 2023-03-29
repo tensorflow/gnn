@@ -151,18 +151,11 @@ class BarlowTwinsTask(_ConstrastiveLossTask):
 
   def __init__(
       self,
-      node_set_name: str,
-      *,
-      feature_name: str = tfgnn.HIDDEN_STATE,
-      representations_layer_name: Optional[str] = None,
-      seed: Optional[int] = None,
+      *args,
       lambda_: Optional[Union[tf.Tensor, float]] = None,
-      normalize_batch: bool = True):
-    super().__init__(
-        node_set_name,
-        feature_name=feature_name,
-        representations_layer_name=representations_layer_name,
-        seed=seed)
+      normalize_batch: bool = True,
+      **kwargs):
+    super().__init__(*args, **kwargs)
     self._lambda = lambda_
     self._normalize_batch = normalize_batch
 
@@ -199,19 +192,12 @@ class VicRegTask(_ConstrastiveLossTask):
 
   def __init__(
       self,
-      node_set_name: str,
-      *,
-      feature_name: str = tfgnn.HIDDEN_STATE,
-      representations_layer_name: Optional[str] = None,
-      seed: Optional[int] = None,
+      *args,
       sim_weight: Union[tf.Tensor, float] = 25.,
       var_weight: Union[tf.Tensor, float] = 25.,
-      cov_weight: Union[tf.Tensor, float] = 1.):
-    super().__init__(
-        node_set_name,
-        feature_name=feature_name,
-        representations_layer_name=representations_layer_name,
-        seed=seed)
+      cov_weight: Union[tf.Tensor, float] = 1.,
+      **kwargs):
+    super().__init__(*args, **kwargs)
     self._sim_weight = sim_weight
     self._var_weight = var_weight
     self._cov_weight = cov_weight
