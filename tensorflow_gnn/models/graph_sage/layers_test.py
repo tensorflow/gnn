@@ -187,11 +187,11 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
     self.assertLen(weights, 3)
     node_dims = 30
     weights[
-        "graph_sage/node_set_update/graph_sage_aggregator_conv/dense/kernel:0"].assign(
-            tf.eye(node_dims))
+        "graph_sage/node_set_update/graph_sage_aggregator_conv/dense/kernel:0"
+    ].assign(tf.eye(node_dims))
     weights[
-        "graph_sage/node_set_update/graph_sage_next_state/dense_1/kernel:0"].assign(
-            tf.eye(node_dims))
+        "graph_sage/node_set_update/graph_sage_next_state/dense_1/kernel:0"
+    ].assign(tf.eye(node_dims))
     bias_shape = out_units
     weights["graph_sage/node_set_update/graph_sage_next_state/bias:0"].assign(
         [0.] * bias_shape)
@@ -286,36 +286,36 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
     target_node_dims = 2
     if use_pooling:
       weights[
-          "graph_sage/node_set_update/graph_sage_pooling_conv/dense/kernel:0"].assign(
-              [[1.]] * paper_node_dims)
+          "graph_sage/node_set_update/graph_sage_pooling_conv/dense/kernel:0"
+      ].assign([[1.0]] * paper_node_dims)
       weights[
-          "graph_sage/node_set_update/graph_sage_pooling_conv/dense/bias:0"].assign(
-              [0.])
+          "graph_sage/node_set_update/graph_sage_pooling_conv/dense/bias:0"
+      ].assign([0.0])
       weights[
-          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_1/kernel:0"].assign(
-              [[1.]] * out_units)
+          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_1/kernel:0"
+      ].assign([[1.0]] * out_units)
       weights[
-          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_2/kernel:0"].assign(
-              [[1.]] * institution_node_dims)
+          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_2/kernel:0"
+      ].assign([[1.0]] * institution_node_dims)
       weights[
-          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_2/bias:0"].assign(
-              [0.])
+          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_2/bias:0"
+      ].assign([0.0])
       weights[
-          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_3/kernel:0"].assign(
-              [[1.]] * out_units)
+          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_3/kernel:0"
+      ].assign([[1.0]] * out_units)
       weights[
-          "graph_sage/node_set_update/graph_sage_next_state/dense_4/kernel:0"].assign(
-              [[1.]] * target_node_dims)
+          "graph_sage/node_set_update/graph_sage_next_state/dense_4/kernel:0"
+      ].assign([[1.0]] * target_node_dims)
     else:
       weights[
-          "graph_sage/node_set_update/graph_sage_aggregator_conv/dense/kernel:0"].assign(
-              [[1.]] * paper_node_dims)
+          "graph_sage/node_set_update/graph_sage_aggregator_conv/dense/kernel:0"
+      ].assign([[1.0]] * paper_node_dims)
       weights[
-          "graph_sage/node_set_update/graph_sage_aggregator_conv/dense_1/kernel:0"].assign(
-              [[1.]] * institution_node_dims)
+          "graph_sage/node_set_update/graph_sage_aggregator_conv/dense_1/kernel:0"
+      ].assign([[1.0]] * institution_node_dims)
       weights[
-          "graph_sage/node_set_update/graph_sage_next_state/dense_2/kernel:0"].assign(
-              [[1.]] * target_node_dims)
+          "graph_sage/node_set_update/graph_sage_next_state/dense_2/kernel:0"
+      ].assign([[1.0]] * target_node_dims)
     num_edge_type = 2
     bias_shape = out_units if combine_type == "sum" else out_units * (
         num_edge_type + 1)
@@ -412,36 +412,36 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
     target_node_dims = 2
     if use_pooling:
       weights[
-          "graph_sage/node_set_update/graph_sage_pooling_conv/dense/kernel:0"].assign(
-              [[1.]] * paper_node_dims)
+          "graph_sage/node_set_update/graph_sage_pooling_conv/dense/kernel:0"
+      ].assign([[1.0]] * paper_node_dims)
       weights[
-          "graph_sage/node_set_update/graph_sage_pooling_conv/dense/bias:0"].assign(
-              [0.])
+          "graph_sage/node_set_update/graph_sage_pooling_conv/dense/bias:0"
+      ].assign([0.0])
       weights[
-          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_1/kernel:0"].assign(
-              [[1.]] * out_units)
+          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_1/kernel:0"
+      ].assign([[1.0]] * out_units)
       weights[
-          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_2/kernel:0"].assign(
-              [[1.]] * institution_node_dims)
+          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_2/kernel:0"
+      ].assign([[1.0]] * institution_node_dims)
       weights[
-          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_2/bias:0"].assign(
-              [0.])
+          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_2/bias:0"
+      ].assign([0.0])
       weights[
-          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_3/kernel:0"].assign(
-              [[1.]] * out_units)
+          "graph_sage/node_set_update/graph_sage_pooling_conv/dense_3/kernel:0"
+      ].assign([[1.0]] * out_units)
       weights[
-          "graph_sage/node_set_update/graph_sage_next_state/dense_4/kernel:0"].assign(
-              [[1.]] * target_node_dims)
+          "graph_sage/node_set_update/graph_sage_next_state/dense_4/kernel:0"
+      ].assign([[1.0]] * target_node_dims)
     else:
       weights[
-          "graph_sage/node_set_update/graph_sage_aggregator_conv/dense/kernel:0"].assign(
-              [[1.]] * paper_node_dims)
+          "graph_sage/node_set_update/graph_sage_aggregator_conv/dense/kernel:0"
+      ].assign([[1.0]] * paper_node_dims)
       weights[
-          "graph_sage/node_set_update/graph_sage_aggregator_conv/dense_1/kernel:0"].assign(
-              [[1.]] * institution_node_dims)
+          "graph_sage/node_set_update/graph_sage_aggregator_conv/dense_1/kernel:0"
+      ].assign([[1.0]] * institution_node_dims)
       weights[
-          "graph_sage/node_set_update/graph_sage_next_state/dense_2/kernel:0"].assign(
-              [[1.]] * target_node_dims)
+          "graph_sage/node_set_update/graph_sage_next_state/dense_2/kernel:0"
+      ].assign([[1.0]] * target_node_dims)
     num_edge_type = 2
     bias_shape = out_units * (num_edge_type + 1)
     weights["graph_sage/node_set_update/graph_sage_next_state/bias:0"].assign(
@@ -575,6 +575,98 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
     self.assertRaisesRegex(ValueError,
                            r".* isn't supported, please instead use any of .*",
                            lambda: conv(graph, node_set_name="author"))
+
+
+class GraphSAGETFLiteTest(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      ("WithPooling", True, 4, "sum"),
+      ("SumAggregation", False, None, "sum"),
+      ("ConcatAggregation", False, None, "concat"))
+  def testBasic(self, use_pooling, hidden_units, combine_type):
+    test_graph_1_dict = {
+        # We care that the TFLite interpreter gives the same output as the
+        # model, which was tested separately.
+        "source": tf.constant([0, 1, 2, 0, 2, 1]),
+        "target": tf.constant([1, 2, 0, 2, 1, 0]),
+        "node_features": tf.constant([
+            [1.0, 0.0, 0.0, 1.0],
+            [0.0, 1.0, 0.0, 2.0],
+            [0.0, 0.0, 1.0, 3.0],
+        ]),
+        "edge_features": tf.constant([
+            [3.0],
+            [6.0],
+            [9.0],
+            [2.0],
+            [6.0],
+            [4.0],
+        ]),
+    }
+
+    layer = graph_sage.GraphSAGEGraphUpdate(
+        units=4,
+        receiver_tag=tfgnn.TARGET,
+        use_bias=True,
+        use_pooling=use_pooling,
+        hidden_units=hidden_units,
+        combine_type=combine_type,
+        feature_name=tfgnn.HIDDEN_STATE,
+    )
+
+    inputs = {
+        "node_features": tf.keras.Input([4], None, "node_features", tf.float32),
+        "source": tf.keras.Input([], None, "source", tf.int32),
+        "target": tf.keras.Input([], None, "target", tf.int32),
+        "edge_features": tf.keras.Input([1], None, "edge_features", tf.float32),
+    }
+    graph_in = _MakeGraphTensor()(inputs)
+    graph_out = layer(graph_in)
+    outputs = tf.keras.layers.Layer(name="final_node_states")(
+        graph_out.node_sets["nodes"][tfgnn.HIDDEN_STATE]
+    )
+    model = tf.keras.Model(inputs, outputs)
+
+    # The other unit tests should verify that this is correct
+    expected = model(test_graph_1_dict).numpy()
+
+    # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
+    if tf.__version__.startswith("2.9.") or tf.__version__.startswith("2.10."):
+      self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
+                    f"got TF {tf.__version__}")
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    model_content = converter.convert()
+    interpreter = tf.lite.Interpreter(model_content=model_content)
+    signature_runner = interpreter.get_signature_runner("serving_default")
+    obtained = signature_runner(**test_graph_1_dict)["final_node_states"]
+    self.assertAllClose(expected, obtained)
+
+
+# TODO(b/274779989): Replace this layer with a more standard representation
+# of GraphTensor as a dict of plain Tensors.
+class _MakeGraphTensor(tf.keras.layers.Layer):
+  """Makes a homogeneous GraphTensor of rank 0 with a single component."""
+
+  def call(self, inputs):
+    node_sizes = tf.shape(inputs["node_features"])[0]
+    edge_sizes = tf.shape(inputs["edge_features"])[0]
+    return tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            "nodes": tfgnn.NodeSet.from_fields(
+                sizes=tf.expand_dims(node_sizes, axis=0),
+                features={tfgnn.HIDDEN_STATE: inputs["node_features"]},
+            )
+        },
+        edge_sets={
+            "edges": tfgnn.EdgeSet.from_fields(
+                sizes=tf.expand_dims(edge_sizes, axis=0),
+                adjacency=tfgnn.Adjacency.from_indices(
+                    ("nodes", inputs["source"]), ("nodes", inputs["target"])
+                ),
+                features={tfgnn.HIDDEN_STATE: inputs["edge_features"]},
+            )
+        },
+    )
 
 
 if __name__ == "__main__":
