@@ -1079,6 +1079,104 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(min_max(training=False), [1., 1.])
     self.assertAllClose(min_max(training=True), [0., 1.5])
 
+  def testInputsDropout(self):
+    """Tests dropout, esp. the switch between training and inference modes."""
+    # Avoid flakiness.
+    tf.random.set_seed(42)
+
+    # This test graph has many source nodes feeding into one target node.
+    # The node features are all ones, the edge features are one-hot encodings of
+    # the source node IDs.
+    num_nodes = 32
+    target_node_id = 7
+    gt_input = tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            "nodes":
+                tfgnn.NodeSet.from_fields(
+                    sizes=[num_nodes],
+                    features={
+                        tfgnn.HIDDEN_STATE:
+                            tf.ones(
+                                shape=(num_nodes, num_nodes), dtype=tf.float32)
+                    }),
+        },
+        edge_sets={
+            "edges":
+                tfgnn.EdgeSet.from_fields(
+                    sizes=[num_nodes],
+                    adjacency=tfgnn.Adjacency.from_indices(
+                        ("nodes", tf.constant(list(range(num_nodes)))),
+                        ("nodes", tf.constant([target_node_id] * num_nodes))),
+                    features={tfgnn.HIDDEN_STATE: tf.eye(num_nodes)})
+        })
+
+    # On purpose, this test is not for MultiHeadAttentionConv directly,
+    # but for its common usage in a GraphUpdate, to make sure the
+    # training/inference mode is propagated correctly.
+    inputs_dropout_rate = 0.25
+    layer = multi_head_attention.MultiHeadAttentionHomGraphUpdate(
+        num_heads=1,
+        per_head_channels=num_nodes,
+        receiver_tag=tfgnn.TARGET,
+        sender_edge_feature=tfgnn.HIDDEN_STATE,
+        inputs_dropout=inputs_dropout_rate,  # Note here.
+        activation="linear",
+        attention_activation="linear",
+        use_bias=False)
+
+    _ = layer(gt_input)  # Build weights.
+    weights = {v.name: v for v in layer.trainable_weights}
+    self.assertLen(weights, 5)
+    # Do not transform the queries.
+    weights["multi_head_attention/node_set_update/" +
+            "multi_head_attention_conv/query/kernel:0"].assign(
+                tf.eye(num_nodes))
+    # Filter out the key edge features, keep only the node features.
+    weights["multi_head_attention/node_set_update/" +
+            "multi_head_attention_conv/key_node/kernel:0"].assign(
+                tf.eye(num_nodes))
+    weights["multi_head_attention/node_set_update/" +
+            "multi_head_attention_conv/key_edge/kernel:0"].assign(
+                tf.zeros(shape=(num_nodes, num_nodes), dtype=tf.float32))
+    # Filter out the value node features, keep only the one-hot edge features.
+    weights["multi_head_attention/node_set_update/" +
+            "multi_head_attention_conv/value_node/kernel:0"].assign(
+                tf.zeros(shape=(num_nodes, num_nodes), dtype=tf.float32))
+    weights["multi_head_attention/node_set_update/" +
+            "multi_head_attention_conv/value_edge/kernel:0"].assign(
+                tf.eye(num_nodes))
+
+    # Build a Model around the Layer, possibly saved and restored.
+    inputs = tf.keras.layers.Input(type_spec=gt_input.spec)
+    outputs = layer(inputs)
+    model = tf.keras.Model(inputs, outputs)
+
+    # Without dropout, i.e. during inference, The transformed queries and keys
+    # should be all ones, so the softmaxe'd scores should be all equal. Since
+    # the transformed values are one-hots, their scaled sum should be a vector
+    # with the normalized scores.
+    self.assertAllEqual(
+        model(gt_input).node_sets["nodes"][tfgnn.HIDDEN_STATE][target_node_id],
+        [1 / num_nodes] * num_nodes)
+
+    # With dropout, i.e. during training, the scores will be binomially
+    # distributed with n=32 and p=0.5625 (probability of neither the query nor
+    # the key value to have been dropped out). Additionally, ~25% of the
+    # resulting values will be zero if the one-hot encoded value was dropped
+    # out.
+    outputs = model(
+        gt_input,
+        training=True).node_sets["nodes"][tfgnn.HIDDEN_STATE][target_node_id]
+    outputs = tf.boolean_mask(outputs, mask=outputs > 0)
+    num_zero_outputs = num_nodes - tf.size(outputs)
+
+    # Check that some values were dropped out completely.
+    self.assertGreater(num_zero_outputs, 0)
+
+    # Check that the stdv of the remaining values is not zero, i.e. the
+    # remaining scores are not all identical.
+    self.assertGreater(tf.math.reduce_std(outputs), 0.0)
+
 
 def _get_test_bidi_cycle_graph(node_state, edge_state=None):
   return tfgnn.GraphTensor.from_pieces(

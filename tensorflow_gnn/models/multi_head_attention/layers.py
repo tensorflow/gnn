@@ -143,6 +143,8 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     edge_dropout: Can be set to a dropout rate for edge dropout. (When pooling
       nodes to context, it's the node's membership in a graph component that
       is dropped out.)
+    inputs_dropout: Dropout rate for random dropout on the inputs to this
+      convolution layer, i.e. the receiver, sender node, and sender edge inputs.
     attention_activation: The nonlinearity used on the transformed inputs
       (query, and keys if `transform_keys` is `True`) before computing the
       attention scores. This can be specified as a Keras layer, a
@@ -190,6 +192,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       sender_edge_feature: Optional[tfgnn.FieldName] = None,
       use_bias: bool = True,
       edge_dropout: float = 0.,
+      inputs_dropout: float = 0.,
       attention_activation: Optional[Union[str, Callable[..., Any]]] = None,
       activation: Union[str, Callable[..., Any]] = "relu",
       kernel_initializer: Any = None,
@@ -223,13 +226,10 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
 
     self._use_bias = use_bias
 
-    if not 0 <= edge_dropout < 1:
-      raise ValueError(f"Edge dropout {edge_dropout} must be in [0, 1).")
-    self._edge_dropout = edge_dropout
-    if self._edge_dropout > 0:
-      self._edge_dropout_layer = tf.keras.layers.Dropout(self._edge_dropout)
-    else:
-      self._edge_dropout_layer = None
+    # Create dropout layers. Note that if the dropout rate is zero, then the
+    # layer will just be a pass-through.
+    self._edge_dropout_layer = tf.keras.layers.Dropout(edge_dropout)
+    self._inputs_dropout_layer = tf.keras.layers.Dropout(inputs_dropout)
 
     # Check for conflicting options.
     if attention_activation is not None and score_scaling != "none":
@@ -333,7 +333,8 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
         num_heads=self._num_heads,
         per_head_channels=self._per_head_channels,
         use_bias=self._use_bias,
-        edge_dropout=self._edge_dropout,
+        edge_dropout=self._edge_dropout_layer.rate,
+        inputs_dropout=self._inputs_dropout_layer.rate,
         # All forms of activation functions can be returned as-is:
         # - A Keras Layer is serialized and deserialized recursively through
         #   its own get_config/from config methods. It's best to not try and
@@ -368,6 +369,13 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
                extra_receiver_ops: Optional[Mapping[str, Callable[...,
                                                                   Any]]] = None,
                **kwargs) -> tf.Tensor:
+
+    # Apply dropout on the inputs.
+    receiver_input = self._inputs_dropout_layer(receiver_input)
+    if sender_node_input is not None:
+      sender_node_input = self._inputs_dropout_layer(sender_node_input)
+    if sender_edge_input is not None:
+      sender_edge_input = self._inputs_dropout_layer(sender_edge_input)
 
     # Determine the width of transformed queries and create transfomations.
     # If transform_keys is true, queries will be transformed to
@@ -474,13 +482,12 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     attention_coefficients = extra_receiver_ops["softmax"](
         attention_coefficients)
 
-    if self._edge_dropout_layer is not None:
-      # If requested, add layer with dropout to the normalized attention
-      # coefficients. This should have the same effect as edge dropout.
-      # Also, note that `keras.layers.Dropout` upscales the remaining values,
-      # which should maintain the sum-up-to-1 per node in expectation.
-      attention_coefficients = self._edge_dropout_layer(attention_coefficients,
-                                                        **kwargs)
+    # Add layer with dropout to the normalized attention coefficients. This
+    # should have the same effect as edge dropout. Also, note that
+    # `keras.layers.Dropout` upscales the remaining values, which should
+    # maintain the sum-up-to-1 per node in expectation.
+    attention_coefficients = self._edge_dropout_layer(attention_coefficients,
+                                                      **kwargs)
 
     # Compute the pooled values by
     #   * transforming the inputs and
