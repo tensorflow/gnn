@@ -30,7 +30,8 @@ pytype_strict_library(
     name = "interfaces",
     srcs = ["interfaces.py"],
     srcs_version = "PY3",
-    visibility = [":__subpackages__"],
+    # visibility = [":__subpackages__"],
+    visibility = ["//visibility:public"],
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
