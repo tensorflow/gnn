@@ -253,7 +253,9 @@ def _shuffle_tensor(
     )
     new_rowids = tf.gather(row_to_newrow, tensor.value_rowids())
     new_values = tf.gather(tensor.values, tf.argsort(new_rowids))
-    return tf.RaggedTensor.from_value_rowids(new_values, tf.sort(new_rowids))
+    return tf.RaggedTensor.from_value_rowids(
+        new_values, tf.sort(new_rowids), nrows=tensor.nrows()
+    )
   raise ValueError(
       "Operation is currently supported only for dense or ragged tensors."
   )

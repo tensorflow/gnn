@@ -86,7 +86,7 @@ class LayersTest(tf.test.TestCase, parameterized.TestCase):
       self.assertIn(num_different, [tf.constant(0), tf.constant(4)])
 
     # Same for a ragged tensor, except it's easier to check row lengths here.
-    tensor = tf.ragged.constant([[1], [2, 3], [4, 5, 6], [7, 8, 9, 10]])
+    tensor = tf.ragged.constant([[], [1], [2, 3], [4, 5, 6]])
     for seed in range(10):
       output = layers._shuffle_tensor(tensor, rate=0.5, seed=seed)
       num_different = tf.reduce_sum(
