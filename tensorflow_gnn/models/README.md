@@ -40,8 +40,6 @@ say so in their README files.
     (Brody&al, 2021).
   * [GCN](gcn/README.md): Graph Convolutional Networks
     (Kipf&Welling, 2016), for homogeneous graphs only.
-  * [GPT-GNN](gpt_gnn/README.md): Autoregressive graph generation task for
-    transfer learning, based on (Hu&al., 2020).
   * [GraphSAGE](graph_sage/README.md) (Hamilton&al., 2017).
   * [MtAlbis](mt_albis/README.md): a model template for easy configuration
     of selected GNN architectures.
