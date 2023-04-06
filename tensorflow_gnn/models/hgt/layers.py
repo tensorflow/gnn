@@ -22,7 +22,6 @@ from typing import Any, Callable, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
-from tensorflow_gnn.models.hgt import softmax
 
 
 @tf.keras.utils.register_keras_serializable(package='GNN>models>hgt')
@@ -336,12 +335,12 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     # Apply softmax to the scores to get the attention coefficients
     coefficients_by_receiver = {}
     for node_set_name in self._receivers:
-      coefficients_by_receiver[
-          node_set_name] = softmax.global_segmented_softmax_edges_per_node(
-              graph,
-              receiver_tag,
-              scores_by_receiver[node_set_name],
-          )
+      edge_set_names, scores = zip(*scores_by_receiver[node_set_name].items())
+      coefficients = tfgnn.softmax(graph, receiver_tag,
+                                   edge_set_name=edge_set_names,
+                                   feature_value=scores)
+      coefficients_by_receiver[node_set_name] = dict(zip(edge_set_names,
+                                                         coefficients))
 
     # Scale the messages and pool them to the receiver nodes
     pooled_messages_by_receiver = collections.defaultdict(list)

@@ -42,7 +42,7 @@ GraphTensor = gt.GraphTensor
 # TODO(b/269076334): When multi-graph piece support is ready, replace the old
 # tfgnn.broadcast() by this, but keep the underlying basic broadcast operations.
 def broadcast_v2(
-    graph: gt.GraphTensor,
+    graph: GraphTensor,
     from_tag: IncidentNodeOrContextTag,
     *,
     edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName, None] = None,
@@ -74,7 +74,7 @@ def broadcast_v2(
       a non-empty sequence of such names. Unless `from_tag=tfgnn.CONTEXT`,
       all named edge sets must have the same incident node set at the given tag.
     node_set_name: The name of the node set to which values are broadcast,
-      or a non-empty sequence of such names. Can only be set with
+      or a non-empty sequence of such names. Can only be passed together with
       `from_tag=tfgnn.CONTEXT`. Exactly one of edge_set_name or node_set_name
       must be set.
     feature_value: A tensor of shape `[num_items, *feature_shape]` from which
@@ -91,11 +91,10 @@ def broadcast_v2(
     with parallel indices.
   """
   gt.check_scalar_graph_tensor(graph, "broadcast()")
-  edge_set_names, node_set_names = _get_edge_and_node_set_name_args(
-      graph, from_tag, edge_set_name=edge_set_name, node_set_name=node_set_name,
-      function_name="broadcast()")
-  set_name_is_sequence = not (isinstance(node_set_name, str) or
-                              isinstance(edge_set_name, str))
+  edge_set_names, node_set_names, got_sequence_args = (
+      _get_edge_and_node_set_name_args(
+          "broadcast()", graph, from_tag,
+          edge_set_name=edge_set_name, node_set_name=node_set_name))
   del edge_set_name, node_set_name  # Replaced by their cleaned-up versions.
   if (feature_value is None) == (feature_name is None):
     raise ValueError(
@@ -114,7 +113,7 @@ def broadcast_v2(
         ops.broadcast_node_to_edges(graph, name, from_tag, **feature_kwargs)
         for name in edge_set_names]
 
-  if set_name_is_sequence:
+  if got_sequence_args:
     return result
   else:
     assert len(result) == 1
@@ -122,13 +121,15 @@ def broadcast_v2(
 
 
 def _get_edge_and_node_set_name_args(
-    graph: gt.GraphTensor,
+    function_name: str,
+    graph: GraphTensor,
     tag: IncidentNodeOrContextTag,
     *,
     edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName, None] = None,
     node_set_name: Union[Sequence[NodeSetName], NodeSetName, None] = None,
-    function_name: str,
-) -> tuple[Optional[Sequence[EdgeSetName]], Optional[Sequence[NodeSetName]]]:
+) -> tuple[Optional[Sequence[EdgeSetName]],
+           Optional[Sequence[NodeSetName]],
+           bool]:
   """Returns canonicalized edge/node args for broadcast() and pool()."""
   if tag == const.CONTEXT:
     num_names = bool(edge_set_name is None) + bool(node_set_name is None)
@@ -148,6 +149,8 @@ def _get_edge_and_node_set_name_args(
           f"{function_name} requires to pass edge_set_name, "
           "not node_set_name, unless tag is set to tfgnn.CONTEXT.")
 
+  got_sequence_args = not (isinstance(node_set_name, str) or
+                           isinstance(edge_set_name, str))
   edge_set_names = _get_nonempty_name_list_or_none(
       function_name, "edge_set_name", edge_set_name)
   node_set_names = _get_nonempty_name_list_or_none(
@@ -162,7 +165,7 @@ def _get_edge_and_node_set_name_args(
           f"but got node sets {incident_node_set_names} from tag={tag} and "
           f"edge_set_name={edge_set_name}")
 
-  return edge_set_names, node_set_names
+  return edge_set_names, node_set_names, got_sequence_args
 
 
 def _get_nonempty_name_list_or_none(
@@ -183,7 +186,7 @@ def _get_nonempty_name_list_or_none(
 # tfgnn.pool() by this, and turn the legacy pooling functions into wrappers
 # of this function.
 def pool_v2(
-    graph: gt.GraphTensor,
+    graph: GraphTensor,
     to_tag: IncidentNodeOrContextTag,
     *,
     edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName, None] = None,
@@ -257,47 +260,23 @@ def pool_v2(
     and `*feature_shape` is as for all the inputs.
   """
   gt.check_scalar_graph_tensor(graph, "pool()")
-  # Canonicalize edge/node set args.
-  edge_set_names, node_set_names = _get_edge_and_node_set_name_args(
-      graph, to_tag, edge_set_name=edge_set_name, node_set_name=node_set_name,
-      function_name="pool()")
-  set_name_is_sequence = not (isinstance(node_set_name, str) or
-                              isinstance(edge_set_name, str))
-  del edge_set_name, node_set_name
 
-  if not reduce_type:
-    raise ValueError("pool() requires one more more reduce types, "
-                     f"separated by '|', but got '{reduce_type}'.")
+  edge_set_names, node_set_names, feature_values, _ = (
+      get_pool_args_as_sequences(
+          "pool()", graph, to_tag,
+          edge_set_name=edge_set_name, node_set_name=node_set_name,
+          feature_value=feature_value, feature_name=feature_name))
+  del edge_set_name, node_set_name, feature_value  # Use canonicalized forms.
 
-  # Canonicalize feature values.
-  if (feature_value is None) == (feature_name is None):
-    raise ValueError(
-        "pool() requires exactly one of feature_name of feature_value.")
-  if feature_value is not None:
-    if isinstance(feature_value, Sequence) != set_name_is_sequence:
-      raise ValueError(
-          "pool() allows a Sequence as a feature_values kwarg if and only if "
-          "the edge/node_set_names are also a Sequence ")
-  if isinstance(feature_value, Sequence):
-    feature_values = feature_value
-  elif feature_value is not None:
-    feature_values = [feature_value]
-  elif edge_set_names is not None:
-    feature_values = [graph.edge_sets[edge_set_name][feature_name]
-                      for edge_set_name in edge_set_names]
-  else:
-    feature_values = [graph.node_sets[node_set_name][feature_name]
-                      for node_set_name in node_set_names]
-  del feature_value
-  if edge_set_names is not None:
-    _check_same_length("edge_set_names", edge_set_names, feature_values)
-  else:
-    _check_same_length("node_set_names", node_set_names, feature_values)
   if len(feature_values) > 1 and any(
       utils.is_ragged_tensor(fv) for fv in feature_values):
     raise ValueError(
         "TODO(b/265760014): pool() from multiple edge sets (or node sets) "
         "does not yet support RaggedTensors.")
+
+  if not reduce_type:
+    raise ValueError("pool() requires one more more reduce types, "
+                     f"separated by '|', but got '{reduce_type}'.")
 
   # Catch incompatible input shapes early, and with a clear message.
   # GraphTensor forbids None in feature dims, except for ragged dimensions.
@@ -326,7 +305,7 @@ def pool_v2(
 
 
 def _pool_internal(
-    graph: gt.GraphTensor,
+    graph: GraphTensor,
     to_tag: IncidentNodeOrContextTag,
     *,
     edge_set_names: Optional[Sequence[EdgeSetName]] = None,
@@ -410,6 +389,76 @@ def _pool_internal(
     return tf.concat(reductions, axis=-1)
 
 
+def get_pool_args_as_sequences(
+    function_name: str,
+    graph: GraphTensor,
+    tag: IncidentNodeOrContextTag,
+    *,
+    edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName, None] = None,
+    node_set_name: Union[Sequence[NodeSetName], NodeSetName, None] = None,
+    feature_value: Union[Sequence[Field], Field, None] = None,
+    feature_name: Optional[FieldName] = None,
+) -> tuple[Sequence[EdgeSetName], Sequence[NodeSetName], Sequence[Field], bool]:
+  """Returns pool()-style args checked and with canonicalized types.
+
+  Args:
+    function_name: The user-visible name of the function whose args are
+      processed.
+    graph: The `GraphTensor`, as for `pool()`.
+    tag: Same as for `pool()`.
+    edge_set_name: As for `pool()`, can be set to a name or sequence of names.
+    node_set_name: As for `pool()`, can be set to a name or sequence of names.
+    feature_value: As for `pool()`, can be set to a value or sequence of values.
+    feature_name: As for `pool()`, can be set to a feature name.
+
+  Returns:
+    Tuple `(edge_set_names, node_set_names, feature_values, got_sequence_args)`
+    with exactly one of `edge_set_names, node_set_names` being a list and
+    the other being `None`. `feature_values` is a list of matching length,
+    possibly looked by `feature_name` if not originally given.
+    `got_sequence_args` is set to False if original non-sequence args have
+    been converted to lists of length 1.
+
+  Raises:
+    ValueError: if not exactly one of edge_set_name, node_set_name is set.
+    ValueError: if node_set_name is set for a `tag != tfgnn.CONTEXT`.
+    ValueError: if the given edge_set_names have different endpoints at
+      the given `tag != tfgnn.CONTEXT`.
+    ValueError: if not exactly one of feature_value, feature_name is set.
+    ValueError: if feature_value and node/edge_set name disagree about being
+      a single value or a sequence of the same length.
+  """
+  edge_set_names, node_set_names, got_sequence_args = (
+      _get_edge_and_node_set_name_args(
+          function_name, graph, tag,
+          edge_set_name=edge_set_name, node_set_name=node_set_name))
+
+  if (feature_value is None) == (feature_name is None):
+    raise ValueError(
+        f"{function_name} requires exactly one of feature_name, feature_value.")
+  if feature_value is not None:
+    if isinstance(feature_value, Sequence) != got_sequence_args:
+      raise ValueError(
+          f"{function_name} allows a Sequence as a feature_values kwarg "
+          "if and only if the edge/node_set_names are also a Sequence ")
+  if isinstance(feature_value, Sequence):
+    feature_values = feature_value
+  elif feature_value is not None:
+    feature_values = [feature_value]
+  elif edge_set_names is not None:
+    feature_values = [graph.edge_sets[edge_set_name][feature_name]
+                      for edge_set_name in edge_set_names]
+  else:
+    feature_values = [graph.node_sets[node_set_name][feature_name]
+                      for node_set_name in node_set_names]
+  if edge_set_names is not None:
+    _check_same_length("edge_set_names", edge_set_names, feature_values)
+  else:
+    _check_same_length("node_set_names", node_set_names, feature_values)
+
+  return edge_set_names, node_set_names, feature_values, got_sequence_args
+
+
 def _check_same_length(
     piece_arg_name: str,
     piece_names: Sequence[str],
@@ -443,11 +492,11 @@ class GraphPieceReducer(abc.ABC):
   ##
   def reduce(
       self,
-      graph: gt.GraphTensor,
+      graph: GraphTensor,
       to_tag: IncidentNodeOrContextTag,
       *,
-      edge_set_name: Optional[const.EdgeSetName] = None,
-      node_set_name: Optional[const.NodeSetName] = None,
+      edge_set_name: Optional[EdgeSetName] = None,
+      node_set_name: Optional[NodeSetName] = None,
       feature_value: Field) -> Field:
     """Returns pooled feature values of the given graph piece."""
     gt.check_scalar_graph_tensor(graph)

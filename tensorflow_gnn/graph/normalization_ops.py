@@ -15,22 +15,31 @@
 """Defines normalization operations over a GraphTensor."""
 
 import functools
-from typing import Optional
+from typing import cast, Optional, Sequence, Union
 
 import tensorflow as tf
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
-from tensorflow_gnn.graph import graph_tensor_ops as ops
+from tensorflow_gnn.graph import pooling
+
+
+Field = const.Field
+FieldName = const.FieldName
+NodeSetName = const.NodeSetName
+EdgeSetName = const.EdgeSetName
+IncidentNodeTag = const.IncidentNodeTag
+IncidentNodeOrContextTag = const.IncidentNodeOrContextTag
+GraphTensor = gt.GraphTensor
 
 
 def softmax(
-    graph_tensor: gt.GraphTensor,
-    per_tag: const.IncidentNodeOrContextTag,
+    graph_tensor: GraphTensor,
+    per_tag: IncidentNodeOrContextTag,
     *,
-    edge_set_name: Optional[const.EdgeSetName] = None,
-    node_set_name: Optional[const.NodeSetName] = None,
-    feature_value: Optional[gt.Field] = None,
-    feature_name: Optional[gt.FieldName] = None) -> gt.Field:
+    edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName, None] = None,
+    node_set_name: Union[Sequence[NodeSetName], NodeSetName, None] = None,
+    feature_value: Union[Sequence[Field], Field, None] = None,
+    feature_name: Optional[FieldName] = None) -> Union[Sequence[Field], Field]:
   """Computes softmax over a many-to-one relationship in a GraphTensor.
 
   This function can be used to compute a softmax normalization...
@@ -47,79 +56,96 @@ def softmax(
     per_tag: tfgnn.CONTEXT for normalization per graph component, or an incident
       node tag (e.g., `tfgnn.SOURCE` or `tfgnn.TARGET`) for normalization per
       common incident node.
-    edge_set_name: The name of the edge set on which values are normalized
-      Exactly one of edge_set_name and node_set_name must be set.
+    edge_set_name: The name of the edge set on which values are normalized,
+      or a non-empty sequence of such names. Unless `from_tag=tfgnn.CONTEXT`,
+      all named edge sets must have the same incident node set at the given tag.
     node_set_name: The name of the node set on which values are normalized,
-      allowed only if per_tag is `tfgnn.CONTEXT`. See also edge_set_name.
-    feature_value: A ragged or dense tensor with the value; cf. feature_name.
-    feature_name: The name of the feature to be used as input value.
-      Exactly one of feature_value or feature_name must be set.
-
-  Raises:
-    ValueError: if `graph_tensor` does not contain an edge set or node set
-      of the given name.
+      or a non-empty sequence of such names. Can only be passed together with
+      `from_tag=tfgnn.CONTEXT`. Exactly one of edge_set_name or node_set_name
+      must be set.
+    feature_value: A tensor or list of tensors, parallel to the node_set_names
+      or edge_set_names, to supply the input values of softmax. Each tensor
+      has shape `[num_items, *feature_shape]`, where `num_items` is the number
+      of edges in the given edge set or nodes in the given node set, and
+      `*feature_shape` is the same across all inputs.
+    feature_name: The name of a feature stored on each graph piece from which
+      pooling is done, for use instead of an explicity passed feature_value.
+      Exactly one of feature_name or feature_value must be set.
 
   Returns:
-    The softmaxed values. The dimensions do not change from the input.
+    A tensor or a list of tensors with the softmaxed values. The dimensions of
+    the tensors and the length of the list do not change from the input.
   """
-  # Set up the `value` to be softmaxed with generic `pool` and `broadcast`.
-  if bool(edge_set_name is None) + bool(node_set_name is None) != 1:
-    raise ValueError("Must pass exactly one of edge_set_name, node_set_name.")
-  if edge_set_name:
-    value = ops.resolve_value(
-        graph_tensor.edge_sets[edge_set_name],
-        feature_value=feature_value, feature_name=feature_name)
-    pool = functools.partial(
-        ops.pool, graph_tensor, per_tag, edge_set_name=edge_set_name)
-    broadcast = functools.partial(
-        ops.broadcast, graph_tensor, per_tag, edge_set_name=edge_set_name)
-  else:
-    value = ops.resolve_value(
-        graph_tensor.node_sets[node_set_name],
-        feature_value=feature_value, feature_name=feature_name)
-    pool = functools.partial(
-        ops.pool, graph_tensor, per_tag, node_set_name=node_set_name)
-    broadcast = functools.partial(
-        ops.broadcast, graph_tensor, per_tag, node_set_name=node_set_name)
+  # Set up a list of `values` to be softmaxed with `pool` and `broadcast` calls.
+  edge_set_names, node_set_names, values, got_sequence_args = (
+      pooling.get_pool_args_as_sequences(
+          "softmax()", graph_tensor, per_tag,
+          edge_set_name=edge_set_name, node_set_name=node_set_name,
+          feature_value=feature_value, feature_name=feature_name))
+  pool = functools.partial(
+      pooling.pool_v2, graph_tensor, per_tag,
+      edge_set_name=edge_set_names, node_set_name=node_set_names)
+  broadcast = functools.partial(
+      pooling.broadcast_v2, graph_tensor, per_tag,
+      edge_set_name=edge_set_names, node_set_name=node_set_names)
 
   # Compute softmax. Subtract the maxes for numerical stability.
   # Some segment_maxes may be -inf, but that's broadcast nowhere.
-  segment_maxes = pool(reduce_type="max", feature_value=value)
+  segment_maxes = pool(reduce_type="max", feature_value=values)
   maxes = broadcast(feature_value=segment_maxes)
-  exp_edge_value = tf.exp(value - maxes)
-  sum_exp_value = pool(reduce_type="sum", feature_value=exp_edge_value)
-  return exp_edge_value / broadcast(feature_value=sum_exp_value)
+  exp_values = [tf.exp(v - m) for v, m in _zip_strict(values, maxes)]
+  sum_exp_values = broadcast(feature_value=pool(reduce_type="sum",
+                                                feature_value=exp_values))
+  result = [ev / sev for ev, sev in _zip_strict(exp_values, sum_exp_values)]
+
+  # Return result with the same nesting as the inputs.
+  if got_sequence_args:
+    return result
+  else:
+    assert len(result) == 1
+    return result[0]
+
+
+# For Python 3.10+, replace by zip(..., strict=True).
+def _zip_strict(*args):
+  arg_lens = {len(arg) for arg in args}
+  if len(arg_lens) > 1:
+    raise ValueError(f"zip() arguments have unequal lengths {arg_lens}")
+  return zip(*args)
 
 
 def softmax_edges_per_node(
-    graph_tensor: gt.GraphTensor,
-    edge_set_name: gt.EdgeSetName,
-    node_tag: const.IncidentNodeTag,
+    graph_tensor: GraphTensor,
+    edge_set_name: EdgeSetName,
+    node_tag: IncidentNodeTag,
     *,
-    feature_value: Optional[gt.Field] = None,
-    feature_name: Optional[gt.FieldName] = None) -> gt.Field:
+    feature_value: Optional[Field] = None,
+    feature_name: Optional[FieldName] = None) -> Field:
   """Returns softmax() of edge values per common `node_tag` node."""
-  return softmax(graph_tensor, node_tag, edge_set_name=edge_set_name,
-                 feature_value=feature_value, feature_name=feature_name)
+  return cast(Field,  # Not a Sequence for non-Sequence inputs.
+              softmax(graph_tensor, node_tag, edge_set_name=edge_set_name,
+                      feature_value=feature_value, feature_name=feature_name))
 
 
 def softmax_edges_per_component(
-    graph_tensor: gt.GraphTensor,
-    edge_set_name: gt.EdgeSetName,
+    graph_tensor: GraphTensor,
+    edge_set_name: EdgeSetName,
     *,
-    feature_value: Optional[gt.Field] = None,
-    feature_name: Optional[gt.FieldName] = None) -> gt.Field:
+    feature_value: Optional[Field] = None,
+    feature_name: Optional[FieldName] = None) -> Field:
   """Returns softmax() of edge values per graph component."""
-  return softmax(graph_tensor, const.CONTEXT, edge_set_name=edge_set_name,
-                 feature_value=feature_value, feature_name=feature_name)
+  return cast(Field,  # Not a Sequence for non-Sequence inputs.
+              softmax(graph_tensor, const.CONTEXT, edge_set_name=edge_set_name,
+                      feature_value=feature_value, feature_name=feature_name))
 
 
 def softmax_nodes_per_component(
-    graph_tensor: gt.GraphTensor,
-    node_set_name: gt.NodeSetName,
+    graph_tensor: GraphTensor,
+    node_set_name: NodeSetName,
     *,
-    feature_value: Optional[gt.Field] = None,
-    feature_name: Optional[gt.FieldName] = None) -> gt.Field:
+    feature_value: Optional[Field] = None,
+    feature_name: Optional[FieldName] = None) -> Field:
   """Returns softmax() of node values per graph component."""
-  return softmax(graph_tensor, const.CONTEXT, node_set_name=node_set_name,
-                 feature_value=feature_value, feature_name=feature_name)
+  return cast(Field,  # Not a Sequence for non-Sequence inputs.
+              softmax(graph_tensor, const.CONTEXT, node_set_name=node_set_name,
+                      feature_value=feature_value, feature_name=feature_name))

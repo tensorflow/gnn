@@ -367,7 +367,7 @@ pytype_strict_library(
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
-        "//tensorflow_gnn/graph:graph_tensor_ops",
+        "//tensorflow_gnn/graph:pooling",
     ],
 )
 

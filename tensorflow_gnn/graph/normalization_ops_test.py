@@ -141,6 +141,40 @@ class NormalizationOpsTest(tf.test.TestCase, parameterized.TestCase):
         gt_input, 'edges', const.TARGET, feature_value=broadcasted)
     self.assertAllClose(got, want, atol=.001)
 
+  def testSoftmaxMultipleEdgeSets(self):
+    """Tests softmax() across multiple edge sets."""
+    graph_tensor = gt.GraphTensor.from_pieces(
+        node_sets={
+            'air': gt.NodeSet.from_fields(sizes=[3],),
+            'ground': gt.NodeSet.from_fields(sizes=[2],)
+        },
+        edge_sets={
+            'aa': gt.EdgeSet.from_fields(
+                sizes=[4],
+                adjacency=adj.Adjacency.from_indices(
+                    ('air', [0, 1, 2, 1]),
+                    ('air', [1, 2, 1, 0]))),
+            'ga': gt.EdgeSet.from_fields(
+                sizes=[3],
+                adjacency=adj.Adjacency.from_indices(
+                    ('ground', [0, 1, 0]),
+                    ('air', [2, 0, 2]))),
+        })
+    edge_set_names = ['aa', 'ga']
+    # Feature values log(x_i) are chosen such that sum(x_i) == 100
+    # at each target node.
+    feature_values = [tf.math.log(tf.constant([60., 50., 40., 20.])),
+                      tf.math.log(tf.constant([25., 80., 25.]))]
+    expected_aa = tf.constant([0.6, 0.5, 0.4, 0.2])
+    expected_ga = tf.constant([0.25, 0.8, 0.25])
+    actual = normalization_ops.softmax(
+        graph_tensor, const.TARGET,
+        edge_set_name=edge_set_names, feature_value=feature_values)
+    self.assertLen(actual, len(edge_set_names))
+    actual_aa, actual_ga = actual
+    self.assertAllClose(actual_aa, expected_aa)
+    self.assertAllClose(actual_ga, expected_ga)
+
   @parameterized.product(
       # The descriptive names are meant to make test output easier to read.
       relation=['EdgeToNode', 'EdgeToContext', 'NodeToContext'],
