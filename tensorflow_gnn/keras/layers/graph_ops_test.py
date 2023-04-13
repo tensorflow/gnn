@@ -925,6 +925,7 @@ class PoolTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters(
       ("NodesToContext", const.CONTEXT, "nodes", "mean"),
       ("EdgesToContext", const.CONTEXT, "edges", "max"),
+      ("EdgesToContextMaxNoInf", const.CONTEXT, "edges", "max_no_inf"),
       ("EdgesToSource", const.SOURCE, "edges", "sum"),
       ("EdgesToTarget", const.TARGET, "edges", "sum"))
   def testTFLite(self, tag, location, reduce_type):

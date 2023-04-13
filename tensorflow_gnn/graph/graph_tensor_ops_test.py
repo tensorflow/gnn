@@ -722,6 +722,10 @@ class ShuffleOpsTest(tf.test.TestCase, parameterized.TestCase):
     for fname, expected in expected_fields.get(gt.EdgeSet, {}).items():
       self.assertAllEqual(expected, shuffled.edge_sets['edge'].features[fname])
 
+  def testTFLite(self):
+    # TODO(b/277938756): Implement when tf.random.shuffle is supported.
+    self.skipTest('Shuffling ops are unsupported in TFLite.')
+
 
 class ReduceOpsTest(tf.test.TestCase, parameterized.TestCase):
 
@@ -1061,6 +1065,12 @@ class SelfLoopsTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(offset_new_edges, sum(expected_edge_sizes))
 
 
+class _ReorderNodes(tf.keras.layers.Layer):
+
+  def call(self, graph, permutations):
+    return ops.reorder_nodes(graph, permutations)
+
+
 class ReorderNodesTest(tf.test.TestCase, parameterized.TestCase):
   _heterogeneous = gt.GraphTensor.from_pieces(
       node_sets={
@@ -1183,6 +1193,30 @@ class ReorderNodesTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(result.edge_sets['A->B'].adjacency.source, [2, 3, 0, 1])
     self.assertAllEqual(result.edge_sets['A->B'].adjacency.target, [1, 2, 0, 1])
 
+  def testTFLite(self):
+    test_graph_dict = {'fa': tf.range(10)}
+    inputs = {'fa': tf.keras.Input([1], None, 'fa', tf.int32)}
+    graph_in = _MakeGraphTensor()(inputs)
+    node_permuter = _ReorderNodes()
+    graph_out = node_permuter(
+        graph_in, {'a': tf.constant([9, 8, 7, 6, 5, 4, 3, 2, 1, 0]),
+                   'b': tf.constant([9, 8, 7, 6, 5, 4, 3, 2, 1, 0])})
+    outputs = tf.keras.layers.Layer(name='final_edge_adjacency')(
+        graph_out.edge_sets['aa'].adjacency.source
+    )
+    model = tf.keras.Model(inputs, outputs)
+    expected = model(test_graph_dict).numpy()
+
+    # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
+    if tf.__version__.startswith('2.9.') or tf.__version__.startswith('2.10.'):
+      self.skipTest('GNN models are unsupported in TFLite until TF 2.11 but '
+                    f'got TF {tf.__version__}')
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    model_content = converter.convert()
+    interpreter = tf.lite.Interpreter(model_content=model_content)
+    signature_runner = interpreter.get_signature_runner('serving_default')
+    obtained = signature_runner(**test_graph_dict)['final_edge_adjacency']
+    self.assertAllEqual(expected, obtained)
 
 _SEED = 42
 
@@ -1359,6 +1393,10 @@ class ShuffleNodesTest(tf.test.TestCase, parameterized.TestCase):
 
     self.assertLen(unique_permutations, 4)
 
+  def testTFLite(self):
+    # TODO(b/277938756): Implement when tf.random.shuffle is supported.
+    self.skipTest('Shuffling ops are unsupported in TFLite.')
+
 
 class NodeDegreeTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for computing degree of each node w.r.t. one side of an edge set."""
@@ -1422,6 +1460,12 @@ class NodeDegreeTest(tf.test.TestCase, parameterized.TestCase):
     for edge_set_name, expected in expected_target_degree.items():
       get = ops.node_degree(graph, edge_set_name, const.TARGET)
       self.assertAllEqual(get, expected)
+
+
+class _MaskEdges(tf.keras.layers.Layer):
+
+  def call(self, graph, edge_set_name, mask, masked_edge_set_name):
+    return ops.mask_edges(graph, edge_set_name, mask, masked_edge_set_name)
 
 
 class EdgeMaskingTest(tf.test.TestCase, parameterized.TestCase):
@@ -1798,51 +1842,47 @@ class EdgeMaskingTest(tf.test.TestCase, parameterized.TestCase):
         r'boolean_edge_mask should have the same shape with the adjacency.*'):
       ops.mask_edges(graph, 'edges', as_tensor([True, False]), 'masked')
 
+  def testTFLite(self):
+    test_graph_dict = {'fa': tf.range(10)}
+    inputs = {'fa': tf.keras.Input([1], None, 'fa', tf.int32)}
+    graph_in = _MakeGraphTensor()(inputs)
+    edge_masker = _MaskEdges()
+    graph_out = edge_masker(
+        graph_in,
+        'aa', 
+        tf.convert_to_tensor([True, False, True, True]),
+        'masked_aa')
+    outputs = tf.keras.layers.Layer(name='final_edge_adjacency')(
+        graph_out.edge_sets['masked_aa'].adjacency.source
+    )
+    model = tf.keras.Model(inputs, outputs)
+    expected = model(test_graph_dict).numpy()
+
+    # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
+    if tf.__version__.startswith('2.9.') or tf.__version__.startswith('2.10.'):
+      self.skipTest('GNN models are unsupported in TFLite until TF 2.11 but '
+                    f'got TF {tf.__version__}')
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    model_content = converter.convert()
+    interpreter = tf.lite.Interpreter(model_content=model_content)
+    signature_runner = interpreter.get_signature_runner('serving_default')
+    obtained = signature_runner(**test_graph_dict)['final_edge_adjacency']
+    self.assertAllEqual(expected, obtained)
+
+
+class _MakeLineGraphTargetToSource(tf.keras.layers.Layer):
+
+  def call(self, graph):
+    return ops.convert_to_line_graph(
+        graph,
+        connect_from=const.TARGET,
+        connect_to=const.SOURCE,)
+
 
 class LineGraphTest(tf.test.TestCase):
 
   def _make_test_graph(self):
-    return gt.GraphTensor.from_pieces(
-        context=gt.Context.from_fields(
-            features={'fc': as_tensor([10, 11]), 'f2': as_tensor([20, 21])}
-        ),
-        node_sets={
-            'a': gt.NodeSet.from_fields(
-                features={'fa': tf.range(10), 'f2': 100 + tf.range(10)},
-                sizes=as_tensor([8, 2]),
-            ),
-            'b': gt.NodeSet.from_fields(
-                features={'fb': tf.range(10), 'f2': 100 + tf.range(10)},
-                sizes=as_tensor([8, 2]),
-            ),
-        },
-        edge_sets={
-            'aa': gt.EdgeSet.from_fields(
-                features={'faa': tf.range(4), 'f2': 100 + tf.range(4)},
-                sizes=as_tensor([3, 1]),
-                adjacency=adj.HyperAdjacency.from_indices({
-                    const.SOURCE: ('a', as_tensor([0, 0, 2, 8])),
-                    const.TARGET: ('a', as_tensor([0, 1, 3, 9])),
-                }),
-            ),
-            'ab': gt.EdgeSet.from_fields(
-                features={'fab': tf.range(5), 'f2': 100 + tf.range(5)},
-                sizes=as_tensor([4, 1]),
-                adjacency=adj.HyperAdjacency.from_indices({
-                    const.SOURCE: ('a', as_tensor([0, 2, 1, 7, 8])),
-                    const.TARGET: ('b', as_tensor([1, 0, 1, 2, 9])),
-                }),
-            ),
-            'ba': gt.EdgeSet.from_fields(
-                features={'fba': tf.range(6), 'f2': 100 + tf.range(6)},
-                sizes=as_tensor([5, 1]),
-                adjacency=adj.HyperAdjacency.from_indices({
-                    const.SOURCE: ('b', as_tensor([0, 1, 1, 0, 1, 9])),
-                    const.TARGET: ('a', as_tensor([7, 6, 5, 5, 4, 8])),
-                }),
-            ),
-        },
-    )
+    return _MakeGraphTensor()({'fa': tf.range(10)})
 
   def testContextFeatures(self):
     graph_tensor = self._make_test_graph()
@@ -2102,6 +2142,76 @@ class LineGraphTest(tf.test.TestCase):
         graph_tensor.edge_sets['ba'].adjacency[const.TARGET],
     )
 
+  def testTFLite(self):
+    test_graph_dict = {'fa': tf.range(10)}
+    inputs = {'fa': tf.keras.Input([1], None, 'fa', tf.int32)}
+    graph_in = _MakeGraphTensor()(inputs)
+    linegraph_maker = _MakeLineGraphTargetToSource()
+    graph_out = linegraph_maker(graph_in)
+    outputs = tf.keras.layers.Layer(name='final_edge_adjacency')(
+        graph_out.edge_sets['ab=>ba'].adjacency.source
+    )
+    model = tf.keras.Model(inputs, outputs)
+    expected = model(test_graph_dict).numpy()
+
+    # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
+    if tf.__version__.startswith('2.9.') or tf.__version__.startswith('2.10.'):
+      self.skipTest('GNN models are unsupported in TFLite until TF 2.11 but '
+                    f'got TF {tf.__version__}')
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    model_content = converter.convert()
+    interpreter = tf.lite.Interpreter(model_content=model_content)
+    signature_runner = interpreter.get_signature_runner('serving_default')
+    obtained = signature_runner(**test_graph_dict)['final_edge_adjacency']
+    self.assertAllEqual(expected, obtained)
+
+
+# TODO(b/274779989): Replace this layer with a more standard representation
+# of GraphTensor as a dict of plain Tensors.
+class _MakeGraphTensor(tf.keras.layers.Layer):
+
+  def call(self, inputs):
+    return gt.GraphTensor.from_pieces(
+        context=gt.Context.from_fields(
+            features={'fc': as_tensor([10, 11]), 'f2': as_tensor([20, 21])}
+        ),
+        node_sets={
+            'a': gt.NodeSet.from_fields(
+                features={'fa': inputs['fa'], 'f2': 100 + tf.range(10)},
+                sizes=as_tensor([8, 2]),
+            ),
+            'b': gt.NodeSet.from_fields(
+                features={'fb': tf.range(10), 'f2': 100 + tf.range(10)},
+                sizes=as_tensor([8, 2]),
+            ),
+        },
+        edge_sets={
+            'aa': gt.EdgeSet.from_fields(
+                features={'faa': tf.range(4), 'f2': 100 + tf.range(4)},
+                sizes=as_tensor([3, 1]),
+                adjacency=adj.Adjacency.from_indices(
+                    ('a', as_tensor([0, 0, 2, 8])),
+                    ('a', as_tensor([0, 1, 3, 9])),
+                ),
+            ),
+            'ab': gt.EdgeSet.from_fields(
+                features={'fab': tf.range(5), 'f2': 100 + tf.range(5)},
+                sizes=as_tensor([4, 1]),
+                adjacency=adj.Adjacency.from_indices(
+                    ('a', as_tensor([0, 2, 1, 7, 8])),
+                    ('b', as_tensor([1, 0, 1, 2, 9])),
+                ),
+            ),
+            'ba': gt.EdgeSet.from_fields(
+                features={'fba': tf.range(6), 'f2': 100 + tf.range(6)},
+                sizes=as_tensor([5, 1]),
+                adjacency=adj.Adjacency.from_indices(
+                    ('b', as_tensor([0, 1, 1, 0, 1, 9])),
+                    ('a', as_tensor([7, 6, 5, 5, 4, 8])),
+                ),
+            ),
+        },
+    )
 
 if __name__ == '__main__':
   tf.test.main()
