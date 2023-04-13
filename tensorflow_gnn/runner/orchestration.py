@@ -43,6 +43,7 @@ ModelExporter = interfaces.ModelExporter
 Task = interfaces.Task
 Trainer = interfaces.Trainer
 
+_BASE_MODEL_TAG = "UNDERSCORE_TFGNN_RUNNER_BASE_MODEL"
 _TPU_DEFAULT_STEPS_PER_EXECUTION = 100
 
 
@@ -62,15 +63,20 @@ class TFDataServiceConfig:
 
 @dataclasses.dataclass
 class RunResult:
-  """Holds the return values of `run()`.
+  """Holds the return values of `run(...)`.
 
   Attributes:
     preprocess_model: Keras model containing only the computation for
-      preprocessing inputs. It's not trained or trainable.
-    trained_model: Keras model for the trained GNN. It takes the output of
-      `preprocess_model` as its input.
+      preprocessing inputs. It is not trained. The model takes serialized
+      `GraphTensor`s as its inputs and returns preprocessed `GraphTensor`s.
+    base_model: Keras base GNN (as returned by the user provided `model_fn`).
+      The model both takes and returns `GraphTensor`s.
+    trained_model: Keras model for the e2e GNN. (Base GNN plus prediction
+      head(s).) The model takes `preprocess_model` output as its inputs and
+      returns `Task` predictions.
   """
   preprocess_model: tf.keras.Model
+  base_model: tf.keras.Model
   trained_model: tf.keras.Model
 
 
@@ -332,7 +338,7 @@ def run(*,
     if not isinstance(xs, collections.abc.Sequence):
       xs = [xs]
     # All specs are the same (asserted in `_make_preprocessing_model`).
-    model = model_fn(xs[0].spec)
+    model = tf.keras.Sequential((model_fn(xs[0].spec),), name=_BASE_MODEL_TAG)
     inputs = [tf.keras.Input(type_spec=x.spec) for x in xs]
     outputs = task.predict(*[model(i) for i in inputs])
     model = tf.keras.Model(inputs, outputs)
@@ -367,4 +373,7 @@ def run(*,
     for exporter in model_exporters:
       exporter.save(parsing_and_preprocess_model, model, export_dir)
 
-  return RunResult(parsing_and_preprocess_model, model)
+  return RunResult(
+      preprocess_model=parsing_and_preprocess_model,
+      base_model=model.get_layer(_BASE_MODEL_TAG),
+      trained_model=model)

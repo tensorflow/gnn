@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for orchestration."""
+import functools
 import os
 from typing import Any, Sequence, Union
 
@@ -26,8 +27,7 @@ from tensorflow_gnn.runner.trainers import keras_fit
 from tensorflow_gnn.runner.utils import label_fns
 
 _LABELS = tuple(range(32))
-
-_SCHEMA_A = """
+_SCHEMA = """
   context {
     features {
       key: "label"
@@ -57,42 +57,19 @@ _SCHEMA_A = """
   }
 """
 
-_SCHEMA_B = """
-  context {
-    features {
-      key: "label"
-      value {
-        dtype: DT_INT32
-      }
-    }
-  }
-  node_sets {
-    key: "node"
-    value {
-      features {
-        key: "features"
-        value {
-          dtype: DT_FLOAT
-          shape { dim { size: 12 } }
-        }
-      }
-    }
-  }
-"""
 
-
-def graph_spec(txt: str = _SCHEMA_A) -> tfgnn.GraphTensorSpec:
-  schema = tfgnn.parse_schema(txt)
+def graph_spec() -> tfgnn.GraphTensorSpec:
+  schema = tfgnn.parse_schema(_SCHEMA)
   return tfgnn.create_graph_spec_from_schema_pb(schema)
 
 
-def random_graph_tensor(txt: str = _SCHEMA_A) -> tfgnn.GraphTensor:
+def random_graph_tensor() -> tfgnn.GraphTensor:
   sample_dict = {(tfgnn.CONTEXT, None, "label"): _LABELS}
-  return tfgnn.random_graph_tensor(graph_spec(txt), sample_dict=sample_dict)
+  return tfgnn.random_graph_tensor(graph_spec(), sample_dict=sample_dict)
 
 
-def random_serialized_graph_tensor(txt: str = _SCHEMA_A) -> tfgnn.GraphTensor:
-  return tfgnn.write_example(random_graph_tensor(txt)).SerializeToString()
+def random_serialized_graph_tensor() -> tfgnn.GraphTensor:
+  return tfgnn.write_example(random_graph_tensor()).SerializeToString()
 
 
 class DatasetProvider(orchestration.DatasetProvider):
@@ -129,20 +106,31 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
       ds_provider: orchestration.DatasetProvider,
       examples: Sequence[str]):
 
-    def node_sets_fn(node_set, node_set_name):
-      del node_set_name
-      return node_set["features"]
-
-    def model_fn(gtspec):
-      inputs = x = tf.keras.layers.Input(type_spec=gtspec)
-      x = tfgnn.keras.layers.MapFeatures(node_sets_fn=node_sets_fn)(x)
-      outputs = vanilla_mpnn.VanillaMPNNGraphUpdate(
-          units=1,
-          message_dim=2,
-          receiver_tag=tfgnn.SOURCE,
-          l2_regularization=5e-4,
-          dropout_rate=0.1)(x)
+    @functools.lru_cache(None)
+    def model():
+      inputs = x = tf.keras.Input(type_spec=gtspec)
+      def tail_fn(inputs, **unused_kwargs):
+        return tf.keras.Sequential([
+            tf.keras.layers.Concatenate(),
+            tf.keras.layers.Dense(8),
+            tf.keras.layers.BatchNormalization(),
+            tf.keras.layers.Dropout(.25),
+        ])(inputs.features.values())
+      x = tfgnn.keras.layers.MapFeatures(node_sets_fn=tail_fn)(x)
+      for _ in range(4):
+        x = vanilla_mpnn.VanillaMPNNGraphUpdate(
+            units=2,
+            message_dim=3,
+            receiver_tag=tfgnn.SOURCE,
+            l2_regularization=5e-4,
+            dropout_rate=0.1)(x)
+      def head_fn(inputs, **unused_kwargs):
+        return tf.keras.activations.tanh(inputs[tfgnn.HIDDEN_STATE])
+      outputs = tfgnn.keras.layers.MapFeatures(node_sets_fn=head_fn)(x)
       return tf.keras.Model(inputs, outputs)
+
+    def model_fn(_):
+      return model()
 
     task = classification.RootNodeMulticlassClassification(
         "node",
@@ -158,7 +146,7 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
         validation_steps=1,
         restore_best_weights=False)
 
-    orchestration.run(
+    run_result = orchestration.run(
         train_ds_provider=ds_provider,
         model_fn=model_fn,
         optimizer_fn=tf.keras.optimizers.Adam,
@@ -170,16 +158,35 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
         global_batch_size=4,
         valid_ds_provider=ds_provider)
 
+    # Check the base model.
+    actual = run_result.base_model
+    expected = model_fn(gtspec)
+
+    # `actual_names` will be a superset because of the `_BASE_MODEL_TAG` layer.
+    actual_names = tuple(sm.name for sm in actual.submodules)
+    expected_names = tuple(sm.name for sm in expected.submodules)
+
+    self.assertAllInSet(expected_names, actual_names)
+
+    # Any computations are identical.
+    inputs = tfgnn.random_graph_tensor(gtspec)
+    actual_outputs = actual(inputs).node_sets["node"][tfgnn.HIDDEN_STATE]
+    expected_outputs = expected(inputs).node_sets["node"][tfgnn.HIDDEN_STATE]
+
+    self.assertAllClose(expected_outputs, actual_outputs)
+
+    # Check the exported model.
     saved_model = tf.saved_model.load(os.path.join(model_dir, "export"))
     output = saved_model.signatures["serving_default"](examples=examples)
-    actual = next(iter(output.values()))
 
     # The model has one output
     self.assertLen(output, 1)
 
-    # The expected shape is (batch size, num classes) or
-    # (len(examples), len(_LABELS))
-    self.assertAllEqual(actual.shape, (examples.shape[0], len(_LABELS)))
+    # The expected shape is (batch size, num classes).
+    actual = next(iter(output.values())).shape
+    expected = (examples.shape[0], len(_LABELS))
+
+    self.assertAllEqual(expected, actual)
 
 
 if __name__ == "__main__":
