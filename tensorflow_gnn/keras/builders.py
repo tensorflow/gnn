@@ -16,7 +16,7 @@
 
 import collections
 import re
-from typing import Any, Callable, Collection, Mapping, Optional
+from typing import Any, Callable, Collection, Mapping, Optional, Union
 
 import tensorflow as tf
 
@@ -72,7 +72,10 @@ class ConvGNNBuilder:
       `nodes_next_state_factory(node_set_name)` to return the next-state layer
       for the respectve NodeSetUpdate.
     receiver_tag: Set this to `tfgnn.TARGET` or `tfgnn.SOURCE` to choose which
-      incident node of each edge receives the convolution result.
+      incident node of each edge receives the convolution result. It can also
+      contain a collection to specify multiple incident nodes, which will create
+      a separate convolution for each. Note that every incident node tag can be
+      used at most once.
       DEPRECATED: This used to be optional and effectively default to TARGET.
       New code is expected to set it in any case.
     aux_graph_piece_pattern: Optionally (and rarely needed), can be set to
@@ -86,7 +89,9 @@ class ConvGNNBuilder:
       nodes_next_state_factory: Callable[[const.NodeSetName],
                                          next_state_lib.NextStateForNodeSet],
       *,
-      receiver_tag: Optional[const.IncidentNodeTag] = None,
+      receiver_tag: Optional[
+          Union[const.IncidentNodeTag, Collection[const.IncidentNodeTag]]
+      ] = None,
       aux_graph_piece_pattern: str = const.AUX_GRAPH_PIECE_PATTERN):
     self._convolutions_factory = convolutions_factory
     self._nodes_next_state_factory = nodes_next_state_factory
@@ -103,7 +108,7 @@ class ConvGNNBuilder:
     factories (specified during the class construction) for the given receiver
     node sets. The resulting node set update layers are combined and returned
     as one GraphUpdate layer. Auxiliary node sets (e.g., as needed for
-    `tfgnn.keras.layers.NamedRedaout`) are ignored.
+    `tfgnn.keras.layers.NamedReadout`) are ignored.
 
     Args:
       node_sets: By default, the result updates all node sets that receive from
@@ -129,11 +134,15 @@ class ConvGNNBuilder:
 
     def _Init(graph_spec: gt.GraphTensorSpec) -> Mapping[str, Any]:
       if self._receiver_tag is None:
-        receiver_tag = const.TARGET
-        receiver_tag_kwarg = dict()
+        receiver_tags = {const.TARGET}
+        receiver_tag_specified = False
+      elif isinstance(self._receiver_tag, const.IncidentNodeTag):
+        receiver_tags = {self._receiver_tag}
+        receiver_tag_specified = True
       else:
-        receiver_tag = self._receiver_tag
-        receiver_tag_kwarg = dict(receiver_tag=receiver_tag)
+        receiver_tags = set(self._receiver_tag)
+        receiver_tag_specified = True
+
       receiver_to_inputs = collections.defaultdict(dict)
 
       for edge_set_name, edge_set_spec in graph_spec.edge_sets_spec.items():
@@ -142,21 +151,25 @@ class ConvGNNBuilder:
         if not isinstance(edge_set_spec.adjacency_spec, adj.HyperAdjacencySpec):
           raise ValueError('Unsupported adjacency type {}'.format(
               type(edge_set_spec.adjacency_spec).__name__))
-        receiver_node_set = edge_set_spec.adjacency_spec.node_set_name(
-            receiver_tag)
-        if node_sets is not None and receiver_node_set not in node_sets:
-          continue
-        if self._aux_graph_piece_re.fullmatch(receiver_node_set):
-          # This cannot happen for the aux node sets known so far (March 2023)
-          # and likely indicates the accidental use of an auxiliary name.
-          raise ValueError(
-              f"Node set '{receiver_node_set}' matches "
-              f"aux_graph_piece_pattern=r'{self._aux_graph_piece_re.pattern}' "
-              f"but incident edge set '{edge_set_name}' "
-              f"(at tag {receiver_tag}) does not.")
-        receiver_to_inputs[receiver_node_set][
-            edge_set_name] = self._convolutions_factory(edge_set_name,
-                                                        **receiver_tag_kwarg)
+        for receiver_tag in receiver_tags:
+          receiver_node_set = edge_set_spec.adjacency_spec.node_set_name(
+              receiver_tag)
+          if node_sets is not None and receiver_node_set not in node_sets:
+            continue
+          if self._aux_graph_piece_re.fullmatch(receiver_node_set):
+            # This cannot happen for the aux node sets known so far (March 2023)
+            # and likely indicates the accidental use of an auxiliary name.
+            raise ValueError(
+                f"Node set '{receiver_node_set}' matches "
+                f"aux_graph_piece_pattern=r'{self._aux_graph_piece_re.pattern}'"
+                f" but incident edge set '{edge_set_name}' "
+                f"(at tag {receiver_tag}) does not.")
+          if receiver_tag_specified:
+            conv = self._convolutions_factory(edge_set_name,
+                                              receiver_tag=receiver_tag)
+          else:
+            conv = self._convolutions_factory(edge_set_name)
+          receiver_to_inputs[receiver_node_set][edge_set_name] = conv
 
       receiver_node_sets = (node_sets if node_sets is not None
                             else receiver_to_inputs.keys())

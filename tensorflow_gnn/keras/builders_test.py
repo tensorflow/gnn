@@ -68,9 +68,16 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
                         graph.edge_sets["node->node"][const.HIDDEN_STATE])
 
   @parameterized.named_parameters(
-      ("Default", dict(), [1.], [2., 2., 2.]),  # Behaves like Target.
-      ("Target", dict(receiver_tag=const.TARGET), [1.], [2., 2., 2.]),
-      ("Source", dict(receiver_tag=const.SOURCE), [2., 2., 2.], [1.]))
+      ("Default", dict(), [1.0], [2.0, 2.0, 2.0]),  # Behaves like Target.
+      ("Target", dict(receiver_tag=const.TARGET), [1.0], [2.0, 2.0, 2.0]),
+      ("Source", dict(receiver_tag=const.SOURCE), [2.0, 2.0, 2.0], [1.0]),
+      (
+          "SourceAndTarget",
+          dict(receiver_tag=[const.SOURCE, const.TARGET]),
+          [2.0, 2.0, 2.0],
+          [2.0, 2.0, 2.0],
+      ),
+  )
   def testReceiverTag(self, receiver_tag_kwarg, expected_a, expected_b):
     def make_doubling_layer():
       return tf.keras.layers.Dense(
