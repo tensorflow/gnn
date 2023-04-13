@@ -25,6 +25,7 @@ from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.keras import builders
 from tensorflow_gnn.keras.layers import convolutions
+from tensorflow_gnn.keras.layers import graph_update as graph_update_lib
 from tensorflow_gnn.keras.layers import next_state as next_state_lib
 
 IdentityLayer = tf.keras.layers.Layer
@@ -39,6 +40,60 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
         lambda _: convolutions.SimpleConv(IdentityLayer()),
         lambda _: next_state_lib.NextStateFromConcat(IdentityLayer()))
     graph = gnn_builder.Convolve()(input_graph)
+    self.assertAllEqual([[1., 1., 1.]],
+                        graph.node_sets["node"][const.HIDDEN_STATE])
+    self.assertAllEqual([[100.]],
+                        graph.edge_sets["node->node"][const.HIDDEN_STATE])
+
+  def testCallbacks(self):
+    conv_result = None
+    def convolutions_factory(edge_set_name, receiver_tag):
+      self.assertEqual(edge_set_name, "node->node")
+      nonlocal conv_result
+      conv_result = convolutions.SimpleConv(IdentityLayer(),
+                                            receiver_tag=receiver_tag)
+      return conv_result
+
+    next_state_result = None
+    def nodes_next_state_factory(node_set_name):
+      self.assertEqual(node_set_name, "node")
+      nonlocal next_state_result
+      next_state_result = next_state_lib.NextStateFromConcat(IdentityLayer())
+      return next_state_result
+
+    node_set_update_result = None
+    def node_set_update_factory(node_set_name, edge_set_inputs, next_state):
+      self.assertEqual(node_set_name, "node")
+      self.assertCountEqual(edge_set_inputs.keys(), ["node->node"])
+      self.assertIs(edge_set_inputs["node->node"], conv_result)
+      self.assertIs(next_state, next_state_result)
+      nonlocal node_set_update_result
+      node_set_update_result = graph_update_lib.NodeSetUpdate(
+          edge_set_inputs, next_state)
+      return node_set_update_result
+
+    graph_update_result = None
+    def graph_update_factory(deferred_init_callback, name):
+      # The effects of deferred_init_callback() are tested later on.
+      self.assertEqual(name, "my_update")
+      nonlocal graph_update_result
+      graph_update_result = graph_update_lib.GraphUpdate(
+          deferred_init_callback=deferred_init_callback, name=name)
+      return graph_update_result
+
+    input_graph = _make_test_graph_with_singleton_node_sets(
+        [("node", [1.])], [("node", "node", [100.])])
+    gnn_builder = builders.ConvGNNBuilder(
+        convolutions_factory,
+        nodes_next_state_factory,
+        node_set_update_factory=node_set_update_factory,
+        graph_update_factory=graph_update_factory,
+        receiver_tag=const.TARGET)
+    graph_update = gnn_builder.Convolve(name="my_update")
+    graph = graph_update(input_graph)
+    self.assertIs(graph_update, graph_update_result)
+    self.assertIs(graph_update._node_set_updates["node"],
+                  node_set_update_result)
     self.assertAllEqual([[1., 1., 1.]],
                         graph.node_sets["node"][const.HIDDEN_STATE])
     self.assertAllEqual([[100.]],

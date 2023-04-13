@@ -62,6 +62,20 @@ class ConvGNNBuilder:
   ])
   ```
 
+  Advanced users can pass additional callbacks to further customize the creation
+  of node set updates and the complete graph updates. The default values of
+  those callbacks are equivalent to
+
+  ```python
+  def node_set_update_factory(node_set_name, edge_set_inputs, next_state):
+    del node_set_name  # Unused by default.
+    return tfgnn.keras.layers.NodeSetUpdate(edge_set_inputs, next_state)
+
+  def graph_update_factory(deferred_init_callback, name):
+    return tfgnn.keras.layers.GraphUpdate(
+        deferred_init_callback=deferred_init_callback, name=name)
+  ```
+
   Init args:
     convolutions_factory: called as
       `convolutions_factory(edge_set_name, receiver_tag=receiver_tag)`
@@ -78,6 +92,13 @@ class ConvGNNBuilder:
       used at most once.
       DEPRECATED: This used to be optional and effectively default to TARGET.
       New code is expected to set it in any case.
+    node_set_update_factory: If set, called as
+      `node_set_update_factory(node_set_name, edge_set_inputs, next_state)`
+      to return the node set update for the given `node_set_name`. The
+      remaining arguments are as expected by `tfgnn.keras.layers.NodeSetUpdate`.
+    graph_update_factory: If set, called as
+      `graph_update_factory(deferred_init_callback, name)` to return the graph
+      update. The arguments are as expected by `tfgnn.keras.layers.GraphUpdate`.
     aux_graph_piece_pattern: Optionally (and rarely needed), can be set to
       override `tfgnn.AUX_GRAPH_PIECE_PATTERN`.
   """
@@ -92,15 +113,29 @@ class ConvGNNBuilder:
       receiver_tag: Optional[
           Union[const.IncidentNodeTag, Collection[const.IncidentNodeTag]]
       ] = None,
+      node_set_update_factory: Optional[Callable[
+          ..., graph_update_lib.NodeSetUpdateLayer]] = None,
+      graph_update_factory: Optional[Callable[
+          ..., tf.keras.layers.Layer]] = None,
       aux_graph_piece_pattern: str = const.AUX_GRAPH_PIECE_PATTERN):
     self._convolutions_factory = convolutions_factory
     self._nodes_next_state_factory = nodes_next_state_factory
     self._receiver_tag = receiver_tag
+
+    if node_set_update_factory is None:
+      self._node_set_update_factory = _default_node_set_update_factory
+    else:
+      self._node_set_update_factory = node_set_update_factory
+    if graph_update_factory is None:
+      self._graph_update_factory = _default_graph_update_factory
+    else:
+      self._graph_update_factory = graph_update_factory
     self._aux_graph_piece_re = re.compile(aux_graph_piece_pattern)
 
-  def Convolve(
+  def Convolve(  # To be called like a class initializer.  pylint: disable=invalid-name
       self,
-      node_sets: Optional[Collection[const.NodeSetName]] = None
+      node_sets: Optional[Collection[const.NodeSetName]] = None,
+      name: Optional[str] = None,
   ) -> tf.keras.layers.Layer:
     """Constructs GraphUpdate layer for the set of receiver node sets.
 
@@ -116,6 +151,7 @@ class ConvGNNBuilder:
         Collection convertible to a set) overrides this (possibly including
         node sets that receive from zero edge sets). Auxiliary node sets are
         not allowed in this list.
+      name: Optionally, a name for the returned GraphUpate layer.
 
     Returns:
       A GraphUpdate layer, with building deferred to the first call.
@@ -132,7 +168,7 @@ class ConvGNNBuilder:
               "that matches "
               f"aux_graph_piece_pattern=r'{self._aux_graph_piece_re.pattern}'.")
 
-    def _Init(graph_spec: gt.GraphTensorSpec) -> Mapping[str, Any]:
+    def _init(graph_spec: gt.GraphTensorSpec) -> Mapping[str, Any]:
       if self._receiver_tag is None:
         receiver_tags = {const.TARGET}
         receiver_tag_specified = False
@@ -176,8 +212,26 @@ class ConvGNNBuilder:
       node_set_updates = dict()
       for node_set in receiver_node_sets:
         next_state = self._nodes_next_state_factory(node_set)
-        node_set_updates[node_set] = graph_update_lib.NodeSetUpdate(
-            edge_set_inputs=receiver_to_inputs[node_set], next_state=next_state)
+        node_set_updates[node_set] = self._node_set_update_factory(
+            node_set, receiver_to_inputs[node_set], next_state)
       return dict(node_sets=node_set_updates)
 
-    return graph_update_lib.GraphUpdate(deferred_init_callback=_Init)
+    return self._graph_update_factory(deferred_init_callback=_init, name=name)
+
+
+def _default_node_set_update_factory(
+    node_set_name: const.NodeSetName,
+    edge_set_inputs: Mapping[const.EdgeSetName,
+                             graph_update_lib.EdgesToNodePoolingLayer],
+    next_state: next_state_lib.NextStateForNodeSet,
+) -> graph_update_lib.NodeSetUpdateLayer:
+  del node_set_name  # Unused.
+  return graph_update_lib.NodeSetUpdate(edge_set_inputs, next_state)
+
+
+def _default_graph_update_factory(
+    deferred_init_callback: Callable[[gt.GraphTensorSpec], Mapping[str, Any]],
+    name: str,
+)-> tf.keras.layers.Layer:
+  return graph_update_lib.GraphUpdate(
+      deferred_init_callback=deferred_init_callback, name=name)

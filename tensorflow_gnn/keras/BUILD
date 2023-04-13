@@ -83,6 +83,7 @@ tf_py_test(
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
         "//tensorflow_gnn/keras/layers:convolutions",
+        "//tensorflow_gnn/keras/layers:graph_update",
         "//tensorflow_gnn/keras/layers:next_state",
     ],
 )
