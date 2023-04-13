@@ -1330,19 +1330,34 @@ def convert_to_line_graph(
     *,
     connect_from: const.IncidentNodeTag = const.TARGET,
     connect_to: const.IncidentNodeTag = const.SOURCE,
+    connect_with_original_nodes: bool = False,
     use_node_features_as_line_graph_edge_features: bool = False,
 ) -> gt.GraphTensor:
   """Obtain a graph's line graph.
 
-  In the line graph, every edge in the original graph becomes a node.
-  See https://en.wikipedia.org/wiki/Line_graph. Line graph nodes are connected
-  whenever the corresponding edges share a specified endpoint. Note that
-  undirected edges will result in pairs of line graph nodes.
+  In the line graph, every edge in the original graph becomes a node,
+  see https://en.wikipedia.org/wiki/Line_graph. Line graph nodes are connected
+  whenever the corresponding edges share a specified endpoint.
+  The _node_ sets of the resulting graph are the _edge_ sets of the original
+  graph, with the same name. The resulting edge sets are named
+  `{edge_set_name1}=>{edge_set_name2}`, for every pair of edge sets that
+  connects through a common node set (as selected by the args).
+  Note that representing undirected edges {a,b} as a pair of two directed edges
+  a->b and b->a will result in a pair of separate line graph nodes.
 
-  Example: Consider a triangle graph with the 3 edges a->b, b->c, and c->a.
-    The resulting line graph would contain the nodes ab, bc, and ca.
-    The default arguments connect_from=tfgnn.TARGET and connect_to=tfgnn.SOURCE
-    would create the edges ab->bc, bc->ca, and ca->ab.
+  Example: Consider a directed triangle represented as a homogeneous graph.
+    The node set 'points' contains nodes a, b and c while the edge set 'lines'
+    contains edges a->b, b->c, and c->a. The resulting line graph will
+    contain a node set(!) 'lines' and an edge set 'lines=>lines'.
+    The nodes in node set 'lines' correspond to the original edges;
+    let's call them ab, bc, and ca. The edges in edge set 'lines=>lines'
+    represent the connections of lines at points: ab->bc, bc->ca, and ca->ab.
+
+    If `connect_with_original_nodes=True`, the resulting graph will retain
+    the original nodes and their connection to edges as follows:
+    Node set 'original/points' keeps the original nodes a, b and c, and there
+    are two edge sets: 'original/to/lines' with edges a->ab, b->bc, c->ca,
+    and 'original/from/lines' with edges ab->b, bc->c, ca->a.
 
   Args:
     graph_tensor: Graph to convert to a line graph.
@@ -1350,6 +1365,11 @@ def convert_to_line_graph(
       will be the source for the line graph edges.
     connect_to: Specifies which endpoint of the original edges
       will be the target for the line graph edges.
+    connect_with_original_nodes: If true, keep the original node sets (not the
+      original edge sets) and connect them to line graph nodes according to
+      source and target in the original graph. The node set names will be called
+      `original/{node_set}` and the new edges `original/to/{edge_set}` for the
+      SOURCE nodes and `original/from/{edge_set}` for the TARGET nodes.
     use_node_features_as_line_graph_edge_features: Whether to use the original
       graph's node features as edge features in the line graph.
 
@@ -1364,8 +1384,52 @@ def convert_to_line_graph(
       )
       for edge_set_name, edge_set in graph_tensor.edge_sets.items()
   }
-
   line_edge_sets = {}
+
+  if connect_with_original_nodes:
+    line_node_sets.update({
+        f'original/{node_set_name}': node_set
+        for node_set_name, node_set in graph_tensor.node_sets.items()
+    })
+
+    for edge_set_name, edge_set in graph_tensor.edge_sets.items():
+      if (
+          set(edge_set.adjacency.get_indices_dict())
+          != {const.SOURCE, const.TARGET}
+      ):
+        # TODO(b/276726198): Handle more general HyperAdjacency, perhaps by
+        # introducing a special key for line graph nodes.
+        raise ValueError(
+            'Expected an adjacency with exactly one tfgnn.SOURCE and one '
+            'tfgnn.TARGET endpoint in `tfgnn.convert_to_line_graph()`. '
+            'Other cases are currently not supported for '
+            '`connect_with_original_nodes=True`.'
+        )
+      line_edge_sets[
+          f'original/from/{edge_set_name}'
+      ] = gt.EdgeSet.from_fields(
+          sizes=edge_set.sizes,
+          adjacency=adj.Adjacency.from_indices(
+              source=(edge_set_name, tf.range(edge_set.total_size)),
+              target=(
+                  f'original/{edge_set.adjacency.node_set_name(const.TARGET)}',
+                  edge_set.adjacency[const.TARGET],
+              ),
+          ),
+      )
+      line_edge_sets[
+          f'original/to/{edge_set_name}'
+      ] = gt.EdgeSet.from_fields(
+          sizes=edge_set.sizes,
+          adjacency=adj.Adjacency.from_indices(
+              source=(
+                  f'original/{edge_set.adjacency.node_set_name(const.SOURCE)}',
+                  edge_set.adjacency[const.SOURCE],
+              ),
+              target=(edge_set_name, tf.range(edge_set.total_size)),
+          ),
+      )
+
   for edge_set_name_source, edge_set_source in graph_tensor.edge_sets.items():
     node_set_name_source = edge_set_source.adjacency.node_set_name(
         connect_from
@@ -1447,7 +1511,7 @@ def convert_to_line_graph(
         line_features = None
 
       line_edge_sets[
-          f'{edge_set_name_source}_to_{edge_set_name_target}'
+          f'{edge_set_name_source}=>{edge_set_name_target}'
       ] = gt.EdgeSet.from_fields(
           sizes=line_edge_sizes,
           adjacency=adj.Adjacency.from_indices(
