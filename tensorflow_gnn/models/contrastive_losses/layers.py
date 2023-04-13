@@ -220,6 +220,9 @@ def _shuffle_tensor(
     raise ValueError(f"Shuffle rate should be in [0, 1] (got {rate}).")
   if rate == 0.0:
     return tensor
+  # Empty tensors can not get shuffled.
+  if any(i == 0 for i in tensor.get_shape().as_list()):
+    return tensor
   if tfgnn.is_dense_tensor(tensor):
     if rate == 1.0:
       return tf.random.shuffle(tensor, seed=seed)

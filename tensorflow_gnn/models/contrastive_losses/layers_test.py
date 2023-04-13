@@ -54,6 +54,27 @@ class LayersTest(tf.test.TestCase, parameterized.TestCase):
           "rate": 0.5,
           "seed": 1,  # Our second-best seed.
       },
+      {
+          "testcase_name": "ShuffleHalfEmpty2DRagged",
+          "tensor": tf.ragged.constant([[], []]),
+          "expected": tf.ragged.constant([[], []]),
+          "rate": 0.5,
+          "seed": 8191,
+      },
+      {
+          "testcase_name": "ShuffleHalfEmpty2DDense",
+          "tensor": tf.zeros([4, 0]),
+          "expected": tf.zeros([4, 0]),
+          "rate": 0.5,
+          "seed": 8191,
+      },
+      {
+          "testcase_name": "ShuffleHalf1DDense",
+          "tensor": tf.constant([1, 2, 3, 4]),
+          "expected": tf.constant([1, 4, 3, 2]),
+          "rate": 0.5,
+          "seed": 8191,
+      },
   ])
   def test_shuffle_tensor(
       self, tensor: tfgnn.Field, expected: tfgnn.Field, rate: float, seed: int
@@ -75,6 +96,10 @@ class LayersTest(tf.test.TestCase, parameterized.TestCase):
   def test_shuffle_ragged_tensor_keras_input(self):
     tensor = tf.keras.layers.Input(shape=[None, None], ragged=True)
     _ = layers._shuffle_tensor(tensor)
+
+  def test_shuffle_dense_empty_tensor_keras_input(self):
+    tensor = tf.keras.layers.Input(shape=[0])
+    _ = layers._shuffle_tensor(tensor, rate=0.5)
 
   def test_shuffle_tensor_proportion(self):
     # With variable seed, we either expect 50% (4 elements) to be shuffled or
