@@ -215,12 +215,30 @@ class MtAlbisGraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
     _ = model(input_graph)
     config = json.loads(model.to_json())
     node_set_config = config["config"]["layers"][1]["config"]["node_sets/a"]
-    self.assertEqual(
-        node_set_config["config"]["edge_set_inputs/u"]["class_name"],
-        "GNN>SimpleConv")
-    self.assertEqual(
-        node_set_config["config"]["edge_set_inputs/v"]["class_name"],
-        "GNN>models>multi_head_attention>MultiHeadAttentionConv")
+
+    # Check for `class_name` in `node_set_config` is serialization format
+    # dependent. This conditional allows for compatibility with multiple
+    # versions of OSS users.
+    if node_set_config["config"]["edge_set_inputs/u"].get(
+        "registered_name", None
+    ):
+      self.assertEqual(
+          node_set_config["config"]["edge_set_inputs/u"]["class_name"],
+          "SimpleConv",
+      )
+      self.assertEqual(
+          node_set_config["config"]["edge_set_inputs/v"]["class_name"],
+          "MultiHeadAttentionConv",
+      )
+    else:
+      self.assertEqual(
+          node_set_config["config"]["edge_set_inputs/u"]["class_name"],
+          "GNN>SimpleConv",
+      )
+      self.assertEqual(
+          node_set_config["config"]["edge_set_inputs/v"]["class_name"],
+          "GNN>models>multi_head_attention>MultiHeadAttentionConv",
+      )
 
 
 def _make_test_graph_abuv():
