@@ -35,15 +35,16 @@ input_graph = tf.keras.layers.Input(type_spec=model_input_graph_spec)
 
 Typically, a model with a GNN architecture at its core consists of three parts:
 
- 1. The initialization of hidden states on nodes (and possibly also edges and/or
-    the graph context) from their respective preprocessed features.
- 2. The actual Graph Neural Network: several rounds of updating hidden states
-    from neighboring items in the graph.
- 3. The readout of one or more hidden states into some prediction head, such as
-    a linear classifier.
+ 1. The **input encoding** creates initial hidden states on nodes (and possibly
+    also edges and/or the graph context) from their respective preprocessed
+    features.
+ 2. The **base GNN** is the actual Graph Neural Network that does one or
+    more rounds of updating hidden states from neighboring items in the graph.
+ 3. The **readout** of one or more hidden states into some **prediction head**,
+    such as a linear classifier.
 
 
-### Initializing the hidden states
+### Input encoding: initializing the hidden states
 
 The hidden states on nodes are created by mapping a dict of features (possibly
 already preprocessed by the input pipeline) to fixed-size hidden states for
@@ -127,7 +128,7 @@ advanced applications, check out the docstring of MapFeatures on how to return
 a modified dict instead.)
 
 
-### Updating hidden states from the neighborhood: the GNN
+### Updating hidden states from the neighborhood: the base GNN
 
 After the initial states of nodes have been set up, it's time for the main part
 of the Graph Neural Network: one or more rounds of updating hidden states from
@@ -200,15 +201,7 @@ graph = tfgnn.keras.layers.MapFeatures(
 graph = gnn(graph)
 ```
 
-**Classifying each node** in one particular node set, based on its hidden state.
-
-```python
-...  # As above.
-logits = tf.keras.layers.Dense(1)(graph.node_sets["papers"][tfgnn.HIDDEN_STATE])
-model = tf.keras.Model(input_graph, logits)
-```
-
-**Classifying each graph as a whole**, based on an aggregation of the node
+**Graph classification**, based on an aggregation of the node
 states from one node set.
 
 ```python
@@ -234,8 +227,37 @@ The code above lets you do simple `"mean"` pooling (or `"sum"` or
 Smarter ways of pooling (e.g., with attention) are possible with "convolutions
 to context", which are discussed further down.
 
+**Node classification in general** for a dataset with a `"_readout"` node set.
+
+```python
+...  # As above.
+seed_node_states = tfgnn.keras.layers.ReadoutNamed("seed")(graph)
+logits = tf.keras.layers.Dense(1)(seed_node_states)
+model = tf.keras.Model(input_graph, logits)
+```
+
+This covers a wide variety of applications, *provided* that data preprocessing
+(see its [guide](data_prep.md)) has created the auxiliary `"_readout"` node set
+in addition to the ordinary node sets updated by the base GNN, and one or more
+auxiliary edge sets connecting it to the nodes for which a prediction is to be
+made.
+
+The `"_readout"` node set is supported starting from TF-GNN 0.6 (released in
+2023) and intended to replace the following older, ad-hoc methods of readout.
+
+**Classifying each node** in a particular node set.
+
+```python
+...  # As above.
+node_states = tfgnn.keras.layers.Readout(node_set_name="papers")(graph)
+logits = tf.keras.layers.Dense(1)(node_states)
+model = tf.keras.Model(input_graph, logits)
+```
+
 **Classifying each sampled subgraph**, based on the hidden state at its root
-node. (You can skip this if you are unfamiliar with graph sampling.
+node, for a dataset that does not have a `"_readout"` node set but follows
+the older convention of storing the root as the first node of its node set.
+(You can skip this if you are unfamiliar with graph sampling.
 The [data preparation guide](data_prep.md) provides an introduction.)
 
 ```python

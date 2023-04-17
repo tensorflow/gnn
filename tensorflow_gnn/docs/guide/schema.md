@@ -92,6 +92,36 @@ model, or to specify what the loss/objective is, or even how to combine the
 particular features it provides and for what purpose; those concerns are
 addressed in defining the GNN model on top of the input data.
 
+### Naming rules
+
+The various node sets and edge sets are identified by `str`-valued keys.
+Typically, these are human-readable names like `"user"` or `"video"`.
+Certain special characters at the beginning of the name are reserved for
+internal purposes of the TF-GNN library.
+
+  * The hash mark `#` is reserved for internal use by `tfgnn.GraphTensor`
+    and must not appear as the first character of a node set or edge set name.
+  * The underscore `_` is reserved as the first character of auxiliary node sets
+    or edge sets that can be stored in a GraphTensor, subject to specific rules,
+    in order to encode structural information beyond the nodes and edges from
+    the application domain. (The next section will introduce an example.)
+  * The first characters `!`, `%`, `.`, `^` and `~` are reserved for future use.
+
+Programmatically, this can be checked as
+
+```python
+import re
+re.fullmatch(tfgnn.AUX_GRAPH_PIECE_PATTERN, name)
+```
+
+Likewise, the dict of features on each node set, edge set, or the context
+is keyed by `str`-valued feature names. Here again, the hash mark `#` is
+reserved for internal use by `tfgnn.GraphTensor` and must not appear as the
+first character of a user-defined feature name. This can be checked with
+
+```python
+re.fullmatch(tfgnn.RESERVED_FEATURE_NAME_PATTERN, feature_name)
+```
 
 ## An Example
 
@@ -404,7 +434,7 @@ batches of inputs and merge them into a single graph for use in the GNN
 modeling code. As far as `tfgnn.GraphSchema` is concerned, context features are
 therefore global to each input example described by the schema.
 
-#### About Labels
+### About labels and reading out the final GNN states
 
 In the context of a graph classification problem, a label feature would
 typically be the target class associated with the entire graph example provided
@@ -413,27 +443,45 @@ to classify into one of a fixed number of categories.
 
 In the context of classifying nodes that are a part of a huge graph, the
 training examples are usually sampled subgraphs around particular "seed" or
-"root" nodes. By convention, the data preparation makes sure to place the root
-node as the first node of each input in its respective node set. In this
-scenario, multiple convolutions propagate information from all the other nodes
-one or more times across all the nodes in parallel, learning weights along the
-way. We can then read out the root node's state from the first node of its node
-set (see the [modeling guide](gnn_modeling.md) for details) and feed it into a
-prediction head.
+"root" nodes.  For this example, we have simplified matters by letting the
+seed node be the single "channel" node in each sampled subgraph, which makes
+it look a lot like a graph classification problem: after batching,
+the "channel" nodes, their features, and the features on the graph context all
+have aligned indices. That makes it easy to read off the final states of the
+GNN model from the root (i.e., "channel") nodes, put a linear classifier on
+top if it, and train that with the labels from the graph context.
 
-In this example, we have a heterogeneous graph, and we assume that graph
-sampling will produce a single channel node per graph. All the other features
-will bubble up to that root node across the different sets of edges, aggregating
-through the intervening nodes, and this is where our model will insert a loss
-function and a prediction.
+Real applications of GNNs can be more complex than that: the nodes of interest
+for node classification or the pairs of nodes for link prediction may not be
+the only nodes in their respective node set. TF-GNN offers two ways of
+solving that.
 
-It is possible to build models that diverge from some of these conventional
-scenarios, e.g., models that train jointly against a loss computed over multiple
-labels on multiple nodes. Ultimately you define the features for your model and
-labels as just another data feature. It's how you use them that makes them
-labels or not. They are not identified explicitly nor treated differently in the
-graph schema, and the schema does not specify how those features are intended to
-be used in your model, only how the data is presented to the model.
+  * Structured readout: Next to the node sets and edge sets for the GNN,
+    the graph data defines an auxiliary node set named "_readout" (note the
+    leading underscore) and one or more auxiliary edge sets that connect the
+    nodes of interest to the auxiliary readout nodes, one for each prediction
+    to make. Final states of the GNN are read out from the nodes of interest
+    along the auxiliary edges onto the "_readout" node set. The library supports
+    this as of release 0.6 with the `tfgnn.readout_named()` function. Training
+    labels can be read out from nodes in the same way, or can be stored on the
+    "_readout" node set right away.
+  * Implicit readout: If there is exactly one single node of interest in each
+    input graph (as in node classification for the seed node of sampled
+    subgraphs), and it always comes from the same node set, then, by convention,
+    the data preparation puts it as the first node of that node set, then it
+    can be found without explicit markup for readout. The library provides the
+    `tfgnn.gather_first_node()` function to do this. Matching labels can be
+    stored for readout from the first node, or on the graph context (as in
+    the example above).
+
+The [data preparation](data_prep.md) and [modeling](gnn_modeling.md) guides
+have the details for their respective stages of model building.
+
+Notice that the GraphSchema just defines node sets, edge sets, their named
+features, and how all of it is represented. Whether or not a particular
+feature becomes a training label is up to your modeling code. It is possible
+to build models that train jointly against a loss computed over multiple
+labels on multiple nodes.
 
 
 ## Validating your Schema
@@ -453,8 +501,9 @@ constraints, for example, if a set of edges refers to nodes that don't exist.
 
 ## Generating Dummy Graph Data
 
-You can now generate dummy graph data from this schema with random contents.
-We provide a tool for doing that. This can be useful for two reasons:
+You can now generate dummy graph data with random contents from a graph schema
+without auxiliary node sets. We provide a tool for doing that. This can be
+useful for two reasons:
 
 1.  To inspect the required encoding. If you're writing your own custom data
     preparation job to produce encoded tensorflow.Example protos, it is useful

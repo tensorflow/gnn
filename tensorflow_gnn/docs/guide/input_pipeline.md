@@ -245,6 +245,13 @@ the GNN, at the start of the main model (see the
 the laundry lists of all feature transformations (possibly controlled by some
 higher-level configuration).
 
+By default, MapFeatures ignores `"_readout"` and other auxiliary node sets
+whose name starts with `_`. If you need to process some of them (say, to apply
+a table lookup to a string-valued label feature), you need to pass a suitable
+[regular expression](https://docs.python.org/3/library/re.html?#regular-expression-syntax)
+as `MapFeatures(..., allowed_aux_node_sets_pattern=r"...")`. Likewise for
+edge sets.
+
 
 ### The shape of features
 
@@ -323,27 +330,55 @@ single graph.
 
 ## Splitting the labels out of the graph
 
-Typically, Graph Neural Networks are used to make a prediction about some entity
-in the graph, so a training label is naturally stored and processed as a feature
-on that entity. Even a prediction about an entire input graph can be regarded as
-the prediction of a context feature. We suggest transforming training labels
-alongside features on the graph and split them off at the end of preprocessing,
-once the GraphTensor and its other features have acquired their final shape.
+TF-GNN's machinery for processing graph data uses `GraphTensor` and its
+serialization format a lot. Therefore, training labels typically enter the input
+pipeline as a feature on some piece of a `GraphTensor`. We suggest to transform
+training labels alongside features on the graph and split them off at the end
+of preprocessing, once the `GraphTensor` and its other features have reached
+their final shape.
 
-A typical code snippet looks like:
+The code for doing this varies with the exact location of the label feature.
+
+If the input data contains a `"_readout"` node set, and if the labels have been
+stored as feature, say, `"class_id"` on that node set, they can be split out
+as follows:
 
 ```python
-labels = tfgnn.keras.layers.Readout(node_set_name="docs",
-                                    feature_name="labels")(graph)
-graph = graph.remove_features(node_sets={"docs": ["labels"]})
-assert "labels" not in graph.node_sets["docs"].features
+labels = tfgnn.keras.layers.Readout(node_set_name="_readout",
+                                    feature_name="class_id")(graph)
+graph = graph.remove_features(node_sets={"_readout": ["class_id"]})
+assert "class_id" not in graph.node_sets["_readout"].features
 ```
 
-For node prediction problems on sampled subgraphs, it is common to read out
-only one label per input graph from the root node of the sampled subgraph.
-By convention, it is stored as the first node in each component of its node set,
-and `tfgnn.keras.layers.ReadoutFirstNode` can be used instead of plain `Readout`
-to get it.
+The removal of the feature can be skipped if the rest of the code makes sure
+that the GNN model does not get to see the `"_readout"` node set and its
+features.
+
+On the other hand, if the label is stored on an ordinary node set, say `"docs"`,
+it needs to be read out from those nodes for which a prediction will
+be made. The code pattern for that looks similar to the readout of final
+node states from the GNN, which is discussed in more detail in the
+[modeling guide](gnn_modeling.md).
+
+If an auxiliary "_readout" node set is present that references the `"seed"`
+nodes of `"docs"`, their labels can be split out like
+
+```python
+labels = tfgnn.keras.layers.ReadoutNamed("seed", feature_name="class_id")(graph)
+graph = graph.remove_features(node_sets={"docs": ["class_id"]})
+assert "class_id" not in graph.node_sets["docs"].features
+```
+
+If the input dataset relies on the pre-`"_readout"` convention to simply
+do readout from the first `"docs"` node of each sampled subgraph, the code
+would look like
+
+```python
+labels = tfgnn.keras.layers.ReadoutFirstNode(node_set_name="docs",
+                                             feature_name="class_id")(graph)
+graph = graph.remove_features(node_sets={"docs": ["class_id"]})
+assert "class_id" not in graph.node_sets["docs"].features
+```
 
 At serving time, inputs will be missing the `"labels"` feature, of course.
 The preprocessing model needs to handle that gracefully (maybe based on the

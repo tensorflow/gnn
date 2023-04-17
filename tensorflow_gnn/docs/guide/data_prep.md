@@ -278,8 +278,8 @@ created as empty tensors. For example:
 ```
 ex = tf.train.Example()
 gt2 = tfgnn.parse_single_example(spec, tf.constant(ex.SerializeToString()))
-print(gt2.node_sets['students']['scores'])
-print(gt2.node_sets['students'].sizes)
+print(gt2.node_sets["students"]["scores"])
+print(gt2.node_sets["students"].sizes)
 <tf.RaggedTensor []>
 tf.Tensor([0], shape=(1,), dtype=int32)
 ```
@@ -289,7 +289,7 @@ example, this would also work:
 
 ```
 ex = tf.train.Example()
-ex.features.feature['nodes/students.#size'].int64_list.value.append(0)
+ex.features.feature["nodes/students.#size"].int64_list.value.append(0)
 gt2 = tfgnn.parse_single_example(spec, tf.constant(ex.SerializeToString()))
 ```
 
@@ -437,19 +437,126 @@ rt = tf.ragged.constant(
 
 gt = tfgnn.GraphTensor.from_pieces(
     node_sets={
-        'object': tfgnn.NodeSet.from_fields(
+        "students": tfgnn.NodeSet.from_fields(
           sizes=[3],
-          features={'counts': rt}
+          features={"scores": rt}
     )})
 
 tfgnn.write_example(gt)
 ```
 
+## Readout
+
+The library supports various kinds of prediction tasks on `GraphTensor`
+datasets. Some of them deal with the graph as a whole, while many others refer
+to specific nodes (or edges) in the graph. For the latter kind, GNN models
+eventually need to read out the final hidden state only from a specific subset
+of nodes, as the [modeling guide](gnn_modeling.md) describes in greater detail.
+
+Usually, it falls on the data preparation stage of modeling to identify the
+nodes for readout, more precisely, on the part of data preparation that
+produces the `GraphTensor` values consumed by the GNN model. (If a graph
+sampling tool is used, it usually falls on that tool.)
+
+Recall the preceding example: graphs with a node set `"students"`. Consider
+data preparation for a node regression task, in which some but not all nodes
+have a training label. Let's call those the `"seed"` nodes (for reasons that
+will become more clear in the next section). Suppose we have a `GraphTensor`
+with student nodes indexed 0, 1, 2, and 3, of which only 1 and 3 have a training
+label, so model training shall make a prediction only for those two seed nodes.
+
+We use the flexibility of heterogeneous graphs to express this by adding
+auxiliary node sets and edge sets to the graph:
+
+  * The auxiliary node set `"_readout"` has 2 nodes, one for each prediction
+    to make.
+  * The auxiliary edge set `"_readout/seed"` connects node set `"students"`
+    as its source to the node set `"_readout"` as its target. It has exactly one
+    edge per prediction (that is, the edges `1->0` and `3->1` for this example),
+    and the edges are ordered such that their target indices form a contiguous
+    range 0, 1, ... up to the size of node set `"_readout"`.
+
+Readout is not constrained to a fixed node set. Consider a refinement of the
+schema that distinguishes `"undergrad_students"` and `"grad_students"`, which
+may have different input features but feed into the same prediction task.
+This is represented as follows:
+
+  * The auxiliary node set `"_readout"` has one node for each prediction
+    to make.
+  * The auxiliary edge sets `"_readout/seed/1"` and `"_readout/seed/2"`
+    connect the distinct source node sets (here: `"undergrad_students"` and
+    `"grad_students"`) to the target node set `"_readout"`.
+    Every `"_readout"` node occurs as the target of exactly one edge.
+    Within each of these edge sets, the edges are sorted by ascending order of
+    target node ids.
+
+Readout is not constrained to a single node (what we called `"seed"` above).
+As a different example, consider a link prediction task: given a `"source"`
+and a `"target"` node, predict whether or not there was an edge between them
+in the original graph (before conversion to `GraphTensor`). To make it more
+interesting, let's say the source of the predicted link is from node set
+`"users"` but the target can be from node set `"users"` or `"items"`.
+
+This is represented as follows:
+
+  * The auxiliary node set `"_readout"` has one node for each link prediction
+    to make.
+  * The auxiliary edge set `"_readout/source"` connects node set `"users"` as
+    its source to node set `"_readout"` as its target, subject to the rules on
+    indices explained above.
+  * The auxiliary edge sets `"_readout/target/1"` and `"_readout/target/2"`
+    connect node sets `"users"` and `"items"` as their respective sources to
+    node set `"_readout"` as their respective target, subject to the rules on
+    indices explained above.
+
+To summarize: the auxiliary node set `"_readout"` and the
+auxiliary edge sets `"_readout/.*"` define
+
+  * a number of predictions to make: the size of node set `"_readout"`;
+  * a set of keys for readout: by the edge sets with target `"_readout"`
+    (`{"seed"}` in the first example, `{"source", "target"}` in the second);
+  * for each prediction *i* and each key *k*, exactly one node from which
+    to read out a value.
+
+As far as `GraphTensor` and its serialization is concerned, these are node sets
+and edge sets like any other. In particular, they need to be declared in the
+`GraphSchema` so that they can be parsed from a `tf.Example` proto.
+The leading underscore `_` marks them as auxiliary, that is, distinct from
+the arbitrarily-named node sets and edge sets which represent objects and
+relations of the model's application domain.
+
+Prior to TF-GNN 0.6 (released in 2023), there was no support for an explicit
+`"_readout"` node set. Instead, by convention, readout for a subset of nodes
+could only happen for a single node in each input graph, which had to be from
+a fixed node set and appear as the first node of that node set.
+
+### Storing labels
+
+The primary purpose of the `"_readout"` node set is to be the target of the
+readout edge sets, along which the GNN model will read out its final hidden
+states in order to make predictions. We can think of its node set size as
+`num_predictions`.
+
+A convenient secondary purpose of the `"_readout"` node set is to store data
+in its feature dict that naturally has a shape `[num_predictions, ...]`
+and is not seen by the GNN as it operates on the non-auxiliary node sets.
+That makes `"_readout"` a good fit for storing the label, especially for tasks
+like link prediction in which there is no other single item in the `GraphTensor`
+that directly corresponds to the (source, target) pair in question. (The edge
+in question is usually removed, as to not leak the correct prediction.)
+
+
 ## Graph Sampling
 
-The library comes with a sampler written in Apache Beam that can produce encoded
-`tf.train.Example` proto messages in sharded output files. This is the format we
-produce for training datasets from data preparation jobs.
+As described in the [introduction](intro.md), many practically relevant graphs
+are very large (e.g., a large social network may have billions of nodes) and
+may not fit in memory, so this library resorts to sampling neighborhoods around
+nodes which we want to train over (say, nodes with associated ground truth
+labels). The library comes with a sampler tool written in Apache Beam that
+stores sampled subgraphs encoded as `tf.train.Example` proto messages in sharded
+output files. This is the format we produce for training datasets from data
+preparation jobs.
+
 
 ### Input Graph Format
 
@@ -478,9 +585,9 @@ files are minimal:
     **target**, defining the origin and destination of the edge. Edge rows may
     also contain features, such as weight (or anything else).
 *   Context sets have no special requirement, this is for any data applying to
-    entire sampled subgraphs. Common uses include storing sampled subgraph labels or
-    properties common to all sampled nodes (e.g., a gravitational constant in a physics
-    simulation).
+    entire sampled subgraphs. Common uses include storing sampled subgraph
+    labels or properties common to all sampled nodes (e.g., a gravitational
+    constant in a physics simulation).
 
 This format is kept as simple and flexible on purpose. See `unigraph.py` in the
 source code for an Apache Beam reader library that can be used to read those
@@ -517,6 +624,21 @@ mapping over a stream of these protos provided by a
 [`tf.data.Dataset`](https://www.tensorflow.org/api_docs/python/tf/data/Dataset),
 as is customary in TensorFlow.
 
+Recall that sampling is meant to give the seed node a sufficiently large
+neighborhood such that a GNN model can compute a useful hidden state. Hence readout only makes sense for the seed node; other nodes
+(even if in the same node set) need their own subgraphs sampled around them
+to compute an equally useful hidden state. Conversely, a node whose hidden state
+is never read out is not useful as a seed node for sampling.
+
+Hence training with sampled subgraphs usually implies that readout happens
+precisely from the seed node of each input graph.
+
+As of this writing (March 2023), the sampler tool does not yet create an
+explicit `"_readout"` node set. Instead, it assumes that all seed nodes are
+drawn from the same node set and stores the seed node as the first node of that
+node set in the sampled subgraph. It falls on the model to know that node set
+and read out the node from there.
+
 ### End-to-End Heterogeneous Graph Sampling: OGBN-MAG
 
 #### The OGBN-MAG Dataset
@@ -531,24 +653,24 @@ the OBGN-MAG dataset are as follows:
 
 ##### Node Sets
 
-*   "paper" contains 736,389 published academic papers, each with a
+*   `"paper"` contains 736,389 published academic papers, each with a
     128-dimensional word2vec feature vector computed by averaging the embeddings
     of the words in its title and abstract.
-*   "field_of_study" contains 59,965 fields of study, with no associated
+*   `"field_of_study"` contains 59,965 fields of study, with no associated
     features.
-*   "author" contains the 1,134,649 distinct authors of the papers, with no
+*   `"author"` contains the 1,134,649 distinct authors of the papers, with no
     associated features
-*   "institution" contains 8740 institutions listed as affiliations of authors,
+*   `"institution"` contains 8740 institutions listed as affiliations of authors,
     with no associated features.
 
 ##### Edge Sets:
 
-*   "cites" contains 5,416,217 edges from papers to the papers they cite.
-*   "has_topic" contains 7,505,078 edges from papers to their zero or more
+*   `"cites"` contains 5,416,217 edges from papers to the papers they cite.
+*   `"has_topic"` contains 7,505,078 edges from papers to their zero or more
     fields of study.
-*   "writes" contains 7,145,660 edges from authors to the papers that list them
+*   `"writes"` contains 7,145,660 edges from authors to the papers that list them
     as authors.
-*   "affiliated_with" contains 1,043,998 edges from authors to the zero or more
+*   `"affiliated_with"` contains 1,043,998 edges from authors to the zero or more
     institutions that have been listed as their affiliation(s) on any paper.
 
 The graph schema file defines the topology of the full graph by enumerating the
@@ -757,14 +879,14 @@ graph exploration (traversal) in plate notation:
 
 Which specifies the following sampling procedure:
 
-1.   Select all nodes from "paper" node set as "seeds".
-2.   Sample up to 32 "cites" edges outgoing from seeds.
-3.   Sample up to 8 "written" edges from each node in the seed "paper" and
-     "paper" nodes drawn on the step 2.
-4.   Sample up to 16 more "writes" edges for every "author" node from the
+1.   Select all nodes from `"paper"` node set as sampling seeds.
+2.   Sample up to 32 `"cites"` edges outgoing from the seeds.
+3.   Sample up to 8 `"written"` edges from each node in the seed `"paper"` and
+     `"paper"` nodes drawn on the step 2.
+4.   Sample up to 16 more `"writes"` edges for every `"author"` node from the
      step 3.
-5.   For every "author" sample up to 16 "affiliated_with" edges.
-6.   For every paper sample up to 16 "has_topic" edges.
+5.   For every `"author"` sample up to 16 `"affiliated_with"` edges.
+6.   For every paper sample up to 16 `"has_topic"` edges.
 
 NOTE: By default the Graph Sampler samples **edges** from the graph. This allows
 to better control complexity even for dense graphs with large-degree nodes.
@@ -978,8 +1100,8 @@ Homogeneous graphs in this context are simply a special case of heterogeneous
 graphs with a single set of nodes and a single set of edges. There is nothing
 special to do to support them. OBGN-ARXIV is another popular open-source
 citation network used for benchmarking but only consists of a single entity and
-edge type describing the links between "papers". An example of running sampling
-on the OGBN-ARXIV dataset is given in
+edge type describing the links between `"papers"`. An example of running
+sampling on the OGBN-ARXIV dataset is given in
 [examples/arxiv](https://github.com/tensorflow/gnn/tree/main/examples/arxiv)
 which can be run following the same procedures described in the OGBN-MAG
 example.
