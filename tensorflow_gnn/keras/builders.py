@@ -205,6 +205,14 @@ class ConvGNNBuilder:
                                               receiver_tag=receiver_tag)
           else:
             conv = self._convolutions_factory(edge_set_name)
+          if edge_set_name in receiver_to_inputs[receiver_node_set]:
+            raise NotImplementedError(
+                f"Received multiple receiver tags '{receiver_tags}' for node"
+                f" set '{receiver_node_set}' and edge set '{edge_set_name}'."
+                f" This is likely because the edge set '{edge_set_name}' is"
+                " homogeneous. Multiple receiver tags are currently only"
+                " supported for heterogeneous edges. See b/278198893."
+            )
           receiver_to_inputs[receiver_node_set][edge_set_name] = conv
 
       receiver_node_sets = (node_sets if node_sets is not None
