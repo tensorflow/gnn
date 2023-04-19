@@ -113,6 +113,7 @@ py_strict_test(
         ":attribution",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//tensorflow_gnn/runner:interfaces",
     ],
 )
 
@@ -135,6 +136,7 @@ py_strict_test(
         ":model_export",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
+        "//tensorflow_gnn/runner:interfaces",
     ],
 )
 

@@ -65,51 +65,51 @@ class KerasModelExporter(interfaces.ModelExporter):
     self._include_preprocessing = include_preprocessing
     self._options = options
 
-  def save(self,
-           preprocess_model: Optional[tf.keras.Model],
-           model: tf.keras.Model,
-           export_dir: str):
+  def save(self, run_result: interfaces.RunResult, export_dir: str):
     """Exports a Keras model (with Keras API) via tf.keras.models.save_model.
 
-    Importantly: the `preprocess_model`, if provided, and `model` are
-    concatenated before any export. Concatenation involves the chaining of the
-    first output of `preprocess_model` to the only input of `model.` The result
-    is a model with the input of `preprocess_model` and the output of `model.`
+    Importantly: the `run_result.preprocess_model`, if provided, and
+    `run_result.trained_model` are stacked before any export. Stacking involves
+    the chaining of the first output of `run_result.preprocess_model` to the
+    only input of `run_result.trained_model.` The result is a model with the
+    input of `run_result.preprocess_model` and the output of
+    `run_result.trained_model.`
 
     Args:
-      preprocess_model: An optional `tf.keras.Model` for preprocessing.
-      model: A `tf.keras.Model` to save.
-      export_dir: A destination directory for the model.
+      run_result: A `RunResult` from training.
+      export_dir: A destination directory.
     """
+    preprocess_model = run_result.preprocess_model
+    model = run_result.trained_model
+
     if preprocess_model and not preprocess_model.built:
       raise ValueError("`preprocess_model` is expected to have been built")
     elif not model.built:
       raise ValueError("`model` is expected to have been built")
 
-    if preprocess_model is not None and self._include_preprocessing:
-      model = model_utils.chain_first_output(preprocess_model, model)
-    if self._output_names is not None:
-      output = _rename_output(model.output, self._output_names)
-      model = tf.keras.Model(model.input, output)
-    if self._subdirectory:
-      export_dir = os.path.join(export_dir, self._subdirectory)
-    tf.keras.models.save_model(model, export_dir, options=self._options)
+    _save_model(export_dir,
+                preprocess_model,
+                model,
+                self._include_preprocessing,
+                self._output_names,
+                self._subdirectory,
+                self._options)
 
 
 class SubmoduleExporter(interfaces.ModelExporter):
   """Exports a Keras submodule.
 
-  Given a Keras model, this exporter creates and exports a submodule with inputs
-  identical to the model and outputs from some intermediate layer (named
-  `sublayer_name`). For example, with pseudocode:
+  Given a `RunResult`, this exporter creates and exports a submodule with
+  inputs identical to the trained model and outputs from some intermediate layer
+  (named `sublayer_name`). For example, with pseudocode:
 
-  `model = tf.keras.Sequential([layer1, layer2, layer3, layer3])`
+  `trained_model = tf.keras.Sequential([layer1, layer2, layer3, layer4])`
   and
-  `SubmoduleExporter(sublayer_name='layer3')`
+  `SubmoduleExporter(sublayer_name='layer2')`
 
   The exported submodule is:
 
-  `submodule = tf.keras.Sequential([layer1, layer2, layer3])`
+  `submodule = tf.keras.Sequential([layer1, layer2])`
   """
 
   def __init__(self,
@@ -135,20 +135,23 @@ class SubmoduleExporter(interfaces.ModelExporter):
     self._include_preprocessing = include_preprocessing
     self._options = options
 
-  def save(self,
-           preprocess_model: Optional[tf.keras.Model],
-           model: tf.keras.Model,
-           export_dir: str):
+  def save(self, run_result: interfaces.RunResult, export_dir: str):
     """Saves a Keras model submodule.
 
-    Importantly: the `preprocess_model`, if provided, and `model` are
-    concatenated before any export, see: `KerasModelExporter`.
+    Importantly: the `run_result.preprocess_model`, if provided, and
+    `run_result.trained_model` are stacked before any export. Stacking involves
+    the chaining of the first output of `run_result.preprocess_model` to the
+    only input of `run_result.trained_model.` The result is a model with the
+    input of `run_result.preprocess_model` and the output of
+    `run_result.trained_model.`
 
     Args:
-      preprocess_model: An optional `tf.keras.Model` for preprocessing.
-      model: A `tf.keras.Model` to search for `sublayer_name`.
-      export_dir: A destination directory for the model.
+      run_result: A `RunResult` from training.
+      export_dir: A destination directory.
     """
+    preprocess_model = run_result.preprocess_model
+    model = run_result.trained_model
+
     if preprocess_model and not preprocess_model.built:
       raise ValueError("`preprocess_model` is expected to have been built")
     elif not model.built:
@@ -164,9 +167,28 @@ class SubmoduleExporter(interfaces.ModelExporter):
     [layer] = layers
     submodule = tf.keras.Model(model.input, layer.output)
 
-    exporter = KerasModelExporter(
-        output_names=self._output_names,
-        subdirectory=self._subdirectory,
-        include_preprocessing=self._include_preprocessing,
-        options=self._options)
-    exporter.save(preprocess_model, submodule, export_dir)
+    _save_model(export_dir,
+                preprocess_model,
+                submodule,
+                self._include_preprocessing,
+                self._output_names,
+                self._subdirectory,
+                self._options)
+
+
+def _save_model(export_dir: str,
+                preprocess_model: tf.keras.Model,
+                model: tf.keras.Model,
+                include_preprocessing: bool,
+                output_names: Optional[Any] = None,
+                subdirectory: Optional[str] = None,
+                options: Optional[tf.saved_model.SaveOptions] = None):
+  """Saves a Keras model."""
+  if preprocess_model and include_preprocessing:
+    model = model_utils.chain_first_output(preprocess_model, model)
+  if output_names:
+    output = _rename_output(model.output, output_names)
+    model = tf.keras.Model(model.input, output)
+  if subdirectory:
+    export_dir = os.path.join(export_dir, subdirectory)
+  tf.keras.models.save_model(model, export_dir, options=options)

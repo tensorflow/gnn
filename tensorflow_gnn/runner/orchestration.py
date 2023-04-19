@@ -42,6 +42,7 @@ GraphTensorProcessorFn = interfaces.GraphTensorProcessorFn
 ModelExporter = interfaces.ModelExporter
 Task = interfaces.Task
 Trainer = interfaces.Trainer
+RunResult = interfaces.RunResult
 
 _BASE_MODEL_TAG = "UNDERSCORE_TFGNN_RUNNER_BASE_MODEL"
 _TPU_DEFAULT_STEPS_PER_EXECUTION = 100
@@ -59,25 +60,6 @@ class TFDataServiceConfig:
   tf_data_service_address: str
   tf_data_service_job_name: str
   tf_data_service_mode: Union[str, tf.data.experimental.service.ShardingPolicy]
-
-
-@dataclasses.dataclass
-class RunResult:
-  """Holds the return values of `run(...)`.
-
-  Attributes:
-    preprocess_model: Keras model containing only the computation for
-      preprocessing inputs. It is not trained. The model takes serialized
-      `GraphTensor`s as its inputs and returns preprocessed `GraphTensor`s.
-    base_model: Keras base GNN (as returned by the user provided `model_fn`).
-      The model both takes and returns `GraphTensor`s.
-    trained_model: Keras model for the e2e GNN. (Base GNN plus prediction
-      head(s).) The model takes `preprocess_model` output as its inputs and
-      returns `Task` predictions.
-  """
-  preprocess_model: tf.keras.Model
-  base_model: tf.keras.Model
-  trained_model: tf.keras.Model
 
 
 class _WrappedDatasetProvider(DatasetProvider):
@@ -369,11 +351,13 @@ def run(*,
       _make_parsing_model(gtspec),
       preprocess_model, first_output_only=False)
 
-  for export_dir in export_dirs or [os.path.join(trainer.model_dir, "export")]:
-    for exporter in model_exporters:
-      exporter.save(parsing_and_preprocess_model, model, export_dir)
-
-  return RunResult(
+  run_result = RunResult(
       preprocess_model=parsing_and_preprocess_model,
       base_model=model.get_layer(_BASE_MODEL_TAG),
       trained_model=model)
+
+  for export_dir in export_dirs or [os.path.join(trainer.model_dir, "export")]:
+    for exporter in model_exporters:
+      exporter.save(run_result, export_dir)
+
+  return run_result

@@ -43,6 +43,7 @@ GraphTensorProcessorFn = interfaces.GraphTensorProcessorFn
 ModelExporter = interfaces.ModelExporter
 Trainer = interfaces.Trainer
 Task = interfaces.Task
+RunResult = interfaces.RunResult
 
 # Label fns
 ContextLabelFn = label_fns.ContextLabelFn
@@ -62,7 +63,6 @@ integrated_gradients = attribution.integrated_gradients
 
 # Orchestration
 run = orchestration.run
-RunResult = orchestration.RunResult
 TFDataServiceConfig = orchestration.TFDataServiceConfig
 
 # Padding

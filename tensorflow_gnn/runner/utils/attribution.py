@@ -325,16 +325,15 @@ class IntegratedGradientsExporter(interfaces.ModelExporter):
     self._seed = seed
     self._options = options
 
-  def save(self,
-           preprocess_model: Optional[tf.keras.Model],
-           model: tf.keras.Model,
-           export_dir: str):
+  def save(self, run_result: interfaces.RunResult, export_dir: str):
     """Exports a Keras model with an additional integrated gradients signature.
 
-    Importantly: the `preprocess_model` is required and is concatenated with
-    `model` before any export. Concatenation involves the chaining of the
-    first output of `preprocess_model` to the only input of `model.` The result
-    is a model with the input of `preprocess_model` and the output of `model.`
+    Importantly: the `run_result.preprocess_model`, if provided, and
+    `run_result.trained_model` are stacked before any export. Stacking involves
+    the chaining of the first output of `run_result.preprocess_model` to the
+    only input of `run_result.trained_model.` The result is a model with the
+    input of `run_result.preprocess_model` and the output of
+    `run_result.trained_model.`
 
     Two serving signatures are exported:
 
@@ -344,10 +343,12 @@ class IntegratedGradientsExporter(interfaces.ModelExporter):
       `preprocess_model` input signature).
 
     Args:
-      preprocess_model: A `tf.keras.Model` for preprocessing.
-      model: A `tf.keras.Model` to save.
-      export_dir: A destination directory for the model.
+      run_result: A `RunResult` from training.
+      export_dir: A destination directory.
     """
+    preprocess_model = run_result.preprocess_model
+    model = run_result.trained_model
+
     if preprocess_model is None:
       raise ValueError("Integrated gradients requires a `preprocess_model.`")
 

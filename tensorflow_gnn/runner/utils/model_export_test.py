@@ -18,6 +18,8 @@ from typing import Any
 
 from absl.testing import parameterized
 import tensorflow as tf
+
+from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner.utils import model_export
 
 
@@ -106,7 +108,7 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
       output_names: Any):
     export_dir = self.create_tempdir()
     exporter = model_export.KerasModelExporter(output_names=output_names)
-    exporter.save(None, model, export_dir)
+    exporter.save(interfaces.RunResult(None, None, model), export_dir)
 
     for load_fn in (tf.keras.models.load_model, tf.saved_model.load):
       saved_model = load_fn(export_dir)
@@ -208,7 +210,7 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
         submodule_name,
         output_names=output_names,
         subdirectory=subdirectory)
-    exporter.save(None, model, export_dir)
+    exporter.save(interfaces.RunResult(None, None, model), export_dir)
 
     submodule = next(m for m in model.submodules if submodule_name == m.name)
 
@@ -265,7 +267,8 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
       expected_error: str):
     exporter = model_export.SubmoduleExporter(submodule_name)
     with self.assertRaisesRegex(ValueError, expected_error):
-      exporter.save(None, model, self.create_tempdir())
+      run_result = interfaces.RunResult(None, None, model)
+      exporter.save(run_result, self.create_tempdir())
 
 
 if __name__ == "__main__":

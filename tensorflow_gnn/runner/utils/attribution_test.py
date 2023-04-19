@@ -16,6 +16,7 @@
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
+from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner.utils import attribution
 
 IntegratedGradientsExporter = attribution.IntegratedGradientsExporter
@@ -263,7 +264,9 @@ class AttributionTest(tf.test.TestCase):
     # Export
     export_dir = self.create_tempdir()
     exporter = attribution.IntegratedGradientsExporter("output", steps=3)
-    exporter.save(preprocess_model, model, export_dir)
+
+    run_result = interfaces.RunResult(preprocess_model, None, model)
+    exporter.save(run_result, export_dir)
 
     saved_model = tf.saved_model.load(export_dir)
 

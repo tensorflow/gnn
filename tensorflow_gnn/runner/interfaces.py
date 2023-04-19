@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import abc
+import dataclasses
 import sys
 from typing import Callable, Optional, Sequence, Union
 
@@ -34,6 +35,29 @@ else:
 Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
 SizeConstraints = tfgnn.SizeConstraints
+
+
+@dataclasses.dataclass
+class RunResult:
+  """Holds the return values of `run(...)`.
+
+  Attributes:
+    preprocess_model: Keras model containing only the computation for
+      preprocessing inputs. It is not trained. The model takes serialized
+      `GraphTensor`s as its inputs and returns preprocessed `GraphTensor`s.
+      `None` when no preprocess model exists.
+    base_model: Keras base GNN (as returned by the user provided `model_fn`).
+      The model both takes and returns `GraphTensor`s. The model contains
+      any--but not all--trained weights. The `trained_model` contains all
+      `base_model` trained weights in addition to any prediction trained
+      weights.
+    trained_model: Keras model for the e2e GNN. (Base GNN plus prediction
+      head(s).) The model takes `preprocess_model` output as its inputs and
+      returns `Task` predictions. The model contains all trained weights.
+  """
+  preprocess_model: Optional[tf.keras.Model]
+  base_model: tf.keras.Model
+  trained_model: tf.keras.Model
 
 
 class DatasetProvider(abc.ABC):
@@ -71,20 +95,15 @@ class ModelExporter(abc.ABC):
   """Saves a Keras model."""
 
   @abc.abstractmethod
-  def save(
-      self,
-      preprocess_model: Optional[tf.keras.Model],
-      model: tf.keras.Model,
-      export_dir: str):
+  def save(self, run_result: RunResult, export_dir: str):
     """Saves a Keras model.
 
     All persistence decisions are left to the implementation: e.g., a Keras
     model with full API or a simple `tf.train.Checkpoint` may be saved.
 
     Args:
-      preprocess_model: An optional `tf.keras.Model` for preprocessing.
-      model: A `tf.keras.Model` to save.
-      export_dir: A destination directory for the model.
+      run_result: A `RunResult` from training.
+      export_dir: A destination directory.
     """
     raise NotImplementedError()
 
