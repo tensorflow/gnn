@@ -105,9 +105,6 @@ from typing import Any, List, Mapping, MutableMapping, NamedTuple, Tuple, Union,
 import urllib.request
 
 import numpy as np
-import ogb.linkproppred
-import ogb.nodeproppred
-
 import scipy
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -517,6 +514,13 @@ class _OgbGraph:
     return self._edge_index_dict
 
 
+def _get_ogbn_dataset(dataset_name: str, cache_dir: Optional[str] = None):
+  """Imports ogb and returns `NodePropPredDataset`."""
+  # This is done on purpose: we only import ogb if an ogb dataset is requested.
+  import ogb.nodeproppred  # pylint: disable=g-import-not-at-top
+  return ogb.nodeproppred.NodePropPredDataset(dataset_name, root=cache_dir)
+
+
 class OgbnData(NodeClassificationGraphData):
   """Wraps node classification graph data of ogbn-* for in-memory learning."""
 
@@ -526,8 +530,7 @@ class OgbnData(NodeClassificationGraphData):
       cache_dir = os.environ.get(
           'OGB_CACHE_DIR', os.path.expanduser(os.path.join('~', 'data', 'ogb')))
 
-    self.ogb_dataset = ogb.nodeproppred.NodePropPredDataset(
-        dataset_name, root=cache_dir)
+    self.ogb_dataset = _get_ogbn_dataset(dataset_name, cache_dir)
     self._graph, self._node_labels, self._node_split, self._labeled_nodeset = (
         OgbnData._to_heterogeneous(self.ogb_dataset))
 
@@ -543,7 +546,7 @@ class OgbnData(NodeClassificationGraphData):
 
   @staticmethod
   def _to_heterogeneous(
-      ogb_dataset: ogb.nodeproppred.NodePropPredDataset) -> Tuple[
+      ogb_dataset: Any) -> Tuple[
           _OgbGraph,    # ogb_graph.
           np.ndarray,   # node_labels.
           NodeSplit,    # idx_split.
