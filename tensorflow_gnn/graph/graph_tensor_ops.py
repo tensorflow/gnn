@@ -671,9 +671,9 @@ def mask_edges(
       tf.debugging.assert_equal(
           tf.shape(boolean_edge_mask),
           tf.shape(list(adj_indices.values())[0][1]),
-          f'boolean_edge_mask should have the same shape with the adjacency node '
-          f'index vectors of the edge-set: {edge_set_name} '
-          f'adjacency shape: {tf.shape(edge_set.adjacency.source)}')
+          f'boolean_edge_mask should have the same shape with the adjacency '
+          f'node index vectors of the edge-set: {edge_set_name} '
+          f'adjacency shape: {tf.shape(edge_set.adjacency[const.SOURCE])}')
   ]
   with tf.control_dependencies(validation_ops):
     negated_boolean_edge_mask = tf.math.logical_not(boolean_edge_mask)
