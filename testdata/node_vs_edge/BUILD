@@ -1,6 +1,9 @@
 licenses(["notice"])
 
-package(default_visibility = ["//visibility:public"])
+package(
+    default_applicable_licenses = ["//tensorflow_gnn:license"],
+    default_visibility = ["//visibility:public"],
+)
 
 filegroup(
     name = "node_vs_edge",

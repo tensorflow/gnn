@@ -2,6 +2,11 @@ load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_librar
 
 licenses(["notice"])
 
+package(
+    default_applicable_licenses = ["//tensorflow_gnn:license"],
+    default_visibility = ["//visibility:public"],
+)
+
 pytype_strict_library(
     name = "keras_fit",
     srcs = ["keras_fit.py"],

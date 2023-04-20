@@ -3,12 +3,15 @@ load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "tf_py_test")
 
 licenses(["notice"])
 
-package(default_visibility = [
-    "//tensorflow_gnn:__pkg__",
-    "//tensorflow_gnn/compat:__subpackages__",
-    "//tensorflow_gnn/graph:__subpackages__",
-    "//tensorflow_gnn/keras:__subpackages__",
-])
+package(
+    default_applicable_licenses = ["//tensorflow_gnn:license"],
+    default_visibility = [
+        "//tensorflow_gnn:__pkg__",
+        "//tensorflow_gnn/compat:__subpackages__",
+        "//tensorflow_gnn/graph:__subpackages__",
+        "//tensorflow_gnn/keras:__subpackages__",
+    ],
+)
 
 pytype_strict_library(
     name = "layers",

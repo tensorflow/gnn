@@ -4,6 +4,11 @@ load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "distribute_py_test")
 
 licenses(["notice"])
 
+package(
+    default_applicable_licenses = ["//tensorflow_gnn:license"],
+    default_visibility = ["//visibility:public"],
+)
+
 pytype_strict_library(
     name = "runner",
     srcs = ["__init__.py"],

@@ -2,7 +2,10 @@ load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_contri
 
 licenses(["notice"])
 
-package(default_visibility = ["//visibility:public"])
+package(
+    default_applicable_licenses = ["//tensorflow_gnn:license"],
+    default_visibility = ["//visibility:public"],
+)
 
 GOOGLE_INTERNAL_UNIGRAPH_DEPENDENCIES = []
 
