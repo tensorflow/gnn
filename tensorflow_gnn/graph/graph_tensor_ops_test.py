@@ -1202,7 +1202,7 @@ class ReorderNodesTest(tf.test.TestCase, parameterized.TestCase):
         graph_in, {'a': tf.constant([9, 8, 7, 6, 5, 4, 3, 2, 1, 0]),
                    'b': tf.constant([9, 8, 7, 6, 5, 4, 3, 2, 1, 0])})
     outputs = tf.keras.layers.Layer(name='final_edge_adjacency')(
-        graph_out.edge_sets['aa'].adjacency.source
+        graph_out.edge_sets['aa'].adjacency[const.SOURCE]
     )
     model = tf.keras.Model(inputs, outputs)
     expected = model(test_graph_dict).numpy()
@@ -1853,7 +1853,7 @@ class EdgeMaskingTest(tf.test.TestCase, parameterized.TestCase):
         tf.convert_to_tensor([True, False, True, True]),
         'masked_aa')
     outputs = tf.keras.layers.Layer(name='final_edge_adjacency')(
-        graph_out.edge_sets['masked_aa'].adjacency.source
+        graph_out.edge_sets['masked_aa'].adjacency[const.SOURCE]
     )
     model = tf.keras.Model(inputs, outputs)
     expected = model(test_graph_dict).numpy()
@@ -1881,8 +1881,11 @@ class _MakeLineGraphTargetToSource(tf.keras.layers.Layer):
 
 class LineGraphTest(tf.test.TestCase):
 
-  def _make_test_graph(self):
-    return _MakeGraphTensor()({'fa': tf.range(10)})
+  def _make_test_graph(self, add_readout=False):
+    return _MakeGraphTensor()(
+        {'fa': tf.range(10)},
+        add_readout=add_readout
+    )
 
   def testContextFeatures(self):
     graph_tensor = self._make_test_graph()
@@ -1905,8 +1908,8 @@ class LineGraphTest(tf.test.TestCase):
         graph_tensor,
         use_node_features_as_line_graph_edge_features=True
     )
-    self.assertAllEqual(
-        list(line_graph.edge_sets.keys()),
+    self.assertCountEqual(
+        line_graph.edge_sets,
         ['aa=>aa', 'aa=>ab', 'ab=>ba', 'ba=>aa', 'ba=>ab'],
     )
 
@@ -1947,8 +1950,8 @@ class LineGraphTest(tf.test.TestCase):
         connect_from=const.TARGET,
         connect_to=const.SOURCE,
     )
-    self.assertAllEqual(
-        list(line_graph.edge_sets.keys()),
+    self.assertCountEqual(
+        line_graph.edge_sets,
         ['aa=>aa', 'aa=>ab', 'ab=>ba', 'ba=>aa', 'ba=>ab'],
     )
     self.assertAllEqual(
@@ -1999,8 +2002,8 @@ class LineGraphTest(tf.test.TestCase):
         connect_from=const.TARGET,
         connect_to=const.TARGET,
     )
-    self.assertAllEqual(
-        list(line_graph.edge_sets.keys()),
+    self.assertCountEqual(
+        line_graph.edge_sets,
         ['aa=>aa', 'aa=>ba', 'ab=>ab', 'ba=>aa', 'ba=>ba'],
     )
     self.assertAllEqual(
@@ -2142,6 +2145,65 @@ class LineGraphTest(tf.test.TestCase):
         graph_tensor.edge_sets['ba'].adjacency[const.TARGET],
     )
 
+  def testAuxiliaryNodeSetError(self):
+    graph_tensor = self._make_test_graph(add_readout=True)
+    edge_sets = dict(graph_tensor.edge_sets)
+    del edge_sets['_readout/testE']
+    graph_tensor = gt.GraphTensor.from_pieces(
+        context=graph_tensor.context,
+        node_sets=graph_tensor.node_sets,
+        edge_sets=edge_sets,
+    )
+    with self.assertRaises(ValueError):
+      ops.convert_to_line_graph(graph_tensor)
+
+  def testAuxiliaryEdgeSetError(self):
+    graph_tensor = self._make_test_graph(add_readout=True)
+    node_sets = dict(graph_tensor.node_sets)
+    del node_sets['_readout']
+    graph_tensor = gt.GraphTensor.from_pieces(
+        context=graph_tensor.context,
+        node_sets=node_sets,
+        edge_sets=graph_tensor.edge_sets,
+    )
+    with self.assertRaises(ValueError):
+      ops.convert_to_line_graph(graph_tensor)
+
+  def testNoAuxiliaryLineGraph(self):
+    graph_tensor = self._make_test_graph(add_readout=True)
+    line_graph = ops.convert_to_line_graph(
+        graph_tensor, connect_with_original_nodes=True
+    )
+    self.assertCountEqual(
+        line_graph.node_sets,
+        ['aa', 'ab', 'ba', 'original/a', 'original/b', '_readout'],
+    )
+    self.assertCountEqual(
+        line_graph.edge_sets,
+        [
+            'original/from/aa',
+            'original/to/aa',
+            'original/from/ab',
+            'original/to/ab',
+            'original/from/ba',
+            'original/to/ba',
+            '_readout/testE',
+            'aa=>aa',
+            'aa=>ab',
+            'ab=>ba',
+            'ba=>aa',
+            'ba=>ab',
+        ],
+    )
+
+  def testReadoutNamed(self):
+    graph_tensor = self._make_test_graph(add_readout=True)
+    line_graph = ops.convert_to_line_graph(
+        graph_tensor, connect_with_original_nodes=True
+    )
+    readout_f2 = readout.readout_named(line_graph, 'testE', feature_name='f2')
+    self.assertAllEqual(readout_f2, [100, 102, 101, 109])
+
   def testTFLite(self):
     test_graph_dict = {'fa': tf.range(10)}
     inputs = {'fa': tf.keras.Input([1], None, 'fa', tf.int32)}
@@ -2170,48 +2232,64 @@ class LineGraphTest(tf.test.TestCase):
 # of GraphTensor as a dict of plain Tensors.
 class _MakeGraphTensor(tf.keras.layers.Layer):
 
-  def call(self, inputs):
+  def call(self, inputs, *, add_readout=False):
+    node_sets = {
+        'a': gt.NodeSet.from_fields(
+            features={'fa': inputs['fa'], 'f2': 100 + tf.range(10)},
+            sizes=as_tensor([8, 2]),
+        ),
+        'b': gt.NodeSet.from_fields(
+            features={'fb': tf.range(10), 'f2': 100 + tf.range(10)},
+            sizes=as_tensor([8, 2]),
+        ),
+    }
+    edge_sets = {
+        'aa': gt.EdgeSet.from_fields(
+            features={'faa': tf.range(4), 'f2': 100 + tf.range(4)},
+            sizes=as_tensor([3, 1]),
+            adjacency=adj.HyperAdjacency.from_indices({
+                const.SOURCE: ('a', as_tensor([0, 0, 2, 8])),
+                const.TARGET: ('a', as_tensor([0, 1, 3, 9])),
+            }),
+        ),
+        'ab': gt.EdgeSet.from_fields(
+            features={'fab': tf.range(5), 'f2': 100 + tf.range(5)},
+            sizes=as_tensor([4, 1]),
+            adjacency=adj.HyperAdjacency.from_indices({
+                const.SOURCE: ('a', as_tensor([0, 2, 1, 7, 8])),
+                const.TARGET: ('b', as_tensor([1, 0, 1, 2, 9])),
+            }),
+        ),
+        'ba': gt.EdgeSet.from_fields(
+            features={'fba': tf.range(6), 'f2': 100 + tf.range(6)},
+            sizes=as_tensor([5, 1]),
+            adjacency=adj.HyperAdjacency.from_indices({
+                const.SOURCE: ('b', as_tensor([0, 1, 1, 0, 1, 9])),
+                const.TARGET: ('a', as_tensor([7, 6, 5, 5, 4, 8])),
+            }),
+        ),
+    }
+    if add_readout:
+      node_sets['_readout'] = gt.NodeSet.from_fields(
+          features={'f1': 100 + tf.range(4)},
+          sizes=as_tensor([3, 1]),
+      )
+      edge_sets['_readout/testE'] = gt.EdgeSet.from_fields(
+          features={'f1': 100 + tf.range(4)},
+          sizes=as_tensor([3, 1]),
+          adjacency=adj.HyperAdjacency.from_indices({
+              const.SOURCE: ('b', as_tensor([0, 2, 1, 9])),
+              const.TARGET: ('_readout', as_tensor([0, 1, 2, 3])),
+          }),
+      )
     return gt.GraphTensor.from_pieces(
         context=gt.Context.from_fields(
             features={'fc': as_tensor([10, 11]), 'f2': as_tensor([20, 21])}
         ),
-        node_sets={
-            'a': gt.NodeSet.from_fields(
-                features={'fa': inputs['fa'], 'f2': 100 + tf.range(10)},
-                sizes=as_tensor([8, 2]),
-            ),
-            'b': gt.NodeSet.from_fields(
-                features={'fb': tf.range(10), 'f2': 100 + tf.range(10)},
-                sizes=as_tensor([8, 2]),
-            ),
-        },
-        edge_sets={
-            'aa': gt.EdgeSet.from_fields(
-                features={'faa': tf.range(4), 'f2': 100 + tf.range(4)},
-                sizes=as_tensor([3, 1]),
-                adjacency=adj.Adjacency.from_indices(
-                    ('a', as_tensor([0, 0, 2, 8])),
-                    ('a', as_tensor([0, 1, 3, 9])),
-                ),
-            ),
-            'ab': gt.EdgeSet.from_fields(
-                features={'fab': tf.range(5), 'f2': 100 + tf.range(5)},
-                sizes=as_tensor([4, 1]),
-                adjacency=adj.Adjacency.from_indices(
-                    ('a', as_tensor([0, 2, 1, 7, 8])),
-                    ('b', as_tensor([1, 0, 1, 2, 9])),
-                ),
-            ),
-            'ba': gt.EdgeSet.from_fields(
-                features={'fba': tf.range(6), 'f2': 100 + tf.range(6)},
-                sizes=as_tensor([5, 1]),
-                adjacency=adj.Adjacency.from_indices(
-                    ('b', as_tensor([0, 1, 1, 0, 1, 9])),
-                    ('a', as_tensor([7, 6, 5, 5, 4, 8])),
-                ),
-            ),
-        },
+        node_sets=node_sets,
+        edge_sets=edge_sets,
     )
+
 
 if __name__ == '__main__':
   tf.test.main()

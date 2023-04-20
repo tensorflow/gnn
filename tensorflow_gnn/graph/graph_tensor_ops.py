@@ -1324,7 +1324,6 @@ def _where_scalar_or_field(condition: const.Field, true_scalar_value: tf.Tensor,
   return tf.where(condition, true_value, false_value)
 
 
-# TODO(b/272682651): What should happen to auxiliary node sets and edge sets?
 def convert_to_line_graph(
     graph_tensor: gt.GraphTensor,
     *,
@@ -1344,6 +1343,10 @@ def convert_to_line_graph(
   connects through a common node set (as selected by the args).
   Note that representing undirected edges {a,b} as a pair of two directed edges
   a->b and b->a will result in a pair of separate line graph nodes.
+  
+  Auxiliary node sets are not converted. This will raise an error if (a) the
+  graph contains a _readout node set and `preserve_node_sets` is False or
+  (b) it contains a _shadow node set.
 
   Example: Consider a directed triangle represented as a homogeneous graph.
     The node set 'points' contains nodes a, b and c while the edge set 'lines'
@@ -1378,33 +1381,94 @@ def convert_to_line_graph(
   """
   gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.convert_to_line_graph()')
 
+  # Check for unhandled auxiliary node sets
+  for node_set_name in graph_tensor.node_sets:
+    if re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, node_set_name):
+      if node_set_name == '_readout':
+        if not connect_with_original_nodes:
+          # TODO(b/276907237): Handle special readout node set names.
+          raise ValueError(
+              'The original graph contains an auxiliary \'_readout\' node set. '
+              'Set `connect_with_original_nodes=True` to keep it, or delete it '
+              'before calling tfgnn.convert_to_line_graph().'
+          )
+      else:
+        # TODO(b/276742948): Handle shadow node sets properly, perhaps by
+        # converting them to a regular node readout.
+        raise ValueError(
+            'The original graph contains an auxiliary node set '
+            f'\'{node_set_name}\' that `tfgnn.convert_to_line_graph()` '
+            'currently cannot handle. Please delete this set before calling '
+            '`tfgnn.convert_to_line_graph()`.'
+        )
+
+  # Check for unhandled auxiliary edge sets
+  for edge_set_name, edge_set in graph_tensor.edge_sets.items():
+    if re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, edge_set_name):
+      if edge_set_name.startswith('_readout/'):
+        if not connect_with_original_nodes:
+          raise ValueError(
+              'The original graph contains an auxiliary \'_readout/\' '
+              'edge set. Set `connect_with_original_nodes=True` to keep it, '
+              'or delete it before calling tfgnn.convert_to_line_graph().'
+          )
+      else:
+        raise ValueError(
+            'The original graph contains an auxiliary edge set '
+            f'\'{edge_set_name}\' that `tfgnn.convert_to_line_graph()` '
+            'currently cannot handle. Please delete this set before calling '
+            '`tfgnn.convert_to_line_graph()`.'
+        )
+    else:
+      if connect_with_original_nodes:
+        if (
+            set(edge_set.adjacency.get_indices_dict())
+            != {const.SOURCE, const.TARGET}
+        ):
+          # TODO(b/276726198): Handle more general HyperAdjacency, perhaps by
+          # introducing a special key for line graph nodes.
+          raise ValueError(
+              'Expected an adjacency with exactly one tfgnn.SOURCE and one '
+              'tfgnn.TARGET endpoint in `tfgnn.convert_to_line_graph()`. '
+              'Other cases are currently not supported for '
+              '`connect_with_original_nodes=True`.'
+          )
+
   line_node_sets = {
       edge_set_name: gt.NodeSet.from_fields(
           features=edge_set.get_features_dict(), sizes=edge_set.sizes
       )
       for edge_set_name, edge_set in graph_tensor.edge_sets.items()
+      if not re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, edge_set_name)
   }
   line_edge_sets = {}
 
   if connect_with_original_nodes:
-    line_node_sets.update({
-        f'original/{node_set_name}': node_set
-        for node_set_name, node_set in graph_tensor.node_sets.items()
-    })
+    for node_set_name, node_set in graph_tensor.node_sets.items():
+      if re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, node_set_name):
+        line_node_sets[node_set_name] = node_set
+      else:
+        line_node_sets[f'original/{node_set_name}'] = node_set
 
     for edge_set_name, edge_set in graph_tensor.edge_sets.items():
-      if (
-          set(edge_set.adjacency.get_indices_dict())
-          != {const.SOURCE, const.TARGET}
-      ):
-        # TODO(b/276726198): Handle more general HyperAdjacency, perhaps by
-        # introducing a special key for line graph nodes.
-        raise ValueError(
-            'Expected an adjacency with exactly one tfgnn.SOURCE and one '
-            'tfgnn.TARGET endpoint in `tfgnn.convert_to_line_graph()`. '
-            'Other cases are currently not supported for '
-            '`connect_with_original_nodes=True`.'
+      if re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, edge_set_name):
+        source_name = edge_set.adjacency.node_set_name(const.SOURCE)
+        target_name = edge_set.adjacency.node_set_name(const.TARGET)
+        if not re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, source_name):
+          source_name = f'original/{source_name}'
+        if not re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, target_name):
+          target_name = f'original/{target_name}'
+
+        line_edge_sets[edge_set_name] = gt.EdgeSet.from_fields(
+            sizes=edge_set.sizes,
+            adjacency=adj.Adjacency.from_indices(
+                source=(source_name, edge_set.adjacency[const.SOURCE]),
+                target=(target_name, edge_set.adjacency[const.TARGET]),
+            ),
+            features=edge_set.features,
         )
+        continue
+
       line_edge_sets[
           f'original/from/{edge_set_name}'
       ] = gt.EdgeSet.from_fields(
@@ -1431,6 +1495,9 @@ def convert_to_line_graph(
       )
 
   for edge_set_name_source, edge_set_source in graph_tensor.edge_sets.items():
+    if re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, edge_set_name_source):
+      continue
+
     node_set_name_source = edge_set_source.adjacency.node_set_name(
         connect_from
     )
@@ -1441,7 +1508,7 @@ def convert_to_line_graph(
       if (
           edge_set_target.adjacency.node_set_name(connect_to)
           != node_set_name_source
-      ):
+      ) or re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, edge_set_name_target):
         continue
 
       # Get the number of edges on each side of a node
