@@ -1154,6 +1154,71 @@ class BatchingUnbatchingMergingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(edge.adjacency[const.SOURCE],
                         as_ragged([], dtype=tf.int64, ragged_rank=1))
 
+  def testTFLite(self):
+    test_graph_dict = {
+        'node_features': tf.constant([[1.], [2.], [3.]], tf.float32),
+        'node_row_lengths': tf.constant([2, 1], tf.int32),
+        'edge_row_lengths': tf.constant([2, 1], tf.int32),
+        'edge_source': tf.constant([0, 1, 0], tf.int32),
+        'edge_target': tf.constant([1, 0, 0], tf.int32),
+    }
+    inputs = {
+        'node_features': tf.keras.Input([1], None, 'node_features', tf.float32),
+        'node_row_lengths': tf.keras.Input(
+            [], None, 'node_row_lengths', tf.int32),
+        'edge_source': tf.keras.Input([], None, 'edge_source', tf.int32),
+        'edge_target': tf.keras.Input([], None, 'edge_target', tf.int32),
+        'edge_row_lengths': tf.keras.Input(
+            [], None, 'edge_row_lengths', tf.int32),
+    }
+    outputs = _MakeGraphTensorMerged()(inputs)
+    model = tf.keras.Model(inputs=inputs, outputs=outputs)
+
+    # The other unit tests should verify that this is correct
+    expected = [0, 1, 2]
+
+    # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
+    if tf.__version__.startswith('2.9.') or tf.__version__.startswith('2.10.'):
+      self.skipTest('GNN models are unsupported in TFLite until TF 2.11 but '
+                    f'got TF {tf.__version__}')
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    model_content = converter.convert()
+    interpreter = tf.lite.Interpreter(model_content=model_content)
+    signature_runner = interpreter.get_signature_runner('serving_default')
+    obtained = signature_runner(
+        **test_graph_dict)['private__make_graph_tensor_merged']
+    self.assertAllClose(expected, obtained)
+
+
+# TODO(b/274779989): Replace this layer with a more standard representation
+# of GraphTensor as a dict of plain Tensors.
+class _MakeGraphTensorMerged(tf.keras.layers.Layer):
+  """Makes a homogeneous GraphTensor of rank 0 with two components."""
+
+  def call(self, inputs):
+    node_features = tf.RaggedTensor.from_row_lengths(
+        inputs['node_features'], inputs['node_row_lengths'])
+    edge_source = tf.RaggedTensor.from_row_lengths(
+        inputs['edge_source'], inputs['edge_row_lengths'])
+    edge_target = tf.RaggedTensor.from_row_lengths(
+        inputs['edge_target'], inputs['edge_row_lengths'])
+    graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            'nodes':
+                gt.NodeSet.from_fields(
+                    sizes=tf.expand_dims(inputs['node_row_lengths'], -1),
+                    features={const.HIDDEN_STATE: node_features})
+        },
+        edge_sets={
+            'edges':
+                gt.EdgeSet.from_fields(
+                    sizes=tf.expand_dims(inputs['edge_row_lengths'], -1),
+                    adjacency=adj.Adjacency.from_indices(
+                        ('nodes', edge_source),
+                        ('nodes', edge_target)),)
+        }).merge_batch_to_components()
+    return graph.edge_sets['edges'].adjacency.source
+
 
 class NumComponentsTest(tu.GraphTensorTestBase):
   """Tests for GraphTensor tranformations."""
@@ -1249,6 +1314,45 @@ class NumComponentsTest(tu.GraphTensorTestBase):
     self.assertAllEqual(graph.context.num_components, expected)
     self.assertAllEqual(graph.context.total_num_components,
                         tf.reduce_sum(expected))
+
+
+@tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.int32)])
+def node_set_sizes_to_test_results(inputs):
+  context = gt.Context.from_fields(sizes=tf.ones_like(inputs))
+  nodes = gt.NodeSet.from_fields(sizes=inputs)
+  graph = gt.GraphTensor.from_pieces(context=context,
+                                     node_sets={'nodes': nodes})
+  return tf.stack([
+      graph.total_num_components,
+      graph.num_components,
+      graph.node_sets['nodes'].total_size,
+  ], axis=0)
+
+
+class NodeSetSizesToTestResults(tf.keras.layers.Layer):
+
+  def call(self, sizes):
+    return node_set_sizes_to_test_results(sizes)
+
+
+class SizesTFLiteTest(tf.test.TestCase):
+
+  def testTFLite(self):
+    test_tensor = tf.constant([2, 2])
+    inputs = tf.keras.Input([], None, 'node_sizes', tf.int32)
+    outputs = NodeSetSizesToTestResults()(inputs)
+    model = tf.keras.Model(inputs, outputs)
+
+    # The other unit tests should verify that this is correct
+    expected = [2, 2, 4]
+
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    model_content = converter.convert()
+    interpreter = tf.lite.Interpreter(model_content=model_content)
+    signature_runner = interpreter.get_signature_runner('serving_default')
+    obtained = signature_runner(
+        node_sizes=test_tensor)['node_set_sizes_to_test_results']
+    self.assertAllClose(expected, obtained)
 
 
 class CheckScalarGraphTensorTest(tf.test.TestCase):
