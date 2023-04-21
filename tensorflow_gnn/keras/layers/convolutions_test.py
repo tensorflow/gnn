@@ -124,6 +124,10 @@ class SimpleConvTest(tf.test.TestCase, parameterized.TestCase):
         [0.]])  # No edges.
     self.assertAllEqual(expected, actual)
 
+  def testTFLite(self):
+    self.skipTest(
+        "SimpleConv TFLite functionality is tested in models/mt_albis")
+
 
 def _make_test_graph_01into2(values):
   """Returns GraphTensor for [v0] --e0--> [v2] <-e1-- [v1] with values."""

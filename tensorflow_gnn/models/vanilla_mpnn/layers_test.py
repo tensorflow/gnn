@@ -73,6 +73,96 @@ class VanillaMPNNTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(want, graph.node_sets["b"][tfgnn.HIDDEN_STATE])
 
 
+class VanillaMPNNTFLiteTest(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.named_parameters(("WithoutLayerNorm", False),
+                                  ("WithLayerNorm", True))
+  def testBasic(self, use_layer_normalization):
+    test_graph_1_dict = {
+        # We care that the TFLite interpreter gives the same output as the
+        # model, which was tested separately (although not for the randomly
+        # initialized weights that we keep here).
+        "source":
+            tf.constant([0, 1, 2, 0, 2, 1]),
+        "target":
+            tf.constant([1, 2, 0, 2, 1, 0]),
+        "node_features":
+            tf.constant([
+                [1., 0., 0., 1.],
+                [0., 1., 0., 2.],
+                [0., 0., 1., 3.],
+            ]),
+        "edge_features":
+            tf.constant([
+                [3.],
+                [6.],
+                [9.],
+                [2.],
+                [6.],
+                [4.]]),
+    }
+    # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
+    if tf.__version__.startswith("2.9.") or tf.__version__.startswith("2.10."):
+      self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
+                    f"got TF {tf.__version__}")
+    units = 4
+    layer = vanilla_mpnn.VanillaMPNNGraphUpdate(
+        units=units,
+        message_dim=2,
+        receiver_tag=tfgnn.TARGET,
+        node_set_names=["nodes"],
+        edge_feature=tfgnn.HIDDEN_STATE,
+        use_layer_normalization=use_layer_normalization)
+
+    inputs = {
+        "node_features": tf.keras.Input([4], None, "node_features", tf.float32),
+        "source": tf.keras.Input([], None, "source", tf.int32),
+        "target": tf.keras.Input([], None, "target", tf.int32),
+        "edge_features": tf.keras.Input([1], None, "edge_features", tf.float32),
+    }
+    graph_in = _MakeGraphTensor()(inputs)
+    graph_out = layer(graph_in)
+    outputs = tf.keras.layers.Layer(name="final_node_states")(
+        graph_out.node_sets["nodes"][tfgnn.HIDDEN_STATE])
+    model = tf.keras.Model(inputs, outputs)
+
+    # The other unit tests should verify that this is correct
+    expected = model(test_graph_1_dict).numpy()
+
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    model_content = converter.convert()
+    interpreter = tf.lite.Interpreter(model_content=model_content)
+    signature_runner = interpreter.get_signature_runner("serving_default")
+    obtained = signature_runner(**test_graph_1_dict)["final_node_states"]
+    self.assertAllClose(expected, obtained)
+
+
+# TODO(b/274779989): Replace this layer with a more standard representation
+# of GraphTensor as a dict of plain Tensors.
+class _MakeGraphTensor(tf.keras.layers.Layer):
+  """Makes a homogeneous GraphTensor of rank 0 with a single component."""
+
+  def call(self, inputs):
+    node_sizes = tf.shape(inputs["node_features"])[0]
+    edge_sizes = tf.shape(inputs["edge_features"])[0]
+    return tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            "nodes":
+                tfgnn.NodeSet.from_fields(
+                    sizes=tf.expand_dims(node_sizes, axis=0),
+                    features={tfgnn.HIDDEN_STATE: inputs["node_features"]})
+        },
+        edge_sets={
+            "edges":
+                tfgnn.EdgeSet.from_fields(
+                    sizes=tf.expand_dims(edge_sizes, axis=0),
+                    adjacency=tfgnn.Adjacency.from_indices(
+                        ("nodes", inputs["source"]),
+                        ("nodes", inputs["target"])),
+                    features={tfgnn.HIDDEN_STATE: inputs["edge_features"]})
+        })
+
+
 def _make_test_graph_abc():
   return tfgnn.GraphTensor.from_pieces(
       node_sets={

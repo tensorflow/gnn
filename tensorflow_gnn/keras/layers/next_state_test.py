@@ -34,6 +34,10 @@ class NextStateFromConcatTest(tf.test.TestCase):
                          tf.constant([[5.]])))
     self.assertAllEqual([[2., 4., 6., 8., 10.]], actual)
 
+  def testTFLite(self):
+    self.skipTest(
+        "NextStateFromConcat TFLite functionality is tested in models/mt_albis")
+
 
 class ResidualNextStateTest(tf.test.TestCase, parameterized.TestCase):
 
@@ -87,6 +91,42 @@ class ResidualNextStateTest(tf.test.TestCase, parameterized.TestCase):
 
     with self.assertRaises(KeyError):
       _ = next_state((first_input))
+
+  def testTFLite(self):
+    test_input_dict = {
+        "first_input": tf.constant([[64.0]]),
+        "second_input_0": tf.constant([[8.0]]),
+        "second_input_1": tf.constant([[16.0]]),
+        "third_input": tf.constant([[32.0]]),
+    }
+    inputs = {
+        "first_input": tf.keras.Input([1], None, "first_input", tf.float32),
+        "second_input_0": tf.keras.Input(
+            [1], None, "second_input_0", tf.float32
+        ),
+        "second_input_1": tf.keras.Input(
+            [1], None, "second_input_1", tf.float32
+        ),
+        "third_input": tf.keras.Input([1], None, "third_input", tf.float32),
+    }
+    layer = next_state_lib.ResidualNextState(
+        tf.keras.layers.Dense(1, use_bias=False), name="residual_next_state")
+    outputs = layer(
+        (inputs["first_input"],
+         {"second_input_0": inputs["second_input_0"],
+          "second_input_1": inputs["second_input_1"]},
+         inputs["third_input"],))
+    model = tf.keras.Model(inputs, outputs)
+
+    # The other unit tests should verify that this is correct
+    expected = model(test_input_dict).numpy()
+
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    model_content = converter.convert()
+    interpreter = tf.lite.Interpreter(model_content=model_content)
+    signature_runner = interpreter.get_signature_runner("serving_default")
+    obtained = signature_runner(**test_input_dict)["residual_next_state"]
+    self.assertAllClose(expected, obtained)
 
 
 class SingleInputNextStateTest(tf.test.TestCase, parameterized.TestCase):
