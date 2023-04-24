@@ -45,6 +45,17 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual([[100.]],
                         graph.edge_sets["node->node"][const.HIDDEN_STATE])
 
+  def testReceivingRequired(self):
+    input_graph = _make_test_graph_with_singleton_node_sets(
+        [("node", [1.]), ("isolnode", [1.])], [("node", "node", [100.])])
+    gnn_builder = builders.ConvGNNBuilder(
+        lambda _: convolutions.SimpleConv(IdentityLayer()),
+        lambda _: next_state_lib.NextStateFromConcat(IdentityLayer()))
+    _ = gnn_builder.Convolve(["node"])(input_graph)
+    with self.assertRaisesRegex(ValueError,
+                                r"not .* from any edge set.*isolnode"):
+      _ = gnn_builder.Convolve(["node", "isolnode"])(input_graph)
+
   def testCallbacks(self):
     conv_result = None
     def convolutions_factory(edge_set_name, receiver_tag):
@@ -273,8 +284,7 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
       del node_set_name  # Unused.
       return next_state_lib.NextStateFromConcat(IdentityLayer())
     input_graph = _make_test_graph_with_singleton_node_sets(
-        [("node", [1.]), ("_extra", [9.])],
-        [])
+        [("node", [1.]), ("_extra", [9.])], [("node", "node", [100.])])
     gnn_builder = builders.ConvGNNBuilder(convolutions_factory,
                                           nodes_next_state_factory,
                                           receiver_tag=const.TARGET)

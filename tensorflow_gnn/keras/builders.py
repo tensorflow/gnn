@@ -147,10 +147,10 @@ class ConvGNNBuilder:
 
     Args:
       node_sets: By default, the result updates all node sets that receive from
-        at least one edge set. Passing a set of node set names here (or a
-        Collection convertible to a set) overrides this (possibly including
-        node sets that receive from zero edge sets). Auxiliary node sets are
-        not allowed in this list.
+        at least one edge set. Optionally, this argument can specify a subset
+        of those node sets. It is not allowed to include node sets that do not
+        receive messages from any edge set. It is also not allowed to include
+        auxiliary node sets.
       name: Optionally, a name for the returned GraphUpate layer.
 
     Returns:
@@ -185,7 +185,7 @@ class ConvGNNBuilder:
         if self._aux_graph_piece_re.fullmatch(edge_set_name):
           continue
         if not isinstance(edge_set_spec.adjacency_spec, adj.HyperAdjacencySpec):
-          raise ValueError('Unsupported adjacency type {}'.format(
+          raise ValueError("Unsupported adjacency type {}".format(
               type(edge_set_spec.adjacency_spec).__name__))
         for receiver_tag in receiver_tags:
           receiver_node_set = edge_set_spec.adjacency_spec.node_set_name(
@@ -215,8 +215,24 @@ class ConvGNNBuilder:
             )
           receiver_to_inputs[receiver_node_set][edge_set_name] = conv
 
-      receiver_node_sets = (node_sets if node_sets is not None
-                            else receiver_to_inputs.keys())
+      if node_sets is None:
+        receiver_node_sets = receiver_to_inputs.keys()
+      else:
+        non_receiver_node_sets = [
+            node_set_name for node_set_name in node_sets
+            if node_set_name not in receiver_to_inputs]
+        if non_receiver_node_sets:
+          raise ValueError(
+              "A GraphUpdate was requested to include the following node sets "
+              "that do not receive inputs from any edge set: "
+              f"{non_receiver_node_sets}. Receiver tags are {receiver_tags}, "
+              f"where SOURCE={const.SOURCE} and TARGET={const.TARGET}. "
+              "In convolutional or message-passing GNNs, this is likley an "
+              "error and hence unsupported by `tfgnn.keras.ConvGNNBuilder` and "
+              "the GraphUpdate classes built by it. "
+          )
+        receiver_node_sets = node_sets
+
       node_set_updates = dict()
       for node_set in receiver_node_sets:
         next_state = self._nodes_next_state_factory(node_set)
