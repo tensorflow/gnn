@@ -23,7 +23,7 @@ from tensorflow_gnn.graph import graph_tensor_ops as ops
 from tensorflow_gnn.graph import readout
 
 
-class ReadoutTest(tf.test.TestCase, parameterized.TestCase):
+class ReadoutTest(tf.test.TestCase):
   """Tests readout_named() and supporting validation functions."""
 
   def testHomNodeClassification(self):
@@ -237,6 +237,203 @@ class ReadoutTest(tf.test.TestCase, parameterized.TestCase):
 # TODO(b/269076334): Test error detection more completely: all cases,
 # also from within Dataset.map().
 # TODO(b/269076334): Test alternative values of readout_node_set.
+
+
+class ReadoutNamedIntoFeatureTest(tf.test.TestCase, parameterized.TestCase):
+  """Tests readout_named_into_feature()."""
+
+  @parameterized.named_parameters(
+      ("KeepInput", False),
+      ("RemoveInput", True))
+  def test(self, remove_input_feature):
+    test_graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            "objects": gt.NodeSet.from_fields(
+                sizes=tf.constant([2]),
+                features={"labels": tf.constant([1, 2]),
+                          "zeros": tf.zeros([2])}),
+            "unrelated": gt.NodeSet.from_fields(
+                sizes=tf.constant([1]),
+                features={"labels": tf.constant([9, 9]),
+                          "stuff": tf.constant([[3.14, 2.71]])}),
+            "_readout": gt.NodeSet.from_fields(
+                sizes=tf.constant([2]),
+                features={"other": tf.constant([9., 9.])}),
+            "_shadow/links": gt.NodeSet.from_fields(
+                sizes=tf.constant([2]))},
+        edge_sets={
+            "links": gt.EdgeSet.from_fields(
+                sizes=tf.constant([2]),
+                adjacency=adj.Adjacency.from_indices(
+                    ("objects", tf.constant([0, 1])),
+                    ("objects", tf.constant([1, 0]))),
+                features={"labels": tf.constant([3, 4]),
+                          "ones": tf.ones([2, 1])}),
+            "_readout/the_key/1": gt.EdgeSet.from_fields(
+                sizes=tf.constant([1]),
+                adjacency=adj.Adjacency.from_indices(
+                    ("objects", tf.constant([1])),
+                    ("_readout", tf.constant([0])))),
+            "_readout/the_key/2": gt.EdgeSet.from_fields(
+                sizes=tf.constant([1]),
+                adjacency=adj.Adjacency.from_indices(
+                    ("_shadow/links", tf.constant([1])),
+                    ("_readout", tf.constant([1]))))})
+
+    graph = readout.readout_named_into_feature(
+        test_graph, "the_key", feature_name="labels", new_feature_name="target",
+        remove_input_feature=remove_input_feature)
+
+    # Check read-out features.
+    self.assertCountEqual(["target", "other"],
+                          graph.node_sets["_readout"].features.keys())
+    self.assertAllEqual([2, 4], graph.node_sets["_readout"]["target"])
+
+    # Check features on non-aux node sets and edge sets.
+    self.assertCountEqual(["zeros"] + ["labels"] * (not remove_input_feature),
+                          graph.node_sets["objects"].features.keys())
+    self.assertCountEqual(["ones"] + ["labels"] * (not remove_input_feature),
+                          graph.edge_sets["links"].features.keys())
+    self.assertCountEqual(["stuff", "labels"],
+                          graph.node_sets["unrelated"].features.keys())
+
+  def testOverwrite(self):
+    test_graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            "objects": gt.NodeSet.from_fields(
+                sizes=tf.constant([2]),
+                features={"labels": tf.constant([1, 2]),
+                          "zeros": tf.zeros([2])}),
+            "_readout": gt.NodeSet.from_fields(
+                sizes=tf.constant([2]),
+                features={"target": tf.constant([9, 9]),
+                          "other": tf.constant([9., 9.])})},
+        edge_sets={
+            "_readout/the_key": gt.EdgeSet.from_fields(
+                sizes=tf.constant([1]),
+                adjacency=adj.Adjacency.from_indices(
+                    ("objects", tf.constant([1, 0])),
+                    ("_readout", tf.constant([0, 1]))))})
+
+    with self.assertRaisesRegex(ValueError, r"already exists"):
+      _ = readout.readout_named_into_feature(
+          test_graph, "the_key", feature_name="labels",
+          new_feature_name="target")
+
+    graph = readout.readout_named_into_feature(
+        test_graph, "the_key", feature_name="labels",
+        new_feature_name="target", overwrite=True)
+    self.assertAllEqual([2, 1], graph.node_sets["_readout"]["target"])
+
+
+class AddReadoutFromFirstNodeTest(tf.test.TestCase):
+  """Tests add_readout_from_first_node()."""
+
+  def test(self):
+    test_graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            "objects": gt.NodeSet.from_fields(
+                sizes=tf.constant([2, 3]),
+                features={"elevens": tf.constant([11, 22, 33, 44, 55])}),
+            "unrelated": gt.NodeSet.from_fields(
+                sizes=tf.constant([1, 1]),
+                features={"elevens": tf.constant([99, 99])})},
+        edge_sets={
+            "links": gt.EdgeSet.from_fields(
+                sizes=tf.constant([1, 1]),
+                adjacency=adj.Adjacency.from_indices(
+                    ("objects", tf.constant([1, 3])),
+                    ("unrelated", tf.constant([0, 1]))))})
+
+    graph = readout.add_readout_from_first_node(
+        test_graph, "my_key", node_set_name="objects")
+    self.assertAllEqual(
+        [11, 33],
+        readout.readout_named(graph, "my_key", feature_name="elevens"))
+
+
+class ContextReadoutIntoFeatureTest(tf.test.TestCase, parameterized.TestCase):
+  """Tests context_readout_into_feature()."""
+
+  @parameterized.named_parameters(
+      ("KeepInput", False),
+      ("RemoveInput", True))
+  def test(self, remove_input_feature):
+    test_graph = gt.GraphTensor.from_pieces(
+        context=gt.Context.from_fields(
+            features={"labels": tf.constant([1, 2]),
+                      "zeros": tf.zeros([2])}),
+        node_sets={
+            "unrelated": gt.NodeSet.from_fields(
+                sizes=tf.constant([1]),
+                features={"labels": tf.constant([9, 9]),
+                          "stuff": tf.constant([[3.14, 2.71]])})})
+
+    graph = readout.context_readout_into_feature(
+        test_graph, feature_name="labels", new_feature_name="target",
+        remove_input_feature=remove_input_feature)
+
+    # Check read-out features.
+    self.assertAllEqual([1, 2], graph.node_sets["_readout"]["target"])
+
+    # Check features on non-aux node sets and edge sets.
+    self.assertCountEqual(["zeros"] + ["labels"] * (not remove_input_feature),
+                          graph.context.features.keys())
+    self.assertCountEqual(["stuff", "labels"],
+                          graph.node_sets["unrelated"].features.keys())
+
+  def testExistingReadout(self):
+    test_graph = gt.GraphTensor.from_pieces(
+        context=gt.Context.from_fields(
+            features={"labels": tf.constant([1, 2]),
+                      "zeros": tf.zeros([2])}),
+        node_sets={
+            "objects": gt.NodeSet.from_fields(
+                sizes=tf.constant([2, 3]),
+                features={"labels": tf.constant([11, 22, 33, 44, 55]),
+                          "ones": tf.ones([5, 1])}),
+            "unrelated": gt.NodeSet.from_fields(
+                sizes=tf.constant([1]),
+                features={"labels": tf.constant([9, 9]),
+                          "stuff": tf.constant([[3.14, 2.71]])})})
+    # Put a readout node set like a multi-task training pipeline with
+    # context and seed node features would.
+    test_graph = readout.add_readout_from_first_node(test_graph, "seed",
+                                                     node_set_name="objects")
+    self.assertCountEqual(["objects", "unrelated", "_readout"],
+                          test_graph.node_sets.keys())
+    test_graph = readout.readout_named_into_feature(
+        test_graph, "seed", feature_name="labels",
+        new_feature_name="seed_labels")
+    self.assertAllEqual([11, 33],
+                        test_graph.node_sets["_readout"]["seed_labels"])
+
+    graph = readout.context_readout_into_feature(
+        test_graph, feature_name="labels", new_feature_name="graph_labels")
+
+    # Check read-out features.
+    self.assertAllEqual([1, 2], graph.node_sets["_readout"]["graph_labels"])
+    self.assertAllEqual([11, 33], graph.node_sets["_readout"]["seed_labels"])
+
+  def testOverwrite(self):
+    test_graph = gt.GraphTensor.from_pieces(
+        context=gt.Context.from_fields(
+            features={"labels": tf.constant([1, 2]),
+                      "zeros": tf.zeros([2])}),
+        node_sets={
+            "_readout": gt.NodeSet.from_fields(
+                sizes=tf.constant([1, 1]),
+                features={"target": tf.constant([[9], [9]]),
+                          "other": tf.constant([9., 9.])})})
+
+    with self.assertRaisesRegex(ValueError, r"already exists"):
+      _ = readout.context_readout_into_feature(
+          test_graph, feature_name="labels", new_feature_name="target")
+
+    graph = readout.context_readout_into_feature(
+        test_graph, feature_name="labels", new_feature_name="target",
+        overwrite=True)
+    self.assertAllEqual([1, 2], graph.node_sets["_readout"]["target"])
 
 
 if __name__ == "__main__":

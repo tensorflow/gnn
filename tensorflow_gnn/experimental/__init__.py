@@ -27,11 +27,14 @@ into the stable public interface of TensorFlow GNN.
 
 Beyond these symbols, there are also experimental sub-libraries that
 need to be imported separately (`from tensorflow_gnn.experimental import foo`).
-This is for special cases only.
+That is for special cases only.
 """
 
+from tensorflow_gnn.graph import readout
 from tensorflow_gnn.graph import tensor_utils
 
+context_readout_into_feature = readout.context_readout_into_feature
 segment_random_index_shuffle = tensor_utils.segment_random_index_shuffle
 
+del readout
 del tensor_utils

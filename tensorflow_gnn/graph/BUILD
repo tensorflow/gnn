@@ -128,6 +128,7 @@ pytype_strict_library(
     srcs = ["readout.py"],
     srcs_version = "PY3",
     deps = [
+        ":adjacency",
         ":graph_constants",
         ":graph_tensor",
         ":graph_tensor_ops",

@@ -19,6 +19,7 @@ from typing import Dict, Optional, Sequence, Tuple
 
 import tensorflow as tf
 
+from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_ops as ops
@@ -219,7 +220,7 @@ def readout_named(
 
   # Special case: single readout edge set.
   if len(broadcast_values) == 1:
-    [single_value] = broadcast_values.values()
+    [single_value] = broadcast_values.values()  # pylint: disable=unbalanced-dict-unpacking
     # The target node ids form a range [0, 1, ..., n-1] (validated above).
     # Hence the values on the edge set are indexed the same as on the node set.
     return single_value
@@ -249,6 +250,152 @@ def readout_named(
       for edge_set_name, value in broadcast_values.items()]
   result = tf.math.add_n(pooled_values)
   return result
+
+
+def readout_named_into_feature(
+    graph: gt.GraphTensor,
+    key: str,
+    *,
+    feature_name: const.FieldName,
+    new_feature_name: Optional[const.FieldName] = None,
+    remove_input_feature: bool = False,
+    overwrite: bool = False,
+    readout_node_set: const.NodeSetName = "_readout",
+    validate: bool = True,
+) -> gt.GraphTensor:
+  """Reads out a feature value from select nodes (or edges) in a graph.
+
+  This helper function is similar to `tfgnn.readout_named()` (see there),
+  except that it does not return the readout result itself but a modified
+  `GraphTensor` in which the readout result is stored as a feature on
+  the `readout_node_set`.
+
+  Args:
+    graph: A scalar GraphTensor with the auxiliary graph pieces required by
+      `tfgnn.readout_named()`.
+    key: A string key to select between possibly multiple named readouts
+      (such as `"source"` and `"target"` for link prediction).
+    feature_name: The name of a feature to read out from, as with
+      `tfgnn.readout_named()`.
+    new_feature_name: The name of the feature to add to `readout_node_set`
+      for storing the readout result. If unset, defaults to `feature_name`.
+      It is an error if the added feature already exists on `readout_node_set`
+      in the input `graph`, unless `overwrite=True` is set.
+    remove_input_feature: If set, the given `feature_name` is removed from the
+      node (or edge) set(s) that supply the input to
+      `tfgnn.readout_named()`.
+    overwrite: If set, allows overwriting a potentially already existing
+      feature `graph.node_sets[readout_node_set][new_feature_name]`.
+    readout_node_set: A string, defaults to `"_readout"`. This is used as the
+      name for the readout node set and as a name prefix for its edge sets.
+    validate: Setting this to false disables the validity checks of
+      `tfgnn.readout_named()`. This is stronlgy discouraged, unless great care
+      is taken to run `tfgnn.validate_graph_tensor_for_readout()` earlier on
+      structurally unchanged GraphTensors.
+
+  Returns:
+    A `GraphTensor` like `graph`, with the readout result stored as
+    `.node_sets[readout_node_set][new_feature_name]` and possibly the
+    readout inputs removed (see `remove_input_feature`).
+  """
+  gt.check_scalar_graph_tensor(graph.spec, "tfgnn.readout_named_into_feature()")
+  if new_feature_name is None:
+    new_feature_name = feature_name
+
+  edge_sets_features = {}
+  node_sets_features = {}
+
+  node_sets_features[readout_node_set] = graph.node_sets[
+      readout_node_set].get_features_dict()
+  if not overwrite and new_feature_name in node_sets_features[readout_node_set]:
+    raise ValueError(
+        f"Output feature '{new_feature_name}' already exists on node set "
+        f"'{readout_node_set}'. "
+        "Pass tfgnn.readout_named_into_feature(..., overwrite=True) "
+        "to discard the old value."
+    )
+  node_sets_features[readout_node_set][new_feature_name] = readout_named(
+      graph, key, feature_name=feature_name,
+      readout_node_set=readout_node_set, validate=validate)
+
+  if remove_input_feature:
+    edge_set_map = get_validated_edge_set_map_for_readout(
+        graph.spec, [key], readout_node_set=readout_node_set)
+    for (set_type, set_name) in edge_set_map[key].keys():
+      if set_type == const.EDGES:
+        features = graph.edge_sets[set_name].get_features_dict()
+        del features[feature_name]
+        edge_sets_features[set_name] = features
+      else:  # NODES
+        features = graph.node_sets[set_name].get_features_dict()
+        del features[feature_name]
+        node_sets_features[set_name] = features
+
+  return graph.replace_features(node_sets=node_sets_features,
+                                edge_sets=edge_sets_features)
+
+
+def context_readout_into_feature(
+    graph: gt.GraphTensor,
+    *,
+    feature_name: const.FieldName,
+    new_feature_name: Optional[const.FieldName] = None,
+    remove_input_feature: bool = False,
+    overwrite: bool = False,
+    readout_node_set: const.NodeSetName = "_readout",
+) -> gt.GraphTensor:
+  """Reads a feature value from context and stores it on readout_node_set.
+
+  This helper function is similar to `tfgnn.readout_named_into_feature()`,
+  except that it reads a feature from `graph.context` instead of performing a
+  `tfgnn.readout_named()` operation.
+
+  Args:
+    graph: A scalar `GraphTensor`. If it contains the `readout_node_set`
+      already, its size in each graph component must be 1. If not, it gets
+      created with those sizes.
+    feature_name: The name of a context feature to read out.
+    new_feature_name: The name of the feature to add to `readout_node_set`
+      for storing the readout result. If unset, defaults to feature_name.
+      It is an error if the added feature already exists on `readout_node_set`
+      in the input `graph`, unless `overwrite=True` is set.
+    remove_input_feature: If set, the given `feature_name` is removed from the
+      `graph.context`.
+    overwrite: If set, allows overwriting a potentially already existing
+      feature `graph.node_sets[readout_node_set][new_feature_name]`.
+    readout_node_set: A string, defaults to `"_readout"`. This is used as the
+      name for the readout node set.
+
+  Returns:
+    A `GraphTensor` like `graph`, with the named context feature stored as
+    `.node_sets[readout_node_set][new_feature_name]` and possibly removed from
+    `.context`.
+  """
+  gt.check_scalar_graph_tensor(graph.spec,
+                               "tfgnn.context_readout_into_feature()")
+  if new_feature_name is None:
+    new_feature_name = feature_name
+
+  context_features = graph.context.get_features_dict()
+  if remove_input_feature:
+    input_feature = context_features.pop(feature_name)
+  else:
+    input_feature = context_features.get(feature_name)
+
+  graph = _add_readout_node_set(graph, sizes=graph.context.sizes,
+                                readout_node_set=readout_node_set)
+  readout_features = graph.node_sets[readout_node_set].get_features_dict()
+  if not overwrite and new_feature_name in readout_features:
+    raise ValueError(
+        f"Output feature '{new_feature_name}' already exists on node set "
+        f"'{readout_node_set}'. "
+        "Pass tfgnn.context_readout_into_feature(..., overwrite=True) "
+        "to discard the old value."
+    )
+  readout_features[new_feature_name] = input_feature
+
+  return graph.replace_features(node_sets={readout_node_set: readout_features},
+                                context=context_features)
 
 
 # _SHADOW_PREFIX + edge_set_name is used as the name of an auxiliary node set
@@ -357,3 +504,108 @@ def get_validated_edge_set_map_for_readout(
           "into it")
 
   return edge_set_map
+
+
+def add_readout_from_first_node(
+    graph: gt.GraphTensor,
+    key: str,
+    *,
+    node_set_name: const.NodeSetName,
+    readout_node_set: const.NodeSetName = "_readout",
+) -> gt.GraphTensor:
+  """Adds readout node set equivalent to `tfgnn.gather_first_node()`.
+
+  Args:
+    graph: A scalar `GraphTensor`. If it contains the readout_node_set already,
+      its size in each graph component must be 1.
+    key: A key, for use with `tfgnn.readout_named()`. The input graph must not
+      already contain auxiliary edge sets for readout with this key.
+    node_set_name: The name of the node set from which values are to be read
+      out.
+    readout_node_set: The name of the auxiliary node set for readout,
+      as in `tfgnn.readout_named()`.
+
+  Returns:
+    A modified GraphTensor such that `tfgnn.readout_named(..., key)` works like
+    `tfgnn.gather_first_node(...)` on the input graph.
+  """
+  gt.check_scalar_graph_tensor(graph, "tfgnn.add_readout_from_first_node()")
+
+  # Get the source node set and check it has the nodes to read out from.
+  if node_set_name not in graph.node_sets:
+    raise ValueError(f"Unknown node set name '{node_set_name}'")
+  node_set_sizes = graph.node_sets[node_set_name].sizes
+  assert_positive_node_set_sizes = tf.debugging.assert_positive(
+      node_set_sizes,
+      f"tfgnn.add_readout_from_first_node(..., node_set_name='{node_set_name}')"
+      " called for a graph in which one or more components contain no nodes.")
+  with tf.control_dependencies([assert_positive_node_set_sizes]):
+    first_node_indices = tf.math.cumsum(node_set_sizes, exclusive=True)
+
+  # Get or make the readout node set with appropriate sizes.
+  readout_sizes = tf.ones_like(node_set_sizes)
+  graph = _add_readout_node_set(graph, sizes=readout_sizes,
+                                readout_node_set=readout_node_set)
+
+  # Make a new and unique readout edge set for the given key.
+  edge_sets = dict(graph.edge_sets)
+  readout_edge_set = f"{readout_node_set}/{key}"
+  for edge_set_name in edge_sets:
+    if re.fullmatch(rf"{re.escape(readout_edge_set)}(/.+)?", edge_set_name):
+      raise ValueError("Requested readout key already exists: "
+                       f"found edge set name '{edge_set_name}'")
+  num_components = tf.size(readout_sizes, out_type=readout_sizes.dtype)
+  edge_sets[readout_edge_set] = gt.EdgeSet.from_fields(
+      sizes=readout_sizes,
+      adjacency=adj.Adjacency.from_indices(
+          (node_set_name, first_node_indices),
+          (readout_node_set, tf.range(num_components))))
+
+  return gt.GraphTensor.from_pieces(context=graph.context,
+                                    node_sets=graph.node_sets,
+                                    edge_sets=edge_sets)
+
+
+def _add_readout_node_set(
+    graph: gt.GraphTensor,
+    *,
+    sizes: gt.Field,
+    readout_node_set: const.NodeSetName = "_readout",
+) -> gt.GraphTensor:
+  """Adds readout node set of given sizes, or verifies it exists.
+
+  Args:
+    graph: A scalar `GraphTensor`.
+    sizes: A Tensor for use as the `NodeSet.sizes` of the readout node set.
+      It must have shape `[num_components]` and dtype `graph.indices_dtype`.
+    readout_node_set: The name of the auxiliary node set for readout,
+      as in `tfgnn.readout_named()`.
+
+  Returns:
+    A `GraphTensor` that contains a `readout_node_set` with the given `sizes`.
+  """
+  gt.check_scalar_graph_tensor(graph, "tfgnn.add_readout_node_set()")
+  if sizes.dtype != graph.indices_dtype:
+    raise ValueError(f"Got sizes.dtype = {sizes.dtype} but expected "
+                     f"graph.indices_dtype = {graph.indices_dtype}")
+  if sizes.shape != graph.context.sizes.shape:
+    raise ValueError(f"Got sizes.shape = {sizes.shape} but expected "
+                     f"{graph.context.sizes.shape}")
+
+  node_sets = dict(graph.node_sets)
+  if readout_node_set in node_sets:
+    assert_same_sizes = tf.debugging.assert_equal(
+        node_sets[readout_node_set].sizes, sizes,
+        f"Existing aux node set '{readout_node_set}' does not match "
+        f"requested sizes {sizes}")
+    with tf.control_dependencies([assert_same_sizes]):
+      sizes = tf.identity(sizes, name="checked_sizes")
+    features = node_sets[readout_node_set].features
+  else:
+    features = None
+
+  node_sets[readout_node_set] = gt.NodeSet.from_fields(sizes=sizes,
+                                                       features=features)
+  return gt.GraphTensor.from_pieces(context=graph.context,
+                                    node_sets=node_sets,
+                                    edge_sets=graph.edge_sets)

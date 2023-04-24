@@ -175,6 +175,8 @@ softmax_edges_per_node = normalization_ops.softmax_edges_per_node
 validate_graph_tensor_spec_for_readout = readout.validate_graph_tensor_spec_for_readout
 validate_graph_tensor_for_readout = readout.validate_graph_tensor_for_readout
 readout_named = readout.readout_named
+add_readout_from_first_node = readout.add_readout_from_first_node
+readout_named_into_feature = readout.readout_named_into_feature
 
 # Schema conversion and I/O functions.
 parse_schema = schema_utils.parse_schema
