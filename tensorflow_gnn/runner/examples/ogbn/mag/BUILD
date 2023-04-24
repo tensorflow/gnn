@@ -23,6 +23,7 @@ pytype_strict_library(
         "//third_party/py/ml_collections/config_flags",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//tensorflow_gnn/models/gat_v2",
         "//tensorflow_gnn/models/hgt",
         "//tensorflow_gnn/models/mt_albis",
         "//tensorflow_gnn/models/multi_head_attention",

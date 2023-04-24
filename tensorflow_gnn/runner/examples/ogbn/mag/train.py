@@ -25,6 +25,7 @@ from ml_collections import config_flags
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn import runner
+from tensorflow_gnn.models import gat_v2
 from tensorflow_gnn.models import hgt
 from tensorflow_gnn.models import mt_albis
 from tensorflow_gnn.models import multi_head_attention
@@ -134,6 +135,15 @@ def get_config_dict() -> config_dict.ConfigDict:
   # For each supported gnn.type="foo", there is a config gnn.foo for that type's
   # GraphUpdate class, overridden with the defaults for this training.
   cfg.gnn.type = "vanilla_mpnn"
+  # For gnn.type="gat_v2":
+  cfg.gnn.gat_v2 = gat_v2.graph_update_get_config_dict()
+  cfg.gnn.gat_v2.units = 128
+  cfg.gnn.gat_v2.message_dim = 128
+  cfg.gnn.gat_v2.num_heads = 4
+  cfg.gnn.gat_v2.receiver_tag = tfgnn.SOURCE
+  cfg.gnn.gat_v2.state_dropout_rate = 0.1
+  cfg.gnn.gat_v2.l2_regularization = 5e-6
+  cfg.gnn.gat_v2.edge_dropout_rate = 0.1
   # For gnn.type="hgt":
   cfg.gnn.hgt = hgt.graph_update_get_config_dict()
   cfg.gnn.hgt.per_head_channels = 64
@@ -177,7 +187,9 @@ _CONFIG = config_flags.DEFINE_config_dict("config", get_config_dict())
 def _graph_update_from_config(
     cfg: config_dict.ConfigDict) -> tf.keras.layers.Layer:
   """Returns one instance of the configured GraphUpdate layer."""
-  if cfg.gnn.type == "hgt":
+  if cfg.gnn.type == "gat_v2":
+    return gat_v2.graph_update_from_config_dict(cfg.gnn.gat_v2)
+  elif cfg.gnn.type == "hgt":
     return hgt.graph_update_from_config_dict(cfg.gnn.hgt)
   elif cfg.gnn.type == "mt_albis":
     return mt_albis.graph_update_from_config_dict(cfg.gnn.mt_albis)

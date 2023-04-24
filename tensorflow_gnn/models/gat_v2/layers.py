@@ -493,6 +493,7 @@ def GATv2GraphUpdate(*,  # To be called like a class initializer.  pylint: disab
 
 
 def GATv2MPNNGraphUpdate(  # To be called like a class initializer.  pylint: disable=invalid-name
+    # LINT.IfChange(GATv2MPNNGraphUpdate_args)
     *,
     units: int,
     message_dim: int,
@@ -508,6 +509,7 @@ def GATv2MPNNGraphUpdate(  # To be called like a class initializer.  pylint: dis
     conv_activation: Union[str, Callable[..., Any]] = "relu",
     activation: Union[str, Callable[..., Any]] = "relu",
     kernel_initializer: Any = "glorot_uniform",
+    # LINT.ThenChange(./config_dict.py:graph_update_get_config_dict)
 ) -> tf.keras.layers.Layer:
   """Returns a GraphUpdate layer for message passing with GATv2 pooling.
 
