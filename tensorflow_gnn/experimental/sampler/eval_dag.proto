@@ -1,0 +1,166 @@
+// Copyright 2023 The TensorFlow GNN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// =============================================================================
+// Describes computations as a directed acyclic graph of stages.
+// Each stage takes results from upstream stages as its inputs and returns new
+// set of values as its outputs. The logic how stage computes its results is
+// controlled by the referenced *layer*. The same models could be used by
+// multiple stages, but each stage is unique. In other words, a layer is like a
+// function and a stage is an act of calling its layer for a particular set
+// of inputs.
+//
+// Such separation allows to split high-level sampling logic from low-level
+// details how sampling stage is actually implemented.
+//
+// All models have a fixed set of named inputs and a fixed set of named outputs.
+// Input and output values must be dense or ragged tensors, typically with
+// their first dimension being batch dimension so models could exploit batch
+// parallelism.
+//
+// Example: An `EvalDag` for a 2-hop sampling procedure.
+// stages {
+//    id: 'seeds'
+//    layer_id: 'input'
+// }
+// stages {
+//    id: 'hop1_edges'
+//    layer_id: 'edge_sampler'
+//    input_matchers { key: 'ids' value: 'seeds' }
+// }
+// stages {
+//    id: 'hop2_edges'
+//    layer_id: 'edge_sampler'
+//    input_matchers { key: 'ids' value: 'hop1_edges/#target' }
+// }
+// stages {
+//    id: 'unique_node_ids'
+//    layer_id: 'unique'
+//    input_matchers { key: 'ids/0' value: 'seeds' }
+//    input_matchers { key: 'ids/1' value: 'hop1_edges/#target' }
+//    input_matchers { key: 'ids/2' value: 'hop2_edges/#target' }
+// }
+// stages {
+//    id: 'features'
+//    layer_id: 'node_features'
+//    input_matchers { key: 'ids' value: 'unique_node_ids' }
+// }
+// stages {
+//    id: 'output'
+//    layer_id: 'graph_tensor_builder'
+//    input_matchers { key: 'edge_sets/edges/0' value: 'hop1_edges' }
+//    input_matchers { key: 'edge_sets/edges/1' value: 'hop2_edges' }
+//    input_matchers { key: 'edge_sets/nodes' value: 'features' }
+// }
+//
+
+syntax = "proto3";
+
+package tensorflow_gnn.sampler;
+
+import "google/protobuf/any.proto";
+import "tensorflow/core/framework/tensor_shape.proto";
+import "tensorflow/core/framework/types.proto";
+
+option java_multiple_files = true;
+
+// option go_api_flag = "OPEN_V1";
+
+// Computation program as evaluation DAG plus layers.
+message Program {
+  EvalDAG eval_dag = 1;
+  map<string, Layer> layers = 2;
+}
+
+// Computations in the form of a directed acyclic graph of computing stages.
+message EvalDAG {
+  // Stages of computation sorted in topological order.
+  repeated Stage stages = 1;
+}
+
+// A single stage of computation. Each stage is an act of calling some layer for
+// specific inputs. The stages are unique within their `EvalDAG` but could
+// reference same models. The stage has the same set of named inputs and outputs
+// as its layer.
+message Stage {
+  // Unique stage identifier within the `EvalDAG`.
+  string id = 1;
+  // The name of a `Layer` responsible for computation.
+  string layer_id = 2;
+
+  // Specifies which output of another stage becomes the input of this stage.
+  message Input {
+    string stage_id = 1;
+    int32 output_index = 2;
+  }
+  // Maps indexed input of this stage to outputs of other stages.
+  // Must match 1:1 `Layer.inputs`.
+  repeated Input input_matchers = 3;
+}
+
+// A single unit of computation.
+// Analogous to a function with named inputs and outputs.
+message Layer {
+  // Unique layer id, e.g. `edge_sampler`.
+  string id = 1;
+  // The layer type, e.g. `UniformEdgesSampler`.
+  string type = 2;
+
+  // The configuration how layer must be executed.
+  google.protobuf.Any config = 3;
+
+  // The computation DAG for composite layers.
+  EvalDAG eval_dag = 4;
+  // Names of the layer inputs. For composite layers those names must match
+  // input layer names in the `eval_dag`.
+  IOFeatures input_names = 5;
+
+  // A mapping from input argument names to their spec.
+  repeated ValueSpec inputs = 9;
+  // A mapping from output argument names to their spec.
+  repeated ValueSpec outputs = 10;
+}
+
+message ValueSpec {
+  oneof type {
+    // The dense tensor of any rank.
+    TensorSpec tensor = 1;
+    // The ragged tensor of any ragged rank.
+    RaggedTensorSpec ragged_tensor = 2;
+    // Any composite tensor flattened to the list of its tensor components as
+    // `tf.nest.flatten(composite_tensor, expand_compisites=True)`.
+    FlattenedSpec flattened = 10;
+  }
+}
+
+message TensorSpec {
+  tensorflow.DataType dtype = 1;
+  tensorflow.TensorShapeProto shape = 2;
+}
+
+message RaggedTensorSpec {
+  tensorflow.DataType dtype = 1;
+  tensorflow.TensorShapeProto shape = 2;
+  int32 ragged_rank = 3;
+  tensorflow.DataType row_splits_dtype = 4;
+}
+
+message FlattenedSpec {
+  // As in `tf.nest.flatten(composite_tensor, expand_compisites=True)`.
+  repeated TensorSpec components = 1;
+}
+
+// The feature names for the inputs or outputs of the Layer.
+message IOFeatures {
+  repeated string feature_names = 1;
+}
