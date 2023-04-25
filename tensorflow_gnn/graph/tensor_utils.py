@@ -293,6 +293,9 @@ def ensure_static_nrows(value: Value, nrows: int) -> Value:
   `result.nrows() == nrows`. Function checks at runtime that `value` allows
   that update.
 
+  NOTE(b/275338236): This operation is not available in TFLite (last checked
+  for TF 2.12).
+
   Args:
     value: dense tensor (`rank > 0`) or ragged tensor that allows static
       `nrows`.

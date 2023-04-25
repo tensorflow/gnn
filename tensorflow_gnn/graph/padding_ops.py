@@ -52,6 +52,9 @@ def pad_to_total_sizes(
   number of incident edges (this behavior is not guaranteed and may change in
   the future).
 
+  NOTE(b/275338236): This operation is not available in TFLite (last checked
+  for TF 2.12).
+
   Args:
     graph_tensor: scalar graph tensor (rank=0) to pad.
     size_constraints: target total sizes for each graph piece. Must define the

@@ -977,6 +977,9 @@ def shuffle_features_globally(graph_tensor: GraphTensor,
                               seed: Optional[int] = None) -> GraphTensor:
   """Shuffles context, node set and edge set features of a scalar GraphTensor.
 
+  NOTE(b/277938756): This operation is not available in TFLite (last checked
+  for TF 2.12).
+
   Args:
     graph_tensor: A scalar GraphTensor.
     seed: A seed for random uniform shuffle.
@@ -1132,6 +1135,9 @@ def shuffle_nodes(graph_tensor: GraphTensor,
   Auxiliary node sets are not shuffled, unless they are explicitly included in
   `node_sets`. Not shuffling is the correct behavior for the auxiliary node
   sets used by `tfgnn.readout_named()`.
+
+  NOTE(b/277938756): This operation is not available in TFLite (last checked
+  for TF 2.12).
 
   Args:
     graph_tensor: A scalar GraphTensor.
