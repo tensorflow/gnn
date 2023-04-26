@@ -316,12 +316,14 @@ def _convert_stages_dag_to_eval_dag(
         for arg_layer in tf.nest.flatten(
             stage.get_single_node().layer.wrapped_model.input
         ):
-          layer_pb.input_names.feature_names.append(arg_layer.name)
-        layer_pb.eval_dag = _create_eval_dag(
-            stage.get_single_node().layer.wrapped_model,
-            layers,
-            artifacts,
-            root_dag=False,
+          layer_pb.input_names.feature_names.append(arg_layer.node.layer.name)
+        layer_pb.eval_dag.CopyFrom(
+            _create_eval_dag(
+                stage.get_single_node().layer.wrapped_model,
+                layers,
+                artifacts,
+                root_dag=False,
+            )
         )
 
     layers[layer_pb.id] = layer_pb
@@ -334,7 +336,11 @@ def _has_specialized_stage(node: Node) -> bool:
   """`True` if `node` has a specialized stage."""
   return isinstance(
       node.layer,
-      (input_layer.InputLayer, interfaces.SamplingPrimitive)
+      (
+          input_layer.InputLayer,
+          interfaces.SamplingPrimitive,
+          core.CompositeLayer,
+      ),
   )
 
 

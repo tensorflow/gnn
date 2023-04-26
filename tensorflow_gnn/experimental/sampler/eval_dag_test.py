@@ -262,9 +262,9 @@ class EvalDagExecutionTest(tf.test.TestCase):
           stage_outputs = stage_inputs
         else:
           self.assertTrue(hasattr(layer, 'eval_dag'), msg=layer.id)
-          self.assertTrue(hasattr(layer, 'inputs_map'), msg=layer.id)
+          self.assertTrue(hasattr(layer, 'input_names'), msg=layer.id)
           substage_inputs = {}
-          for index, name in enumerate(layer.inputs_map.feature_names):
+          for index, name in enumerate(layer.input_names.feature_names):
             substage_inputs[name] = stage_inputs[index]
           substage_outputs = execute(
               layer.eval_dag, substage_inputs, scope=layer.id
