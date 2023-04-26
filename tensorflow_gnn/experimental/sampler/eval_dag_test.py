@@ -732,12 +732,12 @@ class ModelServingTest(tf.test.TestCase):
     ]
     v1 = rt([[1], [2, 3]], dtype=tf.int64)
     v2 = dt([[10], [20]], dtype=tf.int64)
-    results = fn(argw=v1.flat_values, argw_1=v1.row_splits, argw_2=v2)
+    results = fn(argw=v1.flat_values, argw_1=v1.row_lengths(), argw_2=v2)
     expected = {
         'output_0': dt([11, 22, 23], dtype=tf.int64),  # flat_values 1
-        'output_1': dt([0, 1, 3], dtype=tf.int64),  # row_splits 1
+        'output_1': dt([1, 2], dtype=tf.int64),  # row_splits 1
         'output_2': dt([10, 40, 60], dtype=tf.int64),  # flat_values 2
-        'output_3': dt([0, 1, 3], dtype=tf.int64),  # row_splits 2
+        'output_3': dt([1, 2], dtype=tf.int64),  # row_splits 2
     }
     tf.nest.map_structure(self.assertAllEqual, expected, results)
 
@@ -758,7 +758,7 @@ class ModelServingTest(tf.test.TestCase):
     ):
       tf.keras.Model(i, o)
 
-  def testInputCompositeTensor(self):
+  def testInputGraphTensor(self):
     i0 = tf.keras.Input(
         type_spec=tf.type_spec_from_value(context_graph), name='i'
     )

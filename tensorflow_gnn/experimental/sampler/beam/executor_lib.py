@@ -25,10 +25,12 @@ individual examples. The sampling layers are translated into Beam stages (as
 `PTransform`) and tensors are replaced with `PCollection`s containing fixed size
 lists of "tensor values", as `[value_1, value_2, .., value_n]`, where `n` is
 fixed within each `PCollection`. Each tensor value is  fixed-size list of
-`numpy.ndarray`s containing flattened tensor or composite tensor components,
-as `tf.nest.flatten`. For example, if entries of some PCollection are pairs of
-dense tensor `t` and ragged rank 1 tensor `r`, their are stored as
-`[[t.numpy()], [r.values.numpy(), r.row_splits.numpy()]]`.
+`numpy.ndarray`s containing flattened tensor or composite tensor components.
+The following flattening rule is applied to any tensor value `t`:
+  * dense: `[t]`;
+  * ragged: `[t.flat_values, *t.nested_row_lengths()]`;
+  * other:  `tf.nest.flatten(t)`;
+with results tensor components being converted to the `numpy.ndarray`s.
 """
 
 from typing import List, Tuple

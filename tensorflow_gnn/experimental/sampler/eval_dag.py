@@ -538,7 +538,7 @@ def create_tf_stage_model(
     Flattening is equivalent to `tf.nest.flatten(..., expand_composites=True)`.
   """
 
-  def get_spec(nest):
+  def get_spec(nested_struct):
     def fn(t):
       result = getattr(t, 'type_spec', None)
       if result is None:
@@ -546,20 +546,23 @@ def create_tf_stage_model(
 
       return result
 
-    return tf.nest.map_structure(fn, nest)
+    return tf.nest.map_structure(fn, nested_struct)
 
   with _input_layer_fix():
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
 
   # NOTE: we must call flatten on real tensors, so within Keras call.
-  inputs_spec = get_spec(inputs)
-  flat_inputs_spec = get_spec(_FLATTEN_LAYER(inputs))
+  model_args_struct = get_spec(inputs)
+  inputs_spec = get_spec(tf.keras.layers.Lambda(_to_executor_values)(inputs))
+  flattened_inputs_spec = tf.nest.flatten(inputs_spec)
 
-  @tf.function(input_signature=([flat_inputs_spec]))
+  @tf.function(input_signature=([flattened_inputs_spec]))
   def serving(argw):
-    inputs = tf.nest.pack_sequence_as(inputs_spec, argw, expand_composites=True)
+    inputs = tf.nest.pack_sequence_as(inputs_spec, argw)
+    inputs = _from_executor_values(model_args_struct, inputs)
     outputs = model(inputs)
-    return tf.nest.flatten(outputs, expand_composites=True)
+    outputs = _to_executor_values(outputs)
+    return tf.nest.flatten(outputs)
 
   setattr(model, _SERVING_ATTR, serving)
   return model
@@ -813,3 +816,63 @@ def _create_io_config(feature: tfgnn.Fields) -> Mapping[str, int]:
   assert isinstance(feature, Mapping)
   indices = [i for i, _ in enumerate(tf.nest.flatten(feature))]
   return tf.nest.pack_sequence_as(feature, indices)
+
+
+def _to_executor_values(nested_struct) -> List[List[tf.Tensor]]:
+  """Converts any nest of tensors to bulk executor format.
+
+  Args:
+    nested_struct: any nest of tensors or composite tensors.
+
+  Returns:
+    Structure first flattened to its components (tensors or composite tensors)
+    and then each component being converted to its tensor pieces according to
+    the `_flatten` rules.
+  """
+  return [_flatten(t) for t in tf.nest.flatten(nested_struct)]
+
+
+def _from_executor_values(nested_struct, values: List[List[tf.Tensor]]) -> Any:
+  """The inverse operation to `_to_executor_values`."""
+
+  specs = tf.nest.flatten(nested_struct)
+  pieces = [_unflatten(s, c) for s, c in zip(specs, values)]
+  return tf.nest.pack_sequence_as(nested_struct, pieces)
+
+
+def _flatten(value) -> List[tf.Tensor]:
+  """Converts tensor or composite tensor value to the bulk executor format.
+
+  NOTE: this specialization is needed because the default `tf.nest.flatten`
+  outputs components which sometimes hard to manipulate. In particular, the
+  flattening of `tf.RaggedTensor` uses row splits, and those don't stack well.
+
+  Rules of conversion:
+    * tf.Tensor: [value]
+    * tf.RaggedTensor: [value.flat_values, *value.nested_row_lengths()]
+    * other: tf.nest.flatten(value, expand_composites=True).
+
+  Args:
+    value: any tensor or composite tensor.
+
+  Returns:
+    List of tensors.
+  """
+  if isinstance(value, tf.Tensor):
+    return [value]
+
+  if isinstance(value, tf.RaggedTensor):
+    return [value.flat_values, *value.nested_row_lengths()]
+
+  return tf.nest.flatten(value, expand_composites=True)
+
+
+def _unflatten(spec, components: List[tf.Tensor]) -> Any:
+  """The inverse operation to `_flatten`."""
+  if isinstance(spec, tf.RaggedTensorSpec):
+    values, nested_row_lengths = components[0], components[1:]
+    return tf.RaggedTensor.from_nested_row_lengths(
+        values, nested_row_lengths, validate=False
+    )
+
+  return tf.nest.pack_sequence_as(spec, components, expand_composites=True)
