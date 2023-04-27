@@ -183,6 +183,7 @@ class BarlowTwinsTask(_ConstrastiveLossTask):
   def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     return (
         _unstack_y_pred(metrics.self_clustering),
+        _unstack_y_pred(metrics.numerical_rank),
         _unstack_y_pred(metrics.pseudo_condition_number),
     )
 
@@ -227,5 +228,6 @@ class VicRegTask(_ConstrastiveLossTask):
   def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     return (
         _unstack_y_pred(metrics.self_clustering),
+        _unstack_y_pred(metrics.numerical_rank),
         _unstack_y_pred(metrics.pseudo_condition_number),
     )

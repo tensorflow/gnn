@@ -225,7 +225,7 @@ class BarlowTwinsTaskTest(tf.test.TestCase):
     y_pred = [[[0., 0., 0., 0.], [0., 0., 0., 0.]]]
     _, fake_y = self.task.preprocess(graph_tensor())
 
-    self.assertLen(self.task.metrics(), 2)
+    self.assertLen(self.task.metrics(), 3)
 
     for metric_fn in self.task.metrics():
       self.assertEqual(metric_fn(fake_y, y_pred).shape, ())
@@ -264,7 +264,7 @@ class VicRegTaskTest(tf.test.TestCase):
     y_pred = [[[0., 0., 0., 0.], [0., 0., 0., 0.]]]
     _, fake_y = self.task.preprocess(graph_tensor())
 
-    self.assertLen(self.task.metrics(), 2)
+    self.assertLen(self.task.metrics(), 3)
 
     for metric_fn in self.task.metrics():
       self.assertEqual(metric_fn(fake_y, y_pred).shape, ())

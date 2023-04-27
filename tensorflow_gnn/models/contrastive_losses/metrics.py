@@ -66,7 +66,7 @@ def pseudo_condition_number(
   Computes a metric that measures the decay rate of the singular values.
 
   Args:
-    representations: Input representations.
+    representations: Input representations. We expect rank 2 input.
     subtract_mean: Whether to subtract the mean from representations.
 
   Returns:
@@ -78,3 +78,26 @@ def pseudo_condition_number(
     representations -= tf.reduce_mean(representations, axis=0)
   sigma = tf.linalg.svd(representations, compute_uv=False)
   return tf.math.divide_no_nan(sigma[0], sigma[-1])
+
+
+@tf.function
+def numerical_rank(representations: tf.Tensor) -> tf.Tensor:
+  """Numerical rank implementation.
+
+  Computes a metric that estimates the numerical column rank of a matrix.
+  Rank is estimated as a matrix trace divided by the largest eigenvalue. When
+  our matrix is a covariance matrix, we can compute both the trace and the
+  largest eigenvalue efficiently via SVD as the largest singular value squared.
+
+  Args:
+    representations: Input representations. We expect rank 2 input.
+
+  Returns:
+    Metric value as scalar `tf.Tensor`.
+  """
+  if representations.shape.rank != 2:
+    raise ValueError(f"Expected 2D tensor (got shape {representations.shape})")
+  sigma = tf.linalg.svd(representations, compute_uv=False)
+  trace = tf.reduce_sum(tf.math.square(representations))
+  denominator = tf.math.square(sigma[0])
+  return tf.math.divide_no_nan(trace, denominator)
