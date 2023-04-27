@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for orchestration."""
 import os
-from typing import Callable, Sequence, Union
+from typing import Callable, Sequence, Tuple, Union
 
 from absl.testing import parameterized
 import tensorflow as tf
@@ -140,7 +140,9 @@ class SentinelTask(interfaces.Task):
 
   def preprocess(
       self,
-      gt: tfgnn.GraphTensor) -> tuple[Sequence[tfgnn.GraphTensor], tfgnn.Field]:
+      # TODO(b/274672364): make this tuple[...] in Python 3.9 style
+      # when we drop py38 support.
+      gt: tfgnn.GraphTensor) -> Tuple[Sequence[tfgnn.GraphTensor], tfgnn.Field]:
     x = [gt, *[product(gt, i + 2) for i in range(len(self._head_weights) - 1)]]
     y = tfgnn.keras.layers.Readout(
         feature_name="values",
