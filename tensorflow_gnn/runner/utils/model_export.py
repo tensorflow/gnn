@@ -18,7 +18,6 @@ from typing import Any, Optional, Union
 
 import tensorflow as tf
 from tensorflow_gnn.runner import interfaces
-from tensorflow_gnn.runner.utils import model as model_utils
 
 Field = Union[tf.Tensor, tf.RaggedTensor]
 
@@ -52,9 +51,7 @@ class KerasModelExporter(interfaces.ModelExporter):
         (as asserted by `tf.nest.assert_same_structure`): model output is
         renamed by flattening (`tf.nest.flatten`) and zipping the two
         structures. Any `None` values in `output_names` are ignored (leaving
-        that corresponding atom with its original name). Renamed atoms are
-        packed into the structure of `output_names`: in this way, `dict(...)`
-        keys of a model output can also be renamed.
+        that corresponding atom with its original name).
       subdirectory: An optional subdirectory, if set: models are exported to
         `os.path.join(export_dir, subdirectory).`
       include_preprocessing: Whether to include any `preprocess_model.`
@@ -185,7 +182,8 @@ def _save_model(export_dir: str,
                 options: Optional[tf.saved_model.SaveOptions] = None):
   """Saves a Keras model."""
   if preprocess_model and include_preprocessing:
-    model = model_utils.chain_first_output(preprocess_model, model)
+    xs, *_ = preprocess_model.output
+    model = tf.keras.Model(preprocess_model.input, model(xs))
   if output_names:
     output = _rename_output(model.output, output_names)
     model = tf.keras.Model(model.input, output)

@@ -26,7 +26,16 @@ from tensorflow_gnn import runner
 from tensorflow_gnn.models import vanilla_mpnn
 from tensorflow_gnn.models.contrastive_losses import tasks
 
+_CLASSES = tuple(range(32))
 _SCHEMA = """
+  context {
+    features {
+      key: "classes"
+      value {
+        dtype: DT_INT64
+      }
+    }
+  }
   node_sets {
     key: "node"
     value {
@@ -74,10 +83,35 @@ def _all_eager_strategy_and_task_combinations():
       tasks.DeepGraphInfomaxTask("node"),
       tasks.BarlowTwinsTask("node"),
       tasks.VicRegTask("node"),
+      # Multi-task: supervised & self-supervised tasks.
+      {
+          "classification": runner.RootNodeMulticlassClassification(
+              "node",
+              num_classes=len(_CLASSES),
+              label_feature_name="classes"),
+          "dgi": tasks.DeepGraphInfomaxTask("node"),
+      },
+      # Multi-task: multiple self-supervised tasks.
+      {
+          "bt": tasks.BarlowTwinsTask("node", representations_layer_name="bt"),
+          "vr": tasks.VicRegTask("node", representations_layer_name="vr"),
+      },
   ]
-  return tftest.combinations.combine(
-      distribution=strategies, task=tasklist
-  )
+  return tftest.combinations.combine(distribution=strategies, task=tasklist)
+
+
+def with_readout(gt: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
+  return tfgnn.experimental.context_readout_into_feature(
+      gt,
+      feature_name="classes",
+      remove_input_feature=True)
+
+
+def random_graph_tensor() -> tfgnn.GraphTensor:
+  schema = tfgnn.parse_schema(_SCHEMA)
+  gtspec = tfgnn.create_graph_spec_from_schema_pb(schema)
+  sample_dict = {(tfgnn.CONTEXT, None, "classes"): _CLASSES}
+  return with_readout(tfgnn.random_graph_tensor(gtspec, sample_dict))
 
 
 class DatasetProviderFromTensors(runner.DatasetProvider):
@@ -96,9 +130,7 @@ class DistributeTests(tf.test.TestCase, parameterized.TestCase):
       _all_eager_strategy_and_task_combinations()
   )
   def test_run(self, distribution: tf.distribute.Strategy, task: runner.Task):
-    schema = tfgnn.parse_schema(_SCHEMA)
-    gtspec = tfgnn.create_graph_spec_from_schema_pb(schema)
-    gts = [tfgnn.random_graph_tensor(gtspec) for _ in range(4)]
+    gts = (random_graph_tensor(),) * 4
     serialized = [tfgnn.write_example(gt).SerializeToString() for gt in gts]
     ds_provider = DatasetProviderFromTensors(serialized)
 
@@ -127,11 +159,11 @@ class DistributeTests(tf.test.TestCase, parameterized.TestCase):
 
     if isinstance(distribution, tf.distribute.TPUStrategy):
       train_padding = runner.FitOrSkipPadding(
-          gtspec,
+          gts[0].spec,
           ds_provider,
           fit_or_skip_sample_sample_size=5,
           fit_or_skip_success_ratio=0.7)
-      valid_padding = runner.TightPadding(gtspec, ds_provider)
+      valid_padding = runner.TightPadding(gts[0].spec, ds_provider)
     else:
       train_padding = None
       valid_padding = None
@@ -144,7 +176,7 @@ class DistributeTests(tf.test.TestCase, parameterized.TestCase):
         epochs=1,
         trainer=trainer,
         task=task,
-        gtspec=gtspec,
+        gtspec=gts[0].spec,
         global_batch_size=2,
         feature_processors=tuple(),
         valid_ds_provider=ds_provider,
@@ -157,13 +189,13 @@ class DistributeTests(tf.test.TestCase, parameterized.TestCase):
     saved_model = tf.saved_model.load(os.path.join(model_dir, "export"))
 
     results = saved_model.signatures["serving_default"](**kwargs)
-    self.assertLen(results, 1)  # The task has a single output.
+    self.assertLen(results, len(tf.nest.flatten(task)))  # One output per task.
 
-    [result] = results.values()
     # The above distribute test verifies *only* that the `Task` runs under many
     # distribution strategies. Verify here that run and export also produce
     # finite values.
-    self.assertAllInRange(result, result.dtype.min, result.dtype.max)
+    for result in results.values():
+      self.assertAllInRange(result, result.dtype.min, result.dtype.max)
 
 
 if __name__ == "__main__":

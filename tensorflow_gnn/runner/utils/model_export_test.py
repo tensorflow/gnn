@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for model_export."""
+import itertools
 import os
 from typing import Any
 
@@ -60,13 +61,22 @@ def _model_submodule(ninputs: int, noutputs: int, name: str) -> tf.keras.Model:
 
 def _no_submodule(ninputs: int, noutputs: int, name: str) -> tf.keras.Model:
   inputs = [tf.keras.Input(shape=(4,)) for _ in range(ninputs)]
-  x = tf.math.add_n(inputs)
-  outputs = [tf.keras.layers.Dense(2)(x) for _ in range(noutputs)]
+  x = tf.add_n(tf.nest.flatten(inputs))
+  delta = itertools.count(1)
+  outputs = [next(delta) + x for _ in range(noutputs)]
   if len(inputs) == 1:
     [inputs] = inputs
   if len(outputs) == 1:
     [outputs] = outputs
   return tf.keras.Model(inputs, outputs, name=name)
+
+
+def _structure_like(inputs: Any, outputs: Any) -> tf.keras.Model:
+  inputs = tf.nest.map_structure(lambda _: tf.keras.Input(shape=(4,)), inputs)
+  x = tf.add_n(tf.nest.flatten(inputs))
+  delta = itertools.count(1)
+  outputs = tf.nest.map_structure(lambda _: next(delta) + x, outputs)
+  return tf.keras.Model(inputs, outputs)
 
 
 def _tf_module_as_submodule(name: str) -> tf.keras.Model:
@@ -84,22 +94,27 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
       dict(
           testcase_name="SingleInputOutput",
           model=_no_submodule(1, 1, "abc123"),
-          output_names="output",
+          output_names="output_a",
       ),
       dict(
           testcase_name="SingleInputMultipleOutput",
           model=_no_submodule(1, 2, "abc123"),
-          output_names=["output_0", "output_1"],
+          output_names=["output_b", "output_a"],
       ),
       dict(
           testcase_name="MultipleInputSingleOutput",
           model=_no_submodule(2, 1, "abc123"),
-          output_names="output",
+          output_names="output_b",
       ),
       dict(
           testcase_name="MultipleInputOutput",
           model=_no_submodule(2, 2, "abc123"),
-          output_names=["output_0", "output_1"],
+          output_names=["output_a", "output_b"],
+      ),
+      dict(
+          testcase_name="MappingOutput",
+          model=_structure_like(None, {"x": None, "y": None}),
+          output_names={"y": "output_b", "x": "output_a"},
       ),
   ])
   def test_keras_model_exporter(
@@ -113,20 +128,16 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
     for load_fn in (tf.keras.models.load_model, tf.saved_model.load):
       saved_model = load_fn(export_dir)
 
-      if tf.nest.is_nested(model.input):
-        args = [tf.random.uniform([1, *i.shape[1:]]) for i in model.input]
-        kwargs = {i.name: v for i, v in zip(model.input, args)}
-      else:  # Single input
-        args = tf.random.uniform([1, *model.input.shape[1:]])
-        kwargs = {model.input.name: args}
+      names = [i.name for i in tf.nest.flatten(model.input)]
+      func = lambda i: tf.random.uniform((1, *i.shape[1:]))
+      args = [func(i) for i in tf.nest.flatten(model.input)]
+      kwargs = dict(zip(names, args))
 
       model_output = model(args)
       saved_model_outputs = saved_model.signatures["serving_default"](**kwargs)
 
-      if tf.nest.is_nested(model_output):
-        zipped = zip(model_output, output_names)
-      else:  # Single output
-        zipped = zip([model_output], [output_names])
+      tf.nest.assert_same_structure(model_output, output_names)
+      zipped = zip(tf.nest.flatten(model_output), tf.nest.flatten(output_names))
 
       for output, name in zipped:
         self.assertAllClose(

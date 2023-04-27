@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for classification."""
 from __future__ import annotations
-from typing import Callable, Type
+from typing import Callable, Sequence, Type
 
 from absl.testing import parameterized
 import tensorflow as tf
@@ -23,56 +23,123 @@ import tensorflow_gnn as tfgnn
 from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner.tasks import classification
 
-GT_SCHEMA = """
-context {
-features {
-  key: "label"
-  value {
-    dtype: DT_INT64
-      shape { dim { size: 1 } }
-    }
-  }
-}
-node_sets {
-  key: "nodes"
-  value {
-    features {
-      key: "%s"
-      value {
-        dtype: DT_FLOAT
-        shape { dim { size: 4 } }
-      }
-    }
-  }
-}
-edge_sets {
-  key: "edges"
-  value {
-    source: "nodes"
-    target: "nodes"
-  }
-}
-""" % tfgnn.HIDDEN_STATE
-
-GT_SPEC = tfgnn.create_graph_spec_from_schema_pb(tfgnn.parse_schema(GT_SCHEMA))
-
-as_tensor = tf.convert_to_tensor
-as_ragged = tf.ragged.constant
-merge_batch_to_components = tfgnn.GraphTensor.merge_batch_to_components
-
 GraphTensor = tfgnn.GraphTensor
 Field = tfgnn.Field
+
+TEST_GRAPH_TENSOR = GraphTensor.from_pieces(
+    context=tfgnn.Context.from_fields(
+        features={"labels": tf.constant((8, 1, 9, 1))}
+    ),
+    node_sets={
+        "nodes": tfgnn.NodeSet.from_fields(
+            sizes=tf.constant((2, 4, 8, 4)),
+            features={
+                tfgnn.HIDDEN_STATE: tf.random.uniform((18, 8)),
+            },
+        )
+    },
+)
 
 
 def label_fn(num_labels: int) -> Callable[..., tuple[GraphTensor, Field]]:
   def fn(inputs):
-    y = inputs.context["label"]
-    x = inputs.remove_features(context=("label",))
+    y = inputs.context["labels"]
+    x = inputs.remove_features(context=("labels",))
     return x, y % num_labels
   return fn
 
 
+def with_readout(num_labels: int, gt: GraphTensor) -> GraphTensor:
+  context_fn = lambda inputs: {"labels": inputs["labels"] % num_labels}
+  gt = tfgnn.keras.layers.MapFeatures(context_fn=context_fn)(gt)
+  return tfgnn.experimental.context_readout_into_feature(
+      gt,
+      feature_name="labels",
+      remove_input_feature=False)
+
+
 class Classification(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.named_parameters([
+      dict(
+          testcase_name="GraphBinaryClassificationLabelFn",
+          task=classification.GraphBinaryClassification(
+              "nodes",
+              label_fn=label_fn(2)),
+          inputs=TEST_GRAPH_TENSOR,
+          expected_gt=TEST_GRAPH_TENSOR.remove_features(context=("labels",)),
+          expected_labels=(0, 1, 1, 1)),
+      dict(
+          testcase_name="GraphBinaryClassificationReadout",
+          task=classification.GraphBinaryClassification(
+              "nodes",
+              label_feature_name="labels"),
+          inputs=with_readout(2, TEST_GRAPH_TENSOR),
+          expected_gt=with_readout(2, TEST_GRAPH_TENSOR),
+          expected_labels=(0, 1, 1, 1)),
+      dict(
+          testcase_name="GraphMulticlassClassificationLabelFn",
+          task=classification.GraphMulticlassClassification(
+              "nodes",
+              num_classes=4,
+              label_fn=label_fn(4)),
+          inputs=TEST_GRAPH_TENSOR,
+          expected_gt=TEST_GRAPH_TENSOR.remove_features(context=("labels",)),
+          expected_labels=(0, 1, 1, 1)),
+      dict(
+          testcase_name="GraphMulticlassClassificationReadout",
+          task=classification.GraphMulticlassClassification(
+              "nodes",
+              num_classes=4,
+              label_feature_name="labels"),
+          inputs=with_readout(4, TEST_GRAPH_TENSOR),
+          expected_gt=with_readout(4, TEST_GRAPH_TENSOR),
+          expected_labels=(0, 1, 1, 1)),
+      dict(
+          testcase_name="RootNodeBinaryClassificationLabelFn",
+          task=classification.RootNodeBinaryClassification(
+              "nodes",
+              label_fn=label_fn(2)),
+          inputs=TEST_GRAPH_TENSOR,
+          expected_gt=TEST_GRAPH_TENSOR.remove_features(context=("labels",)),
+          expected_labels=(0, 1, 1, 1)),
+      dict(
+          testcase_name="RootNodeBinaryClassificationReadout",
+          task=classification.RootNodeBinaryClassification(
+              "nodes",
+              label_feature_name="labels"),
+          inputs=with_readout(2, TEST_GRAPH_TENSOR),
+          expected_gt=with_readout(2, TEST_GRAPH_TENSOR),
+          expected_labels=(0, 1, 1, 1)),
+      dict(
+          testcase_name="RootNodeMulticlassClassificationLabelFn",
+          task=classification.RootNodeMulticlassClassification(
+              "nodes",
+              num_classes=3,
+              label_fn=label_fn(3)),
+          inputs=TEST_GRAPH_TENSOR,
+          expected_gt=TEST_GRAPH_TENSOR.remove_features(context=("labels",)),
+          expected_labels=(2, 1, 0, 1)),
+      dict(
+          testcase_name="RootNodeMulticlassClassificationReadout",
+          task=classification.RootNodeMulticlassClassification(
+              "nodes",
+              num_classes=3,
+              label_feature_name="labels"),
+          inputs=with_readout(3, TEST_GRAPH_TENSOR),
+          expected_gt=with_readout(3, TEST_GRAPH_TENSOR),
+          expected_labels=(2, 1, 0, 1)),
+  ])
+  def test_preprocess(
+      self,
+      task: interfaces.Task,
+      inputs: GraphTensor,
+      expected_gt: Sequence[int],
+      expected_labels: Sequence[int]):
+    xs, ys = task.preprocess(inputs)
+
+    self.assertEqual(xs.spec, expected_gt.spec)  # Assert `GraphTensor` specs.
+    self.assertAllEqual(ys, expected_labels)
 
   @parameterized.named_parameters([
       dict(
@@ -80,6 +147,7 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
           task=classification.GraphBinaryClassification(
               "nodes",
               label_fn=label_fn(2)),
+          gt=TEST_GRAPH_TENSOR,
           expected_loss=tf.keras.losses.BinaryCrossentropy,
           expected_shape=tf.TensorShape((None, 1))),
       dict(
@@ -87,7 +155,8 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
           task=classification.GraphMulticlassClassification(
               "nodes",
               num_classes=4,
-              label_fn=label_fn(4)),
+              label_feature_name="labels"),
+          gt=with_readout(4, TEST_GRAPH_TENSOR),
           expected_loss=tf.keras.losses.SparseCategoricalCrossentropy,
           expected_shape=tf.TensorShape((None, 4))),
       dict(
@@ -95,6 +164,7 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
           task=classification.RootNodeBinaryClassification(
               "nodes",
               label_fn=label_fn(2)),
+          gt=TEST_GRAPH_TENSOR,
           expected_loss=tf.keras.losses.BinaryCrossentropy,
           expected_shape=tf.TensorShape((None, 1))),
       dict(
@@ -102,17 +172,19 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
           task=classification.RootNodeMulticlassClassification(
               "nodes",
               num_classes=3,
-              label_fn=label_fn(3)),
+              label_feature_name="labels"),
+          gt=with_readout(3, TEST_GRAPH_TENSOR),
           expected_loss=tf.keras.losses.SparseCategoricalCrossentropy,
           expected_shape=tf.TensorShape((None, 3))),
   ])
   def test_predict(
       self,
       task: interfaces.Task,
+      gt: GraphTensor,
       expected_loss: Type[tf.keras.losses.Loss],
       expected_shape: tf.TensorShape):
     # Assert head readout, activation and shape.
-    inputs = tf.keras.layers.Input(type_spec=GT_SPEC)
+    inputs = tf.keras.layers.Input(type_spec=gt.spec)
     model = tf.keras.Model(inputs, task.predict(inputs))
     self.assertLen(model.layers, 3)
     self.assertIsInstance(model.layers[0], tf.keras.layers.InputLayer)
@@ -139,65 +211,73 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
           task=classification.GraphBinaryClassification(
               "nodes",
               label_fn=label_fn(2)),
+          gt=TEST_GRAPH_TENSOR,
           batch_size=1),
       dict(
           testcase_name="GraphMulticlassClassification",
           task=classification.GraphMulticlassClassification(
               "nodes",
               num_classes=4,
-              label_fn=label_fn(4)),
+              label_feature_name="labels"),
+          gt=with_readout(4, TEST_GRAPH_TENSOR),
           batch_size=1),
       dict(
           testcase_name="RootNodeBinaryClassification",
           task=classification.RootNodeBinaryClassification(
               "nodes",
               label_fn=label_fn(2)),
+          gt=TEST_GRAPH_TENSOR,
           batch_size=1),
       dict(
           testcase_name="RootNodeMulticlassClassification",
           task=classification.RootNodeMulticlassClassification(
               "nodes",
               num_classes=3,
-              label_fn=label_fn(3)),
+              label_feature_name="labels"),
+          gt=with_readout(3, TEST_GRAPH_TENSOR),
           batch_size=1),
       dict(
           testcase_name="GraphBinaryClassificationBatchSize2",
           task=classification.GraphBinaryClassification(
               "nodes",
               label_fn=label_fn(2)),
+          gt=TEST_GRAPH_TENSOR,
           batch_size=2),
       dict(
           testcase_name="GraphMulticlassClassificationBatchSize2",
           task=classification.GraphMulticlassClassification(
               "nodes",
               num_classes=4,
-              label_fn=label_fn(4)),
+              label_feature_name="labels"),
+          gt=with_readout(4, TEST_GRAPH_TENSOR),
           batch_size=2),
       dict(
           testcase_name="RootNodeBinaryClassificationBatchSize2",
           task=classification.RootNodeBinaryClassification(
               "nodes",
               label_fn=label_fn(2)),
+          gt=TEST_GRAPH_TENSOR,
           batch_size=2),
       dict(
           testcase_name="RootNodeMulticlassClassificationBatchSize2",
           task=classification.RootNodeMulticlassClassification(
               "nodes",
               num_classes=3,
-              label_fn=label_fn(3)),
+              label_feature_name="labels"),
+          gt=with_readout(3, TEST_GRAPH_TENSOR),
           batch_size=2),
   ])
   def test_fit(
       self,
       task: interfaces.Task,
+      gt: GraphTensor,
       batch_size: int):
-    inputs = tf.keras.layers.Input(type_spec=GT_SPEC)
+    inputs = tf.keras.layers.Input(type_spec=gt.spec)
     outputs = task.predict(inputs)
     model = tf.keras.Model(inputs, outputs)
 
-    ds = tf.data.Dataset.from_tensors(tfgnn.random_graph_tensor(GT_SPEC))
-    ds = ds.repeat().batch(batch_size).map(merge_batch_to_components).take(1)
-    ds = ds.map(task.preprocess)
+    ds = tf.data.Dataset.from_tensors(gt).repeat().batch(batch_size).take(1)
+    ds = ds.map(GraphTensor.merge_batch_to_components).map(task.preprocess)
 
     model.compile(loss=task.losses(), metrics=task.metrics())
     model.fit(ds)

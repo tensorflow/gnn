@@ -18,15 +18,19 @@ from __future__ import annotations
 import collections
 import dataclasses
 import functools
+import operator
 import os
-from typing import Callable, Optional, Sequence, Tuple, Union
+import re
+from typing import Callable, Mapping, Optional, Sequence, Tuple, TypeVar, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.runner import interfaces
-from tensorflow_gnn.runner.utils import model as model_utils
 from tensorflow_gnn.runner.utils import model_export
 from tensorflow_gnn.runner.utils import parsing as parsing_utils
+
+T = TypeVar("T")
+OneOrMappingOf = Union[T, Mapping[str, T]]
 
 Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
@@ -34,6 +38,10 @@ GraphTensor = tfgnn.GraphTensor
 # when we drop py38 support.
 GraphTensorAndField = Tuple[GraphTensor, Field]
 GraphTensorSpec = tfgnn.GraphTensorSpec
+TaskPreprocessFn = Callable[
+    [GraphTensor],
+    Tuple[Union[GraphTensor, Sequence[GraphTensor]], Field]
+]
 SizeConstraints = tfgnn.SizeConstraints
 
 DatasetProvider = interfaces.DatasetProvider
@@ -104,58 +112,167 @@ class _WrappedDatasetProvider(DatasetProvider):
     return ds.apply(self._apply_fn)
 
 
-def _make_parsing_model(gtspec: GraphTensorSpec) -> tf.keras.Model:
+def _make_padding_preprocessing_model(
+    gtspec: GraphTensorSpec,
+    preprocessing_model: tf.keras.Model,
+    size_constraints: SizeConstraints) -> tf.keras.Model:
+  """Builds a `tf.keras.Model` that applies padding and preprocessing.
+
+  Args:
+    gtspec: The `GraphTensorSpec` for input.
+    preprocessing_model: The preprocessing model.
+    size_constraints: Size constraints for padding.
+
+  Returns:
+    A `tf.keras.Model` with three outputs where outputs are (`GraphTensor`,
+    `Field`, `Field`) as model input, label and mask, respectively.
+  """
+  inputs = tf.keras.Input(type_spec=gtspec)
+  gt, mask = tfgnn.keras.layers.PadToTotalSizes(size_constraints)(inputs)
+  gt, labels = preprocessing_model(gt)
+  return tf.keras.Model(inputs, (gt, labels, mask))
+
+
+def _make_parsing_preprocessing_model(
+    gtspec: GraphTensorSpec,
+    preprocessing_model: tf.keras.Model) -> tf.keras.Model:
   """Builds a `tf.keras.Model` that parses GraphTensors."""
   examples = tf.keras.Input(
       shape=(),
       dtype=tf.string,
       name="examples")  # Name seen in SignatureDef.
   parsed = tfgnn.keras.layers.ParseExample(gtspec)(examples)
-  return tf.keras.Model(examples, parsed)
+  parsed = parsed.merge_batch_to_components()
+  return tf.keras.Model(examples, preprocessing_model(parsed))
 
 
 def _make_preprocessing_model(
     gtspec: GraphTensorSpec,
     processors: Sequence[GraphTensorProcessorFn],
-    task_processor: Callable[[GraphTensor], tuple[GraphTensor, Field]],
-    size_constraints: Optional[SizeConstraints] = None) -> tf.keras.Model:
+    task_processor_fn: OneOrMappingOf[TaskPreprocessFn]
+) -> tuple[tf.keras.Model, OneOrMappingOf[Union[int, Sequence[int]]]]:
   """Builds a `tf.keras.Model` that applies preprocessing.
+
+  This function returns a `tf.keras.Model` for preprocessing and a
+  `OneOrMappingOf` integer indices into that model's output.
+
+  The preprocessing model accepts a scalar `GraphTensor` batch (i.e.: it has
+  been merged to components) that satisfies `gtspec`. `processors` are applied
+  in order before any `task_processor_fn` are applied in parallel, producing,
+  with the same structure as `task_processor_fn`: training labels and one or
+  more base GNN inputs. (In the simplest case: a single base GNN input and a
+  single training label.) The base GNN inputs are deduplicated by Tensor object
+  identity (many tasks may use the same imput: an unchanged one) and arranged
+  in a flat `Sequence`.
+
+  The preprocessing model returns a `Tuple[Sequence[GraphTensor],
+  OneOrMappingOf[Field]]` with the sequence of deduplicated inputs for the base
+  GNN and the `OneOrMappingOf` training labels.
+
+  The `OneOrMappingOf` integer indices returned by the function contains indices
+  into the preprocessing model `Sequence[GraphTensor]` output and takes the same
+  structure as `task_processor_fn`: For each `task_processor_fn`, the
+  output/input map contains the single index or sequence of indices at which
+  the output(s) of the `Task.preprocess(...)` method are found in preprocessing
+  model `Sequence[GraphTensor]` output.
+
+  Example for a single task with a single model input:
+
+    ```python
+    task = RootNodeBinaryClassification(...)
+    preprocessing_model, oimap = _make_preprocessing_model(...)
+    # `task.preprocess(...)` returns (along with labels) a single unmutated
+    # `GraphTensor`, s.t. here, `oimap` is a scalar `0`.
+    .
+    .
+    .
+    # Later, prediction heads are created using preprocessing model output and
+    # the base GNN...
+    xs, *_ = preprocessing_model(...)
+    gnn = model_fn(...)
+    _ = task.predict(*[gnn(xs[i]) for i in tf.nest.flatten(oimap)])
+    ```
+
+  Example for multiple tasks with perturbed model inputs:
+
+    ```python
+    tasks = {
+        "classification": RootNodeBinaryClassification(...),
+        "dgi": tfgnn.models.contrastive_losses.DeepGraphInfomaxTask(...)
+    }
+    preprocessing_model, oimap = _make_preprocessing_model(...)
+    # `tasks["classification"].preprocess(...)` returns (along with labels) a
+    # single unmutated `GraphTensor`. But, `tasks["dgi"].preprocess(...)`
+    # returns (along with labels) two `GraphTensor`s: one unmutated and one
+    # corrupted. The unmutated `GraphTensor`s are deduplicated, s.t. here,
+    # `oimap` is a mapping of {"classification": 0, "dgi": (0, 1)}--the
+    # unmutated `GraphTensor` is shared between both `tasks`.
+    .
+    .
+    .
+    # Later, prediction heads are created using preprocessing model output and
+    # the base GNN...
+    xs, *_ = preprocessing_model(...)
+    gnn = model_fn(...)
+    inputs = tuple(gnn(x) for x in xs)
+    for name, task in tasks.items():
+      _ = task.predict(*[inputs(i) for i in tf.nest.flatten(oimap[name])])
+    ```
 
   Args:
     gtspec: The `GraphTensorSpec` for input.
-    processors: The `GraphTensorProcessorFn` to apply.
-    task_processor: A `Task` preprocessor, used to apply any final objective
-      specific processing and label generation.
-    size_constraints: Any size constraints for padding.
+    processors: The sequence of `GraphTensorProcessorFn`s to apply.
+    task_processor_fn: A `Task` preprocessor, used to apply any final objective
+      specific processing and label generation. May be a single
+      `TaskPreprocessFn` or, for multi-Task, a `Mapping[str, TaskPreprocessFn]`.
 
   Returns:
-    A `tf.keras.Model` with two or three outputs depending on the presence
-    of `size_constraints`. Where outputs are (`GraphTensor`, `Field`, `Field`)
-    as model input, label and mask (respectively).
+    A preprocessing `tf.keras.Model` and an output/input mapping.
   """
   inputs = tf.keras.Input(type_spec=gtspec)
-  gt = inputs.merge_batch_to_components()
 
-  if size_constraints is not None:
-    gt, mask = tfgnn.keras.layers.PadToTotalSizes(size_constraints)(gt)
+  gt = functools.reduce(lambda acc, fn: fn(acc), processors, inputs)
+  is_multi_task = isinstance(task_processor_fn, collections.abc.Mapping)
+
+  if is_multi_task:
+    gt_processed_and_labels = {k: p(gt) for k, p in task_processor_fn.items()}
+    gt_processed = {k: gt for k, (gt, lbl) in gt_processed_and_labels.items()}
+    labels = {k: lbl for k, (gt, lbl) in gt_processed_and_labels.items()}
   else:
-    mask = None
+    gt_processed, labels = task_processor_fn(gt)
 
-  gt = functools.reduce(lambda acc, fn: fn(acc), processors, gt)
-  gts_processed, labels = task_processor(gt)
+  specs = [x.spec for x in tf.nest.flatten(gt_processed)]
 
-  if isinstance(gts_processed, collections.abc.Sequence):
-    specs = [gt.spec for gt in gts_processed]
-    if any(specs[0] != spec for spec in specs[1:]):
-      raise ValueError(
-          f"All `GraphTensorSpec` expected to be the same (got specs={specs})")
+  if is_multi_task and any(gt.spec != s for s in specs):
+    raise ValueError(
+        "All `GraphTensorSpec` expected to match shared preprocessing (got"
+        f" gt.spec={gt.spec} and specs={specs}). For multi-Task, `Task`s should"
+        " read out labels from the auxiliary '_readout' node set and not mutate"
+        " the `GraphTensorSpec` (see, e.g.:"
+        " `RootNodeBinaryClassification(label_feature_name=...)`)."
+    )
+  elif any(specs[0] != s for s in specs[1:]):
+    raise ValueError(
+        f"All `GraphTensorSpec` expected to match (got specs={specs})"
+    )
 
-  if labels is not None and mask is None:
-    return tf.keras.Model(inputs, (gts_processed, labels))
-  elif labels is not None and mask is not None:
-    return tf.keras.Model(inputs, (gts_processed, labels, mask))
+  # Deduplicate preprocessing outputs by identity of Tensor objects. This way,
+  # `Task`s can share preprocessing results (e.g., the unmodified input).
 
-  raise ValueError(f"Expected labels (got labels={labels} and mask={mask})")
+  # Tensors are not hashable, instead of making a `set` of Tensors: rely on
+  # `dict` key uniqueness.
+  ref_to_output = dict((x.ref(), x) for x in tf.nest.flatten(gt_processed))
+  # Index the unique outputs as 0, 1, 2, ...
+  outputs = tuple(ref_to_output.values())
+  ref_to_index = dict((x.ref(), i) for i, x in enumerate(outputs))
+  #  Strip features on aux graph pieces (notably: labels).
+  woauxfeatures = _without_aux_graph_piece_features()
+  outputs = tuple(woauxfeatures(x) for x in outputs)
+  # For each task, report the output indices of its `Task.preprocess(...)`
+  # results.
+  oimap = tf.nest.map_structure(lambda x: ref_to_index[x.ref()], gt_processed)
+
+  return tf.keras.Model(inputs, (outputs, labels)), oimap
 
 
 _map_over_dataset = functools.partial(
@@ -171,12 +288,28 @@ def _per_replica_batch_size(global_batch_size: int, num_replicas: int) -> int:
   return global_batch_size // num_replicas
 
 
+def _without_aux_graph_piece_features() -> tf.keras.layers.Layer:
+  pattern = tfgnn.AUX_GRAPH_PIECE_PATTERN
+  def fn(inputs, *, node_set_name=None, edge_set_name=None):
+    del inputs
+    if node_set_name is not None and re.fullmatch(pattern, node_set_name):
+      return dict()  # Drop features.
+    if edge_set_name is not None and re.fullmatch(pattern, edge_set_name):
+      return dict()  # Drop features.
+    return None  # Passthru.
+  return tfgnn.keras.layers.MapFeatures(
+      node_sets_fn=fn,
+      edge_sets_fn=fn,
+      name="without_aux_graph_piece_features")
+
+
 def run(*,
         train_ds_provider: DatasetProvider,
         model_fn: Callable[[GraphTensorSpec], tf.keras.Model],
         optimizer_fn: Callable[[], tf.keras.optimizers.Optimizer],
         trainer: Trainer,
-        task: Task,
+        task: OneOrMappingOf[Task],
+        loss_weights: Optional[Mapping[str, float]] = None,
         gtspec: GraphTensorSpec,
         global_batch_size: int,
         epochs: int = 1,
@@ -189,19 +322,70 @@ def run(*,
         valid_padding: Optional[GraphTensorPadding] = None,
         tf_data_service_config: Optional[TFDataServiceConfig] = None,
         steps_per_execution: Optional[int] = None):
-  """Runs training (and validation) of a model on a task with the given data.
+  """Runs training (and validation) of a model on task(s) with the given data.
 
-  This includes preprocessing the input data, appending the suitable head(s),
+  This includes preprocessing the input data, appending any suitable head(s),
   and running training (and validation) with the requested distribution
   strategy.
 
+  The input data is processed in multiple stages, starting from the contents
+  of the datasets provided by `train_ds_provider` and `valid_ds_provider`:
+
+   1. Input examples are batched.
+   2. If necessary, input batches are parsed as `GraphTensor` values and merged
+      into components (see: `GraphTensor.merge_batch_to_components`).
+   3. If set, `train_padding` and `valid_padding`, resp., are applied.
+   4. The given `feature_processors` are applied in order for all non-trainable
+      feature transformations on CPU (as part of `tf.data.Dataset.map(...)`).
+   5. The `Task.preprocess(...)` method is applied to extract training targets
+      (for supervised learning, that means: labels) and optionally transform
+      the value of the preprocessed `GraphTensor` into a model input (or
+      multiple model inputs for tasks like self-supervised contrastive losses).
+   6. If the resulting `GraphTensor`s have any auxillary pieces (as matched by
+      `tfgnn.AUX_GRAPH_PIECE_PATTERN`): all features (typically: labels) are
+      removed from those graph pieces.
+
+  The base GNN (as built by `model_fn`) is run on all results from step (6).
+  `Task.predict(...)` is called on the model outputs that correspond to the
+  one or more graphs requested in step (5) by `Task.preprocess(...)`.
+
+  Trainable transformations of inputs (notably lookups in trainable embedding
+  tables) are required to happen inside `model_fn`.
+
+  For supervised learning, training labels enter the pipeline as features
+  on the `GraphTensor` that undergo the `feature_processors` (shared by all
+  `Task`s) and are read out of the `GraphTensor` by `Task.preprocess(...)`.
+
+  Users are strongly encouraged to take one of the following two approaches
+  to prevent the leakage of label information into the training:
+
+    * Store labels on the auxiliary `"_readout"` node set and let
+      `Task.preprocess(...)` read them from there. (For library-supplied
+      `Task`s, that means initializing with `label_feature_name="..."`.) If
+      that is not already true for the input datasets, the label feature can
+      be moved there by one of the `feature_processors`, using
+      `tfgnn.readout_named_into_feature(...)` or a similar helper function.
+    * For single-Task training only: Let `Task.preprocess()` return modified
+      `GraphTensor`s that no longer contain the separately returned labels.
+      (Library-supplied Tasks delegate this to the `label_fn="..."` passed
+      in initialization.)
+
   Args:
     train_ds_provider: A `DatasetProvider` for training. The `tf.data.Dataset`
-      is not batched and contains scalar `GraphTensor` values.
-    model_fn: Returns a `tf.keras.Model` for use in training and validation.
+      is not batched and contains scalar `GraphTensor` values conforming to
+      `gtspec`, possibly serialized as a `tf.train.Example` proto.
+    model_fn: Returns the base GNN `tf.keras.Model` for use in training and
+      validation.
     optimizer_fn: Returns a `tf.keras.optimizers.Optimizer` for use in training.
     trainer: A `Trainer`.
-    task: A `Task`.
+    task: A `Task` for single-Task training or a `Mapping[str, Task]` for
+      multi-Task training. In multi-Task training, `Task.preprocess(...)`
+      must return `GraphTensors` with the same spec as its inputs, only the
+      values may change (so that there remains a single spec for `model_fn`).
+    loss_weights: An optional `Mapping[str, float]` for multi-Task training. If
+      given, this structure must match (with `tf.nest.assert_same_structure`)
+      the structure of `task`. The mapping contains, for each `task`, a scalar
+      coefficient to weight the loss contributions of that `task`.
     gtspec: A `GraphTensorSpec` matching the elements of `train` and `valid`
       datasets. If `train` or `valid` contain `tf.string` elements, this
       `GraphTensorSpec` is used for parsing; otherwise, `train` or `valid` are
@@ -220,7 +404,8 @@ def run(*,
       function should accept and return a single scalar `GraphTensor`. Functions
       are executed on CPU as part of a `tf.data.Dataset.map` operation.
     valid_ds_provider: A `DatasetProvider` for validation. The `tf.data.Dataset`
-      is not batched and contains scalar `GraphTensor` values.
+      is not batched and contains scalar `GraphTensor` values conforming to
+      `gtspec`, possibly serialized as a `tf.train.Example` proto.
     train_padding: `GraphTensor` padding for training. Required if training on
       TPU.
     valid_padding: `GraphTensor` padding for validation. Required if training on
@@ -251,10 +436,13 @@ def run(*,
   if not validate and valid_padding is not None:
     raise ValueError("`valid_padding` specified without a validation dataset")
 
-  preprocess_model = _make_preprocessing_model(
+  if loss_weights is not None:
+    tf.nest.assert_same_structure(task, loss_weights)
+
+  preprocess_model, oimap = _make_preprocessing_model(
       gtspec,
-      feature_processors or (),
-      task.preprocess)
+      feature_processors or tuple(),
+      tf.nest.map_structure(operator.attrgetter("preprocess"), task))
 
   def apply_fn(
       ds,
@@ -262,13 +450,13 @@ def run(*,
       filter_fn: Optional[Callable[..., bool]] = None,
       size_constraints: Optional[SizeConstraints] = None):
     ds = parsing_utils.maybe_parse_graph_tensor_dataset(ds, gtspec)
+    ds = _map_over_dataset(ds, tfgnn.GraphTensor.merge_batch_to_components)
     if filter_fn is not None:
       ds = ds.filter(filter_fn)
     if size_constraints is not None:
-      padding_preprocess_model = _make_preprocessing_model(
+      padding_preprocess_model = _make_padding_preprocessing_model(
           gtspec,
-          feature_processors or (),
-          task.preprocess,
+          preprocess_model,
           size_constraints)
       ds = _map_over_dataset(ds, padding_preprocess_model)
     else:
@@ -317,25 +505,40 @@ def run(*,
 
   def adapted_model_fn():
     xs, *_ = preprocess_model.output
-    if not isinstance(xs, collections.abc.Sequence):
-      xs = [xs]
+    specs = [x.spec for x in xs]
+    inputs = [tf.keras.Input(type_spec=spec) for spec in specs]
     # All specs are the same (asserted in `_make_preprocessing_model`).
-    model = tf.keras.Sequential((model_fn(xs[0].spec),), name=_BASE_MODEL_TAG)
-    inputs = [tf.keras.Input(type_spec=x.spec) for x in xs]
-    outputs = task.predict(*[model(i) for i in inputs])
+    gnn = tf.keras.Sequential((model_fn(specs[0]),), name=_BASE_MODEL_TAG)
+    outputs = [gnn(i) for i in inputs]
+
+    if isinstance(task, collections.abc.Mapping):
+      outputs = {
+          k: v.predict(*[outputs[i] for i in tf.nest.flatten(oimap[k])])
+          for k, v in task.items()
+      }
+    else:
+      outputs = task.predict(*[outputs[i] for i in tf.nest.flatten(oimap)])
+
     model = tf.keras.Model(inputs, outputs)
+
+    losses = tf.nest.map_structure(operator.methodcaller("losses"), task)
+    metrics = tf.nest.map_structure(operator.methodcaller("metrics"), task)
+
     if train_padding is None:
       model.compile(
           optimizer_fn(),
-          loss=task.losses(),
-          metrics=task.metrics(),
+          loss=losses,
+          loss_weights=loss_weights,
+          metrics=metrics,
           steps_per_execution=steps_per_execution)
     else:
       model.compile(
           optimizer_fn(),
-          loss=task.losses(),
-          weighted_metrics=task.metrics(),
+          loss=losses,
+          loss_weights=loss_weights,
+          weighted_metrics=metrics,
           steps_per_execution=steps_per_execution)
+
     return model
 
   model = trainer.train(
@@ -345,18 +548,18 @@ def run(*,
       valid_ds_provider=valid_ds_provider)
 
   if model_exporters is None:
-    model_exporters = [model_export.KerasModelExporter()]
+    model_exporters = (model_export.KerasModelExporter(),)
 
-  parsing_and_preprocess_model = model_utils.chain_first_output(
-      _make_parsing_model(gtspec),
-      preprocess_model, first_output_only=False)
+  parsing_and_preprocess_model = _make_parsing_preprocessing_model(
+      gtspec,
+      preprocess_model)
 
   run_result = RunResult(
       preprocess_model=parsing_and_preprocess_model,
       base_model=model.get_layer(_BASE_MODEL_TAG),
       trained_model=model)
 
-  for export_dir in export_dirs or [os.path.join(trainer.model_dir, "export")]:
+  for export_dir in export_dirs or (os.path.join(trainer.model_dir, "export"),):
     for exporter in model_exporters:
       exporter.save(run_result, export_dir)
 

@@ -59,7 +59,6 @@ pytype_strict_library(
     srcs_version = "PY3",
     visibility = ["//tensorflow_gnn/runner:__pkg__"],
     deps = [
-        ":model",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/runner:interfaces",
     ],

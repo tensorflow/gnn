@@ -50,7 +50,6 @@ pytype_strict_library(
         ":interfaces",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-        "//tensorflow_gnn/runner/utils:model",
         "//tensorflow_gnn/runner/utils:model_export",
         "//tensorflow_gnn/runner/utils:parsing",
     ],
@@ -85,6 +84,7 @@ py_strict_test(
     name = "orchestration_test",
     srcs = ["orchestration_test.py"],
     deps = [
+        ":interfaces",
         ":orchestration",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",

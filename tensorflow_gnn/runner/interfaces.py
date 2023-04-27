@@ -18,7 +18,7 @@ from __future__ import annotations
 import abc
 import dataclasses
 import sys
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Optional, Sequence, TypeVar, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -31,6 +31,9 @@ else:
   from typing_extensions import Protocol
   from typing_extensions import runtime_checkable
 # pylint:enable=g-import-not-at-top
+
+T = TypeVar("T")
+OneOrSequenceOf = Union[T, Sequence[T]]
 
 Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
@@ -142,8 +145,7 @@ class Task(abc.ABC):
   @abc.abstractmethod
   def preprocess(
       self,
-      inputs: GraphTensor
-  ) -> tuple[Union[GraphTensor, Sequence[GraphTensor]], Field]:
+      inputs: GraphTensor) -> tuple[OneOrSequenceOf[GraphTensor], Field]:
     """Preprocesses a scalar (after `merge_batch_to_components`) `GraphTensor`.
 
     This function does non-trainable transformations of the input `GraphTensor`

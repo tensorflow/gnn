@@ -100,9 +100,36 @@ class _Classification(interfaces.Task):
   `metrics`, usually by inheriting from the classes below.
   """
 
-  def __init__(self, units: int, label_fn: LabelFn):
+  def __init__(
+      self,
+      units: int,
+      *,
+      name: str = "classification_logits",
+      label_fn: Optional[LabelFn] = None,
+      label_feature_name: Optional[str] = None):
+    """Sets `Task` parameters.
+
+    Args:
+      units: The units for the classification head. (Typically `1` for binary
+        classification and `num_classes` for multiclass classification.)
+      name: The classification head's layer name. This name typically appears
+        in the exported model's SignatureDef.
+      label_fn: A label extraction function. This function mutates the input
+        `GraphTensor`. Mutually exclusive with `label_feature_name`.
+      label_feature_name: A label feature name for readout from the auxiliary
+        '_readout' node set. Readout does not mutate the input `GraphTensor`.
+        Mutually exclusive with `label_fn`.
+    """
+    if (label_fn is None) == (label_feature_name is None):
+      raise ValueError(
+          "Exactly one of `label_fn` or `label_feature_name` may be specified"
+          f" (got label_fn={label_fn} and"
+          f" label_feature_name={label_feature_name})"
+      )
     self._units = units
+    self._name = name
     self._label_fn = label_fn
+    self._label_feature_name = label_feature_name
 
   @abc.abstractmethod
   def gather_activations(self, inputs: GraphTensor) -> Field:
@@ -121,11 +148,17 @@ class _Classification(interfaces.Task):
     activations = self.gather_activations(inputs)
     logits = tf.keras.layers.Dense(
         self._units,
-        name="logits")(activations)  # Name seen in SignatureDef.
+        name=self._name)(activations)  # Name seen in SignatureDef.
     return logits
 
   def preprocess(self, inputs: GraphTensor) -> tuple[GraphTensor, Field]:
-    return self._label_fn(inputs)
+    if self._label_fn is not None:
+      return self._label_fn(inputs)
+    x = inputs
+    y = tfgnn.keras.layers.Readout(
+        feature_name=self._label_feature_name,
+        node_set_name="_readout")(inputs)
+    return x, y
 
   @abc.abstractmethod
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
@@ -139,8 +172,8 @@ class _Classification(interfaces.Task):
 class _BinaryClassification(_Classification):
   """Binary classification."""
 
-  def __init__(self, units: int = 1, *, label_fn: LabelFn):
-    super().__init__(units, label_fn)
+  def __init__(self, units: int = 1, **kwargs):
+    super().__init__(units, **kwargs)
 
   def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     return (tf.keras.losses.BinaryCrossentropy(from_logits=True),)
@@ -162,13 +195,13 @@ class _MulticlassClassification(_Classification):
                num_classes: Optional[int] = None,
                class_names: Optional[Sequence[str]] = None,
                per_class_statistics: bool = False,
-               label_fn: LabelFn):
+               **kwargs):
     if (num_classes is None) == (class_names is None):
       raise ValueError(
           "Exactly one of `num_classes` or `class_names` must be specified")
     if num_classes is None:
       num_classes = len(class_names)
-    super().__init__(num_classes, label_fn)
+    super().__init__(num_classes, **kwargs)
     if class_names is None:
       self._class_names = [f"class_{i}" for i in range(num_classes)]
     else:
@@ -270,6 +303,7 @@ class _RootNodeClassification(_Classification):
         feature_name=self._state_name)(inputs)
 
 
+# TODO(dzelle): Add an `__init__` with parameters and doc for all of the below.
 class GraphBinaryClassification(_GraphClassification, _BinaryClassification):
   pass
 
