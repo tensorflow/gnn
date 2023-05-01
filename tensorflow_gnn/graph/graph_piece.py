@@ -281,7 +281,7 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
                                       new_spec._metadata)
       return value
 
-    return self.__class__(
+    return self.__class__(  # pytype: disable=not-instantiable
         tf.nest.map_structure(update_fn, self._data), new_spec)
 
   @property
