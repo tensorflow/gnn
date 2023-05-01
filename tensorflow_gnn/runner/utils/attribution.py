@@ -29,7 +29,6 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.runner import interfaces
-from tensorflow_gnn.runner.utils import model as model_utils
 
 
 def reduce_graph_sequence(
@@ -351,8 +350,13 @@ class IntegratedGradientsExporter(interfaces.ModelExporter):
 
     if preprocess_model is None:
       raise ValueError("Integrated gradients requires a `preprocess_model.`")
+    elif not preprocess_model.built:
+      raise ValueError("`preprocess_model` is expected to have been built")
+    elif not model.built:
+      raise ValueError("`model` is expected to have been built")
 
-    model_for_export = model_utils.chain_first_output(preprocess_model, model)
+    xs, *_ = preprocess_model.output
+    model_for_export = tf.keras.Model(preprocess_model.input, model(xs))
 
     ig = integrated_gradients(
         preprocess_model,

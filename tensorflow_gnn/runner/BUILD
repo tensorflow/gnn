@@ -22,7 +22,6 @@ pytype_strict_library(
         "//tensorflow_gnn/runner/trainers:keras_fit",
         "//tensorflow_gnn/runner/utils:attribution",
         "//tensorflow_gnn/runner/utils:label_fns",
-        "//tensorflow_gnn/runner/utils:model",
         "//tensorflow_gnn/runner/utils:model_dir",
         "//tensorflow_gnn/runner/utils:model_export",
         "//tensorflow_gnn/runner/utils:model_templates",

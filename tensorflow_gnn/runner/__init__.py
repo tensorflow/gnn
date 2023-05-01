@@ -21,12 +21,14 @@ from tensorflow_gnn.runner.tasks import regression
 from tensorflow_gnn.runner.trainers import keras_fit
 from tensorflow_gnn.runner.utils import attribution
 from tensorflow_gnn.runner.utils import label_fns
-from tensorflow_gnn.runner.utils import model as model_utils
 from tensorflow_gnn.runner.utils import model_dir
 from tensorflow_gnn.runner.utils import model_export
 from tensorflow_gnn.runner.utils import model_templates
 from tensorflow_gnn.runner.utils import padding as padding_utils
 from tensorflow_gnn.runner.utils import strategies
+
+# Attribution
+integrated_gradients = attribution.integrated_gradients
 
 # Input
 PassthruDatasetProvider = datasets.PassthruDatasetProvider
@@ -56,10 +58,6 @@ incrementing_model_dir = model_dir.incrementing_model_dir
 IntegratedGradientsExporter = attribution.IntegratedGradientsExporter
 KerasModelExporter = model_export.KerasModelExporter
 SubmoduleExporter = model_export.SubmoduleExporter
-
-# Model helpers
-chain_first_output = model_utils.chain_first_output
-integrated_gradients = attribution.integrated_gradients
 
 # Orchestration
 run = orchestration.run
@@ -115,7 +113,6 @@ del regression
 del keras_fit
 del attribution
 del label_fns
-del model_utils
 del model_dir
 del model_export
 del model_templates

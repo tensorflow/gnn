@@ -14,7 +14,6 @@ pytype_strict_library(
     srcs_version = "PY3",
     visibility = ["//tensorflow_gnn/runner:__pkg__"],
     deps = [
-        ":model",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
@@ -30,16 +29,6 @@ pytype_strict_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-    ],
-)
-
-pytype_strict_library(
-    name = "model",
-    srcs = ["model.py"],
-    srcs_version = "PY3",
-    visibility = ["//tensorflow_gnn/runner:__pkg__"],
-    deps = [
-        "//:expect_tensorflow_installed",
     ],
 )
 
@@ -118,17 +107,6 @@ py_strict_test(
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
         "//tensorflow_gnn/runner:interfaces",
-    ],
-)
-
-py_strict_test(
-    name = "model_test",
-    srcs = ["model_test.py"],
-    python_version = "PY3",
-    deps = [
-        ":model",
-        "//:expect_absl_installed",
-        "//:expect_tensorflow_installed",
     ],
 )
 
