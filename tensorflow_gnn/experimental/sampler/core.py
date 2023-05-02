@@ -424,10 +424,92 @@ class KeyToTfExampleAccessor(CompositeLayer, interfaces.KeyToFeaturesAccessor):
     return super().call(keys)
 
 
-@tf.keras.utils.register_keras_serializable(package='GNN')
-class UniformEdgesSampler(
-    CompositeLayer, interfaces.OutgoingEdgesSampler
+class InMemIndexToFeaturesAccessor(
+    tf.keras.layers.Layer, interfaces.KeyToFeaturesAccessor
 ):
+  """Extracts features by their indices from the features tensor.
+
+  A single `call()` has O(tf.size(indices)) time complexity.
+
+  Example:
+
+  ```python
+    paper_features = core.InMemIndexToFeaturesAccessor(
+        {
+            'year': [2018, 2019, 2017],
+            'feat': [[1., 2.], [3., 4.], [5., 6.]]
+        },
+        name='paper',
+    )
+
+
+    features = paper_features(tf.ragged.constant([[2, 1], [0]]))
+    # {
+    #     'year': tf.ragged.constant([[2017, 2019], [2018]]),
+    #     'feat': tf.ragged.constant([[[5., 6.], [3., 4.]], [[1., 2.]]]),
+    # }
+  ```
+
+
+  Call returns:
+      `Features` for values having `indices`. All returned features have shape
+      `[batch_size, (num_keys), ...]`.
+  """
+
+  def __init__(
+      self,
+      features: tfgnn.Fields,
+      **kwargs,
+  ):
+    """Constructor.
+
+    Args:
+      features: A dictionary of node features for all nodes. Each feature must
+        have shape `[num_values, **feature_dims]`.
+      **kwargs: Other arguments for the base class.
+    """
+    super().__init__(**kwargs)
+    self._features = {k: tf.convert_to_tensor(v) for k, v in features.items()}
+
+  @property
+  def resource_name(self) -> tfgnn.NodeSetName:
+    return self.name
+
+  @classmethod
+  def from_graph_tensor(
+      cls,
+      graph_tensor: tfgnn.GraphTensor,
+      node_set_name: tfgnn.NodeSetName,
+      *,
+      name: Optional[str] = None,
+  ) -> 'InMemIndexToFeaturesAccessor':
+    """Creates an accessor to `graph_tensor` node set features by their indices.
+
+    Args:
+      graph_tensor: A scalar (rank 0) `GraphTensor`.
+      node_set_name: The node set name to access.
+      name: The name of returned Keras layer. If not specified, the
+        `node_set_name` is used.
+
+    Returns:
+       Keras layer, instance fo the `InMemIndexToFeaturesAccessor`.
+    """
+    if graph_tensor.rank != 0:
+      raise ValueError(
+          f'Expected scalar graph tensor, got rank={graph_tensor.rank}'
+      )
+    name = name or node_set_name
+    node_set = graph_tensor.node_sets[node_set_name]
+    return cls(node_set.get_features_dict(), name=name)
+
+  def call(self, indices: tf.RaggedTensor) -> Features:
+    return tf.nest.map_structure(
+        functools.partial(tf.gather, indices=indices), self._features
+    )
+
+
+@tf.keras.utils.register_keras_serializable(package='GNN')
+class UniformEdgesSampler(CompositeLayer, interfaces.OutgoingEdgesSampler):
   """Samples edges uniformly at random from adjacency lists without replacement.
 
   Example: For each input papers samples up to 2 cited papers.
@@ -524,6 +606,195 @@ class UniformEdgesSampler(
 
   def call(self, source_node_ids: tf.RaggedTensor) -> Features:
     return super().call(source_node_ids)
+
+
+class InMemUniformEdgesSampler(
+    tf.keras.layers.Layer, interfaces.OutgoingEdgesSampler
+):
+  """Samples edges uniformly at random from in-memory edge features.
+
+  A single `call()` has O(tf.size(indices)) time complexity.
+
+  NOTE: the class allocates two auxiliary integer tensors with shapes
+  `[num_edges]`, `[num_source_nodes, 2]`.
+
+  TODO(aferludin): consider optimizations if edges are sorted by their sources.
+
+  Example: Samples up to 2 edges uniformly at random for each input source node.
+
+  ```python
+    cited_papers = tfgnn.InMemUniformEdgesSampler(
+      num_source_nodes=2,
+      source=[1, 0, 0, 0, 1],
+      target=[2, 1, 2, 3, 3],
+      features_spec={
+          'weight': [0.2, 0.1, 0.2, 0.3, 0.3]
+      },
+      sample_size = 2
+    )
+    cites = edge_sampler(tf.ragged.constant([[0], [0, 1]]))
+    # #   edges:     0->1,  0->3,   0->3,  0->2, 1->2, 1->3
+    # {
+    #   '#source': [[  0,    0  ], [  0,    0,    1,    1  ]]
+    #   '#target': [[  1,    3  ], [  3,    2,    2,    3  ]]
+    #   'weight':  [[ 0.1,  0.3 ], [ 0.3,  0.2,  0.2,  0.3 ]]
+    # }
+  ```
+
+  Call returns:
+      Edge features containing the subset of all edges whose source nodes are in
+      `source_node_ids`. All returned features have shape `[batch_size,
+      (num_edges), ...]`. Result includes two special features "#source" and
+      "#target" of rank 2 containing, correspondigly, source node ids and
+      targert node ids of the sampled edges.
+  """
+
+  def __init__(
+      self,
+      num_source_nodes: tf.Tensor,
+      source: tf.Tensor,
+      target: tf.Tensor,
+      edge_features: Optional[tfgnn.Fields] = None,
+      *,
+      sample_size: int,
+      seed: Optional[int] = None,
+      **kwargs,
+  ):
+    """Constructor.
+
+    Args:
+      num_source_nodes: The number of source nodes. Scalar integer tensor.
+      source: The indices of source nodes of edges. Tensor of `int32` or `int64`
+        dtype and shape `[num_edges]`.
+      target: The indices of target nodes of edges. Tensor the same dtype and
+        shape as `source`.
+      edge_features: An optional dictionary of edge features. Each feature must
+        have shape `[num_edges, **feature_dims]`.
+      sample_size: The maximum number of edges to sample for each source node.
+      seed: A Python integer. Used to create a random seed for sampling.
+      **kwargs: Other arguments for the base class.
+    """
+    super().__init__(**kwargs)
+    num_source_nodes = tf.convert_to_tensor(num_source_nodes)
+    source = tf.convert_to_tensor(source)
+    target = tf.convert_to_tensor(target)
+    edge_features = {
+        k: tf.convert_to_tensor(v) for k, v in (edge_features or {}).items()
+    }
+    self._fields = {
+        tfgnn.SOURCE_NAME: source,
+        tfgnn.TARGET_NAME: target,
+        **edge_features,
+    }
+
+    self._sample_size = sample_size
+    self._seed = seed
+
+    self._sort_index = tf.argsort(source)
+    sorted_source = tf.gather(source, self._sort_index)
+
+    splits_by_source = tf.ragged.segment_ids_to_row_splits(
+        sorted_source, num_source_nodes
+    )
+    starts, limits = splits_by_source[:-1], splits_by_source[1:]
+    outgoing_edges_count = limits - starts
+    # Partition of `self._fields` if sorted by self._sort_index by source nodes.
+    self._partition_by_source = tf.stack([starts, outgoing_edges_count], axis=1)
+
+  @property
+  def sample_size(self) -> int:
+    return self._sample_size
+
+  @property
+  def resource_name(self) -> tfgnn.EdgeSetName:
+    return self.name
+
+  @classmethod
+  def from_graph_tensor(
+      cls,
+      graph_tensor: tfgnn.GraphTensor,
+      edge_set_name: tfgnn.EdgeSetName,
+      *,
+      sample_size: int,
+      source_tag: tfgnn.IncidentNodeTag = tfgnn.SOURCE,
+      seed: Optional[int] = None,
+      name: Optional[str] = None,
+  ) -> 'InMemUniformEdgesSampler':
+    """Creates a uniform outgoing edges sampler for a `graph_tensor`'s edge set.
+
+    Args:
+      graph_tensor: A scalar (rank 0) `GraphTensor`.
+      edge_set_name: The edge set to sample edges from.
+      sample_size: The maximum number of edges to sample from each `source_tag`
+        node.
+      source_tag: The incident node set to sample outgoing edge from.
+      seed: A Python integer. Used to create a random seed for sampling.
+      name: The name of returned Keras layer. If not specified, the
+        `edge_set_name` is used.
+
+    Returns:
+       Keras layer, instance fo the `InMemUniformEdgesSampler`.
+    """
+    if graph_tensor.rank != 0:
+      raise ValueError(
+          f'Expected scalar graph tensor, got rank={graph_tensor.rank}'
+      )
+    target_tag = tfgnn.reverse_tag(source_tag)
+    name = name or edge_set_name
+    edge_set = graph_tensor.edge_sets[edge_set_name]
+    adj = edge_set.adjacency
+    if not isinstance(adj, tfgnn.Adjacency):
+      raise ValueError(
+          'Expected adjacency of `tfgnn.Adjacency` type, got'
+          f' {type(adj).__name__}'
+      )
+    source_node_set = graph_tensor.node_sets[adj.node_set_name(source_tag)]
+    return cls(
+        num_source_nodes=source_node_set.total_size,
+        source=adj[source_tag],
+        target=adj[target_tag],
+        edge_features=edge_set.features,
+        name=name,
+        sample_size=sample_size,
+        seed=seed,
+    )
+
+  def call(self, source_node_ids: tf.RaggedTensor) -> Features:
+    # First sample edge indices as if they are sorted by their source nodes.
+    # Then remap obtained indices on the real edge positions in `self._fields`
+    # using `self._sort_index`.
+
+    outgoing_edges_offsets, outgoing_edges_count = tf.unstack(
+        tf.gather(self._partition_by_source, source_node_ids.values), 2, axis=1
+    )
+    samples_count = tf.minimum(
+        tf.constant(self.sample_size, dtype=outgoing_edges_count.dtype),
+        outgoing_edges_count,
+    )
+    targets_splits = _row_lengths_to_row_splits(outgoing_edges_count)
+    # Indices of sampled target nodes within each group of target nodes.
+    edges_idx = ext_ops.ragged_choice(
+        samples_count, targets_splits, global_indices=False, seed=self._seed
+    )
+    # Indices of sampled edges in `self._fields` if sorted by source.
+    edges_idx += tf.expand_dims(outgoing_edges_offsets, -1)
+    edges_idx = edges_idx.values
+    # Real indices of sampled edges in the original `self._fields` (not sorted).
+    edges_idx = tf.gather(self._sort_index, edges_idx)
+
+    result_row_lengths = tf.math.unsorted_segment_sum(
+        samples_count,
+        source_node_ids.value_rowids(),
+        source_node_ids.nrows(),
+    )
+    result_row_splits = _row_lengths_to_row_splits(result_row_lengths)
+
+    def extract(field: tfgnn.Field) -> tfgnn.Field:
+      return tf.RaggedTensor.from_row_splits(
+          tf.gather(field, edges_idx), result_row_splits, validate=False
+      )
+
+    return tf.nest.map_structure(extract, self._fields)
 
 
 @tf.keras.utils.register_keras_serializable(package='GNN')
@@ -1146,3 +1417,13 @@ def _parse_edge_set_definition(
     )
   source_node_set, edge_set, target_node_set = pieces
   return source_node_set, edge_set, target_node_set
+
+
+def _row_lengths_to_row_splits(row_lengths: tf.Tensor) -> tf.Tensor:
+  return tf.concat(
+      [
+          tf.constant([0], row_lengths.dtype),
+          tf.math.cumsum(row_lengths, exclusive=False),
+      ],
+      axis=-1,
+  )

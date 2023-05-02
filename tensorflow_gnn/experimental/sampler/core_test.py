@@ -19,10 +19,30 @@ from absl.testing import parameterized
 
 import google.protobuf.text_format as pbtext
 import tensorflow as tf
+import tensorflow_gnn as tfgnn
 
 from tensorflow_gnn.experimental.sampler import core
 
 rt = tf.ragged.constant
+
+CITATION_GRAPH = tfgnn.GraphTensor.from_pieces(
+    node_sets={
+        'author': tfgnn.NodeSet.from_fields(sizes=[2, 2], features={}),
+        'paper': tfgnn.NodeSet.from_fields(
+            sizes=[3, 1], features={'year': [2018, 2017, 2017, 2022]}
+        ),
+    },
+    edge_sets={
+        'is_written': tfgnn.EdgeSet.from_fields(
+            sizes=[4, 2],
+            features={},
+            adjacency=tfgnn.Adjacency.from_indices(
+                source=('paper', [0, 1, 1, 0, 2, 3]),
+                target=('author', [0, 0, 1, 2, 3, 3]),
+            ),
+        )
+    },
+)
 
 
 def save_and_load(model: tf.keras.Model) -> tf.keras.Model:
@@ -707,6 +727,159 @@ class UniformEdgesSamplerTest(tf.test.TestCase, parameterized.TestCase):
     check_results(model)
     restored_model = save_and_load(model)
     check_results(restored_model)
+
+
+class InMemUniformEdgesSamplerTest(tf.test.TestCase, parameterized.TestCase):
+
+  def _get_sampling_layer(
+      self, sample_size: int, *, seed: int, table_name: Optional[str] = None
+  ):
+    return core.InMemUniformEdgesSampler(
+        num_source_nodes=3,
+        source=tf.constant([2, 0, 0], tf.int64),
+        target=tf.constant([0, 1, 2], tf.int64),
+        edge_features={'weights': [1.0, 2.0, 3.0]},
+        seed=seed,
+        sample_size=sample_size,
+        name=table_name,
+    )
+
+  @parameterized.product(table_name=['cites', 'writes'], sample_size=[1, 8])
+  def testAttributes(self, table_name: str, sample_size: int):
+    layer = self._get_sampling_layer(
+        sample_size, seed=42, table_name=table_name
+    )
+    self.assertEqual(layer.resource_name, table_name)
+    self.assertEqual(layer.sample_size, sample_size)
+
+  @parameterized.parameters(list(range(10)))
+  def testBasicSampling(self, seed):
+    layer = self._get_sampling_layer(1, seed=seed)
+    result = layer(rt([[2]]))
+    self.assertSetEqual(set(result.keys()), {'#source', '#target', 'weights'})
+    self.assertAllEqual(result['weights'], rt([[1.0]]))
+    self.assertAllEqual(result['#source'], rt([[2]]))
+    self.assertAllEqual(result['#target'], rt([[0]]))
+
+    result = layer(rt([[0], [1], []]))
+    self.assertSetEqual(set(result.keys()), {'#source', '#target', 'weights'})
+    for example_id in [1, 2]:
+      self.assertAllEqual(
+          result['weights'][example_id, :], tf.convert_to_tensor([], tf.float32)
+      )
+      self.assertAllEqual(
+          result['#source'][example_id, :],
+          tf.convert_to_tensor([], tf.int64),
+      )
+      self.assertAllEqual(
+          result['#target'][example_id, :],
+          tf.convert_to_tensor([], tf.int64),
+      )
+
+    target_ids = list(result['#target'][0, :].numpy())
+    self.assertLen(target_ids, 1)
+    self.assertIn(target_ids[0], [1, 2])
+    self.assertAllEqual(result['#source'][0, :], [0])
+    self.assertAllEqual(
+        result['weights'][0, :], [2.0 if target_ids[0] == 1 else 3.0]
+    )
+
+  @parameterized.parameters([2, 3, 10])
+  def testBatches(self, sample_size):
+    layer = self._get_sampling_layer(sample_size=sample_size, seed=42)
+    result = layer(rt([[0, 2], [0], [2]]))
+    self.assertSetEqual(set(result['#target'][0, :].numpy()), {0, 1, 2})
+    self.assertSetEqual(set(result['#source'][0, :].numpy()), {0, 2})
+    self.assertSetEqual(set(result['weights'][0, :].numpy()), {1.0, 2.0, 3.0})
+    self.assertSetEqual(set(result['#target'][1, :].numpy()), {1, 2})
+    self.assertSetEqual(set(result['#source'][1, :].numpy()), {0})
+    self.assertSetEqual(set(result['weights'][1, :].numpy()), {2.0, 3.0})
+    self.assertSetEqual(set(result['#target'][2, :].numpy()), {0})
+    self.assertSetEqual(set(result['#source'][2, :].numpy()), {2})
+    self.assertSetEqual(set(result['weights'][2, :].numpy()), {1.0})
+
+  @parameterized.parameters([2, 3, 10])
+  def testFeaturesOrder(self, sample_size):
+    layer = self._get_sampling_layer(sample_size=sample_size, seed=42)
+    result = layer(rt([[0]]))
+    target_ids = list(result['#target'][0, :].numpy())
+    self.assertAllEqual(
+        result['weights'][0, :],
+        [2.0, 3.0] if target_ids[0] == 1 else [3.0, 2.0],
+    )
+
+  def testRandomness(self):
+    layer = self._get_sampling_layer(sample_size=1, seed=42)
+    result = layer(rt([[0] * 1000]))
+    self.assertSetEqual(set(result['#target'].flat_values.numpy()), {1, 2})
+
+  @parameterized.product(sample_size=[1, 2, 10], seed=[1, 2, 3, 4])
+  def testSourceIndicesOrderInvariance(self, sample_size, seed):
+    source = [0, 0, 0, 0, 1, 1, 1, 2, 2, 3]
+    target = [1, 2, 3, 4, 2, 3, 4, 3, 4, 4]
+    shuffle_idx = tf.random.shuffle(tf.range(len(source)), seed=seed)
+    layer = core.InMemUniformEdgesSampler(
+        num_source_nodes=5,
+        source=tf.gather(source, shuffle_idx),
+        target=tf.gather(target, shuffle_idx),
+        seed=seed,
+        sample_size=sample_size,
+    )
+
+    def get_targets(edges, row: int):
+      return edges['#target'][row, :].numpy()
+
+    for _ in range(10):
+      result = layer(rt([[0], [1], [2], [3], [4]]))
+
+      self.assertAllInSet(get_targets(result, 0), {1, 2, 3, 4})
+      self.assertAllInSet(get_targets(result, 1), {2, 3, 4})
+      self.assertAllInSet(get_targets(result, 2), {3, 4})
+      self.assertAllInSet(get_targets(result, 3), {4})
+      self.assertAllInSet(get_targets(result, 4), {})
+
+  def testFromGraphTensor(self):
+    paper_author = core.InMemUniformEdgesSampler.from_graph_tensor(
+        CITATION_GRAPH, 'is_written', sample_size=100, seed=42
+    )
+    self.assertAllEqual(paper_author.resource_name, 'is_written')
+
+    def get_targets(edges):
+      return set(edges['#target'].flat_values.numpy())
+
+    self.assertSetEqual(get_targets(paper_author(rt([[0]]))), {0, 2})
+    self.assertSetEqual(get_targets(paper_author(rt([[1]]))), {0, 1})
+    self.assertSetEqual(get_targets(paper_author(rt([[2]]))), {3})
+    self.assertSetEqual(get_targets(paper_author(rt([[3]]))), {3})
+
+
+class InMemIndexToFeaturesAccessor(tf.test.TestCase):
+
+  def testLookup(self):
+    layer = core.InMemIndexToFeaturesAccessor(
+        {'id': ['a', 'b', 'c'], 'feat': [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]},
+        name='node',
+    )
+
+    self.assertAllEqual(layer.resource_name, 'node')
+    result = layer(rt([[2, 0], [], [0], []]))
+    self.assertSetEqual(set(result.keys()), {'id', 'feat'})
+    self.assertAllEqual(result['id'], rt([['c', 'a'], [], ['a'], []]))
+    self.assertAllEqual(
+        result['feat'],
+        rt([[[5.0, 6.0], [1.0, 2.0]], [], [[1.0, 2.0]], []], ragged_rank=1),
+    )
+
+  def testFromGraphTensor(self):
+    paper_feat = core.InMemIndexToFeaturesAccessor.from_graph_tensor(
+        CITATION_GRAPH, 'paper'
+    )
+    self.assertAllEqual(paper_feat.resource_name, 'paper')
+    result = paper_feat(rt([[0, 1, 2, 3], [1, 2], [3]]))
+    self.assertSetEqual(set(result.keys()), {'year'})
+    self.assertAllEqual(
+        result['year'], rt([[2018, 2017, 2017, 2022], [2017, 2017], [2022]])
+    )
 
 
 class GraphTensorBuilderTest(tf.test.TestCase):
