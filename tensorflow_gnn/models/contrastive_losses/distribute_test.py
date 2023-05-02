@@ -134,19 +134,18 @@ class DistributeTests(tf.test.TestCase, parameterized.TestCase):
     serialized = [tfgnn.write_example(gt).SerializeToString() for gt in gts]
     ds_provider = DatasetProviderFromTensors(serialized)
 
-    node_sets_fn = lambda node_set, node_set_name: node_set["features"]
-    model_fn = runner.ModelFromInitAndUpdates(
-        init=tfgnn.keras.layers.MapFeatures(node_sets_fn=node_sets_fn),
-        updates=[
-            vanilla_mpnn.VanillaMPNNGraphUpdate(
-                units=2,
-                message_dim=3,
-                receiver_tag=tfgnn.SOURCE,
-                l2_regularization=5e-4,
-                dropout_rate=0.1,
-            )
-        ],
-    )
+    def model_fn(graph_tensor_spec):
+      graph = inputs = tf.keras.layers.Input(type_spec=graph_tensor_spec)
+      graph = tfgnn.keras.layers.MapFeatures(
+          node_sets_fn=lambda node_set, node_set_name: node_set["features"]
+      )(graph)
+      graph = vanilla_mpnn.VanillaMPNNGraphUpdate(
+          units=2,
+          message_dim=3,
+          receiver_tag=tfgnn.SOURCE,
+          l2_regularization=5e-4,
+          dropout_rate=0.1)(graph)
+      return tf.keras.Model(inputs, graph)
 
     model_dir = self.create_tempdir()
 

@@ -29,7 +29,6 @@ from tensorflow_gnn.runner.tasks import classification
 from tensorflow_gnn.runner.tasks import regression
 from tensorflow_gnn.runner.trainers import keras_fit
 from tensorflow_gnn.runner.utils import label_fns
-from tensorflow_gnn.runner.utils import model_templates
 from tensorflow_gnn.runner.utils import padding
 
 _LABELS = tuple(range(32))
@@ -185,15 +184,18 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
         sample_dict=_SAMPLE_DICT))
     ds_provider = DatasetProvider((gt.SerializeToString(),) * 4)
 
-    node_sets_fn = lambda node_set, node_set_name: node_set["features"]
-    model_fn = model_templates.ModelFromInitAndUpdates(
-        init=tfgnn.keras.layers.MapFeatures(node_sets_fn=node_sets_fn),
-        updates=[vanilla_mpnn.VanillaMPNNGraphUpdate(
-            units=1,
-            message_dim=2,
-            receiver_tag=tfgnn.SOURCE,
-            l2_regularization=5e-4,
-            dropout_rate=0.1)])
+    def model_fn(graph_tensor_spec):
+      graph = inputs = tf.keras.layers.Input(type_spec=graph_tensor_spec)
+      graph = tfgnn.keras.layers.MapFeatures(
+          node_sets_fn=lambda node_set, node_set_name: node_set["features"]
+      )(graph)
+      graph = vanilla_mpnn.VanillaMPNNGraphUpdate(
+          units=1,
+          message_dim=2,
+          receiver_tag=tfgnn.SOURCE,
+          l2_regularization=5e-4,
+          dropout_rate=0.1)(graph)
+      return tf.keras.Model(inputs, graph)
 
     model_dir = self.create_tempdir()
 
