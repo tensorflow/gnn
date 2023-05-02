@@ -255,6 +255,7 @@ def integrated_gradients(
   def fn(inputs):
     try:
       graph, labels = preprocess_model(inputs)
+      if isinstance(graph, Sequence): graph, *_ = graph
     except ValueError as error:
       msg = "Integrated gradients requires both examples and labels"
       raise ValueError(msg) from error

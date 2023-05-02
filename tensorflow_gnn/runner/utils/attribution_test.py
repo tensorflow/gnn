@@ -222,7 +222,7 @@ class AttributionTest(tf.test.TestCase):
         maxval=9,
         dtype=tf.int32)  # 10 classes
 
-    preprocess_model = tf.keras.Model(examples, (parsed, label))
+    preprocess_model = tf.keras.Model(examples, ((parsed,), label))
 
     # Model
     inputs = graph = tf.keras.Input(type_spec=parsed.spec)
