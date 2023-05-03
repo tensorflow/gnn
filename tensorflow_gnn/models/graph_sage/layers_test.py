@@ -375,6 +375,19 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
     }
     self.assertAllClose(actual, expected_outputs[normalize][combine_type])
 
+  def testReceivingRequired(self):
+    graph = _get_test_graph()
+    assert not any(edge_set.adjacency.target_name == "paper"
+                   for edge_set in graph.edge_sets.values())
+    layer = graph_sage.GraphSAGEGraphUpdate(
+        node_set_names={"author", "paper"},
+        receiver_tag=tfgnn.TARGET,
+        units=1,
+        hidden_units=1,
+        feature_name=_FEATURE_NAME)
+    with self.assertRaisesRegex(ValueError, r"not .* from any edge set.*paper"):
+      _ = layer(graph)
+
   @parameterized.named_parameters(
       ("E2ELoadKerasMeanPool", "mean", True, ReloadModel.KERAS),
       ("E2ELoadKerasMeanAgg", "mean", False, ReloadModel.KERAS),
@@ -393,7 +406,7 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
     graph = _get_test_graph()
     out_units = 1
     layer = graph_sage.GraphSAGEGraphUpdate(
-        node_set_names={"author", "paper"},
+        node_set_names={"author"},
         receiver_tag=tfgnn.TARGET,
         reduce_type=reduce_operation,
         combine_type="concat",

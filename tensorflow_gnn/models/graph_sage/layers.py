@@ -14,7 +14,6 @@
 # ==============================================================================
 """Contains GraphSAGE convolution layer implementations."""
 
-import collections
 import copy
 from typing import Any, Callable, Collection, Optional, Set, Union
 
@@ -473,25 +472,23 @@ class GCNGraphSAGENodeSetUpdate(tf.keras.layers.Layer):
     return {self._self_node_feature: result}
 
 
-# TODO(b/269076334): Refactor in terms of ConvGNNBuilder to get support for
-# AUX_GRAPH_PIECE_PATTERN.
 @tf.keras.utils.register_keras_serializable(package="GraphSAGE")
-def GraphSAGEGraphUpdate(*,
-                         units: int,
-                         hidden_units: Optional[int] = None,
-                         receiver_tag: tfgnn.IncidentNodeTag,
-                         node_set_names: Optional[
-                             Collection[tfgnn.NodeSetName]] = None,
-                         reduce_type: str = "mean",
-                         use_pooling: bool = True,
-                         use_bias: bool = True,
-                         dropout_rate: float = 0.0,
-                         l2_normalize: bool = True,
-                         combine_type: str = "sum",
-                         activation: Union[str, Callable[..., Any]] = "relu",
-                         feature_name: str = tfgnn.HIDDEN_STATE,
-                         name: str = "graph_sage",
-                         **kwargs):
+def GraphSAGEGraphUpdate(  # To be called like a class initializer.  pylint: disable=invalid-name
+    *,
+    units: int,
+    hidden_units: Optional[int] = None,
+    receiver_tag: tfgnn.IncidentNodeTag,
+    node_set_names: Optional[Collection[tfgnn.NodeSetName]] = None,
+    reduce_type: str = "mean",
+    use_pooling: bool = True,
+    use_bias: bool = True,
+    dropout_rate: float = 0.0,
+    l2_normalize: bool = True,
+    combine_type: str = "sum",
+    activation: Union[str, Callable[..., Any]] = "relu",
+    feature_name: str = tfgnn.HIDDEN_STATE,
+    name: str = "graph_sage",
+    **kwargs) -> tf.keras.layers.Layer:
   """Returns a GraphSAGE GraphUpdater layer for nodes in node_set_names.
 
   For more information on GraphSAGE algorithm please refer to
@@ -508,11 +505,11 @@ def GraphSAGEGraphUpdate(*,
       GraphSAGE are aggregated for this graph piece. When set to `tfgnn.SOURCE`
       or `tfgnn.TARGET`, the layer is called for an edge set and will aggregate
       results at the specified endpoint of the edges.
-    node_set_names: A set (or convertible container) of node_set_names for which
-      the GraphSAGE graph update happens over each of their incident edges,
-      where node_set_name is configured as the receiver_tag end.
-      If unset, defaults to all node sets that receive from at least one edge
-      set.
+    node_set_names: By default, this layer updates all node sets that receive
+      from at least one edge set. Optionally, this argument can specify a subset
+      of those node sets. It is not allowed to include node sets that do not
+      receive messages from any edge set. It is also not allowed to include
+      auxiliary node sets.
     reduce_type: An aggregation operation name. Supported list of aggregation
       operators can be found at `tfgnn.get_registered_reduce_operation_names()`.
     use_pooling: If enabled, `graph_sage.GraphSAGEPoolingConv` will be used,
@@ -538,57 +535,57 @@ def GraphSAGEGraphUpdate(*,
       `graph_sage.GraphSAGEAggregatorConv` or `graph_sage.GraphSAGENextState`,
       see there.
   """
-  if node_set_names is not None:
-    node_set_names = set(node_set_names)
+  if use_pooling != (hidden_units is not None):
+    raise ValueError(
+        "Either use_pooling or hidden_units has been configured without the "
+        "other, please configure them together or disable them both.")
 
-  # graph_update_callback is deferred until we get the graph spec.
-  def GraphUpdateCallback(spec: tfgnn.GraphTensorSpec):
-    if use_pooling != (hidden_units is not None):
-      raise ValueError(
-          "Either use_pooling or hidden_units has been configured without the "
-          "other, please configure them together or disable them both.")
-    node_set_update_dict = collections.defaultdict(dict)
-    for edge_set_name, edge_set_spec in spec.edge_sets_spec.items():
-      node_set_name = edge_set_spec.adjacency_spec.node_set_name(receiver_tag)
-      if node_set_names is None or node_set_name in node_set_names:
-        if use_pooling:
-          node_set_update_dict[node_set_name][
-              edge_set_name] = GraphSAGEPoolingConv(
-                  receiver_tag=receiver_tag,
-                  sender_node_feature=feature_name,
-                  reduce_type=reduce_type,
-                  units=units,
-                  hidden_units=hidden_units,
-                  use_bias=use_bias,
-                  dropout_rate=dropout_rate,
-                  **kwargs)
-        else:
-          node_set_update_dict[node_set_name][
-              edge_set_name] = GraphSAGEAggregatorConv(
-                  receiver_tag=receiver_tag,
-                  reduce_type=reduce_type,
-                  sender_node_feature=feature_name,
-                  units=units,
-                  dropout_rate=dropout_rate,
-                  **kwargs)
-    node_set_updates = dict()
-    for node_set_name, edge_set_update_dict in node_set_update_dict.items():
-      node_set_updates[node_set_name] = tfgnn.keras.layers.NodeSetUpdate(
-          edge_set_update_dict,
-          next_state=GraphSAGENextState(
-              units=units,
-              use_bias=use_bias,
-              dropout_rate=dropout_rate,
-              feature_name=feature_name,
-              l2_normalize=l2_normalize,
-              combine_type=combine_type,
-              activation=activation,
-              **kwargs),
-          node_input_feature=feature_name)
-    return dict(node_sets=node_set_updates)
+  def convolutions_factory(edge_set_name, receiver_tag):
+    del edge_set_name  # Unused.
+    if use_pooling:
+      return GraphSAGEPoolingConv(
+          receiver_tag=receiver_tag,
+          sender_node_feature=feature_name,
+          reduce_type=reduce_type,
+          units=units,
+          hidden_units=hidden_units,
+          use_bias=use_bias,
+          dropout_rate=dropout_rate,
+          **kwargs)
+    else:
+      return GraphSAGEAggregatorConv(
+          receiver_tag=receiver_tag,
+          reduce_type=reduce_type,
+          sender_node_feature=feature_name,
+          units=units,
+          dropout_rate=dropout_rate,
+          **kwargs)
 
-  return tfgnn.keras.layers.GraphUpdate(
-      deferred_init_callback=GraphUpdateCallback, name=name)
+  def nodes_next_state_factory(node_set_name):
+    del node_set_name  # Unused.
+    return GraphSAGENextState(
+        units=units,
+        use_bias=use_bias,
+        dropout_rate=dropout_rate,
+        feature_name=feature_name,
+        l2_normalize=l2_normalize,
+        combine_type=combine_type,
+        activation=activation,
+        **kwargs)
+
+  def node_set_update_factory(node_set_name, edge_set_inputs, next_state):
+    del node_set_name  # Unused.
+    return tfgnn.keras.layers.NodeSetUpdate(
+        edge_set_inputs=edge_set_inputs,
+        next_state=next_state,
+        node_input_feature=feature_name)
+
+  gnn_builder = tfgnn.keras.ConvGNNBuilder(
+      convolutions_factory,
+      nodes_next_state_factory,
+      node_set_update_factory=node_set_update_factory,
+      receiver_tag=receiver_tag)
+  return gnn_builder.Convolve(node_set_names, name=name)
 
 
 @tf.keras.utils.register_keras_serializable(package="GraphSAGE")
