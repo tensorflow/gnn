@@ -75,8 +75,8 @@ _EXPORT_DIR = flags.DEFINE_string(
     ),
 )
 
-_TPU_ADDRESS = flags.DEFINE_string(
-    "tpu_address",
+_TPU = flags.DEFINE_string(
+    "tpu",
     None,
     "An optional TPU address "
     "(see: `tf.distribute.cluster_resolver.TPUClusterResolver`), if empty "
@@ -392,8 +392,8 @@ def main(
   optimizer_fn = functools.partial(tf.keras.optimizers.Adam,
                                    learning_rate=learning_rate)
 
-  if _TPU_ADDRESS.value is not None:
-    strategy = runner.TPUStrategy(_TPU_ADDRESS.value)
+  if _TPU.value is not None:
+    strategy = runner.TPUStrategy(_TPU.value)
     # Update `min_nodes_per_component.` Default requirement of at least one node
     # from each node set in input is sufficient but more than necessary.
     # The condition that each graph component must contain at least one "paper"
