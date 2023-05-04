@@ -42,7 +42,7 @@ for dense inputs in the future.
 """
 
 import abc
-from typing import Mapping
+from typing import Any, Mapping
 
 import tensorflow as tf
 
@@ -57,6 +57,13 @@ class SamplingPrimitive(abc.ABC):
 
 class AccessorBase(SamplingPrimitive):
   """Base class for any value accessor."""
+
+  def __call__(self, *args, **kwargs) -> Any:
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def call(self, *args, **kwargs) -> Any:
+    raise NotImplementedError
 
   @property
   @abc.abstractmethod
@@ -139,6 +146,9 @@ class OutgoingEdgesSampler(SamplingPrimitive):
 
   Used to create rooted subgraphs, e.g. for node classification.
   """
+
+  def __call__(self, source_node_ids: tf.RaggedTensor) -> Features:
+    return self.call(source_node_ids)
 
   @abc.abstractmethod
   def call(self, source_node_ids: tf.RaggedTensor) -> Features:
