@@ -33,9 +33,6 @@ from google.protobuf import text_format
 PCollection = beam.PCollection
 
 
-rt = tf.ragged.constant
-
-
 class NDArrayCoderTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_registration(self):
@@ -69,114 +66,6 @@ class Identity(sampler.CompositeLayer):
 
   def symbolic_call(self, inputs):
     return inputs
-
-
-class HelpersTest(tf.test.TestCase, parameterized.TestCase):
-
-  @parameterized.named_parameters([
-      ('empty_vector', np.zeros([0]), 0, 0, np.zeros([0])),
-      ('empty_vector_slice', np.array([1, 2]), 0, 0, np.zeros([0], np.int32)),
-      ('vector1', np.array([1, 2, 3, 4]), 0, 1, np.array([1])),
-      ('vector2', np.array([1, 2, 3, 4]), 1, 3, np.array([2, 3])),
-      ('vector3', np.array(['a', 'b', 'c']), 1, 3, np.array(['b', 'c'])),
-      ('vector4', np.array([1.0, 2.0, 3.0]), 0, 3, np.array([1.0, 2.0, 3.0])),
-      ('empty_matrix', np.zeros([0, 3]), 0, 0, np.zeros([0, 3])),
-      (
-          'empty_matrix_slice',
-          np.array([[1, 2], [2, 3]]),
-          1,
-          1,
-          np.zeros([0, 2], np.int32),
-      ),
-      ('matrix1', np.array([[1, 2], [3, 4], [5, 6]]), 0, 1, np.array([[1, 2]])),
-      (
-          'matrix2',
-          np.array([[1, 2], [3, 4], [5, 6]]),
-          0,
-          2,
-          np.array([[1, 2], [3, 4]]),
-      ),
-      ('matrix3', np.array([[1, 2], [3, 4], [5, 6]]), 2, 3, np.array([[5, 6]])),
-      ('matrix4', np.array([[1, 2], [3, 4]]), 0, 3, np.array([[1, 2], [3, 4]])),
-      (
-          'large',
-          np.array([[1, 2, 3]] * 100),
-          50,
-          100,
-          np.array([[1, 2, 3]] * 50),
-      ),
-  ])
-  def test_dense_slice(
-      self,
-      value: np.ndarray,
-      start: int,
-      limit: int,
-      expected: np.ndarray,
-  ):
-    value = [value]
-    expected = [expected]
-    actual = executor_lib.ragged_slice(value, start, limit)
-    tf.nest.map_structure(self.assertAllEqual, actual, expected)
-
-  @parameterized.named_parameters([
-      ('empty', rt([], ragged_rank=1), 0, 0, rt([], ragged_rank=1)),
-      ('empty_slice', rt([[1, 2], [3]]), 1, 1, rt([], ragged_rank=1)),
-      ('rank1_1', rt([[], [1], [2, 3]]), 0, 1, rt([[]], ragged_rank=1)),
-      ('rank1_2', rt([[], [1], [2, 3]]), 1, 2, rt([[1]])),
-      ('rank1_3', rt([[], [1], [2, 3]]), 1, 3, rt([[1], [2, 3]])),
-      ('rank1_4', rt([[], [1], [2, 3]]), 0, 3, rt([[], [1], [2, 3]])),
-      (
-          'rank1_5',
-          rt([[[1.0, 2.0]], [[2.0, 3.0], [3.0, 4.0]]], ragged_rank=1),
-          0,
-          1,
-          rt([[[1.0, 2.0]]], ragged_rank=1),
-      ),
-      (
-          'rank2_1',
-          rt([[['a', 'b'], ['c']], [], [], [['c']]]),
-          0,
-          1,
-          rt([[['a', 'b'], ['c']]]),
-      ),
-      (
-          'rank2_2',
-          rt([[['a', 'b'], ['c']], [], [], [['c']]]),
-          2,
-          4,
-          rt([[], [['c']]]),
-      ),
-      (
-          'rank3',
-          rt([[[[1], [2]], [[3]]], [[[4], [5, 6]]]], ragged_rank=3),
-          1,
-          2,
-          rt([[[[4], [5, 6]]]], ragged_rank=3),
-      ),
-      (
-          'large',
-          rt([[['x', 'y']]] * 100),
-          50,
-          100,
-          rt([[['x', 'y']]] * 50),
-      ),
-  ])
-  def test_ragged_slice(
-      self,
-      value: tf.RaggedTensor,
-      start: int,
-      limit: int,
-      expected: tf.RaggedTensor,
-  ):
-    def as_value(r: tf.RaggedTensor) -> executor_lib.Value:
-      return tf.nest.map_structure(
-          lambda t: t.numpy(), [r.flat_values, *r.nested_row_lengths()]
-      )
-
-    value = as_value(value)
-    expected = as_value(expected)
-    actual = executor_lib.ragged_slice(value, start, limit)
-    tf.nest.map_structure(self.assertAllEqual, actual, expected)
 
 
 class ExecutorTestBase(tf.test.TestCase, parameterized.TestCase):

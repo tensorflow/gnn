@@ -47,6 +47,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorflow_gnn.experimental.sampler import eval_dag_pb2 as pb
+from tensorflow_gnn.experimental.sampler.beam import utils
 
 PCollection = beam.pvalue.PCollection
 # Global unique identifier of a particular example.
@@ -410,7 +411,7 @@ class TFExampleSink(beam.DoFn):
       self, inputs: Tuple[ExampleId, Values]
   ) -> Iterator[Tuple[ExampleId, tf.train.Example]]:
     example_id, values = inputs
-    batch_size = _get_outer_dim_size(values)
+    batch_size = utils.get_outer_dim_size(values)
     if batch_size != 1:
       raise ValueError(
           f'Expected values of {example_id} to have batch size 1,'
@@ -600,7 +601,7 @@ class TFModelWithAutoBatch(TFModelBase):
           pieces.append(v)
 
     try:
-      outer_dim_size = _get_outer_dim_size(values)
+      outer_dim_size = utils.get_outer_dim_size(values)
     except ValueError as e:
       raise ValueError(
           f'Values for {example_id} has inconsistent outer dimension sizes.'
@@ -635,7 +636,9 @@ class TFModelWithAutoBatch(TFModelBase):
     start = 0
     for example_id, outer_dim_size in self._batch_splits:
       limit = start + outer_dim_size
-      slices = [ragged_slice(value, start, limit) for value in result_batch]
+      slices = [
+          utils.ragged_slice(value, start, limit) for value in result_batch
+      ]
       yield windowed_value.WindowedValue(
           (example_id, slices),
           beam.utils.timestamp.MAX_TIMESTAMP,
@@ -649,19 +652,6 @@ class TFModelWithAutoBatch(TFModelBase):
     self._stackable_components = []
     self._batch_splits = []
     self._estimated_memsize = 0
-
-
-def ragged_slice(value: Value, start: int, limit: int) -> Value:
-  """Extracts `value[index:(index+1), :]` for potentially ragged values."""
-  assert value
-  b, e = start, limit
-  partition_slices = []
-  for dim in range(1, len(value)):
-    partition = value[dim]
-    partition_slices.append(partition[b:e])
-    b, e = np.sum(partition[:b]), np.sum(partition[:e])
-  flat_value = value[0][b:e]
-  return [flat_value, *partition_slices]
 
 
 def _estimate_memsize(value: np.ndarray) -> int:
@@ -694,14 +684,6 @@ def _tf_model_executor(
   return inputs | label >> beam.ParDo(model_fn)
 
 
-def _get_outer_dim_size(values: Values) -> int:
-  assert values
-  dims = [value[-1].shape[0] for value in values]
-  if any(dims[0] != d for d in dims):
-    raise ValueError(f'Values have different outer dimensions: {dims}')
-  return dims[0]
-
-
 def _supports_batching(layer: pb.Layer) -> bool:
   """Checks if layer supports batching by concatenating inputs and splitting outputs.
 
@@ -728,3 +710,12 @@ def _supports_batching(layer: pb.Layer) -> bool:
 _REGISTERED_EXECUTORS: Dict[str, Executor] = {
     'TFModel': _tf_model_executor,
 }
+
+
+def register_stage_executor(layer_type: str, executor: Executor) -> None:
+  """Allows to assing stage executor to the stage layer type."""
+  if layer_type in _REGISTERED_EXECUTORS:
+    raise ValueError(
+        f'Executor for layer type {layer_type} is already registered'
+    )
+  _REGISTERED_EXECUTORS[layer_type] = executor

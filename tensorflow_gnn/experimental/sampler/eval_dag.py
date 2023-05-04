@@ -305,8 +305,9 @@ def _convert_stages_dag_to_eval_dag(
           in_edges, out_edges
       )
     else:
-      layer_pb.id = stage.get_single_node().layer.name
-      layer_pb.type = type(stage.get_single_node().layer).__name__
+      layer_pb.id, layer_pb.type = _get_layer_pb_id_and_type(
+          stage.get_single_node().layer
+      )
 
       config = get_layer_config_pb(stage.get_single_node().layer)
       if config:
@@ -876,3 +877,10 @@ def _unflatten(spec, components: List[tf.Tensor]) -> Any:
     )
 
   return tf.nest.pack_sequence_as(spec, components, expand_composites=True)
+
+
+def _get_layer_pb_id_and_type(layer: tf.keras.layers.Layer) -> Tuple[str, str]:
+  if isinstance(layer, interfaces.KeyToBytesAccessor):
+    return layer.name, 'KeyToBytesAccessor'
+
+  return layer.name, type(layer).__name__
