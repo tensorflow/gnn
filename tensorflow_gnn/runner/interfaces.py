@@ -148,9 +148,10 @@ class Task(abc.ABC):
       inputs: GraphTensor) -> tuple[OneOrSequenceOf[GraphTensor], Field]:
     """Preprocesses a scalar (after `merge_batch_to_components`) `GraphTensor`.
 
-    This function does non-trainable transformations of the input `GraphTensor`
-    during dataset preprocessing. (It is executed as part of a
-    `tf.data.Dataset.map(...)` operation.) It has two responsibilities:
+    This function uses the Keras functional API to define non-trainable
+    transformations of the symbolic input `GraphTensor`, which get executed
+    during dataset preprocessing in a `tf.data.Dataset.map(...)` operation.
+    It has two responsibilities:
 
      1. Splitting the training label out of the input for training. It must be
         returned as a separate tensor.
@@ -161,7 +162,7 @@ class Task(abc.ABC):
         output for each `GraphTensor` is provided to the `predict(...)` method.
 
     Args:
-      inputs: A `GraphTensor` for processing.
+      inputs: A symbolic Keras `GraphTensor` for processing.
 
     Returns:
       A tuple of processed `GraphTensor`(s) and a `Field` to be used as labels.
@@ -182,8 +183,8 @@ class Task(abc.ABC):
        objective.
 
     Args:
-      *args: The `GraphTensor` inputs(s). These inputs correspond (in sequence)
-        to the base GNN output of each `GraphTensor` returned by
+      *args: The symbolic Keras `GraphTensor` inputs(s). These inputs correspond
+        (in sequence) to the base GNN output of each `GraphTensor` returned by
         `preprocess(...)`.
 
     Returns:

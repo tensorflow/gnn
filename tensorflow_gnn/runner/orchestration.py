@@ -399,10 +399,11 @@ def run(*,
       default behavior is `os.path.join(model_dir, "export")`.
     model_exporters: Zero or more `ModelExporter` for exporting (SavedModels) to
       `export_dirs`. If unset, default behavior is `[KerasModelExporter()]`.
-    feature_processors: `GraphTensor` functions for feature processing: these
-      may change some `GraphTensorSpec`. Functions are composed in order. Each
-      function should accept and return a single scalar `GraphTensor`. Functions
-      are executed on CPU as part of a `tf.data.Dataset.map` operation.
+    feature_processors: A sequence of callables for feature processing with the
+      Keras functional API. Each callable must accept and return a symbolic
+      scalar `GraphTensor`. The callables are composed in order and may change
+      the `GraphTensorSpec` (e.g., add/remove features). The resulting Keras
+      model is executed on CPU as part of a `tf.data.Dataset.map` operation.
     valid_ds_provider: A `DatasetProvider` for validation. The `tf.data.Dataset`
       is not batched and contains scalar `GraphTensor` values conforming to
       `gtspec`, possibly serialized as a `tf.train.Example` proto.
