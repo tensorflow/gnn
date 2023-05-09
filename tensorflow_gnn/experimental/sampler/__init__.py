@@ -31,6 +31,8 @@ create_program = eval_dag.create_program
 save_model = eval_dag.save_model
 
 # Sampling layers.
+InMemUniformEdgesSampler = core.InMemUniformEdgesSampler
+InMemIndexToFeaturesAccessor = core.InMemIndexToFeaturesAccessor
 InMemIntegerKeyToBytesAccessor = core.InMemIntegerKeyToBytesAccessor
 InMemStringKeyToBytesAccessor = core.InMemStringKeyToBytesAccessor
 KeyToTfExampleAccessor = core.KeyToTfExampleAccessor
