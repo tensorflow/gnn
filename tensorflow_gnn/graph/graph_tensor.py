@@ -210,6 +210,22 @@ class _GraphPieceWithFeaturesSpec(gp.GraphPieceSpecBase):
         data_spec, shape=sizes_spec.shape[:-1], indices_dtype=sizes_spec.dtype)
 
 
+def resolve_value(graph_piece: _GraphPieceWithFeatures,
+                  *,
+                  feature_value: Optional[Field] = None,
+                  feature_name: Optional[FieldName] = None) -> Field:
+  """Resolves feature value by its name or provided value."""
+  if (feature_value is None) == (feature_name is None):
+    raise ValueError('One of feature name of feature value must be specified.')
+
+  if feature_value is not None:
+    # TODO(b/189087785): Check that the value shape is valid for `graph_piece`.
+    return feature_value
+  if feature_name is not None:
+    return graph_piece[feature_name]
+  assert False, 'This should never happen, please file a bug with TF-GNN.'
+
+
 class Context(_GraphPieceWithFeatures):
   """A composite tensor for graph context features.
 

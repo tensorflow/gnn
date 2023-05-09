@@ -672,6 +672,47 @@ class RemoveFeaturesTest(tu.GraphTensorTestBase):
       })
 
 
+class ResolveValueTest(tu.GraphTensorTestBase):
+  """Tests for resolve_value()."""
+
+  @parameterized.named_parameters(
+      ('Context', gt.Context.from_fields(
+          sizes=as_tensor([1, 1]),
+          features={
+              'feat': as_tensor([[1, 2], [3, 4]]),
+              'other': as_tensor([[9], [9]]),
+          })),
+      ('NodeSet', gt.NodeSet.from_fields(
+          sizes=as_tensor([1, 1]),
+          features={
+              'feat': as_tensor([[1, 2], [3, 4]]),
+              'other': as_tensor([[9], [9]]),
+          })),
+      ('EdgeSet', gt.EdgeSet.from_fields(
+          sizes=as_tensor([1, 1]),
+          features={
+              'feat': as_tensor([[1, 2], [3, 4]]),
+              'other': as_tensor([[9], [9]]),
+          },
+          adjacency=adj.HyperAdjacency.from_indices({
+              const.SOURCE: ('a', as_tensor([0, 1])),
+              const.TARGET: ('b', as_tensor([1, 0]))
+          }))))
+  def test(self, graph_piece):
+    self.assertAllEqual(
+        [[1, 2], [3, 4]],
+        gt.resolve_value(graph_piece, feature_name='feat'))
+    feature_value = as_tensor([[5, 6], [7, 8]])
+    self.assertAllEqual(
+        [[5, 6], [7, 8]],
+        gt.resolve_value(graph_piece, feature_value=feature_value))
+    with self.assertRaisesRegex(ValueError, r'One of'):
+      gt.resolve_value(graph_piece)
+    with self.assertRaisesRegex(ValueError, r'One of'):
+      gt.resolve_value(graph_piece,
+                       feature_name='feat', feature_value=feature_value)
+
+
 class ElementsCountsTest(tf.test.TestCase, parameterized.TestCase):
 
   def testEmpty(self):

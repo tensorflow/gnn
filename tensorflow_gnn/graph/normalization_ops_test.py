@@ -15,9 +15,9 @@
 from absl.testing import parameterized
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
+from tensorflow_gnn.graph import broadcast_ops
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
-from tensorflow_gnn.graph import graph_tensor_ops as ops
 from tensorflow_gnn.graph import normalization_ops
 
 
@@ -135,7 +135,7 @@ class NormalizationOpsTest(tf.test.TestCase, parameterized.TestCase):
   )
   def testSoftmax(self, gt_input, want):
     """Unit tests for the softmax function."""
-    broadcasted = ops.broadcast_node_to_edges(
+    broadcasted = broadcast_ops.broadcast_node_to_edges(
         gt_input, 'edges', const.SOURCE, feature_name=const.HIDDEN_STATE)
     got = normalization_ops.softmax_edges_per_node(
         gt_input, 'edges', const.TARGET, feature_value=broadcasted)

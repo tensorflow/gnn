@@ -31,6 +31,7 @@ from tensorflow_gnn import keras  # Exposed as submodule. pylint: disable=unused
 from tensorflow_gnn import version
 from tensorflow_gnn.graph import adjacency
 from tensorflow_gnn.graph import batching_utils
+from tensorflow_gnn.graph import broadcast_ops
 from tensorflow_gnn.graph import graph_constants
 from tensorflow_gnn.graph import graph_tensor
 from tensorflow_gnn.graph import graph_tensor_encode
@@ -40,6 +41,7 @@ from tensorflow_gnn.graph import graph_tensor_pprint
 from tensorflow_gnn.graph import graph_tensor_random
 from tensorflow_gnn.graph import normalization_ops
 from tensorflow_gnn.graph import padding_ops
+from tensorflow_gnn.graph import pool_ops_v1
 from tensorflow_gnn.graph import preprocessing_common
 from tensorflow_gnn.graph import readout
 from tensorflow_gnn.graph import schema_utils
@@ -146,20 +148,21 @@ graph_tensor_to_values = graph_tensor_pprint.graph_tensor_to_values
 # Random generation.
 random_graph_tensor = graph_tensor_random.random_graph_tensor
 
-# Operations.
+# Broadcast and pool.
+broadcast_node_to_edges = broadcast_ops.broadcast_node_to_edges
+broadcast_context_to_nodes = broadcast_ops.broadcast_context_to_nodes
+broadcast_context_to_edges = broadcast_ops.broadcast_context_to_edges
+broadcast = broadcast_ops.broadcast_v1  # TODO(b/265760014): Switch to v2.
+pool_edges_to_node = pool_ops_v1.pool_edges_to_node
+pool_nodes_to_context = pool_ops_v1.pool_nodes_to_context
+pool_edges_to_context = pool_ops_v1.pool_edges_to_context
+pool = pool_ops_v1.pool_v1  # TODO(b/265760014): Switch to pool_ops.pool_v2.
+get_registered_reduce_operation_names = pool_ops_v1.get_registered_reduce_operation_names
+
+# Misc operations.
 mask_edges = graph_tensor_ops.mask_edges
 add_self_loops = graph_tensor_ops.add_self_loops
-broadcast_node_to_edges = graph_tensor_ops.broadcast_node_to_edges
-pool_edges_to_node = graph_tensor_ops.pool_edges_to_node
-broadcast_context_to_nodes = graph_tensor_ops.broadcast_context_to_nodes
-broadcast_context_to_edges = graph_tensor_ops.broadcast_context_to_edges
-pool_nodes_to_context = graph_tensor_ops.pool_nodes_to_context
-pool_edges_to_context = graph_tensor_ops.pool_edges_to_context
-broadcast = graph_tensor_ops.broadcast
-pool = graph_tensor_ops.pool
 gather_first_node = graph_tensor_ops.gather_first_node
-get_registered_reduce_operation_names = (
-    graph_tensor_ops.get_registered_reduce_operation_names)
 shuffle_features_globally = graph_tensor_ops.shuffle_features_globally
 combine_values = graph_tensor_ops.combine_values
 reorder_nodes = graph_tensor_ops.reorder_nodes
@@ -210,6 +213,7 @@ is_graph_tensor = graph_tensor_ops.is_graph_tensor
 del version
 del adjacency
 del batching_utils
+del broadcast
 del graph_constants
 del graph_tensor
 del graph_tensor_encode
@@ -219,6 +223,7 @@ del graph_tensor_pprint
 del graph_tensor_random
 del normalization_ops
 del padding_ops
+del pool_ops_v1
 del preprocessing_common
 del readout
 del schema_utils

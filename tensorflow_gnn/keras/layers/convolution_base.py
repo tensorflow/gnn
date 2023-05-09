@@ -19,9 +19,10 @@ from typing import Any, Callable, Mapping, Optional
 
 import tensorflow as tf
 
+from tensorflow_gnn.graph import broadcast_ops
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
-from tensorflow_gnn.graph import graph_tensor_ops as ops
+from tensorflow_gnn.graph import pool_ops_v1
 from tensorflow_gnn.graph import tag_utils
 
 
@@ -290,7 +291,7 @@ class AnyToAnyConvolutionBase(tf.keras.layers.Layer, abc.ABC):
       sender_node_set = graph.node_sets[
           edge_set.adjacency.node_set_name(sender_node_tag)]
       broadcast_from_sender_node = (
-          lambda feature_value: ops.broadcast_node_to_edges(
+          lambda feature_value: broadcast_ops.broadcast_node_to_edges(
               graph, edge_set_name, sender_node_tag,
               feature_value=feature_value))
       receiver_piece = graph.node_sets[
@@ -304,8 +305,8 @@ class AnyToAnyConvolutionBase(tf.keras.layers.Layer, abc.ABC):
       return lambda feature_value, **kwargs: fn(
           graph, receiver_tag, **name_kwarg,
           feature_value=feature_value, **kwargs)
-    broadcast_from_receiver = bind_receiver_args(ops.broadcast)
-    pool_to_receiver = bind_receiver_args(ops.pool)
+    broadcast_from_receiver = bind_receiver_args(broadcast_ops.broadcast_v1)
+    pool_to_receiver = bind_receiver_args(pool_ops_v1.pool_v1)
     if self._extra_receiver_ops is None:
       extra_receiver_ops_kwarg = {}  # Pass no argument for this.
     else:

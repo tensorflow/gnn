@@ -60,9 +60,10 @@ pytype_strict_library(
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//tensorflow_gnn/graph:broadcast_ops",
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
-        "//tensorflow_gnn/graph:graph_tensor_ops",
+        "//tensorflow_gnn/graph:pool_ops_v1",
         "//tensorflow_gnn/graph:tag_utils",
     ],
 )
@@ -87,9 +88,11 @@ pytype_strict_library(
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//tensorflow_gnn/graph:broadcast_ops",
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
         "//tensorflow_gnn/graph:graph_tensor_ops",
+        "//tensorflow_gnn/graph:pool_ops_v1",
         "//tensorflow_gnn/graph:readout",
     ],
 )
@@ -115,10 +118,10 @@ pytype_strict_library(
     deps = [
         ":next_state",
         "//:expect_tensorflow_installed",
+        "//tensorflow_gnn/graph:broadcast_ops",
         "//tensorflow_gnn/graph:dict_utils",
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
-        "//tensorflow_gnn/graph:graph_tensor_ops",
     ],
 )
 

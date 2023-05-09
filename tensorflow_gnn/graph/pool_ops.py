@@ -12,11 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""The pool_v2() and broadcast_v2() operations for multiple graph pieces.
+"""The pool operations on a GraphTensor."""
 
-TODO(b/265760014): Replace the current implementations of tfgnn.pool_*()
-and tfgnn.broadcast() from ./graph_tensor_ops.py with this code.
-"""
 from __future__ import annotations
 import abc
 import functools
@@ -27,7 +24,7 @@ import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
-from tensorflow_gnn.graph import graph_tensor_ops as ops
+from tensorflow_gnn.graph import tag_utils
 from tensorflow_gnn.graph import tensor_utils as utils
 
 Field = const.Field
@@ -37,154 +34,13 @@ EdgeSetName = const.EdgeSetName
 IncidentNodeTag = const.IncidentNodeTag
 IncidentNodeOrContextTag = const.IncidentNodeOrContextTag
 GraphTensor = gt.GraphTensor
+GraphTensorSpec = gt.GraphTensorSpec
 
 
-# TODO(b/269076334): When multi-graph piece support is ready, replace the old
-# tfgnn.broadcast() by this, but keep the underlying basic broadcast operations.
-def broadcast_v2(
-    graph: GraphTensor,
-    from_tag: IncidentNodeOrContextTag,
-    *,
-    edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName, None] = None,
-    node_set_name: Union[Sequence[NodeSetName], NodeSetName, None] = None,
-    feature_value: Optional[Field] = None,
-    feature_name: Optional[FieldName] = None) -> Union[list[Field], Field]:
-  """Broadcasts values from nodes to edges, or from context to nodes or edges.
-
-  This function broadcasts a feature value from context to nodes or edges if
-  called with `from_tag=tfgnn.CONTEXT`, or from incident nodes to edges if
-  called with `from_tag` set to an ordinary node tag like `tfgnn.SOURCE` or
-  `tfgnn.TARGET`.
-
-  The `edge_set_name` (or `node_set_name`, when broadcasting from context)
-  can be set to the name of a single destination, or to a list of names of
-  multiple destinations.
-
-  Functionally, there is no difference to calling the underlying functions
-  `broadcast_node_to_edges()`, `broadcast_context_to_nodes()`, or
-  `broadcast_context_to_edges()` directly on individual edge sets or node sets.
-  However, the more generic API of this function provides the proper mirror
-  image of `tfgnn.pool()`, which comes in handy for some algorithms.
-
-  Args:
-    graph: A scalar GraphTensor.
-    from_tag: Values are broadcast from context if this is `tfgnn.CONTEXT` or
-      from the incident node on each edge with this tag.
-    edge_set_name: The name of the edge set to which values are broadcast, or
-      a non-empty sequence of such names. Unless `from_tag=tfgnn.CONTEXT`,
-      all named edge sets must have the same incident node set at the given tag.
-    node_set_name: The name of the node set to which values are broadcast,
-      or a non-empty sequence of such names. Can only be passed together with
-      `from_tag=tfgnn.CONTEXT`. Exactly one of edge_set_name or node_set_name
-      must be set.
-    feature_value: A tensor of shape `[num_items, *feature_shape]` from which
-      the broadcast values are taken. The first dimension indexes the items
-      from which the broadcast is done (that is, the nodes of the common node
-      set identified by `from_tag`, or the graph components in the context).
-    feature_name: The name of a feature stored in the graph, for use instead of
-      feature_value. Exactly one of feature_name or feature_value must be set.
-
-  Returns:
-    The result of broadcasting to the specified edge set(s) or node set(s).
-    If a single name was specified, the result is is a single tensor.
-    If a list of names was specified, the result is a list of tensors,
-    with parallel indices.
-  """
-  gt.check_scalar_graph_tensor(graph, "broadcast()")
-  edge_set_names, node_set_names, got_sequence_args = (
-      _get_edge_and_node_set_name_args(
-          "broadcast()", graph, from_tag,
-          edge_set_name=edge_set_name, node_set_name=node_set_name))
-  del edge_set_name, node_set_name  # Replaced by their cleaned-up versions.
-  if (feature_value is None) == (feature_name is None):
-    raise ValueError(
-        "broadcast() requires exactly one of feature_name of feature_value.")
-  feature_kwargs = dict(feature_value=feature_value, feature_name=feature_name)
-
-  if from_tag == const.CONTEXT:
-    if edge_set_names is not None:
-      result = [ops.broadcast_context_to_edges(graph, name, **feature_kwargs)
-                for name in edge_set_names]
-    else:
-      result = [ops.broadcast_context_to_nodes(graph, name, **feature_kwargs)
-                for name in node_set_names]
-  else:
-    result = [
-        ops.broadcast_node_to_edges(graph, name, from_tag, **feature_kwargs)
-        for name in edge_set_names]
-
-  if got_sequence_args:
-    return result
-  else:
-    assert len(result) == 1
-    return result[0]
-
-
-def _get_edge_and_node_set_name_args(
-    function_name: str,
-    graph: GraphTensor,
-    tag: IncidentNodeOrContextTag,
-    *,
-    edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName, None] = None,
-    node_set_name: Union[Sequence[NodeSetName], NodeSetName, None] = None,
-) -> tuple[Optional[Sequence[EdgeSetName]],
-           Optional[Sequence[NodeSetName]],
-           bool]:
-  """Returns canonicalized edge/node args for broadcast() and pool()."""
-  if tag == const.CONTEXT:
-    num_names = bool(edge_set_name is None) + bool(node_set_name is None)
-    if num_names != 1:
-      raise ValueError(
-          f"{function_name} with tag tfgnn.CONTEXT requires to pass exactly "
-          f"1 of edge_set_name, node_set_name but got {num_names}.")
-  else:
-    if not isinstance(tag, const.IncidentNodeTag):
-      raise ValueError(
-          f"{function_name} got tag {tag} but requires either "
-          "the special value tfgnn.CONTEXT "
-          "or a valid IndicentNodeTag, that is, tfgnn.SOURCE, tfgnn.TARGET, "
-          "or another valid integer in case of hypergraphs.")
-    if edge_set_name is None or node_set_name is not None:
-      raise ValueError(
-          f"{function_name} requires to pass edge_set_name, "
-          "not node_set_name, unless tag is set to tfgnn.CONTEXT.")
-
-  got_sequence_args = not (isinstance(node_set_name, str) or
-                           isinstance(edge_set_name, str))
-  edge_set_names = _get_nonempty_name_list_or_none(
-      function_name, "edge_set_name", edge_set_name)
-  node_set_names = _get_nonempty_name_list_or_none(
-      function_name, "node_set_name", node_set_name)
-
-  if tag != const.CONTEXT:
-    incident_node_set_names = {graph.edge_sets[e].adjacency.node_set_name(tag)
-                               for e in edge_set_names}
-    if len(incident_node_set_names) > 1:
-      raise ValueError(
-          f"{function_name} requires the same endpoint for all named edge sets "
-          f"but got node sets {incident_node_set_names} from tag={tag} and "
-          f"edge_set_name={edge_set_name}")
-
-  return edge_set_names, node_set_names, got_sequence_args
-
-
-def _get_nonempty_name_list_or_none(
-    function_name: str,
-    arg_name: str,
-    name: Union[Sequence[str], str, None]) -> Optional[Sequence[str]]:
-  if name is None:
-    return None
-  if isinstance(name, str):
-    return [name]
-  if len(name) > 0:  # Crash here if len() doesn't work.  pylint: disable=g-explicit-length-test
-    return name
-  raise ValueError(
-      f"{function_name} requires {arg_name} to be a non-empty Sequence or None")
-
-
-# TODO(b/269076334): When multi-graph piece support is ready, replace the old
-# tfgnn.pool() by this, and turn the legacy pooling functions into wrappers
-# of this function.
+# TODO(b/265760014): Export as tfgnn.pool() and remove pool_v1().
+# The difference is that v2 supports multiple node/edge sets,
+# composite reduce types, and is implemenented with a new class-based
+# op registration, separately for each node/edge set and for combining them.
 def pool_v2(
     graph: GraphTensor,
     to_tag: IncidentNodeOrContextTag,
@@ -263,9 +119,10 @@ def pool_v2(
 
   edge_set_names, node_set_names, feature_values, _ = (
       get_pool_args_as_sequences(
-          "pool()", graph, to_tag,
+          graph, to_tag,
           edge_set_name=edge_set_name, node_set_name=node_set_name,
-          feature_value=feature_value, feature_name=feature_name))
+          feature_value=feature_value, feature_name=feature_name,
+          function_name="pool()"))
   del edge_set_name, node_set_name, feature_value  # Use canonicalized forms.
 
   if len(feature_values) > 1 and any(
@@ -390,7 +247,6 @@ def _pool_internal(
 
 
 def get_pool_args_as_sequences(
-    function_name: str,
     graph: GraphTensor,
     tag: IncidentNodeOrContextTag,
     *,
@@ -398,18 +254,22 @@ def get_pool_args_as_sequences(
     node_set_name: Union[Sequence[NodeSetName], NodeSetName, None] = None,
     feature_value: Union[Sequence[Field], Field, None] = None,
     feature_name: Optional[FieldName] = None,
-) -> tuple[Sequence[EdgeSetName], Sequence[NodeSetName], Sequence[Field], bool]:
+    function_name: str = "This operation",
+) -> tuple[Optional[Sequence[EdgeSetName]],
+           Optional[Sequence[NodeSetName]],
+           Sequence[Field],
+           bool]:
   """Returns pool()-style args checked and with canonicalized types.
 
   Args:
-    function_name: The user-visible name of the function whose args are
-      processed.
     graph: The `GraphTensor`, as for `pool()`.
     tag: Same as for `pool()`.
     edge_set_name: As for `pool()`, can be set to a name or sequence of names.
     node_set_name: As for `pool()`, can be set to a name or sequence of names.
     feature_value: As for `pool()`, can be set to a value or sequence of values.
     feature_name: As for `pool()`, can be set to a feature name.
+    function_name: Optionally, the user-visible name of the function whose args
+      are processed.
 
   Returns:
     Tuple `(edge_set_names, node_set_names, feature_values, got_sequence_args)`
@@ -429,9 +289,10 @@ def get_pool_args_as_sequences(
       a single value or a sequence of the same length.
   """
   edge_set_names, node_set_names, got_sequence_args = (
-      _get_edge_and_node_set_name_args(
-          function_name, graph, tag,
-          edge_set_name=edge_set_name, node_set_name=node_set_name))
+      tag_utils.get_edge_or_node_set_name_args_for_tag(
+          graph.spec, tag,
+          edge_set_name=edge_set_name, node_set_name=node_set_name,
+          function_name=function_name))
 
   if (feature_value is None) == (feature_name is None):
     raise ValueError(

@@ -52,11 +52,13 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":keras_tensors",
+        "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:adjacency",
+        "//tensorflow_gnn/graph:broadcast_ops",
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
-        "//tensorflow_gnn/graph:graph_tensor_ops",
+        "//tensorflow_gnn/graph:pool_ops_v1",
     ],
 )
 

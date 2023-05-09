@@ -12,143 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for pooling.py."""
+"""Tests for pool_ops.py."""
 
 from absl.testing import parameterized
-import numpy as np
 import tensorflow as tf
 
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
-from tensorflow_gnn.graph import pooling
-
-
-class BroadcastTest(tf.test.TestCase, parameterized.TestCase):
-  """Tests for generic broadcast(), on top of already-tested basic ops."""
-
-  def testOneEdgeSetFromTag(self):
-    input_graph = _get_test_graph_broadcast()
-    def call_broadcast(from_tag):
-      return pooling.broadcast_v2(
-          input_graph, from_tag, edge_set_name="e",
-          feature_value=tf.constant([[1., 2.], [3., 4.], [5., 6.]]))
-    self.assertAllClose(np.array([[1., 2.], [3., 4.], [1., 2.], [5., 6.]]),
-                        call_broadcast(const.SOURCE).numpy())
-    self.assertAllClose(np.array([[3., 4.], [3., 4.], [1., 2.], [5., 6.]]),
-                        call_broadcast(const.TARGET).numpy())
-
-  @parameterized.named_parameters(
-      ("List", list),
-      ("Tuple", tuple))
-  def testOneEdgeSetSequenceType(self, sequence_cls):
-    input_graph = _get_test_graph_broadcast()
-    edge_set_name = sequence_cls(x for x in ["e"])
-    actual = pooling.broadcast_v2(
-        input_graph, const.SOURCE,
-        edge_set_name=edge_set_name,
-        feature_value=tf.constant([[1., 2.], [3., 4.], [5., 6.]]))
-    self.assertIsInstance(actual, list)
-    self.assertLen(actual, 1)
-    self.assertAllClose(np.array([[1., 2.], [3., 4.], [1., 2.], [5., 6.]]),
-                        actual[0].numpy())
-
-  def testOneEdgeSetFeatureName(self):
-    input_graph = _get_test_graph_broadcast()
-    actual = pooling.broadcast_v2(
-        input_graph, const.SOURCE,
-        edge_set_name="e", feature_name="feat")
-    self.assertAllClose(
-        np.array([[10., 11.], [20., 21.], [10., 11.], [30., 31.]]),
-        actual.numpy())
-
-  def testTwoEdgeSets(self):
-    input_graph = _get_test_graph_broadcast()
-    actual = pooling.broadcast_v2(
-        input_graph, const.SOURCE,
-        edge_set_name=["e", "f"],
-        feature_value=tf.constant([[1., 2.], [3., 4.], [5., 6.]]))
-    self.assertLen(actual, 2)
-    self.assertAllClose(np.array([[1., 2.], [3., 4.], [1., 2.], [5., 6.]]),
-                        actual[0].numpy())
-    self.assertAllClose(np.array([[5., 6.], [5., 6.]]),
-                        actual[1].numpy())
-
-  def testTwoEdgeSetsRagged(self):
-    input_graph = _get_test_graph_broadcast()
-    actual = pooling.broadcast_v2(
-        input_graph, const.SOURCE,
-        edge_set_name=["e", "f"],
-        feature_value=tf.ragged.constant([[1.], [2., 3.], [4., 5., 6.]]))
-    self.assertLen(actual, 2)
-    self.assertAllClose(
-        tf.ragged.constant([[1.], [2., 3.], [1.], [4., 5., 6.]]),
-        actual[0])
-    self.assertAllClose(
-        tf.ragged.constant([[4., 5., 6.], [4., 5., 6.]]),
-        actual[1])
-
-  def testNodeSetsFromContext(self):
-    input_graph = _get_test_graph_broadcast()
-    actual = pooling.broadcast_v2(
-        input_graph, const.CONTEXT,
-        node_set_name=["a", "b"],
-        feature_value=tf.constant([[1., 2.], [3., 4.]]))
-    self.assertLen(actual, 2)
-    self.assertAllClose(np.array([[1., 2.], [1., 2.], [3., 4.]]),
-                        actual[0].numpy())
-    self.assertAllClose(np.array([[1., 2.], [3., 4.], [3., 4.]]),
-                        actual[1].numpy())
-
-  def testNodeSetsFromContextFeatureName(self):
-    input_graph = _get_test_graph_broadcast()
-    actual = pooling.broadcast_v2(
-        input_graph, const.CONTEXT,
-        node_set_name=["a", "b"],
-        feature_name="feat")
-    self.assertLen(actual, 2)
-    self.assertAllClose(np.array([[80., 81.], [80., 81.], [90., 91.]]),
-                        actual[0].numpy())
-    self.assertAllClose(np.array([[80., 81.], [90., 91.], [90., 91.]]),
-                        actual[1].numpy())
-
-
-def _get_test_graph_broadcast():
-  return gt.GraphTensor.from_pieces(
-      node_sets={
-          "a": gt.NodeSet.from_fields(
-              sizes=tf.constant([2, 1]),
-              features={"feat": tf.constant(
-                  [[10., 11.],
-                   [20., 21.],
-                   [30., 31.]])}),
-          "b": gt.NodeSet.from_fields(
-              sizes=tf.constant([1, 2])),
-          "c": gt.NodeSet.from_fields(
-              sizes=tf.constant([1, 1])),
-      },
-      edge_sets={
-          "e": gt.EdgeSet.from_fields(
-              sizes=tf.constant([3, 1]),
-              adjacency=adj.Adjacency.from_indices(
-                  ("a", tf.constant([0, 1, 0, 2])),
-                  ("a", tf.constant([1, 1, 0, 2])))),
-          "f": gt.EdgeSet.from_fields(
-              sizes=tf.constant([0, 2]),
-              adjacency=adj.Adjacency.from_indices(
-                  ("a", tf.constant([2, 2])),
-                  ("b", tf.constant([2, 1])))),
-          "g": gt.EdgeSet.from_fields(
-              sizes=tf.constant([1, 0]),
-              adjacency=adj.Adjacency.from_indices(
-                  ("a", tf.constant([0])),
-                  ("c", tf.constant([0])))),
-      },
-      context=gt.Context.from_fields(
-          features={"feat": tf.constant(
-              [[80., 81.],
-               [90., 91.]])})
-    )
+from tensorflow_gnn.graph import pool_ops
 
 
 class PoolTest(tf.test.TestCase, parameterized.TestCase):
@@ -158,8 +30,8 @@ class PoolTest(tf.test.TestCase, parameterized.TestCase):
     input_graph = _get_test_graph_abc_efx()
     self.assertAllClose(
         tf.constant([[3.], [4.]]),
-        pooling.pool_v2(input_graph, const.CONTEXT, reduce_type="sum",
-                        node_set_name="a", feature_name="feat"))
+        pool_ops.pool_v2(input_graph, const.CONTEXT, reduce_type="sum",
+                         node_set_name="a", feature_name="feat"))
 
   @parameterized.named_parameters(
       ("ToSource", const.SOURCE, tf.constant([[10.], [20.], [40.]])),
@@ -169,8 +41,8 @@ class PoolTest(tf.test.TestCase, parameterized.TestCase):
     input_graph = _get_test_graph_abc_efx()
     self.assertAllClose(
         expected,
-        pooling.pool_v2(input_graph, to_tag, reduce_type="sum",
-                        edge_set_name="e", feature_name="feat"))
+        pool_ops.pool_v2(input_graph, to_tag, reduce_type="sum",
+                         edge_set_name="e", feature_name="feat"))
 
   def testPoolHyperedges(self):
     input_graph = gt.GraphTensor.from_pieces(
@@ -188,20 +60,20 @@ class PoolTest(tf.test.TestCase, parameterized.TestCase):
                      9: ("v", tf.constant([1]))}))})
     self.assertAllClose(
         tf.constant([[1.], [0.]]),
-        pooling.pool_v2(input_graph, 6, reduce_type="sum",
-                        edge_set_name="hyper", feature_name="feat"))
+        pool_ops.pool_v2(input_graph, 6, reduce_type="sum",
+                         edge_set_name="hyper", feature_name="feat"))
     self.assertAllClose(
         tf.constant([[1.]]),
-        pooling.pool_v2(input_graph, 8, reduce_type="sum",
-                        edge_set_name="hyper", feature_name="feat"))
+        pool_ops.pool_v2(input_graph, 8, reduce_type="sum",
+                         edge_set_name="hyper", feature_name="feat"))
     self.assertAllClose(
         tf.constant([[0.], [1.]]),
-        pooling.pool_v2(input_graph, 9, reduce_type="sum",
-                        edge_set_name="hyper", feature_name="feat"))
+        pool_ops.pool_v2(input_graph, 9, reduce_type="sum",
+                         edge_set_name="hyper", feature_name="feat"))
     self.assertAllClose(
         tf.constant([[1.]]),
-        pooling.pool_v2(input_graph, const.CONTEXT, reduce_type="sum",
-                        edge_set_name="hyper", feature_name="feat"))
+        pool_ops.pool_v2(input_graph, const.CONTEXT, reduce_type="sum",
+                         edge_set_name="hyper", feature_name="feat"))
 
   @parameterized.named_parameters(
       ("SumMean", "sum|mean", tf.constant(
@@ -226,62 +98,62 @@ class PoolTest(tf.test.TestCase, parameterized.TestCase):
     ]
     self.assertAllClose(
         expected,
-        pooling.pool_v2(input_graph, const.TARGET, reduce_type=reduce_type,
-                        edge_set_name=["e", "f"], feature_value=feature_value))
+        pool_ops.pool_v2(input_graph, const.TARGET, reduce_type=reduce_type,
+                         edge_set_name=["e", "f"], feature_value=feature_value))
 
   def testSingleFeatureValueInputs(self):
     """Tests the ways of inputting a single tensor with edge feature values."""
     input_graph = _get_test_graph_abc_efx()
     self.assertAllClose(
         tf.constant([[15.], [40.]]),
-        pooling.pool_v2(input_graph, const.TARGET, reduce_type="mean",
-                        edge_set_name="e",  # Not a list.
-                        feature_name="feat"))
+        pool_ops.pool_v2(input_graph, const.TARGET, reduce_type="mean",
+                         edge_set_name="e",  # Not a list.
+                         feature_name="feat"))
     self.assertAllClose(
         tf.constant([[15.], [40.]]),
-        pooling.pool_v2(input_graph, const.TARGET, reduce_type="mean",
-                        edge_set_name=["e"],  # List.
-                        feature_name="feat"))
+        pool_ops.pool_v2(input_graph, const.TARGET, reduce_type="mean",
+                         edge_set_name=["e"],  # List.
+                         feature_name="feat"))
     self.assertAllClose(
         tf.constant([[115.], [140.]]),
-        pooling.pool_v2(input_graph, const.TARGET, reduce_type="mean",
-                        edge_set_name="e",  # Not a list.
-                        feature_value=tf.constant([[110.], [120.], [140.]])))
+        pool_ops.pool_v2(input_graph, const.TARGET, reduce_type="mean",
+                         edge_set_name="e",  # Not a list.
+                         feature_value=tf.constant([[110.], [120.], [140.]])))
     self.assertAllClose(
         tf.constant([[115.], [140.]]),
-        pooling.pool_v2(input_graph, const.TARGET, reduce_type="mean",
-                        edge_set_name=["e"],  # List.
-                        feature_value=[tf.constant([[110.], [120.], [140.]])]))
+        pool_ops.pool_v2(input_graph, const.TARGET, reduce_type="mean",
+                         edge_set_name=["e"],  # List.
+                         feature_value=[tf.constant([[110.], [120.], [140.]])]))
 
   def testMultiFeatureValueInputs(self):
     """Tests the ways of inputting multiple tensors with edge feature values."""
     input_graph = _get_test_graph_abc_efx()
     self.assertAllClose(
         tf.constant([[20.], [45.]]),
-        pooling.pool_v2(input_graph, const.TARGET, reduce_type="mean",
-                        edge_set_name=["e", "f"],
-                        feature_name="feat"))
+        pool_ops.pool_v2(input_graph, const.TARGET, reduce_type="mean",
+                         edge_set_name=["e", "f"],
+                         feature_name="feat"))
     self.assertAllClose(
         tf.constant([[120.], [145.]]),
-        pooling.pool_v2(input_graph, const.TARGET, reduce_type="mean",
-                        edge_set_name=["e", "f"],
-                        feature_value=[tf.constant([[110.], [120.], [140.]]),
-                                       tf.constant([[130.], [150.]])]))
+        pool_ops.pool_v2(input_graph, const.TARGET, reduce_type="mean",
+                         edge_set_name=["e", "f"],
+                         feature_value=[tf.constant([[110.], [120.], [140.]]),
+                                        tf.constant([[130.], [150.]])]))
 
   def testNodeFeatureValueInputs(self):
     """Tests the ways of inputting tensors with node feature values."""
     input_graph = _get_test_graph_abc_efx()
     self.assertAllClose(
         tf.constant([[2.0], [4.5]]),
-        pooling.pool_v2(input_graph, const.CONTEXT, reduce_type="mean",
-                        node_set_name=["a", "b"],
-                        feature_name="feat"))
+        pool_ops.pool_v2(input_graph, const.CONTEXT, reduce_type="mean",
+                         node_set_name=["a", "b"],
+                         feature_name="feat"))
     self.assertAllClose(
         tf.constant([[12.0], [14.5]]),
-        pooling.pool_v2(input_graph, const.CONTEXT, reduce_type="mean",
-                        node_set_name=["a", "b"],
-                        feature_value=[tf.constant([[11.], [12.], [14.]]),
-                                       tf.constant([[13.], [15.]])]))
+        pool_ops.pool_v2(input_graph, const.CONTEXT, reduce_type="mean",
+                         node_set_name=["a", "b"],
+                         feature_value=[tf.constant([[11.], [12.], [14.]]),
+                                        tf.constant([[13.], [15.]])]))
 
 
 def _get_test_graph_abc_efx():
@@ -333,7 +205,7 @@ class PoolReduceTypesTest(tf.test.TestCase, parameterized.TestCase):
   )
   def testSingleRank1(self, reduce_type, expected):
     input_graph = _get_test_graph_0123()
-    actual = pooling.pool_v2(
+    actual = pool_ops.pool_v2(
         input_graph, const.TARGET,
         edge_set_name="e",
         reduce_type=reduce_type,
@@ -351,7 +223,7 @@ class PoolReduceTypesTest(tf.test.TestCase, parameterized.TestCase):
   )
   def testMultiRank1(self, reduce_type, expected):
     input_graph = _get_test_graph_0123()
-    actual = pooling.pool_v2(
+    actual = pool_ops.pool_v2(
         input_graph, const.TARGET,
         edge_set_name=["e", "f", "g"],
         reduce_type=reduce_type,
@@ -382,7 +254,7 @@ class PoolReduceTypesTest(tf.test.TestCase, parameterized.TestCase):
   )
   def testSingleRank2(self, reduce_type, expected):
     input_graph = _get_test_graph_0123()
-    actual = pooling.pool_v2(
+    actual = pool_ops.pool_v2(
         input_graph, const.TARGET,
         edge_set_name="e",
         reduce_type=reduce_type,
@@ -409,7 +281,7 @@ class PoolReduceTypesTest(tf.test.TestCase, parameterized.TestCase):
   )
   def testMultiRank2(self, reduce_type, expected):
     input_graph = _get_test_graph_0123()
-    actual = pooling.pool_v2(
+    actual = pool_ops.pool_v2(
         input_graph, const.TARGET,
         edge_set_name=["e", "f", "g"],
         reduce_type=reduce_type,
@@ -453,7 +325,7 @@ class PoolReduceTypesTest(tf.test.TestCase, parameterized.TestCase):
   )
   def testMultiRank3(self, reduce_type, expected):
     input_graph = _get_test_graph_0123()
-    actual = pooling.pool_v2(
+    actual = pool_ops.pool_v2(
         input_graph, const.TARGET,
         edge_set_name=["e", "f", "g"],
         reduce_type=reduce_type,
@@ -502,7 +374,7 @@ class PoolReduceTypesTest(tf.test.TestCase, parameterized.TestCase):
   )
   def testRagged(self, reduce_type, expected):
     input_graph = _get_test_graph_0123()
-    actual = pooling.pool_v2(
+    actual = pool_ops.pool_v2(
         input_graph, const.TARGET,
         edge_set_name="e",
         reduce_type=reduce_type,

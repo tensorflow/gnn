@@ -18,9 +18,10 @@ import functools
 from typing import cast, Optional, Sequence, Union
 
 import tensorflow as tf
+from tensorflow_gnn.graph import broadcast_ops
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
-from tensorflow_gnn.graph import pooling
+from tensorflow_gnn.graph import pool_ops
 
 
 Field = const.Field
@@ -78,15 +79,16 @@ def softmax(
   """
   # Set up a list of `values` to be softmaxed with `pool` and `broadcast` calls.
   edge_set_names, node_set_names, values, got_sequence_args = (
-      pooling.get_pool_args_as_sequences(
-          "softmax()", graph_tensor, per_tag,
+      pool_ops.get_pool_args_as_sequences(
+          graph_tensor, per_tag,
           edge_set_name=edge_set_name, node_set_name=node_set_name,
-          feature_value=feature_value, feature_name=feature_name))
+          feature_value=feature_value, feature_name=feature_name,
+          function_name="softmax()"))
   pool = functools.partial(
-      pooling.pool_v2, graph_tensor, per_tag,
+      pool_ops.pool_v2, graph_tensor, per_tag,
       edge_set_name=edge_set_names, node_set_name=node_set_names)
   broadcast = functools.partial(
-      pooling.broadcast_v2, graph_tensor, per_tag,
+      broadcast_ops.broadcast_v2, graph_tensor, per_tag,
       edge_set_name=edge_set_names, node_set_name=node_set_names)
 
   # Compute softmax. Subtract the maxes for numerical stability.

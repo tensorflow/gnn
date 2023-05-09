@@ -21,9 +21,10 @@ from typing import Mapping
 from absl.testing import parameterized
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
+from tensorflow_gnn.graph import broadcast_ops
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
-from tensorflow_gnn.graph import graph_tensor_ops as ops
+from tensorflow_gnn.graph import pool_ops_v1
 from tensorflow_gnn.keras import keras_tensors as kt
 
 as_tensor = tf.convert_to_tensor
@@ -172,26 +173,26 @@ class FunctionalModelTest(_TestBase):
     graph_output = graph_input.replace_features(
         context={
             'f':
-                ops.pool_edges_to_context(
+                pool_ops_v1.pool_edges_to_context(
                     graph_input, 'edge', feature_name='f') +
-                ops.pool_nodes_to_context(
+                pool_ops_v1.pool_nodes_to_context(
                     graph_input, 'node', feature_name='f')
         },
         node_sets={
             'node': {
                 'f':
-                    ops.broadcast_context_to_nodes(
+                    broadcast_ops.broadcast_context_to_nodes(
                         graph_input, 'node', feature_name='f') +
-                    ops.pool_edges_to_node(
+                    pool_ops_v1.pool_edges_to_node(
                         graph_input, 'edge', const.TARGET, feature_name='f')
             }
         },
         edge_sets={
             'edge': {
                 'f':
-                    ops.broadcast_context_to_edges(
+                    broadcast_ops.broadcast_context_to_edges(
                         graph_input, 'edge', feature_name='f') +
-                    ops.broadcast_node_to_edges(
+                    broadcast_ops.broadcast_node_to_edges(
                         graph_input, 'edge', const.SOURCE, feature_name='f')
             }
         },
@@ -317,10 +318,10 @@ class FunctionalModelTest(_TestBase):
 
     weight = graph.edge_sets['edge']['edge_weight']
     node_state = graph.node_sets['node']['state']
-    source_value = ops.broadcast_node_to_edges(
+    source_value = broadcast_ops.broadcast_node_to_edges(
         graph, 'edge', const.SOURCE, feature_name='state')
     message = tf.multiply(weight, source_value)
-    pooled_message = ops.pool_edges_to_node(
+    pooled_message = pool_ops_v1.pool_edges_to_node(
         graph, 'edge', const.TARGET, feature_value=message)
     node_updates = fnn(pooled_message)
     node_state += node_updates

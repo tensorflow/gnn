@@ -20,9 +20,10 @@ from typing import Dict, Optional, Sequence, Tuple
 import tensorflow as tf
 
 from tensorflow_gnn.graph import adjacency as adj
+from tensorflow_gnn.graph import broadcast_ops
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
-from tensorflow_gnn.graph import graph_tensor_ops as ops
+from tensorflow_gnn.graph import pool_ops_v1
 
 
 def validate_graph_tensor_spec_for_readout(
@@ -215,7 +216,7 @@ def readout_named(
       source_value = graph.edge_sets[set_name][feature_name]
     else:  # NODES
       source_value = graph.node_sets[set_name][feature_name]
-    broadcast_values[edge_set_name] = ops.broadcast_node_to_edges(
+    broadcast_values[edge_set_name] = broadcast_ops.broadcast_node_to_edges(
         graph, edge_set_name, const.SOURCE, feature_value=source_value)
 
   # Special case: single readout edge set.
@@ -245,7 +246,7 @@ def readout_named(
         "non-numeric dtypes yet, because it relies on sum-pooling.")
 
   pooled_values = [
-      ops.pool_edges_to_node(
+      pool_ops_v1.pool_edges_to_node(
           graph, edge_set_name, const.TARGET, "sum", feature_value=value)
       for edge_set_name, value in broadcast_values.items()]
   result = tf.math.add_n(pooled_values)

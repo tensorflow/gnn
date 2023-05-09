@@ -18,9 +18,11 @@ from typing import Any, Mapping, Optional
 
 import tensorflow as tf
 
+from tensorflow_gnn.graph import broadcast_ops
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_ops as ops
+from tensorflow_gnn.graph import pool_ops_v1
 from tensorflow_gnn.graph import readout
 
 
@@ -745,14 +747,14 @@ class Broadcast(BroadcastPoolBase):
 
     if tag == const.CONTEXT:
       if node_set_name is not None:
-        return ops.broadcast_context_to_nodes(
+        return broadcast_ops.broadcast_context_to_nodes(
             graph, node_set_name, feature_name=feature_name)
       else:
-        return ops.broadcast_context_to_edges(
+        return broadcast_ops.broadcast_context_to_edges(
             graph, edge_set_name, feature_name=feature_name)
     else:
       assert tag in (const.SOURCE, const.TARGET), f"Internal error: tag={tag}"
-      return ops.broadcast_node_to_edges(
+      return broadcast_ops.broadcast_node_to_edges(
           graph, edge_set_name, tag, feature_name=feature_name)
 
 
@@ -858,14 +860,14 @@ class Pool(BroadcastPoolBase):
 
     if tag == const.CONTEXT:
       if node_set_name is not None:
-        return ops.pool_nodes_to_context(
+        return pool_ops_v1.pool_nodes_to_context(
             graph, node_set_name, reduce_type, feature_name=feature_name)
       else:
-        return ops.pool_edges_to_context(
+        return pool_ops_v1.pool_edges_to_context(
             graph, edge_set_name, reduce_type, feature_name=feature_name)
     else:
       assert tag in (const.SOURCE, const.TARGET), f"Internal error: tag={tag}"
-      return ops.pool_edges_to_node(
+      return pool_ops_v1.pool_edges_to_node(
           graph, edge_set_name, tag, reduce_type, feature_name=feature_name)
 
   @property

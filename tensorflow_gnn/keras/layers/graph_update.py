@@ -19,10 +19,10 @@ from typing import Any, Callable, Mapping, Optional, Sequence
 
 import tensorflow as tf
 
+from tensorflow_gnn.graph import broadcast_ops
 from tensorflow_gnn.graph import dict_utils as du
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
-from tensorflow_gnn.graph import graph_tensor_ops as ops
 from tensorflow_gnn.keras.layers import next_state as next_state_lib
 
 # pylint:disable=g-import-not-at-top
@@ -334,13 +334,14 @@ class EdgeSetUpdate(tf.keras.layers.Layer):
     input_from_incident_nodes = {}
     if self._node_input_feature is not None:
       for node_tag in self._node_input_tags:
-        input_from_incident_nodes[node_tag] = ops.broadcast_node_to_edges(
-            graph, edge_set_name, node_tag,
-            feature_name=self._node_input_feature)
+        input_from_incident_nodes[
+            node_tag] = broadcast_ops.broadcast_node_to_edges(
+                graph, edge_set_name, node_tag,
+                feature_name=self._node_input_feature)
     next_state_inputs.append(input_from_incident_nodes)
     # Input from context.
     next_state_inputs.append(tf.nest.map_structure(
-        lambda value: ops.broadcast_context_to_edges(  # pylint: disable=g-long-lambda
+        lambda value: broadcast_ops.broadcast_context_to_edges(  # pylint: disable=g-long-lambda
             graph, edge_set_name, feature_value=value),
         _get_feature_or_features(graph.context, self._context_input_feature)))
 
@@ -433,7 +434,7 @@ class NodeSetUpdate(tf.keras.layers.Layer):
     next_state_inputs.append(input_from_edge_sets)
     # Input from context.
     next_state_inputs.append(tf.nest.map_structure(
-        lambda value: ops.broadcast_context_to_nodes(  # pylint: disable=g-long-lambda
+        lambda value: broadcast_ops.broadcast_context_to_nodes(  # pylint: disable=g-long-lambda
             graph, node_set_name, feature_value=value),
         _get_feature_or_features(graph.context, self._context_input_feature)))
 
