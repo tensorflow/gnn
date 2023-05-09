@@ -65,13 +65,16 @@ def _covariance_loss(representations: tf.Tensor) -> tf.Tensor:
   )
 
 
-def _normalize(representations: tf.Tensor, *, scale=True) -> tf.Tensor:
+def _normalize(
+    representations: tf.Tensor, *, scale=True, epsilon: float = 1e-6
+) -> tf.Tensor:
   """Standardizes the representations across the first (batch) dimension.
 
   Args:
     representations: Representations to normalize.
     scale: Whether to scale representations by the standard deviation. If
       `False`, simply remove the mean from `features`. Default: `True`.
+    epsilon: Numerical epsilon to avoid division by zero.
 
   Returns:
     A `tf.Tensor` with representations normalized to zero mean and
@@ -79,9 +82,12 @@ def _normalize(representations: tf.Tensor, *, scale=True) -> tf.Tensor:
   """
   representations_mean = tf.reduce_mean(representations, axis=0)
   if scale:
-    representations_std = tf.math.reduce_std(representations, axis=0)
+    # Avoid reduce_std(), which started to produce NaN in gradients
+    # after TF2.13, see b/281569559.
+    representations_variance = tf.math.reduce_variance(representations, axis=0)
     return tf.math.divide_no_nan(
-        representations - representations_mean, representations_std
+        representations - representations_mean,
+        tf.math.sqrt(representations_variance + epsilon),
     )
   else:
     return representations - representations_mean
