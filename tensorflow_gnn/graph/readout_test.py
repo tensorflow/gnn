@@ -23,8 +23,11 @@ from tensorflow_gnn.graph import graph_tensor_ops as ops
 from tensorflow_gnn.graph import readout
 
 
-class ReadoutTest(tf.test.TestCase):
-  """Tests readout_named() and supporting validation functions."""
+class ReadoutNamedTest(tf.test.TestCase):
+  """Tests readout_named() and supporting validation functions.
+
+  TFLite integration is tested with tfgnn.keras.layers.ReadoutNamed.
+  """
 
   def testHomNodeClassification(self):
     test_graph = gt.GraphTensor.from_pieces(
@@ -240,7 +243,10 @@ class ReadoutTest(tf.test.TestCase):
 
 
 class ReadoutNamedIntoFeatureTest(tf.test.TestCase, parameterized.TestCase):
-  """Tests readout_named_into_feature()."""
+  """Tests readout_named_into_feature().
+
+  TFLite integration is tested with tfgnn.keras.layers.ReadoutNamedIntoFeature.
+  """
 
   @parameterized.named_parameters(
       ("KeepInput", False),
@@ -327,7 +333,10 @@ class ReadoutNamedIntoFeatureTest(tf.test.TestCase, parameterized.TestCase):
 
 
 class AddReadoutFromFirstNodeTest(tf.test.TestCase):
-  """Tests add_readout_from_first_node()."""
+  """Tests add_readout_from_first_node().
+
+  TFLite integration is tested with tfgnn.keras.layers.AddReadoutFromFirstNode.
+  """
 
   def test(self):
     test_graph = gt.GraphTensor.from_pieces(

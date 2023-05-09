@@ -24,6 +24,8 @@ Pool = graph_ops.Pool
 Readout = graph_ops.Readout
 ReadoutFirstNode = graph_ops.ReadoutFirstNode
 ReadoutNamed = graph_ops.ReadoutNamed
+ReadoutNamedIntoFeature = graph_ops.ReadoutNamedIntoFeature
+AddReadoutFromFirstNode = graph_ops.AddReadoutFromFirstNode
 
 AnyToAnyConvolutionBase = convolution_base.AnyToAnyConvolutionBase
 SimpleConv = convolutions.SimpleConv

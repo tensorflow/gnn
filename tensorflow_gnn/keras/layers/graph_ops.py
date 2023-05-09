@@ -385,6 +385,156 @@ class ReadoutNamed(tf.keras.layers.Layer):
         validate=self._validate)
 
 
+@tf.keras.utils.register_keras_serializable(package="GNN")
+class ReadoutNamedIntoFeature(tf.keras.layers.Layer):
+  """Reads out a feature value from select nodes (or edges) in a graph.
+
+  This Layer is similar to `tfgnn.keras.layers.ReadoutNamed` (see there),
+  except that it does not return the readout result itself but a modified
+  `GraphTensor` in which the readout result is stored as a feature on
+  the auxiliary `readout_node_set`. (See `tfgnn.readout_named()` for more
+  information on that.)
+
+  For example, this layer can be used in data processing before training
+  to move training labels out of the input graph seen my the model (see
+  `remove_input_feature`) onto the auxiliary `readout_node_set`.
+
+  Init args:
+    key: A string key to select between possibly multiple named readouts
+      (such as `"source"` and `"target"` for link prediction). Can be fixed
+      in init, or selected for each call.
+    feature_name: The name of a feature to read out from, as with
+      `tfgnn.readout_named()`.
+    new_feature_name: The name of the feature to add to `readout_node_set`
+      for storing the readout result. If unset, defaults to `feature_name`.
+      It is an error if the added feature already exists on `readout_node_set`
+      in the input `graph`, unless `overwrite=True` is set.
+    remove_input_feature: If set, the given `feature_name` is removed from the
+      node (or edge) set(s) that supply the input to `tfgnn.readout_named()`.
+    overwrite: If set, allows overwriting a potentially already existing
+      feature `graph.node_sets[readout_node_set][new_feature_name]`.
+    readout_node_set: A string, defaults to `"_readout"`. This is used as the
+      name for the readout node set and as a name prefix for its edge sets.
+    validate: Setting this to false disables the validity checks of
+      `tfgnn.readout_named()`. This is strongly discouraged, unless great care
+      is taken to run `tfgnn.validate_graph_tensor_for_readout()` earlier on
+      structurally unchanged GraphTensors.
+
+  Call args:
+    graph: The scalar `GraphTensor` to read from.
+    key: Same meaning as for init. Must be passed to init, or to call,
+      or to both (with the same value).
+
+  Returns:
+    A `GraphTensor` like `graph`, with the readout result stored as
+    `.node_sets[readout_node_set][new_feature_name]` and possibly the
+    readout inputs removed (see `remove_input_feature`).
+  """
+
+  def __init__(
+      self,
+      key: Optional[str] = None,
+      *,
+      feature_name: const.FieldName,
+      new_feature_name: Optional[const.FieldName] = None,
+      remove_input_feature: bool = False,
+      overwrite: bool = False,
+      readout_node_set: const.NodeSetName = "_readout",
+      validate: bool = True,
+      **kwargs):
+    super().__init__(**kwargs)
+    self._key = key
+    self._feature_name = feature_name
+    self._new_feature_name = new_feature_name
+    self._remove_input_feature = remove_input_feature
+    self._overwrite = overwrite
+    self._readout_node_set = readout_node_set
+    self._validate = validate
+
+  def get_config(self):
+    return dict(
+        key=self._key,
+        feature_name=self._feature_name,
+        new_feature_name=self._new_feature_name,
+        remove_input_feature=self._remove_input_feature,
+        overwrite=self._overwrite,
+        readout_node_set=self._readout_node_set,
+        validate=self._validate,
+        **super().get_config())
+
+  def call(self,
+           graph: gt.GraphTensor,
+           *,
+           key: Optional[str] = None) -> gt.GraphTensor:
+    _check_init_call_arg_consistency("ReadoutNamedIntoFeature", "key",
+                                     self._key, key)
+    if key is None:
+      key = self._key
+    if key is None:
+      raise ValueError("The ReadoutNamedIntoFeature layer requires "
+                       "a readout key to be set at init or call time")
+
+    gt.check_scalar_graph_tensor(graph, "ReadoutNamedIntoFeature")
+    return readout.readout_named_into_feature(
+        graph,
+        key=key,
+        feature_name=self._feature_name,
+        new_feature_name=self._new_feature_name,
+        remove_input_feature=self._remove_input_feature,
+        overwrite=self._overwrite,
+        readout_node_set=self._readout_node_set,
+        validate=self._validate)
+
+
+@tf.keras.utils.register_keras_serializable(package="GNN")
+class AddReadoutFromFirstNode(tf.keras.layers.Layer):
+  """Adds readout node set equivalent to `tfgnn.keras.layers.ReadoutFirstNode`.
+
+  Init args:
+    key: A key, for use with `tfgnn.readout_named()`. The input graph must not
+      already contain auxiliary edge sets for readout with this key.
+    node_set_name: The name of the node set from which values are to be read
+      out.
+    readout_node_set: The name of the auxiliary node set for readout,
+      as in `tfgnn.readout_named()`.
+
+  Call args:
+    graph: A scalar `GraphTensor`. If it contains the readout_node_set already,
+      its size in each graph component must be 1.
+
+  Returns:
+    A modified `GraphTensor` such that `tfgnn.readout_named(..., key)` works
+    like `tfgnn.gather_first_node(...)` on the input graph.
+  """
+
+  def __init__(
+      self,
+      key: str,
+      *,
+      node_set_name: const.NodeSetName,
+      readout_node_set: const.NodeSetName = "_readout",
+      **kwargs):
+    super().__init__(**kwargs)
+    self._key = key
+    self._node_set_name = node_set_name
+    self._readout_node_set = readout_node_set
+
+  def get_config(self):
+    return dict(
+        key=self._key,
+        node_set_name=self._node_set_name,
+        readout_node_set=self._readout_node_set,
+        **super().get_config())
+
+  def call(self, graph: gt.GraphTensor) -> gt.GraphTensor:
+    gt.check_scalar_graph_tensor(graph, "AddReadoutFromFirstNode")
+    return readout.add_readout_from_first_node(
+        graph,
+        key=self._key,
+        node_set_name=self._node_set_name,
+        readout_node_set=self._readout_node_set)
+
+
 class BroadcastPoolBase(tf.keras.layers.Layer):
   """Base class to Broadcast and Pool.
 

@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for graph_ops Keras layers."""
+import collections
 from unittest import mock
 
 from absl.testing import parameterized
@@ -153,9 +154,9 @@ class ReadoutTest(tf.test.TestCase, parameterized.TestCase):
                           nodes=dict(node_set_name="nodes"),
                           edges=dict(edge_set_name="edges"))[location]
     kwargs = dict(location_kwarg, feature_name="value", name="test_readout")
-    graph_in = _MakeGraphTensor()(inputs)
+    input_graph = _MakeGraphTensor()(inputs)
     readout = graph_ops.Readout(**kwargs)
-    outputs = readout(graph_in)
+    outputs = readout(input_graph)
     model = tf.keras.Model(inputs, outputs)
     expected = model(test_graph_134_dict)
 
@@ -255,9 +256,9 @@ class ReadoutFirstNodeTest(tf.test.TestCase, parameterized.TestCase):
     }
     kwargs = dict(node_set_name="nodes", feature_name="dense",
                   name="test_readout_first")
-    graph_in = _MakeGraphTensorNodesOnly()(inputs)
+    input_graph = _MakeGraphTensorNodesOnly()(inputs)
     readout = graph_ops.ReadoutFirstNode(**kwargs)
-    outputs = readout(graph_in)
+    outputs = readout(input_graph)
     model = tf.keras.Model(inputs, outputs)
     expected = model(test_graph_22_dict)
 
@@ -300,47 +301,21 @@ class _MakeGraphTensorNodesOnly(tf.keras.layers.Layer):
     )
 
 
-class ReadoutNamedTest(tf.test.TestCase, parameterized.TestCase):
+class ReadoutNamedTest(tf.test.TestCase):
 
   def testBasic(self):
-    test_graph = gt.GraphTensor.from_pieces(
-        node_sets={
-            "users": gt.NodeSet.from_fields(
-                sizes=tf.constant([3]),
-                features={const.HIDDEN_STATE: tf.constant(
-                    [[1., 1.],  # Read out as "source" 1.
-                     [1., 2.],  # Read out as "source" 0.
-                     [1., 3.]])}),
-            "items": gt.NodeSet.from_fields(
-                sizes=tf.constant([4]),
-                features={const.HIDDEN_STATE: tf.constant(
-                    [[2., 1.],
-                     [2., 2.],  # Read out as "target" 1.
-                     [2., 3.],  # Read out as "target" 3.
-                     [2., 4.]])}),
-            "_readout": gt.NodeSet.from_fields(
-                sizes=tf.constant([2]),
-                features={"labels": tf.constant([0, 1])})},
-        edge_sets={
-            "has_purchased": gt.EdgeSet.from_fields(
-                sizes=tf.constant([2]),
-                adjacency=adj.Adjacency.from_indices(
-                    ("users", tf.constant([1, 2])),
-                    ("items", tf.constant([0, 3])))),
-            "_readout/source/1": gt.EdgeSet.from_fields(
-                sizes=tf.constant([2]),
-                adjacency=adj.Adjacency.from_indices(
-                    # The "source" users are defined here.
-                    ("users", tf.constant([1, 0])),
-                    ("_readout", tf.constant([0, 1])))),
-            "_readout/target/1": gt.EdgeSet.from_fields(
-                sizes=tf.constant([2]),
-                adjacency=adj.Adjacency.from_indices(
-                    # The "target" items are defined here.
-                    ("items", tf.constant([1, 2])),
-                    ("_readout", tf.constant([0, 1]))))})
+    test_graph = _MakeGraphTensorReadoutNamed()(
+        {"users.hidden_state": tf.constant(
+            [[1., 1.],  # Read out as "source" 1.
+             [1., 2.],  # Read out as "source" 0.
+             [1., 3.],  # Read out as "target" 1.
+             [1., 4.]]),
+         "items.hidden_state": tf.constant(
+             [[2., 1.],
+              [2., 2.],  # Read out as "target" 0.
+              [2., 3.]])})
     expected_sources = [[1., 2.], [1., 1.]]
-    expected_targets = [[2., 2.], [2., 3.]]
+    expected_targets = [[2., 2.], [1., 3.]]
 
     # Test common usages that set the key exactly once.
     readout_source = graph_ops.ReadoutNamed("source")
@@ -361,144 +336,314 @@ class ReadoutNamedTest(tf.test.TestCase, parameterized.TestCase):
       _ = readout_source(test_graph, key="target")
 
   def testExplicitNames(self):
-    test_graph = gt.GraphTensor.from_pieces(
-        node_sets={
-            "objects": gt.NodeSet.from_fields(
-                sizes=tf.constant([2]),
-                features={
-                    "right_feature": tf.constant([[1., 1.], [1., 2.]]),
-                    "wrong_feature": tf.constant([[9.], [9.]])}),
-            "_out_it_reads_from_here": gt.NodeSet.from_fields(
-                sizes=tf.constant([1]))},
-        edge_sets={
-            "relations": gt.EdgeSet.from_fields(
-                sizes=tf.constant([1]),
-                adjacency=adj.Adjacency.from_indices(
-                    ("objects", tf.constant([1])),
-                    ("objects", tf.constant([0])))),
-            "_out_it_reads_from_here/widget": gt.EdgeSet.from_fields(
-                sizes=tf.constant([1]),
-                adjacency=adj.Adjacency.from_indices(
-                    ("objects", tf.constant([1])),
-                    ("_out_it_reads_from_here", tf.constant([0]))))})
-
-    readout = graph_ops.ReadoutNamed(
-        key="widget",
-        feature_name="right_feature",
+    test_graph = _MakeGraphTensorReadoutNamed(
+        right_feature_name="right_feature",
+        wrong_feature_name="wrong_feature",
         readout_node_set="_out_it_reads_from_here",
-        name="my_test_readout")
-    self.assertAllEqual([[1., 2.]], readout(test_graph))
+    )(
+        {"users.right_feature": tf.constant(
+            [[1., 1.],  # Read out as "source" 1.
+             [1., 2.],  # Read out as "source" 0.
+             [1., 3.],  # Read out as "target" 1.
+             [1., 4.]]),
+         "users.wrong_feature": tf.constant([[9.]] * 4),
+         "items.right_feature": tf.constant(
+             [[2., 1.],
+              [2., 2.],  # Read out as "target" 0.
+              [2., 3.]]),
+         "items.wrong_feature": tf.constant([[9.]] * 3)}
+    )
+    expected_sources = [[1., 2.], [1., 1.]]
+    expected_targets = [[2., 2.], [1., 3.]]
+
+    # Test common usages that set the key exactly once.
+    readout = graph_ops.ReadoutNamed(
+        feature_name="right_feature",
+        readout_node_set="_out_it_reads_from_here")
+    self.assertAllEqual(expected_sources, readout(test_graph, key="source"))
+    self.assertAllEqual(expected_targets, readout(test_graph, key="target"))
 
   def testTFLite(self):
-    test_graph_readout_named_dict = {
-        "nodes_users": tf.constant([
-            [1.0, 1.0],  # Read out as "source" 1.
-            [1.0, 2.0],  # Read out as "source" 0.
-            [1.0, 3.0],
-        ]),
-        "nodes_items": tf.constant([
-            [2.0, 1.0],
-            [2.0, 2.0],  # Read out as "target" 1.
-            [2.0, 3.0],  # Read out as "target" 3.
-            [2.0, 4.0],
-        ]),
-        "nodes__readout": tf.constant([0, 1]),
-        "edges_has_purchased_source": tf.constant([1, 2]),
-        "edges_has_purchased_target": tf.constant([0, 3]),
-        "edges__readout/source/1_source": tf.constant([1, 0]),
-        "edges__readout/source/1_target": tf.constant([0, 1]),
-        "edges__readout/target/1_source": tf.constant([1, 2]),
-        "edges__readout/target/1_target": tf.constant([0, 1]),
-    }
-    inputs = {
-        "nodes_users": tf.keras.Input(
-            [2], None, "nodes_users", tf.float32
-        ),
-        "nodes_items": tf.keras.Input(
-            [2], None, "nodes_items", tf.float32
-        ),
-        "nodes__readout": tf.keras.Input(
-            [], None, "nodes__readout", tf.int32
-        ),
-        "edges_has_purchased_source": tf.keras.Input(
-            [], None, "edges_has_purchased_source", tf.int32
-        ),
-        "edges_has_purchased_target": tf.keras.Input(
-            [], None, "edges_has_purchased_target", tf.int32
-        ),
-        "edges__readout/source/1_source": tf.keras.Input(
-            [], None, "edges__readout/source/1_source", tf.int32
-        ),
-        "edges__readout/source/1_target": tf.keras.Input(
-            [], None, "edges__readout/source/1_target", tf.int32
-        ),
-        "edges__readout/target/1_source": tf.keras.Input(
-            [], None, "edges__readout/target/1_source", tf.int32
-        ),
-        "edges__readout/target/1_target": tf.keras.Input(
-            [], None, "edges__readout/target/1_target", tf.int32
-        ),
-    }
-    graph_in = _MakeGraphTensorReadoutNamed()(inputs)
-    readout = graph_ops.ReadoutNamed("source", name="test_readout_named")
-    outputs = readout(graph_in)
-    model = tf.keras.Model(inputs, outputs)
-    expected = model(test_graph_readout_named_dict)
-
     # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
     if tf.__version__.startswith("2.9.") or tf.__version__.startswith("2.10."):
       self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
                     f"got TF {tf.__version__}")
+
+    test_graph_readout_named_dict = {
+        "users.hidden_state": tf.constant(
+            [[1., 1.],  # Read out as "source" 1.
+             [1., 2.],  # Read out as "source" 0.
+             [1., 3.],  # Read out as "target" 1.
+             [1., 4.]]),
+        "items.hidden_state": tf.constant(
+            [[2., 1.],
+             [2., 2.],  # Read out as "target" 0.
+             [2., 3.]])}
+    inputs = {
+        k: tf.keras.Input(v.shape[1:], None, k, v.dtype)
+        for k, v in test_graph_readout_named_dict.items()
+    }
+    input_graph = _MakeGraphTensorReadoutNamed()(inputs)
+    readout = graph_ops.ReadoutNamed("source", name="output_layer")
+    outputs = readout(input_graph)
+    model = tf.keras.Model(inputs, outputs)
+    expected = model(test_graph_readout_named_dict)
+
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
     interpreter = tf.lite.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
-    obtained = signature_runner(**test_graph_readout_named_dict)[
-        "test_readout_named"
-    ]
-    self.assertAllEqual(expected, obtained)
+    actual = signature_runner(**test_graph_readout_named_dict)["output_layer"]
+    self.assertAllEqual(expected, actual)
+
+
+class ReadoutNamedIntoFeatureTest(tf.test.TestCase):
+
+  def testBasic(self):
+    test_graph = _MakeGraphTensorReadoutNamed()(
+        {"users.hidden_state": tf.constant(
+            [[1., 1.],  # Read out as "source" 1.
+             [1., 2.],  # Read out as "source" 0.
+             [1., 3.],  # Read out as "target" 1.
+             [1., 4.]]),
+         "items.hidden_state": tf.constant(
+             [[2., 1.],
+              [2., 2.],  # Read out as "target" 0.
+              [2., 3.]])})
+    expected_sources = [[1., 2.], [1., 1.]]
+    expected_targets = [[2., 2.], [1., 3.]]
+
+    # Test common usage that sets the key at init time.
+    readout_source = graph_ops.ReadoutNamedIntoFeature(
+        "source", feature_name=const.HIDDEN_STATE)
+    result_graph = readout_source(test_graph)
+    self.assertAllEqual(expected_sources,
+                        result_graph.node_sets["_readout"][const.HIDDEN_STATE])
+    # Otherwise the graph is unchanged.
+    self.assertAllEqual(test_graph.node_sets["users"][const.HIDDEN_STATE],
+                        result_graph.node_sets["users"][const.HIDDEN_STATE])
+    self.assertAllEqual(test_graph.node_sets["items"][const.HIDDEN_STATE],
+                        result_graph.node_sets["items"][const.HIDDEN_STATE])
+
+    # Test common usages that set the key at call time.
+    readout = graph_ops.ReadoutNamedIntoFeature(feature_name=const.HIDDEN_STATE)
+    result_graph = readout(test_graph, key="source")
+    self.assertAllEqual(expected_sources,
+                        result_graph.node_sets["_readout"][const.HIDDEN_STATE])
+    result_graph = readout(test_graph, key="target")
+    self.assertAllEqual(expected_targets,
+                        result_graph.node_sets["_readout"][const.HIDDEN_STATE])
+
+    # Test setting the key not exactly once.
+    # Redundant keys are ok.
+    _ = readout_source(test_graph, key="source")
+    # No key is an error.
+    with self.assertRaisesRegex(ValueError, r"requires a readout key"):
+      _ = readout(test_graph)
+    # Contradicting keys are an error, too.
+    with self.assertRaisesRegex(ValueError, r"but called with"):
+      _ = readout_source(test_graph, key="target")
+
+  def testExplicitArgs(self):
+    test_graph = _MakeGraphTensorReadoutNamed(
+        right_feature_name="right_feature",
+        wrong_feature_name="wrong_feature",
+        readout_node_set="_out_it_reads_from_here",
+    )(
+        {"users.right_feature": tf.constant(
+            [[1., 1.],  # Read out as "source" 1.
+             [1., 2.],  # Read out as "source" 0.
+             [1., 3.],  # Read out as "target" 1.
+             [1., 4.]]),
+         "users.wrong_feature": tf.constant([[9.]] * 4),
+         "items.right_feature": tf.constant(
+             [[2., 1.],
+              [2., 2.],  # Read out as "target" 0.
+              [2., 3.]]),
+         "items.wrong_feature": tf.constant([[9.]] * 3)}
+    )
+    expected_sources = [[1., 2.], [1., 1.]]
+    expected_targets = [[2., 2.], [1., 3.]]
+    self.assertAllEqual(
+        [0, 1],
+        test_graph.node_sets["_out_it_reads_from_here"]["labels"])
+
+    readout = graph_ops.ReadoutNamedIntoFeature(
+        feature_name="right_feature",
+        new_feature_name="labels",
+        remove_input_feature=True,
+        overwrite=True,
+        readout_node_set="_out_it_reads_from_here")
+
+    result_graph = readout(test_graph, key="source")
+    self.assertAllEqual(
+        expected_sources,
+        result_graph.node_sets["_out_it_reads_from_here"]["labels"])
+    self.assertNotIn("right_feature", result_graph.node_sets["users"].features)
+    self.assertIn("right_feature", result_graph.node_sets["items"].features)
+
+    result_graph = readout(test_graph, key="target")
+    self.assertAllEqual(
+        expected_targets,
+        result_graph.node_sets["_out_it_reads_from_here"]["labels"])
+
+  def testTFLite(self):
+    # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
+    if tf.__version__.startswith("2.9.") or tf.__version__.startswith("2.10."):
+      self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
+                    f"got TF {tf.__version__}")
+
+    test_graph_readout_named_dict = {
+        "users.hidden_state": tf.constant(
+            [[1., 1.],  # Read out as "source" 1.
+             [1., 2.],  # Read out as "source" 0.
+             [1., 3.],  # Read out as "target" 1.
+             [1., 4.]]),
+        "items.hidden_state": tf.constant(
+            [[2., 1.],
+             [2., 2.],  # Read out as "target" 0.
+             [2., 3.]])}
+    inputs = {
+        k: tf.keras.Input(v.shape[1:], None, k, v.dtype)
+        for k, v in test_graph_readout_named_dict.items()
+    }
+    input_graph = _MakeGraphTensorReadoutNamed()(inputs)
+    readout_into_feature = graph_ops.ReadoutNamedIntoFeature(
+        "source", feature_name=const.HIDDEN_STATE)
+    readout_from_feature = graph_ops.Readout(node_set_name="_readout",
+                                             name="output_layer")
+    outputs = readout_from_feature(readout_into_feature(input_graph))
+
+    model = tf.keras.Model(inputs, outputs)
+    expected = model(test_graph_readout_named_dict)
+
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    model_content = converter.convert()
+    interpreter = tf.lite.Interpreter(model_content=model_content)
+    signature_runner = interpreter.get_signature_runner("serving_default")
+    actual = signature_runner(**test_graph_readout_named_dict)["output_layer"]
+    self.assertAllEqual(expected, actual)
+
+
+class AddReadoutFromFirstNodeTest(tf.test.TestCase):
+
+  def testBasic(self):
+    input_graph = _MakeGraphTensorReadoutNamed(readout_node_set=None)(
+        {"users.hidden_state": tf.constant(
+            [[1., 1.], [1., 2.], [1., 3.], [1., 4.]]),
+         "items.hidden_state": tf.constant(
+             [[2., 1.], [2., 2.], [2., 3.]])})
+    self.assertNotIn("_readout", input_graph.node_sets)
+
+    node_set_name = "items"
+    expected = graph_ops.ReadoutFirstNode(node_set_name=node_set_name)(
+        input_graph)
+    self.assertAllEqual([[2., 1.]], expected)
+
+    key = "seed"
+    add_readout = graph_ops.AddReadoutFromFirstNode(key,
+                                                    node_set_name=node_set_name)
+    test_graph = add_readout(input_graph)
+    self.assertIn("_readout", test_graph.node_sets)
+
+    actual = graph_ops.ReadoutNamed(key)(test_graph)
+    self.assertAllEqual(expected, actual)
+
+  def testTFLite(self):
+    # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
+    if tf.__version__.startswith("2.9.") or tf.__version__.startswith("2.10."):
+      self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
+                    f"got TF {tf.__version__}")
+
+    test_graph_readout_named_dict = {
+        "users.hidden_state": tf.constant(
+            [[1., 1.], [1., 2.], [1., 3.], [1., 4.]]),
+        "items.hidden_state": tf.constant(
+            [[2., 1.], [2., 2.], [2., 3.]])}
+    node_set_name = "items"
+
+    inputs = {
+        k: tf.keras.Input(v.shape[1:], None, k, v.dtype)
+        for k, v in test_graph_readout_named_dict.items()
+    }
+    input_graph = _MakeGraphTensorReadoutNamed(readout_node_set=None)(inputs)
+    key = "seed"
+    graph = graph_ops.AddReadoutFromFirstNode(key, node_set_name=node_set_name)(
+        input_graph)
+    outputs = graph_ops.ReadoutNamed(key, name="output_layer")(graph)
+    model = tf.keras.Model(inputs, outputs)
+    expected = model(test_graph_readout_named_dict)
+
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    model_content = converter.convert()
+    interpreter = tf.lite.Interpreter(model_content=model_content)
+    signature_runner = interpreter.get_signature_runner("serving_default")
+    actual = signature_runner(**test_graph_readout_named_dict)["output_layer"]
+    self.assertAllEqual(expected, actual)
 
 
 # TODO(b/274779989): Replace this layer with a more standard representation
 # of GraphTensor as a dict of plain Tensors.
 class _MakeGraphTensorReadoutNamed(tf.keras.layers.Layer):
 
+  def __init__(self,
+               *,
+               right_feature_name=const.HIDDEN_STATE,
+               wrong_feature_name=None,
+               readout_node_set="_readout",
+               **kwargs):
+    super().__init__(**kwargs)
+    self.right_feature_name = right_feature_name
+    self.wrong_feature_name = wrong_feature_name
+    self.readout_node_set = readout_node_set
+
   def call(self, inputs):
-    users_sizes = tf.shape(inputs["nodes_users"])[0]
-    items_sizes = tf.shape(inputs["nodes_items"])[0]
-    readout_sizes = tf.shape(inputs["nodes__readout"])[0]
-    has_purchased_sizes = tf.shape(inputs["edges_has_purchased_source"])[0]
-    readout_source_sizes = tf.shape(inputs["edges__readout/source/1_source"])[0]
-    readout_target_sizes = tf.shape(inputs["edges__readout/target/1_target"])[0]
-    return gt.GraphTensor.from_pieces(
-        node_sets={
-            "users": gt.NodeSet.from_fields(
-                sizes=tf.expand_dims(users_sizes, axis=0),
-                features={const.HIDDEN_STATE: inputs["nodes_users"]}),
-            "items": gt.NodeSet.from_fields(
-                sizes=tf.expand_dims(items_sizes, axis=0),
-                features={const.HIDDEN_STATE: inputs["nodes_items"]}),
-            "_readout": gt.NodeSet.from_fields(
-                sizes=tf.expand_dims(readout_sizes, axis=0),
-                features={"labels": inputs["nodes__readout"]})},
-        edge_sets={
-            "has_purchased": gt.EdgeSet.from_fields(
-                sizes=tf.expand_dims(has_purchased_sizes, axis=0),
-                adjacency=adj.Adjacency.from_indices(
-                    ("users", inputs["edges_has_purchased_source"]),
-                    ("items", inputs["edges_has_purchased_target"]))),
-            "_readout/source/1": gt.EdgeSet.from_fields(
-                sizes=tf.expand_dims(readout_source_sizes, axis=0),
-                adjacency=adj.Adjacency.from_indices(
-                    # The "source" users are defined here.
-                    ("users", inputs["edges__readout/source/1_source"]),
-                    ("_readout", inputs["edges__readout/source/1_target"]))),
-            "_readout/target/1": gt.EdgeSet.from_fields(
-                sizes=tf.expand_dims(readout_target_sizes, axis=0),
-                adjacency=adj.Adjacency.from_indices(
-                    # The "target" items are defined here.
-                    ("items", inputs["edges__readout/target/1_source"]),
-                    ("_readout", inputs["edges__readout/target/1_target"])))})
+    # Map flat input dict to dict of dicts.
+    features = collections.defaultdict(dict)
+    for node_set_name in ["users", "items"]:
+      for feature_name in [self.right_feature_name, self.wrong_feature_name]:
+        if feature_name is None: continue
+        features[node_set_name][feature_name] = inputs[
+            f"{node_set_name}.{feature_name}"]
+
+    node_sets = {
+        "users": gt.NodeSet.from_fields(
+            sizes=tf.constant([4]),
+            features=features["users"]),
+        "items": gt.NodeSet.from_fields(
+            sizes=tf.constant([3]),
+            features=features["items"])}
+    edge_sets = {
+        "has_purchased": gt.EdgeSet.from_fields(
+            sizes=tf.constant([2]),
+            adjacency=adj.Adjacency.from_indices(
+                ("users", tf.constant([1, 2])),
+                ("items", tf.constant([0, 3]))))}
+
+    if self.readout_node_set is not None:
+      node_sets[self.readout_node_set] = gt.NodeSet.from_fields(
+          sizes=tf.constant([2]),
+          features={"labels": tf.constant([0, 1])})
+      edge_sets[f"{self.readout_node_set}/source"] = gt.EdgeSet.from_fields(
+          sizes=tf.constant([2]),
+          adjacency=adj.Adjacency.from_indices(
+              # The "source" users are defined here.
+              ("users", tf.constant([1, 0])),
+              (self.readout_node_set, tf.constant([0, 1]))))
+      edge_sets[f"{self.readout_node_set}/target/1"] = gt.EdgeSet.from_fields(
+          sizes=tf.constant([1]),
+          adjacency=adj.Adjacency.from_indices(
+              # The "target" items are defined here.
+              ("items", tf.constant([1])),
+              (self.readout_node_set, tf.constant([0]))))
+      edge_sets[f"{self.readout_node_set}/target/2"] = gt.EdgeSet.from_fields(
+          sizes=tf.constant([1]),
+          adjacency=adj.Adjacency.from_indices(
+              # The "target" users are defined here.
+              ("users", tf.constant([2])),
+              (self.readout_node_set, tf.constant([1]))))
+
+    return gt.GraphTensor.from_pieces(node_sets=node_sets, edge_sets=edge_sets)
 
 
 class BroadcastTest(tf.test.TestCase, parameterized.TestCase):
@@ -667,9 +812,9 @@ class BroadcastTest(tf.test.TestCase, parameterized.TestCase):
                       dict(edge_set_name="edges"))
     kwargs = dict(location_kwarg, tag=tag, feature_name="value",
                   name="test_broadcast")
-    graph_in = _MakeGraphTensor()(inputs)
+    input_graph = _MakeGraphTensor()(inputs)
     broadcast = graph_ops.Broadcast(**kwargs)
-    outputs = broadcast(graph_in)
+    outputs = broadcast(input_graph)
     model = tf.keras.Model(inputs, outputs)
     expected = model(test_graph_132_dict)
 
@@ -733,9 +878,9 @@ class AddSelfLoopsTest(tf.test.TestCase, parameterized.TestCase):
         "source": tf.keras.Input([], None, "source", tf.int32),
         "target": tf.keras.Input([], None, "target", tf.int32),
     }
-    graph_in = _MakeGraphTensor()(inputs)
+    input_graph = _MakeGraphTensor()(inputs)
     layer = graph_ops.AddSelfLoops("edges")
-    graph_out = layer(graph_in)
+    graph_out = layer(input_graph)
     outputs = tf.keras.layers.Layer(name="final_edge_states")(
         graph_out.edge_sets["edges"].features["value"]
     )
@@ -950,9 +1095,9 @@ class PoolTest(tf.test.TestCase, parameterized.TestCase):
                       dict(edge_set_name="edges"))
     kwargs = dict(location_kwarg, reduce_type=reduce_type, tag=tag,
                   feature_name="value", name="test_pool")
-    graph_in = _MakeGraphTensor()(inputs)
+    input_graph = _MakeGraphTensor()(inputs)
     pool = graph_ops.Pool(**kwargs)
-    outputs = pool(graph_in)
+    outputs = pool(input_graph)
     model = tf.keras.Model(inputs, outputs)
     expected = model(test_graph_132_dict)
 
