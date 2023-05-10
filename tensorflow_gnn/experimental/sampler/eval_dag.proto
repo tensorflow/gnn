@@ -164,3 +164,9 @@ message FlattenedSpec {
 message IOFeatures {
   repeated string feature_names = 1;
 }
+
+// Sampling configuration for edge sampling layers.
+message EdgeSamplingConfig {
+  string edge_set_name = 1;
+  int32 sample_size = 2;
+}

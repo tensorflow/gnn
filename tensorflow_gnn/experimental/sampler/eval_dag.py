@@ -766,6 +766,13 @@ def _(layer: input_layer.InputLayer):
   return None
 
 
+@get_layer_config_pb.register(core.UniformEdgesSampler)
+def _(layer: core.UniformEdgesSampler):
+  return eval_dag_pb2.EdgeSamplingConfig(
+      edge_set_name=layer.resource_name, sample_size=layer.sample_size
+  )
+
+
 @get_layer_config_pb.register(Sink)
 def _(layer: Sink):
   if not layer.io_config:

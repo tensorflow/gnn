@@ -27,7 +27,7 @@ from tensorflow_gnn.experimental.sampler import eval_dag_pb2 as pb
 
 PCollection = beam.pvalue.PCollection
 
-K = TypeVar('K', int, bytes, str)
+K = TypeVar('K')
 Q = TypeVar('Q')
 V = TypeVar('V')
 

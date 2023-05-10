@@ -44,7 +44,7 @@ _Value = bytes
 @beam_typehints.with_output_types(Tuple[ExampleId, Values])
 class KeyToBytesAccessor(beam.PTransform):
   """Extracts serialized values from a table using lookup keys.
-  
+
   Implements `KeyToBytesAccessor` interface. Takes as an input two collections
   containing lookup queries and lookup values. The lookup values are tuples of
   unique keys (integer or bytes) and serialized lookup values (bytes). The
@@ -77,14 +77,18 @@ class KeyToBytesAccessor(beam.PTransform):
       Tuple[ExampleId, Iterable[Tuple[int, bytes]]]
   )
   @beam_typehints.with_output_types(Tuple[ExampleId, Values])
-  class PrepareResults(beam.DoFn):
-    """Process aggregated results for each example id and form `Values`."""
+  class AgggregateResults(beam.DoFn):
+    """Aggregates final results from pieces grouped by example ids.
+
+    The inputs are tuples of output positions and lookup values grouped by their
+    example ids.
+    """
 
     def __init__(self, layer: pb.Layer):
       self._layer = layer
 
     def setup(self):
-      self._dtypes = utils.get_ragged_np_types(
+      self._value_dtype, self._splits_dtype = utils.get_ragged_np_types(
           self._layer.outputs[0].ragged_tensor
       )
 
@@ -95,8 +99,8 @@ class KeyToBytesAccessor(beam.PTransform):
       example_id, values_iter = inputs
       values = sorted(values_iter, key=lambda kv: kv[0])
       values = [
-          np.array([v for _, v in values], dtype=self._dtypes[0]),
-          np.array([len(values)], dtype=self._dtypes[1]),
+          np.array([v for _, v in values], dtype=self._value_dtype),
+          np.array([len(values)], dtype=self._splits_dtype),
       ]
       yield (example_id, [values])
 
@@ -119,7 +123,7 @@ class KeyToBytesAccessor(beam.PTransform):
         | 'ProcessLookupResults'
         >> beam.ParDo(self.ProcessLookupResults(self._default_value))
         | 'GroupByExampleId' >> beam.GroupByKey()
-        | 'PrepareResults' >> beam.ParDo(self.PrepareResults(self._layer))
+        | 'AgggregateResults' >> beam.ParDo(self.AgggregateResults(self._layer))
     )
 
 
