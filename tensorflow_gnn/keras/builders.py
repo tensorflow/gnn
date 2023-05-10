@@ -16,7 +16,7 @@
 
 import collections
 import re
-from typing import Any, Callable, Collection, Mapping, Optional, Union
+from typing import Any, Callable, Collection, Mapping, Optional
 
 import tensorflow as tf
 
@@ -86,10 +86,7 @@ class ConvGNNBuilder:
       `nodes_next_state_factory(node_set_name)` to return the next-state layer
       for the respectve NodeSetUpdate.
     receiver_tag: Set this to `tfgnn.TARGET` or `tfgnn.SOURCE` to choose which
-      incident node of each edge receives the convolution result. It can also
-      contain a collection to specify multiple incident nodes, which will create
-      a separate convolution for each. Note that every incident node tag can be
-      used at most once.
+      incident node of each edge receives the convolution result.
       DEPRECATED: This used to be optional and effectively default to TARGET.
       New code is expected to set it in any case.
     node_set_update_factory: If set, called as
@@ -110,9 +107,7 @@ class ConvGNNBuilder:
       nodes_next_state_factory: Callable[[const.NodeSetName],
                                          next_state_lib.NextStateForNodeSet],
       *,
-      receiver_tag: Optional[
-          Union[const.IncidentNodeTag, Collection[const.IncidentNodeTag]]
-      ] = None,
+      receiver_tag: Optional[const.IncidentNodeTag] = None,
       node_set_update_factory: Optional[Callable[
           ..., graph_update_lib.NodeSetUpdateLayer]] = None,
       graph_update_factory: Optional[Callable[
@@ -170,13 +165,10 @@ class ConvGNNBuilder:
 
     def _init(graph_spec: gt.GraphTensorSpec) -> Mapping[str, Any]:
       if self._receiver_tag is None:
-        receiver_tags = {const.TARGET}
+        receiver_tag = const.TARGET
         receiver_tag_specified = False
-      elif isinstance(self._receiver_tag, const.IncidentNodeTag):
-        receiver_tags = {self._receiver_tag}
-        receiver_tag_specified = True
       else:
-        receiver_tags = set(self._receiver_tag)
+        receiver_tag = self._receiver_tag
         receiver_tag_specified = True
 
       receiver_to_inputs = collections.defaultdict(dict)
@@ -187,33 +179,24 @@ class ConvGNNBuilder:
         if not isinstance(edge_set_spec.adjacency_spec, adj.HyperAdjacencySpec):
           raise ValueError("Unsupported adjacency type {}".format(
               type(edge_set_spec.adjacency_spec).__name__))
-        for receiver_tag in receiver_tags:
-          receiver_node_set = edge_set_spec.adjacency_spec.node_set_name(
-              receiver_tag)
-          if node_sets is not None and receiver_node_set not in node_sets:
-            continue
-          if self._aux_graph_piece_re.fullmatch(receiver_node_set):
-            # This cannot happen for the aux node sets known so far (March 2023)
-            # and likely indicates the accidental use of an auxiliary name.
-            raise ValueError(
-                f"Node set '{receiver_node_set}' matches "
-                f"aux_graph_piece_pattern=r'{self._aux_graph_piece_re.pattern}'"
-                f" but incident edge set '{edge_set_name}' "
-                f"(at tag {receiver_tag}) does not.")
-          if receiver_tag_specified:
-            conv = self._convolutions_factory(edge_set_name,
-                                              receiver_tag=receiver_tag)
-          else:
-            conv = self._convolutions_factory(edge_set_name)
-          if edge_set_name in receiver_to_inputs[receiver_node_set]:
-            raise NotImplementedError(
-                f"Received multiple receiver tags '{receiver_tags}' for node"
-                f" set '{receiver_node_set}' and edge set '{edge_set_name}'."
-                f" This is likely because the edge set '{edge_set_name}' is"
-                " homogeneous. Multiple receiver tags are currently only"
-                " supported for heterogeneous edges. See b/278198893."
-            )
-          receiver_to_inputs[receiver_node_set][edge_set_name] = conv
+        receiver_node_set = edge_set_spec.adjacency_spec.node_set_name(
+            receiver_tag)
+        if node_sets is not None and receiver_node_set not in node_sets:
+          continue
+        if self._aux_graph_piece_re.fullmatch(receiver_node_set):
+          # This cannot happen for the aux node sets known so far (March 2023)
+          # and likely indicates the accidental use of an auxiliary name.
+          raise ValueError(
+              f"Node set '{receiver_node_set}' matches "
+              f"aux_graph_piece_pattern=r'{self._aux_graph_piece_re.pattern}'"
+              f" but incident edge set '{edge_set_name}' "
+              f"(at tag {receiver_tag}) does not.")
+        if receiver_tag_specified:
+          conv = self._convolutions_factory(edge_set_name,
+                                            receiver_tag=receiver_tag)
+        else:
+          conv = self._convolutions_factory(edge_set_name)
+        receiver_to_inputs[receiver_node_set][edge_set_name] = conv
 
       if node_sets is None:
         receiver_node_sets = receiver_to_inputs.keys()
@@ -225,9 +208,9 @@ class ConvGNNBuilder:
           raise ValueError(
               "A GraphUpdate was requested to include the following node sets "
               "that do not receive inputs from any edge set: "
-              f"{non_receiver_node_sets}. Receiver tags are {receiver_tags}, "
+              f"{non_receiver_node_sets}. The receiver tag is {receiver_tag}, "
               f"where SOURCE={const.SOURCE} and TARGET={const.TARGET}. "
-              "In convolutional or message-passing GNNs, this is likley an "
+              "In convolutional or message-passing GNNs, this is likely an "
               "error and hence unsupported by `tfgnn.keras.ConvGNNBuilder` and "
               "the GraphUpdate classes built by it. "
           )
