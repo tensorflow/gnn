@@ -209,6 +209,7 @@ import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.experimental.in_memory import datasets
 from tensorflow_gnn.experimental.in_memory import reader_utils
+from tensorflow_gnn.experimental.sampler import interfaces
 from tensorflow_gnn.graph import tensor_utils as utils
 from tensorflow_gnn.sampler import sampling_spec_pb2
 
@@ -471,14 +472,16 @@ class EdgeSampling(enum.Enum):
   WITHOUT_REPLACEMENT = 'without_replacement'
 
 
-class EdgeSampler(tf.keras.layers.Layer):
+class EdgeSampler(tf.keras.layers.Layer, interfaces.OutgoingEdgesSampler):
   """Samples neighbors given nodes. Follows Edge-sampling API.
 
   To an instance, EdgeSampler you must first create `sampler = GraphSampler()`.
   Then:
 
   ```python
-  edge_sampler = sampler.make_edge_sampler("nameOfEdgeSet")
+  edge_sampler = sampler.make_edge_sampler(
+      sampling_spec_pb2.SamplingOp(
+          edge_set_name="nameOfEdgeSet", sample_size=10))
   ```
 
   Finally, you may invoke as:
@@ -587,14 +590,20 @@ class GraphSampler:
     if reduce_memory_footprint:
       self.adjacency = None
 
-  def make_edge_sampler(self, sample_size: int,
-                        edge_set_name: Optional[tfgnn.EdgeSetName] = None,
-                        sampling_mode=None) -> EdgeSampler:
+  def make_edge_sampler(
+      self, sampling_op: sampling_spec_pb2.SamplingOp) -> EdgeSampler:
     """Makes layer out of `sample_one_hop`."""
     available_edge_set_names = self.graph_data.edge_sets().keys()
     # Validation.
+    edge_set_name = sampling_op.edge_set_name
+
+    if (sampling_op.strategy
+        != sampling_spec_pb2.SamplingStrategy.RANDOM_UNIFORM):
+      raise ValueError(
+          'int-arithmetic sampler currently only supports strategy '
+          'RANDOM_UNIFORM')
+
     if edge_set_name is None:
-      available_edge_set_names = self.graph_data.edge_sets().keys()
       if len(available_edge_set_names) > 1:
         raise ValueError(
             'You must provide `edge_set_name` as your graph has multiple edge '
@@ -605,7 +614,8 @@ class GraphSampler:
         raise ValueError('Edge-set "%s" is not one of: %s' % (
             edge_set_name, ', '.join(available_edge_set_names)))
 
-    return EdgeSampler(self, sample_size, edge_set_name, sampling_mode)
+    return EdgeSampler(
+        self, sampling_op.sample_size, edge_set_name, self.sampling_mode)
 
   def sample_one_hop(
       self, source_nodes: tf.Tensor, edge_set_name: tfgnn.EdgeSetName,
@@ -678,7 +688,7 @@ class GraphSampler:
       sample_upto = tf.stack([reshaped_node_degrees] * sample_size, axis=0)
 
       # [[0, 1, 2, ..., f], <repeated>].T
-      if nodes_reshaped.shape[0] is not None:
+      if nodes_reshaped.shape[0]:
         subtract_mod = tf.stack(
             [tf.range(sample_size, dtype=tf.int64)] * nodes_reshaped.shape[0],
             axis=-1)

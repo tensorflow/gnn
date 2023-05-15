@@ -27,7 +27,11 @@ import tensorflow_gnn as tfgnn
 
 from tensorflow_gnn.experimental.in_memory import datasets
 from tensorflow_gnn.experimental.in_memory import int_arithmetic_sampler as ia_sampler
+from tensorflow_gnn.experimental.sampler import subgraph_pipeline
 from tensorflow_gnn.sampler import sampling_spec_builder
+from tensorflow_gnn.sampler import sampling_spec_pb2
+
+SamplingStrategy = sampling_spec_pb2.SamplingStrategy
 
 
 class ToyDataset(datasets.InMemoryGraphData):
@@ -64,7 +68,7 @@ class ToyDataset(datasets.InMemoryGraphData):
   def node_features_dicts(self, add_id=True) -> Mapping[
       tfgnn.NodeSetName, MutableMapping[str, tf.Tensor]]:
     return {
-        'animals': {
+        'animal': {
             '#id': tf.range(len(self.id2animal), dtype=tf.int32),
             'names': tf.convert_to_tensor(np.array(self.id2animal)),
         },
@@ -75,11 +79,11 @@ class ToyDataset(datasets.InMemoryGraphData):
     }
 
   def node_counts(self) -> Mapping[tfgnn.NodeSetName, int]:
-    return {'food': len(self.id2food), 'animals': len(self.id2animal)}
+    return {'food': len(self.id2food), 'animal': len(self.id2animal)}
 
   def edge_lists(self) -> Mapping[Tuple[str, str, str], tf.Tensor]:
     return {
-        ('animals', 'eats', 'food'): self.eats_edgelist,
+        ('animal', 'eats', 'food'): self.eats_edgelist,
     }
 
 
@@ -217,7 +221,7 @@ class IntArithmeticSamplerTest(tf.test.TestCase, parameterized.TestCase):
     spec = sampling_spec_builder.SamplingSpecBuilder(
         toy_graph_schema,
         default_strategy=sampling_spec_builder.SamplingStrategy.RANDOM_UNIFORM)
-    spec = (spec.seed('animals').sample(hop1_samples, 'eats')
+    spec = (spec.seed('animal').sample(hop1_samples, 'eats')
             .sample(hop2_samples, 'rev_eats').build())
     walk_tree = sampler.sample_walk_tree(source_node_ids, spec)
 
@@ -262,7 +266,7 @@ class IntArithmeticSamplerTest(tf.test.TestCase, parameterized.TestCase):
     spec = sampling_spec_builder.SamplingSpecBuilder(
         toy_graph_schema,
         default_strategy=sampling_spec_builder.SamplingStrategy.RANDOM_UNIFORM)
-    spec = (spec.seed('animals').sample(hop1_samples, 'eats')
+    spec = (spec.seed('animal').sample(hop1_samples, 'eats')
             .sample(hop2_samples, 'rev_eats').build())
     walk_tree = sampler.sample_walk_tree(source_node_ids, spec)
 
@@ -272,9 +276,9 @@ class IntArithmeticSamplerTest(tf.test.TestCase, parameterized.TestCase):
 
     graph_tensor = walk_tree.as_graph_tensor(node_features_fn)
 
-    # Animals.
+    # Animal.
     eats_src = graph_tensor.edge_sets['eats'].adjacency.source
-    eats_src = tf.gather(graph_tensor.node_sets['animals']['myfeat'], eats_src)
+    eats_src = tf.gather(graph_tensor.node_sets['animal']['myfeat'], eats_src)
 
     # Foods.
     eats_tgt = graph_tensor.edge_sets['eats'].adjacency.target
@@ -299,7 +303,10 @@ class IntArithmeticSamplerTest(tf.test.TestCase, parameterized.TestCase):
     strategy = ia_sampler.EdgeSampling.WITHOUT_REPLACEMENT
     toy_dataset = ToyDataset()
     sampler = ia_sampler.GraphSampler(toy_dataset, sampling_mode=strategy)
-    edge_layer = sampler.make_edge_sampler(edge_set_name='eats', sample_size=3)
+    edge_layer = sampler.make_edge_sampler(
+        sampling_spec_pb2.SamplingOp(
+            edge_set_name='eats', sample_size=3,
+            strategy=SamplingStrategy.RANDOM_UNIFORM))
     seeds = tf.keras.layers.Input(shape=[None], dtype=tf.int32, ragged=True)
     if operation_mode == 'Layer':
       edge_model = edge_layer
@@ -345,8 +352,10 @@ class IntArithmeticSamplerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertRaises(
         ValueError,
         functools.partial(
-            sampler.make_edge_sampler, edge_set_name='invalid_name',
-            sample_size=3))
+            sampler.make_edge_sampler,
+            sampling_spec_pb2.SamplingOp(
+                edge_set_name='invalid_name', sample_size=3,
+                strategy=SamplingStrategy.RANDOM_UNIFORM)))
 
   def test_graph_sampler_constructor_without_edgesets_raises_exception(self):
     strategy = ia_sampler.EdgeSampling.WITHOUT_REPLACEMENT
@@ -356,6 +365,58 @@ class IntArithmeticSamplerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertRaises(ValueError, functools.partial(ia_sampler.GraphSampler,
                                                     toy_dataset,
                                                     sampling_mode=strategy))
+
+  @parameterized.named_parameters(
+      ('TFLoadSavedModel', 'TFLoadModel'),
+      # ('KerasLoadSavedGModel', 'KerasLoadModel'),  # blocked by cl/530981500
+      ('KerasModel', 'KerasModel')
+  )
+  def test_smoke_integration_sampling_pipeline_model(self, operation_mode):
+    """Smoke integration test of int-arithmetic running with `SamplingPipline`.
+
+    Args:
+      operation_mode: Determines if `keras.Model` should be saved-then-loaded
+        before invoking sampling.
+    """
+    toy_dataset = ToyDataset()
+    strategy = ia_sampler.EdgeSampling.WITHOUT_REPLACEMENT
+    sampler = ia_sampler.GraphSampler(toy_dataset, sampling_mode=strategy)
+
+    hop1_samples = hop2_samples = 10
+    spec = (
+        sampling_spec_builder.SamplingSpecBuilder(
+            toy_dataset.graph_schema(),
+            default_strategy=SamplingStrategy.RANDOM_UNIFORM)
+        .seed('animal').sample(hop1_samples, 'eats')
+        .sample(hop2_samples, 'rev_eats')
+        .build())
+
+    sampling_model = subgraph_pipeline.create_sampling_model_from_spec(
+        seed_node_dtype=tf.int32,
+        graph_schema=toy_dataset.graph_schema(), sampling_spec=spec,
+        edge_sampler_factory=sampler.make_edge_sampler)
+
+    if operation_mode == 'TFLoadModel':
+      export_dir = os.path.join(self.get_temp_dir(), 'sampler')
+      sampling_model.save(export_dir, include_optimizer=False)
+      sampling_model = tf.saved_model.load(export_dir)
+    elif operation_mode == 'KerasLoadModel':
+      export_dir = os.path.join(self.get_temp_dir(), 'sampler')
+      sampling_model.save(export_dir, include_optimizer=False)
+      sampling_model = tf.keras.models.load_model(export_dir)
+
+    source_node_names = [['dog', 'monkey'], ['dog'], ['monkey']]
+    node_ids = tf.nest.map_structure(
+        toy_dataset.animal2id.get, source_node_names)
+    node_ids = tf.ragged.constant(node_ids)
+
+    sample_graph = sampling_model(node_ids)
+    # A couple of checks only. This is an integration smoke test (assumes
+    # `SamplingPipeline` is tested in its own file).
+    self.assertIsInstance(sample_graph, tfgnn.GraphTensor)
+    self.assertAllEqual(
+        sample_graph.edge_sets['eats'].sizes,
+        tf.convert_to_tensor([[4], [2], [2]], dtype=tf.int64))
 
 
 if __name__ == '__main__':
