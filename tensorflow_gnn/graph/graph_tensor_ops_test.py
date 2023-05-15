@@ -1276,7 +1276,7 @@ class _MakeLineGraphTargetToSource(tf.keras.layers.Layer):
         connect_to=const.SOURCE,)
 
 
-class LineGraphTest(tf.test.TestCase):
+class LineGraphTest(tf.test.TestCase, parameterized.TestCase):
 
   def _make_test_graph(self, add_readout=False):
     return _MakeGraphTensor()(
@@ -1340,12 +1340,14 @@ class LineGraphTest(tf.test.TestCase):
     for edge_set in line_graph.edge_sets.values():
       self.assertIsInstance(edge_set.adjacency, adj.Adjacency)
 
-  def testConnectivityTargetToSource(self):
+  @parameterized.named_parameters([('', True), ('NonBacktracking', False)])
+  def testConnectivityTargetToSource(self, backtracking: bool):
     graph_tensor = self._make_test_graph()
     line_graph = ops.convert_to_line_graph(
         graph_tensor,
         connect_from=const.TARGET,
         connect_to=const.SOURCE,
+        non_backtracking=not backtracking,
     )
     self.assertCountEqual(
         line_graph.edge_sets,
@@ -1353,11 +1355,11 @@ class LineGraphTest(tf.test.TestCase):
     )
     self.assertAllEqual(
         line_graph.edge_sets['aa=>aa'].adjacency[const.SOURCE],
-        tf.constant([0, 0]),
+        tf.constant([0] * backtracking + [0]),
     )
     self.assertAllEqual(
         line_graph.edge_sets['aa=>aa'].adjacency[const.TARGET],
-        tf.constant([0, 1]),
+        tf.constant([0] * backtracking + [1]),
     )
     self.assertAllEqual(
         line_graph.edge_sets['aa=>ab'].adjacency[const.SOURCE],
@@ -1369,11 +1371,11 @@ class LineGraphTest(tf.test.TestCase):
     )
     self.assertAllEqual(
         line_graph.edge_sets['ab=>ba'].adjacency[const.SOURCE],
-        tf.constant([1, 1, 0, 0, 0, 2, 2, 2, 4]),
+        tf.constant([1, 1, 0, 0, 0, 2, 2, 2] + [4] * backtracking),
     )
     self.assertAllEqual(
         line_graph.edge_sets['ab=>ba'].adjacency[const.TARGET],
-        tf.constant([0, 3, 1, 2, 4, 1, 2, 4, 5]),
+        tf.constant([0, 3, 1, 2, 4, 1, 2, 4] + [5] * backtracking),
     )
     self.assertAllEqual(
         line_graph.edge_sets['ba=>aa'].adjacency[const.SOURCE],
@@ -1385,19 +1387,21 @@ class LineGraphTest(tf.test.TestCase):
     )
     self.assertAllEqual(
         line_graph.edge_sets['ba=>ab'].adjacency[const.SOURCE],
-        tf.constant([0, 5]),
+        tf.constant([0] + [5] * backtracking),
     )
     self.assertAllEqual(
         line_graph.edge_sets['ba=>ab'].adjacency[const.TARGET],
-        tf.constant([3, 4]),
+        tf.constant([3] + [4] * backtracking),
     )
 
-  def testConnectivityTargetToTarget(self):
+  @parameterized.named_parameters([('', True), ('NonBacktracking', False)])
+  def testConnectivityTargetToTarget(self, backtracking: bool):
     graph_tensor = self._make_test_graph()
     line_graph = ops.convert_to_line_graph(
         graph_tensor,
         connect_from=const.TARGET,
         connect_to=const.TARGET,
+        non_backtracking=not backtracking,
     )
     self.assertCountEqual(
         line_graph.edge_sets,
@@ -1405,11 +1409,11 @@ class LineGraphTest(tf.test.TestCase):
     )
     self.assertAllEqual(
         line_graph.edge_sets['aa=>aa'].adjacency[const.SOURCE],
-        tf.constant([0, 1, 2, 3]),
+        tf.constant([0, 1, 2, 3] * backtracking),
     )
     self.assertAllEqual(
         line_graph.edge_sets['aa=>aa'].adjacency[const.TARGET],
-        tf.constant([0, 1, 2, 3]),
+        tf.constant([0, 1, 2, 3] * backtracking),
     )
     self.assertAllEqual(
         line_graph.edge_sets['aa=>ba'].adjacency[const.SOURCE],
@@ -1421,11 +1425,11 @@ class LineGraphTest(tf.test.TestCase):
     )
     self.assertAllEqual(
         line_graph.edge_sets['ab=>ab'].adjacency[const.SOURCE],
-        tf.constant([1, 0, 0, 2, 2, 3, 4]),
+        tf.constant([1, 0] * backtracking + [0, 2] + [2, 3, 4] * backtracking),
     )
     self.assertAllEqual(
         line_graph.edge_sets['ab=>ab'].adjacency[const.TARGET],
-        tf.constant([1, 0, 2, 0, 2, 3, 4]),
+        tf.constant([1, 0] * backtracking + [2, 0] + [2, 3, 4] * backtracking),
     )
     self.assertAllEqual(
         line_graph.edge_sets['ba=>aa'].adjacency[const.SOURCE],
@@ -1437,11 +1441,15 @@ class LineGraphTest(tf.test.TestCase):
     )
     self.assertAllEqual(
         line_graph.edge_sets['ba=>ba'].adjacency[const.SOURCE],
-        tf.constant([4, 2, 2, 3, 3, 1, 0, 5]),
+        tf.constant(
+            [4, 2] * backtracking + [2, 3] + [3, 1, 0, 5] * backtracking
+        ),
     )
     self.assertAllEqual(
         line_graph.edge_sets['ba=>ba'].adjacency[const.TARGET],
-        tf.constant([4, 2, 3, 2, 3, 1, 0, 5]),
+        tf.constant(
+            [4, 2] * backtracking + [3, 2] + [3, 1, 0, 5] * backtracking
+        ),
     )
 
   def testConnectOriginalFeatures(self):
@@ -1592,6 +1600,31 @@ class LineGraphTest(tf.test.TestCase):
             'ba=>ab',
         ],
     )
+
+  def testNonBacktrackingAuxiliary(self):
+    graph_tensor = self._make_test_graph(add_readout=True)
+    line_graph = ops.convert_to_line_graph(
+        graph_tensor, connect_with_original_nodes=True
+    )
+    line_graph_nb = ops.convert_to_line_graph(
+        graph_tensor, connect_with_original_nodes=True, non_backtracking=True
+    )
+    for edge_set_name in line_graph_nb.edge_sets:
+      if edge_set_name not in [
+          'aa=>aa',
+          'aa=>ab',
+          'ab=>ba',
+          'ba=>aa',
+          'ba=>ab',
+      ]:
+        self.assertAllEqual(
+            line_graph.edge_sets[edge_set_name].adjacency.source,
+            line_graph_nb.edge_sets[edge_set_name].adjacency.source,
+        )
+        self.assertAllEqual(
+            line_graph.edge_sets[edge_set_name].adjacency.target,
+            line_graph_nb.edge_sets[edge_set_name].adjacency.target,
+        )
 
   def testReadoutNamed(self):
     graph_tensor = self._make_test_graph(add_readout=True)

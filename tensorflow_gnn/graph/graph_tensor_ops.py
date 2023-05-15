@@ -22,9 +22,11 @@ from typing import Any, Callable, Collection, List, Mapping, Optional
 
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
+from tensorflow_gnn.graph import broadcast_ops
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import pool_ops
+from tensorflow_gnn.graph import tag_utils
 from tensorflow_gnn.graph import tensor_utils as utils
 from tensorflow_gnn.keras import keras_tensors as kt
 
@@ -951,12 +953,82 @@ def _get_line_graph_edges(
   return line_edge_sets
 
 
+def _convert_to_non_backtracking_line_graph(
+    graph_tensor: gt.GraphTensor,
+    line_graph_tensor: gt.GraphTensor,
+    *,
+    node_tag_in: const.IncidentNodeTag,
+    node_tag_out: const.IncidentNodeTag,
+) -> gt.GraphTensor:
+  """Convert a line graph to a non-backtracking line graph.
+
+  This removes all backtracking edges from the line graph, i.e. edges where the
+  node_tag_in endpoint of the incoming edge is the same as the node_tag_out
+  endpoint of the outgoing edge.
+
+  Args:
+    graph_tensor: The original graph.
+    line_graph_tensor: The line graph, potentially with backtracking edges.
+    node_tag_in: receiver_tag of the "outer" node of a sending edge in the line
+      graph, i.e. the node that is _not_ used to connect the sending and
+      receiving edges.
+    node_tag_out: receiver_tag of the "outer" node of a receiving edge in the
+      line graph, i.e. the node that is _not_ used to connect the sending
+      and receiving edges.
+
+  Returns:
+    GraphTensor without backtracking edges.
+  """
+
+  for edge_set_name, edge_set in line_graph_tensor.edge_sets.items():
+    if (
+        re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, edge_set_name)
+        or edge_set_name.startswith('original/')
+    ):
+      continue
+
+    original_edge_set_in = graph_tensor.edge_sets[
+        edge_set.adjacency.node_set_name(const.SOURCE)
+    ]
+    original_edge_set_out = graph_tensor.edge_sets[
+        edge_set.adjacency.node_set_name(const.TARGET)
+    ]
+
+    # Check if the "outer" node set names are different
+    if (
+        original_edge_set_in.adjacency.node_set_name(node_tag_in)
+        != original_edge_set_out.adjacency.node_set_name(node_tag_out)
+    ):
+      continue
+
+    node_in = broadcast_ops.broadcast_node_to_edges(
+        line_graph_tensor,
+        edge_set_name,
+        const.SOURCE,
+        feature_value=original_edge_set_in.adjacency[node_tag_in],
+    )
+    node_out = broadcast_ops.broadcast_node_to_edges(
+        line_graph_tensor,
+        edge_set_name,
+        const.TARGET,
+        feature_value=original_edge_set_out.adjacency[node_tag_out],
+    )
+
+    non_backtracking_edges = tf.math.not_equal(node_in, node_out)
+    line_graph_tensor = mask_edges(
+        line_graph_tensor, edge_set_name, non_backtracking_edges
+    )
+
+  return line_graph_tensor
+
+
 def convert_to_line_graph(
     graph_tensor: gt.GraphTensor,
     *,
     connect_from: const.IncidentNodeTag = const.TARGET,
     connect_to: const.IncidentNodeTag = const.SOURCE,
     connect_with_original_nodes: bool = False,
+    non_backtracking: bool = False,
     use_node_features_as_line_graph_edge_features: bool = False,
 ) -> gt.GraphTensor:
   """Obtain a graph's line graph.
@@ -971,6 +1043,9 @@ def convert_to_line_graph(
   a pair of edges `u_0->u_1`, `v_0->v_1` will be connected if `u_i == v_j`,
   where the index `i in {0, 1}` is specified by `connect_from` and
   `j in {0, 1}` is specified by `connect_to`.
+
+  If `non_backtracking=True`, edges will only be connected if they also fulfill
+  `u_{1-i} != v_{1-j}`.
 
   This function only supports graphs where all edge set adjacencies contain only
   one SOURCE and one TARGET end point, i.e. non-hypergraphs.
@@ -1006,6 +1081,11 @@ def convert_to_line_graph(
       source and target in the original graph. The node set names will be called
       `original/{node_set}` and the new edges `original/to/{edge_set}` for the
       SOURCE nodes and `original/from/{edge_set}` for the TARGET nodes.
+    non_backtracking: Whether to return the non-backtracking line graph. Setting
+      this to True will only connect edges where the "outer" nodes are
+      different, i.e. `u_{1-i} != v_{1-j}`. For default connection settings,
+      for every edge u->v this _removes_ line graph edges uv->vu. If
+      connect_to=TARGET, this _removes_ line graph edges uv->uv.
     use_node_features_as_line_graph_edge_features: Whether to use the original
       graph's node features as edge features in the line graph.
 
@@ -1039,8 +1119,18 @@ def convert_to_line_graph(
       )
   )
 
-  return gt.GraphTensor.from_pieces(
+  line_graph_tensor = gt.GraphTensor.from_pieces(
       node_sets=line_node_sets,
       edge_sets=line_edge_sets,
       context=graph_tensor.context,
   )
+
+  if non_backtracking:
+    line_graph_tensor = _convert_to_non_backtracking_line_graph(
+        graph_tensor,
+        line_graph_tensor,
+        node_tag_in=tag_utils.reverse_tag(connect_from),
+        node_tag_out=tag_utils.reverse_tag(connect_to),
+    )
+
+  return line_graph_tensor
