@@ -169,7 +169,7 @@ def make_gcn_model(
     hidden_activation: _OptionalActivation = 'relu',
     out_activation: _OptionalActivation = None,
     kernel_regularizer: _OptionalRegularizer = None, use_bias: bool = False,
-    dropout: float = 0) -> tf.keras.Sequential:
+    add_self_loops: bool = True, dropout: float = 0) -> tf.keras.Sequential:
   """Implements GCN of Kipf & Welling (ICLR'17) as keras Model."""
   layers = []
   for i in range(depth):
@@ -180,9 +180,9 @@ def make_gcn_model(
           tf.keras.layers.Dropout(dropout)))
 
     layers.append(gcn.GCNHomGraphUpdate(
-        units=num_units, receiver_tag=tfgnn.SOURCE, add_self_loops=True,
-        name='gcn_layer_%i' % i, activation=None, use_bias=use_bias,
-        kernel_regularizer=kernel_regularizer))
+        units=num_units, receiver_tag=tfgnn.SOURCE,
+        add_self_loops=add_self_loops, name='gcn_layer_%i' % i, activation=None,
+        use_bias=use_bias, kernel_regularizer=kernel_regularizer))
 
     if activation is not None:
       layers.append(make_map_node_features_layer(
@@ -197,7 +197,7 @@ def make_gatv2_model(
     hidden_activation: _OptionalActivation = 'relu',
     kernel_regularizer: _OptionalRegularizer = None,
     out_activation: _OptionalActivation = None,
-    add_self_loops=True,
+    add_self_loops: bool = True,
     batchnorm: bool = False, dropout: float = 0) -> tf.keras.Sequential:
   """Makes GATv2 tower interleaving GATv2 conv with batchnorm and dropout."""
   layers = []
@@ -245,10 +245,11 @@ def make_gatv2_model(
 
 def make_jknet_model(
     num_classes: int, *, depth: int = 3, hidden_units: int = 200,
-    kernel_regularizer: _OptionalRegularizer = None) -> tf.keras.Model:
+    kernel_regularizer: _OptionalRegularizer = None,
+    **gcn_kwargs) -> tf.keras.Model:
   gcn_fn = functools.partial(
       make_gcn_model, hidden_units, depth, hidden_units, out_activation='relu',
-      kernel_regularizer=kernel_regularizer)
+      kernel_regularizer=kernel_regularizer, **gcn_kwargs)
   return JKNetModel(num_classes, gcn_fn, kernel_regularizer)
 
 
@@ -296,7 +297,9 @@ class ResidualGCNModel(tf.keras.layers.Layer):
       self,
       num_classes: int, *, depth: int = 3, hidden_units: int = 200,
       hidden_activation='relu', out_activation=None, kernel_regularizer=None,
-      batchnorm: bool = False, dropout: float = 0, **kwargs):
+      batchnorm: bool = False, dropout: float = 0,
+      add_self_loops: bool = True,
+      **kwargs):
     super().__init__(**kwargs)
     self._config = dict(
         num_classes=num_classes, depth=depth, hidden_units=hidden_units,
@@ -330,8 +333,8 @@ class ResidualGCNModel(tf.keras.layers.Layer):
           make_map_node_features_layer(res_model),
           gcn.GCNHomGraphUpdate(
               units=hidden_units, receiver_tag=tfgnn.SOURCE,
-              add_self_loops=True, name='gcn_layer_A_%i' % j, activation=None,
-              kernel_regularizer=kernel_regularizer),
+              add_self_loops=add_self_loops, name='gcn_layer_A_%i' % j,
+              activation=None, kernel_regularizer=kernel_regularizer),
       ]))
 
     postnet_model = tf.keras.Sequential()
