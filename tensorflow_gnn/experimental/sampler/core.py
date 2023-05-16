@@ -33,6 +33,11 @@ NODE_ID_NAME = '#id'
 
 Features = interfaces.Features
 FeaturesSpec = interfaces.FeaturesSpec
+GraphPieces = collections.namedtuple('GraphPieces', [
+    'context',    # : Features
+    'node_sets',  # : Mapping[tfgnn.NodeSetName,Union[Features, List[Features]]]
+    'edge_sets'   # : Mapping[str, Union[Features, List[Features]]
+])
 
 
 class CompositeLayer(tf.keras.layers.Layer, metaclass=abc.ABCMeta):
@@ -976,9 +981,9 @@ def build_graph_tensor(
         })
   """
   layer = GraphTensorBuilder(validate=validate)
-  return layer(
-      context or {}, node_sets=node_sets or {}, edge_sets=edge_sets or {}
-  )
+  layer_input = GraphPieces(context=context or {}, node_sets=node_sets or {},
+                            edge_sets=edge_sets or {})
+  return layer(layer_input)
 
 
 @tf.keras.utils.register_keras_serializable(package='GNN')
@@ -988,6 +993,7 @@ class GraphTensorBuilder(tf.keras.layers.Layer):
   See examples of inputs in `tfgnn.build_graph_tensor`.
 
   Call arguments:
+    dict with 3 (required) string keys:
       context: A graph context features as a mapping from feature name to dense
         or ragged value. All features must have shapes
         `[batch_size, (num_components), ...]`.
@@ -1023,13 +1029,13 @@ class GraphTensorBuilder(tf.keras.layers.Layer):
   def get_config(self):
     return dict(validate=self._validate, **super().get_config())
 
-  def call(
-      self,
-      context: Features,
-      *,  #
-      node_sets: Mapping[tfgnn.NodeSetName, Union[Features, List[Features]]],
-      edge_sets: Mapping[str, Union[Features, List[Features]]],
-  ) -> tfgnn.GraphTensor:
+  def call(self, inputs: GraphPieces) -> tfgnn.GraphTensor:
+    context: Features = inputs.context
+    node_sets: Mapping[tfgnn.NodeSetName,
+                       Union[Features, List[Features]]] = inputs.node_sets
+    edge_sets: Mapping[str,
+                       Union[Features, List[Features]]] = inputs.edge_sets
+
     def join(pieces: Union[Features, List[Features]]) -> Features:
       if isinstance(pieces, List):
         return concat_features(pieces)
