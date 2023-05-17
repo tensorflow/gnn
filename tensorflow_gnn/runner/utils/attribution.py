@@ -110,12 +110,17 @@ def counterfactual(graph: tfgnn.GraphTensor,
     A counterfactual `tfgnn.GraphTensor.`
   """
   if random:
-    fn = lambda inputs: tf.random.uniform(  # pylint: disable=g-long-lambda
-        tf.shape(*inputs),
-        minval=tf.math.reduce_min(*inputs),
-        maxval=tf.math.reduce_max(*inputs),
-        dtype=inputs[0].dtype,
-        seed=seed)
+    def fn(inputs):
+      dtype = inputs[0].dtype
+      minval = tf.math.reduce_min(*inputs)
+      maxval = tf.math.reduce_max(*inputs)
+      # The `maxval` boundary is exclusive for `tf.random.uniform`:
+      # For integers, add one to obtain a closed range.
+      # For floats, the half-open range is ok. (The special case
+      # minval = maxval is accepted by TF and uses that single value.)
+      if dtype.is_integer:
+        maxval = maxval + 1
+      return tf.random.uniform(tf.shape(*inputs), minval, maxval, dtype, seed)
   else:
     fn = lambda inputs: tf.zeros_like(*inputs)
   return reduce_graph_sequence(
@@ -307,6 +312,18 @@ class IntegratedGradientsExporter(interfaces.ModelExporter):
                seed: Optional[int] = None,
                options: Optional[tf.saved_model.SaveOptions] = None):
     """Captures the args shared across `save(...)` calls.
+
+    Random counterfactuals (see `random_counterfactual` below) sample from, per
+    graph piece and feature, a uniform distribution bounded by the minimum
+    (inclusive) and maximum (exclusive) of that graph piece instance's features.
+    For integer features, the maximum is adjust to maximum += 1. Uses of
+    integrated gradients on inputs* with many uniform (e.g.: a default value)
+    or near uniform (e.g.: a categorical value with few states) features should
+    consider i) not use a random counterfactual or ii) omitting transformations
+    like one-hot encoding in any preprocessing.
+
+    *) Where inputs are: the inputs of the `trained_model` (which correspond to
+       the outputs of the `preprocess_model`).
 
     Args:
       integrated_gradients_output_name: The name for the integrated gradients
