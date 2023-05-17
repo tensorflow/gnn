@@ -54,9 +54,11 @@ class RunResult:
       any--but not all--trained weights. The `trained_model` contains all
       `base_model` trained weights in addition to any prediction trained
       weights.
-    trained_model: Keras model for the e2e GNN. (Base GNN plus prediction
+    trained_model: Keras model for the e2e GNN. (Base GNN plus any prediction
       head(s).) The model takes `preprocess_model` output as its inputs and
-      returns `Task` predictions. The model contains all trained weights.
+      returns `Task` predictions as its output. Output matches the structure of
+      the `Task`: an atom for single- or a mapping for multi- `Task` training.
+      The model contains all trained weights.
   """
   preprocess_model: Optional[tf.keras.Model]
   base_model: tf.keras.Model
