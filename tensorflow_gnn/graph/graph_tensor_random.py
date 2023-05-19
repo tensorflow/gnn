@@ -23,7 +23,6 @@ import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as gc
 from tensorflow_gnn.graph import graph_tensor as gt
-import tensorflow_gnn.proto.graph_schema_pb2 as schema_pb2
 
 
 @tf.function
@@ -253,23 +252,6 @@ def _get_feature_values(feature: tf.train.Feature) -> Union[List[str],
   elif feature.HasField("bytes_list"):
     return list(feature.bytes_list.value)
   return []
-
-
-def _get_sample_values_dict(schema: schema_pb2.GraphSchema) -> SampleDict:
-  """Return example values for sampling."""
-  sample_dict = {}
-  for fname, feature in schema.context.features.items():
-    key = (gc.CONTEXT, None, fname)
-    sample_dict[key] = _get_feature_values(feature.sample_values)
-  for set_name, node_set in schema.node_sets.items():
-    for fname, feature in node_set.features.items():
-      key = (gc.NODES, set_name, fname)
-      sample_dict[key] = _get_feature_values(feature.sample_values)
-  for set_name, edge_set in schema.edge_sets.items():
-    for fname, feature in edge_set.features.items():
-      key = (gc.EDGES, set_name, fname)
-      sample_dict[key] = _get_feature_values(feature.sample_values)
-  return sample_dict
 
 
 def _assert_rank0_int(t: tf.Tensor, tensor_name: Text) -> None:

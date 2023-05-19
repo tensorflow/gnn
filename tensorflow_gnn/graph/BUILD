@@ -89,7 +89,6 @@ pytype_strict_library(
         ":graph_constants",
         ":graph_tensor",
         "//:expect_tensorflow_installed",
-        "//tensorflow_gnn/proto:graph_schema_py_proto",
     ],
 )
 
