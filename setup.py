@@ -168,7 +168,7 @@ setup(
     ],
     namespace_packages=[],
     install_requires=[
-        'apache-beam',
+        'apache-beam~=2.46.0',
         'google-vizier>=0.0.13',
         'ml-collections',
         'networkx',
@@ -177,6 +177,9 @@ setup(
         'tensorflow>=2.9.0; platform_machine != "arm64" or platform_system != "Darwin"',
         'tensorflow-macos>=2.9.0; platform_machine == "arm64" and platform_system == "Darwin"',
         # pylint:enable=g-line-too-long
+        # TODO(b/283835852): Remove when Vizier can upgrade to protobuf >= 4.0.
+        'protobuf~=3.20.3',
+        'wrapt~=1.14.1',
     ],
     python_requires='>=3.8,<4',
     packages=find_namespace_packages(
