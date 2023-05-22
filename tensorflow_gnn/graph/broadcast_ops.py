@@ -178,11 +178,8 @@ def _broadcast_context(graph_tensor: GraphTensor,
       repeats_sum_hint=node_or_edge_set.spec.total_size)
 
 
-# TODO(b/265760014): Export as tfgnn.broadcast() and remove broadcast_v1().
-# The difference is that v2 supports multiple node/edge sets and v1 does not,
-# mirroring the difference between pool_v2() and pool_v1().
 def broadcast_v2(
-    graph: GraphTensor,
+    graph_tensor: GraphTensor,
     from_tag: IncidentNodeOrContextTag,
     *,
     edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName, None] = None,
@@ -207,7 +204,7 @@ def broadcast_v2(
   image of `tfgnn.pool()`, which comes in handy for some algorithms.
 
   Args:
-    graph: A scalar GraphTensor.
+    graph_tensor: A scalar GraphTensor.
     from_tag: Values are broadcast from context if this is `tfgnn.CONTEXT` or
       from the incident node on each edge with this tag.
     edge_set_name: The name of the edge set to which values are broadcast, or
@@ -230,10 +227,10 @@ def broadcast_v2(
     If a list of names was specified, the result is a list of tensors,
     with parallel indices.
   """
-  gt.check_scalar_graph_tensor(graph, "broadcast()")
+  gt.check_scalar_graph_tensor(graph_tensor, "broadcast()")
   edge_set_names, node_set_names, got_sequence_args = (
       tag_utils.get_edge_or_node_set_name_args_for_tag(
-          graph.spec, from_tag,
+          graph_tensor.spec, from_tag,
           edge_set_name=edge_set_name, node_set_name=node_set_name,
           function_name="broadcast()"))
   del edge_set_name, node_set_name  # Replaced by their cleaned-up versions.
@@ -244,82 +241,18 @@ def broadcast_v2(
 
   if from_tag == const.CONTEXT:
     if edge_set_names is not None:
-      result = [broadcast_context_to_edges(graph, name, **feature_kwargs)
+      result = [broadcast_context_to_edges(graph_tensor, name, **feature_kwargs)
                 for name in edge_set_names]
     else:
-      result = [broadcast_context_to_nodes(graph, name, **feature_kwargs)
+      result = [broadcast_context_to_nodes(graph_tensor, name, **feature_kwargs)
                 for name in node_set_names]
   else:
-    result = [broadcast_node_to_edges(graph, name, from_tag, **feature_kwargs)
-              for name in edge_set_names]
+    result = [
+        broadcast_node_to_edges(graph_tensor, name, from_tag, **feature_kwargs)
+        for name in edge_set_names]
 
   if got_sequence_args:
     return result
   else:
     assert len(result) == 1
     return result[0]
-
-
-# TODO(b/265760014): Remove in favor of broadcast_v2().
-# The difference is that v2 supports multiple node/edge sets and v1 does not,
-# mirroring the difference between pool_v2() and pool_v1().
-def broadcast_v1(graph_tensor: GraphTensor,
-                 from_tag: const.IncidentNodeOrContextTag,
-                 *,
-                 edge_set_name: Optional[EdgeSetName] = None,
-                 node_set_name: Optional[NodeSetName] = None,
-                 feature_value: Optional[Field] = None,
-                 feature_name: Optional[FieldName] = None) -> Field:
-  """Broadcasts values from nodes to edges, or from context to nodes or edges.
-
-  This function broadcasts from context if `from_tag=tfgnn.CONTEXT` and
-  broadcasts from incident nodes to edges if `from_tag` is an ordinary node tag
-  like `tfgnn.SOURCE` or `tfgnn.TARGET`. Most user code will not need this
-  flexibility and can directly call one of the underlying functions
-  `broadcast_node_to_edges()`, `broadcast_context_to_nodes()`, or
-  `broadcast_context_to_edges()`.
-
-  Args:
-    graph_tensor: A scalar GraphTensor.
-    from_tag: Values are broadcast from context if this is `tfgnn.CONTEXT` or
-      from the incident node on each edge with this tag.
-    edge_set_name: The name of the edge set to which values are broadcast.
-    node_set_name: The name of the node set to which values are broadcast.
-      Can only be set with `from_tag=tfgnn.CONTEXT`. Either edge_set_name or
-      node_set_name must be set.
-    feature_value: As for the underlying broadcast_*() function.
-    feature_name: As for the underlying broadcast_*() function.
-      Exactly one of feature_name or feature_value must be set.
-
-  Returns:
-    The result of the underlying broadcast_*() function.
-  """
-  _validate_names_and_tag(
-      from_tag, edge_set_name=edge_set_name, node_set_name=node_set_name)
-  if from_tag == const.CONTEXT:
-    if node_set_name is not None:
-      return broadcast_context_to_nodes(
-          graph_tensor, node_set_name=node_set_name,
-          feature_value=feature_value, feature_name=feature_name)
-    else:
-      return broadcast_context_to_edges(
-          graph_tensor, edge_set_name=edge_set_name,
-          feature_value=feature_value, feature_name=feature_name)
-  else:
-    return broadcast_node_to_edges(
-        graph_tensor, edge_set_name=edge_set_name, node_tag=from_tag,
-        feature_value=feature_value, feature_name=feature_name)
-
-
-# TODO(b/265760014): Remove along with broadcast_v1().
-def _validate_names_and_tag(tag, *, edge_set_name, node_set_name):
-  """Helper for broadcast_v1()."""
-  if tag == const.CONTEXT:
-    num_names = bool(edge_set_name is None) + bool(node_set_name is None)
-    if num_names != 1:
-      raise ValueError("With tag CONTEXT, must pass exactly 1 of "
-                       f"edge_set_name, node_set_name; got {num_names}.")
-  else:
-    if edge_set_name is None or node_set_name is not None:
-      raise ValueError("Must pass edge_set_name but not node_set_name "
-                       "for a tag other than CONTEXT.")

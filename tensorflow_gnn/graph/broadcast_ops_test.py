@@ -28,8 +28,12 @@ as_tensor = tf.convert_to_tensor
 as_ragged = tf.ragged.constant
 
 
-class BroadcastingTest(tf.test.TestCase, parameterized.TestCase):
-  """Tests for broadcasting operations."""
+class BroadcastXToYTest(tf.test.TestCase, parameterized.TestCase):
+  """Tests for basic broadcasting operations broadcast_*_to_*().
+
+  For consistency, some tests run the corresponging call to the generic
+  broadcast_v2() function as well, but see BroadcastV2Test for more on that.
+  """
 
   @parameterized.named_parameters(
       ("WithAdjacency", False),
@@ -73,7 +77,7 @@ class BroadcastingTest(tf.test.TestCase, parameterized.TestCase):
               graph, "edge", const.SOURCE, feature_name=fname))
       self.assertAllEqual(
           expected,
-          broadcast_ops.broadcast_v1(
+          broadcast_ops.broadcast_v2(
               graph, const.SOURCE, edge_set_name="edge", feature_name=fname))
     for fname, expected in expected_target_fields.items():
       self.assertAllEqual(
@@ -82,7 +86,7 @@ class BroadcastingTest(tf.test.TestCase, parameterized.TestCase):
               graph, "edge", const.TARGET, feature_name=fname))
       self.assertAllEqual(
           expected,
-          broadcast_ops.broadcast_v1(
+          broadcast_ops.broadcast_v2(
               graph, const.TARGET, edge_set_name="edge", feature_name=fname))
 
   @parameterized.parameters([
@@ -138,7 +142,7 @@ class BroadcastingTest(tf.test.TestCase, parameterized.TestCase):
               graph, "node", feature_name=fname))
       self.assertAllEqual(
           expected,
-          broadcast_ops.broadcast_v1(
+          broadcast_ops.broadcast_v2(
               graph, const.CONTEXT, node_set_name="node", feature_name=fname))
 
   @parameterized.parameters([
@@ -204,12 +208,16 @@ class BroadcastingTest(tf.test.TestCase, parameterized.TestCase):
               graph, "edge", feature_name=fname))
       self.assertAllEqual(
           expected,
-          broadcast_ops.broadcast_v1(
+          broadcast_ops.broadcast_v2(
               graph, const.CONTEXT, edge_set_name="edge", feature_name=fname))
 
 
 class BroadcastV2Test(tf.test.TestCase, parameterized.TestCase):
-  """Tests for generic broadcast_v2(), on top of already-tested basic ops."""
+  """Tests for generic broadcast_v2() wrapper.
+
+  These tests assume correctness of the underlying broadcast_*_to_*() ops;
+  see BroadcastXtoYTest for these.
+  """
 
   def testOneEdgeSetFromTag(self):
     input_graph = _get_test_graph_broadcast()

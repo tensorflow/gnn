@@ -305,7 +305,7 @@ class AnyToAnyConvolutionBase(tf.keras.layers.Layer, abc.ABC):
       return lambda feature_value, **kwargs: fn(
           graph, receiver_tag, **name_kwarg,
           feature_value=feature_value, **kwargs)
-    broadcast_from_receiver = bind_receiver_args(broadcast_ops.broadcast_v1)
+    broadcast_from_receiver = bind_receiver_args(broadcast_ops.broadcast_v2)
     pool_to_receiver = bind_receiver_args(pool_ops_v1.pool_v1)
     if self._extra_receiver_ops is None:
       extra_receiver_ops_kwarg = {}  # Pass no argument for this.
