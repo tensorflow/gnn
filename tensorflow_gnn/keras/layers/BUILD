@@ -63,7 +63,7 @@ pytype_strict_library(
         "//tensorflow_gnn/graph:broadcast_ops",
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
-        "//tensorflow_gnn/graph:pool_ops_v1",
+        "//tensorflow_gnn/graph:pool_ops",
         "//tensorflow_gnn/graph:tag_utils",
     ],
 )
@@ -92,7 +92,7 @@ pytype_strict_library(
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
         "//tensorflow_gnn/graph:graph_tensor_ops",
-        "//tensorflow_gnn/graph:pool_ops_v1",
+        "//tensorflow_gnn/graph:pool_ops",
         "//tensorflow_gnn/graph:readout",
     ],
 )

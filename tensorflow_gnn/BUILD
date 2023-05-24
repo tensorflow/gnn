@@ -44,7 +44,7 @@ pytype_strict_library(
         "//tensorflow_gnn/graph:graph_tensor_random",
         "//tensorflow_gnn/graph:normalization_ops",
         "//tensorflow_gnn/graph:padding_ops",
-        "//tensorflow_gnn/graph:pool_ops_v1",
+        "//tensorflow_gnn/graph:pool_ops",
         "//tensorflow_gnn/graph:preprocessing_common",
         "//tensorflow_gnn/graph:readout",
         "//tensorflow_gnn/graph:schema_utils",

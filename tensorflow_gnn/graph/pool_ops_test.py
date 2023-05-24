@@ -23,6 +23,55 @@ from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import pool_ops
 
 
+class PoolWrappersTest(tf.test.TestCase, parameterized.TestCase):
+  """Tests forwarding from pool_*_to_*() to pool()."""
+
+  def testPoolNodesToContext(self):
+    input_graph = _get_test_graph_abc_efx()
+    self.assertAllClose(
+        tf.constant([[3./2.], [4.]]),
+        pool_ops.pool_nodes_to_context(
+            input_graph, "a", "mean", feature_name="feat"))
+    self.assertAllClose(
+        tf.constant([30./2., 40.]),
+        pool_ops.pool_nodes_to_context(
+            input_graph, "a", "mean",
+            feature_value=tf.constant([10., 20., 40.])))
+
+  def testPoolEdgesToContext(self):
+    input_graph = _get_test_graph_abc_efx()
+    self.assertAllClose(
+        tf.constant([[30./2.], [40.]]),
+        pool_ops.pool_edges_to_context(
+            input_graph, "e", "mean", feature_name="feat"))
+    self.assertAllClose(
+        tf.constant([3./2., 4.]),
+        pool_ops.pool_edges_to_context(
+            input_graph, "e", "mean",
+            feature_value=tf.constant([1., 2., 4.])))
+
+  def testPoolEdgesToNode(self):
+    input_graph = _get_test_graph_abc_efx()
+    self.assertAllClose(
+        tf.constant([[10.], [20.], [40.]]),
+        pool_ops.pool_edges_to_node(
+            input_graph, "e", const.SOURCE, "mean", feature_name="feat"))
+    self.assertAllClose(
+        tf.constant([1., 2., 4.]),
+        pool_ops.pool_edges_to_node(
+            input_graph, "e", const.SOURCE, "mean",
+            feature_value=tf.constant([1., 2., 4.])))
+    self.assertAllClose(
+        tf.constant([[30./2.], [40.]]),
+        pool_ops.pool_edges_to_node(
+            input_graph, "e", const.TARGET, "mean", feature_name="feat"))
+    self.assertAllClose(
+        tf.constant([3./2., 4.]),
+        pool_ops.pool_edges_to_node(
+            input_graph, "e", const.TARGET, "mean",
+            feature_value=tf.constant([1., 2., 4.])))
+
+
 class PoolTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for pool(), excluding specifics of indivdual reduce_types."""
 
@@ -372,7 +421,7 @@ class PoolReduceTypesTest(tf.test.TestCase, parameterized.TestCase):
            [[10.], [12., 13.]],
            [[20., 21.], [22.]]])),
   )
-  def testRagged(self, reduce_type, expected):
+  def testRaggedWithScalarFlatValues(self, reduce_type, expected):
     input_graph = _get_test_graph_0123()
     actual = pool_ops.pool_v2(
         input_graph, const.TARGET,
@@ -381,6 +430,65 @@ class PoolReduceTypesTest(tf.test.TestCase, parameterized.TestCase):
         feature_value=tf.ragged.constant([[[20., 21.], [22.]],
                                           [[10.], [12., 13]],
                                           [[30., 31.], [32.]]]))
+    self.assertAllClose(expected, actual)
+
+  @parameterized.named_parameters(
+      ("Sum", "sum", tf.ragged.constant(
+          [[],
+           [[[10., 0.]], [[12., 2.], [13., 3.]]],
+           [[[20.+30., 0.+0.], [21.+31., 1.+1.]], [[22.+32., 2.+2.]]]],
+          inner_shape=(2,))),
+      ("Prod", "prod", tf.ragged.constant(
+          [[],
+           [[[10., 0.]], [[12., 2.], [13., 3.]]],
+           [[[20.*30., 0.*0.], [21.*31., 1.*1.]], [[22.*32., 2.*2.]]]],
+          inner_shape=(2,))),
+      ("Mean", "mean", tf.ragged.constant(
+          [[],
+           [[[10., 0.]], [[12., 2.], [13., 3.]]],
+           [[[(20.+30.)/2., 0.], [(21.+31.)/2., 1.]], [[(22.+32.)/2., 2.]]]],
+          inner_shape=(2,))),
+      # # Extra test because "mean|sum" is computed from "sum" and "count".
+      ("MeanAndSum", "mean|sum", tf.ragged.constant(
+          [[],
+           [[[10., 0., 10., 0.]], [[12., 2., 12., 2.], [13., 3., 13., 3.]]],
+           [[[(20.+30.)/2., 0., 20.+30., 0.+0.],
+             [(21.+31.)/2., 1., 21.+31., 1.+1.]],
+            [[(22.+32.)/2., 2., 22.+32., 2.+2.]]]],
+          inner_shape=(4,))),
+      ("Max", "max", tf.ragged.constant(
+          [[],
+           [[[10., 0.]], [[12., 2.], [13., 3.]]],
+           [[[30., 0.], [31., 1.]], [[32., 2.]]]],
+          inner_shape=(2,))),
+      ("MaxNoInf", "max_no_inf", tf.ragged.constant(
+          [[],
+           [[[10., 0.]], [[12., 2.], [13., 3.]]],
+           [[[30., 0.], [31., 1.]], [[32., 2.]]]],
+          inner_shape=(2,))),
+      ("Min", "min", tf.ragged.constant(
+          [[],
+           [[[10., 0.]], [[12., 2.], [13., 3.]]],
+           [[[20., 0.], [21., 1.]], [[22., 2.]]]],
+          inner_shape=(2,))),
+      ("MinNoInf", "min_no_inf", tf.ragged.constant(
+          [[],
+           [[[10., 0.]], [[12., 2.], [13., 3.]]],
+           [[[20., 0.], [21., 1.]], [[22., 2.]]]],
+          inner_shape=(2,))),
+  )
+  # Positive inner rank used to trigger b/216278499.
+  def testRaggedWithFlatValuesOfRank1(self, reduce_type, expected):
+    input_graph = _get_test_graph_0123()
+    actual = pool_ops.pool_v2(
+        input_graph, const.TARGET,
+        edge_set_name="e",
+        reduce_type=reduce_type,
+        feature_value=tf.ragged.constant(
+            [[[[20., 0.], [21., 1.]], [[22., 2.]]],
+             [[[10., 0.]], [[12., 2.], [13., 3.]]],
+             [[[30., 0.], [31., 1.]], [[32., 2.]]]],
+            inner_shape=(2,)))
     self.assertAllClose(expected, actual)
 
 

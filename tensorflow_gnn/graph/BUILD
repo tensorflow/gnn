@@ -47,7 +47,7 @@ pytype_strict_library(
         ":adjacency",
         ":graph_constants",
         ":graph_tensor",
-        ":pool_ops_v1",
+        ":pool_ops",
         ":tensor_utils",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/keras:keras_tensors",
@@ -133,7 +133,7 @@ pytype_strict_library(
         ":broadcast_ops",
         ":graph_constants",
         ":graph_tensor",
-        ":pool_ops_v1",
+        ":pool_ops",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -254,7 +254,7 @@ tf_py_test(
         ":graph_constants",
         ":graph_tensor",
         ":graph_tensor_ops",
-        ":pool_ops_v1",
+        ":pool_ops",
         ":readout",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
@@ -484,6 +484,7 @@ pytype_strict_library(
         ":tag_utils",
         ":tensor_utils",
         "//:expect_tensorflow_installed",
+        "//tensorflow_gnn/keras:keras_tensors",
     ],
 )
 
@@ -537,17 +538,6 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
-    name = "pool_ops_v1",
-    srcs = ["pool_ops_v1.py"],
-    deps = [
-        ":graph_constants",
-        ":graph_tensor",
-        ":tensor_utils",
-        "//:expect_tensorflow_installed",
-    ],
-)
-
 pytype_library(
     name = "tf_internal",
     srcs = ["tf_internal.py"],
@@ -586,19 +576,6 @@ tf_py_test(
         ":graph_tensor",
         ":graph_tensor_test_utils",
         ":preprocessing_common",
-        "//:expect_absl_installed",
-        "//:expect_tensorflow_installed",
-    ],
-)
-
-tf_py_test(
-    name = "pool_ops_v1_test",
-    srcs = ["pool_ops_v1_test.py"],
-    deps = [
-        ":adjacency",
-        ":graph_constants",
-        ":graph_tensor",
-        ":pool_ops_v1",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
     ],

@@ -23,7 +23,7 @@ from tensorflow_gnn.graph import broadcast_ops
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_ops as ops
-from tensorflow_gnn.graph import pool_ops_v1
+from tensorflow_gnn.graph import pool_ops
 from tensorflow_gnn.graph import readout
 
 as_tensor = tf.convert_to_tensor
@@ -796,6 +796,7 @@ class ShuffleNodesTest(tf.test.TestCase, parameterized.TestCase):
 
 class NodeDegreeTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for computing degree of each node w.r.t. one side of an edge set."""
+
   @parameterized.parameters([
       dict(
           description='varying degrees for receiver nodes',
@@ -1245,7 +1246,7 @@ class EdgeMaskingTest(tf.test.TestCase, parameterized.TestCase):
     edge_masker = _MaskEdges()
     graph_out = edge_masker(
         graph_in,
-        'aa', 
+        'aa',
         tf.convert_to_tensor([True, False, True, True]),
         'masked_aa')
     outputs = tf.keras.layers.Layer(name='final_edge_adjacency')(
@@ -1469,7 +1470,7 @@ class LineGraphTest(tf.test.TestCase):
         const.SOURCE,
         feature_value=2 ** tf.range(10),
     )
-    summed_messages = pool_ops_v1.pool_edges_to_node(
+    summed_messages = pool_ops.pool_edges_to_node(
         line_graph,
         'original/to/aa',
         const.TARGET,
@@ -1496,7 +1497,7 @@ class LineGraphTest(tf.test.TestCase):
         const.TARGET,
         feature_value=2 ** tf.range(10),
     )
-    summed_messages = pool_ops_v1.pool_edges_to_node(
+    summed_messages = pool_ops.pool_edges_to_node(
         line_graph,
         'original/from/ba',
         const.SOURCE,

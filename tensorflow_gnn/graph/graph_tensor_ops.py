@@ -22,7 +22,7 @@ import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
-from tensorflow_gnn.graph import pool_ops_v1
+from tensorflow_gnn.graph import pool_ops
 from tensorflow_gnn.graph import tensor_utils as utils
 from tensorflow_gnn.keras import keras_tensors as kt
 
@@ -637,7 +637,7 @@ def node_degree(graph_tensor: GraphTensor,
   """
   gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.node_degree()')
   adjacency = graph_tensor.edge_sets[edge_set_name].adjacency
-  aggregate_node_count = pool_ops_v1.pool_edges_to_node(
+  aggregate_node_count = pool_ops.pool_edges_to_node(
       graph_tensor,
       edge_set_name,
       node_tag,
@@ -867,7 +867,7 @@ def convert_to_line_graph(
         continue
 
       # Get the number of edges on each side of a node
-      num_neighbors_source = pool_ops_v1.pool_edges_to_node(
+      num_neighbors_source = pool_ops.pool_edges_to_node(
           graph_tensor,
           edge_set_name_source,
           connect_from,
@@ -875,7 +875,7 @@ def convert_to_line_graph(
               edge_set_source.total_size, dtype=graph_tensor.indices_dtype
           ),
       )
-      num_neighbors_target = pool_ops_v1.pool_edges_to_node(
+      num_neighbors_target = pool_ops.pool_edges_to_node(
           graph_tensor,
           edge_set_name_target,
           connect_to,

@@ -58,7 +58,7 @@ tf_py_test(
         "//tensorflow_gnn/graph:broadcast_ops",
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
-        "//tensorflow_gnn/graph:pool_ops_v1",
+        "//tensorflow_gnn/graph:pool_ops",
     ],
 )
 

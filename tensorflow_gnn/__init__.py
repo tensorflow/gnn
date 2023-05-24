@@ -41,7 +41,7 @@ from tensorflow_gnn.graph import graph_tensor_pprint
 from tensorflow_gnn.graph import graph_tensor_random
 from tensorflow_gnn.graph import normalization_ops
 from tensorflow_gnn.graph import padding_ops
-from tensorflow_gnn.graph import pool_ops_v1
+from tensorflow_gnn.graph import pool_ops
 from tensorflow_gnn.graph import preprocessing_common
 from tensorflow_gnn.graph import readout
 from tensorflow_gnn.graph import schema_utils
@@ -153,11 +153,11 @@ broadcast_node_to_edges = broadcast_ops.broadcast_node_to_edges
 broadcast_context_to_nodes = broadcast_ops.broadcast_context_to_nodes
 broadcast_context_to_edges = broadcast_ops.broadcast_context_to_edges
 broadcast = broadcast_ops.broadcast_v2
-pool_edges_to_node = pool_ops_v1.pool_edges_to_node
-pool_nodes_to_context = pool_ops_v1.pool_nodes_to_context
-pool_edges_to_context = pool_ops_v1.pool_edges_to_context
-pool = pool_ops_v1.pool_v1  # TODO(b/265760014): Switch to pool_ops.pool_v2.
-get_registered_reduce_operation_names = pool_ops_v1.get_registered_reduce_operation_names
+pool_edges_to_node = pool_ops.pool_edges_to_node
+pool_nodes_to_context = pool_ops.pool_nodes_to_context
+pool_edges_to_context = pool_ops.pool_edges_to_context
+pool = pool_ops.pool_v2
+get_registered_reduce_operation_names = pool_ops.get_registered_reduce_operation_names
 
 # Misc operations.
 mask_edges = graph_tensor_ops.mask_edges
@@ -223,7 +223,7 @@ del graph_tensor_pprint
 del graph_tensor_random
 del normalization_ops
 del padding_ops
-del pool_ops_v1
+del pool_ops
 del preprocessing_common
 del readout
 del schema_utils

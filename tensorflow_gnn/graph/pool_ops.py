@@ -26,6 +26,7 @@ from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import tag_utils
 from tensorflow_gnn.graph import tensor_utils as utils
+from tensorflow_gnn.keras import keras_tensors as kt
 
 Field = const.Field
 FieldName = const.FieldName
@@ -37,12 +38,178 @@ GraphTensor = gt.GraphTensor
 GraphTensorSpec = gt.GraphTensorSpec
 
 
+def pool_edges_to_node(graph_tensor: GraphTensor,
+                       edge_set_name: EdgeSetName,
+                       node_tag: IncidentNodeTag,
+                       reduce_type: str = "sum",
+                       *,
+                       feature_value: Optional[Field] = None,
+                       feature_name: Optional[FieldName] = None) -> Field:
+  """Aggregates (pools) edge values to incident nodes.
+
+  Given a particular edge set (identified by `edge_set_name` name), this
+  operation reduces edge features at the specific incident node of each edge (as
+  indicated by `node_tag`). For example, setting `node_tag=tfgnn.TARGET` and
+  `reduce_type="sum"` computes the sum over the incoming edge features at each
+  node, while `reduce_type="sum|mean"` would compute the concatenation of their
+  sum and mean along the innermost axis, in this order.
+
+  For the converse operation of broadcasting from nodes to incident edges,
+  see `tfgnn.broadcast_node_to_edges()`. For a generalization beyond a single
+  edge set, see `tfgnn.pool()`.
+
+  The feature to fetch edge values from is provided either by name (using
+  `feature_name`) and found in the graph tensor itself, or provided explicitly
+  (using `feature_value`) in which case its shape has to be compatible with the
+  shape prefix of the edge set being gathered from. One of `feature_value`
+  or `feature_name` must be specified.
+
+  (Note that in most cases the `feature_value` form will be used, because in a
+  regular convolution, we will first broadcast over edges and combine the result
+  of that with this function.)
+
+  Args:
+    graph_tensor: A scalar GraphTensor.
+    edge_set_name: The name of the edge set from which values are pooled.
+    node_tag: The incident node of each edge at which values are aggregated,
+      identified by its tag in the edge set.
+    reduce_type: A pooling operation name like `"sum"` or `"mean"`, or a
+      `|`-separated combination of these; see `tfgnn.pool()`.
+    feature_value: A ragged or dense edge feature value. Has a shape
+      `[num_edges, *feature_shape]`, where `num_edges` is the number of edges in
+      the `edge_set_name` edge set and `feature_shape` is the shape of the
+      feature value for each edge.
+    feature_name: An edge feature name.
+
+  Returns:
+    The edge values pooled to each incident node. Has a shape `[num_nodes,
+    *feature_shape]`, where `num_nodes` is the number of nodes in the incident
+    node set and `feature_shape` is not affected.
+  """
+  gt.check_scalar_graph_tensor(graph_tensor, "tfgnn.pool_edges_to_node()")
+  if not isinstance(edge_set_name, str):
+    raise TypeError(
+        "pool_edges_to_node() requires edge_set_name to be a string, "
+        f"got {edge_set_name}.")
+  return pool_v2(graph_tensor, node_tag,
+                 edge_set_name=edge_set_name, reduce_type=reduce_type,
+                 feature_value=feature_value, feature_name=feature_name)
+
+
+def pool_nodes_to_context(graph_tensor: GraphTensor,
+                          node_set_name: NodeSetName,
+                          reduce_type: str = "sum",
+                          *,
+                          feature_value: Optional[Field] = None,
+                          feature_name: Optional[FieldName] = None) -> Field:
+  """Aggregates (pools) node values to graph context.
+
+  Given a particular node set (identified by `node_set_name`), this operation
+  reduces node features to their corresponding graph component. For example,
+  setting `reduce_type="sum"` computes the sum over the node features of each
+  graph, while `reduce_type="sum|mean"` would compute the concatenation of their
+  sum and mean along the innermost axis, in this order.
+
+  For the converse operation of broadcasting from context to nodes, see
+  `tfgnn.broadcast_context_to_nodes()`. For a generalization beyond a single
+  node set, see `tfgnn.pool()`.
+
+  The feature to fetch node values from is provided either by name (using
+  `feature_name`) and found in the graph tensor itself, or provided explicitly
+  (using `feature_value`). One of `feature_value` or `feature_name` must be
+  specified.
+
+  Args:
+    graph_tensor: A scalar GraphTensor.
+    node_set_name: A node set name.
+    reduce_type: A pooling operation name, like `"sum"` or `"mean"`, or a
+      `|`-separated combination of these; see `tfgnn.pool()`.
+    feature_value: A ragged or dense node feature value. Has a shape
+      `[num_nodes, *feature_shape]`, where `num_nodes` is the number of nodes in
+      the `node_set_name` node set and `feature_shape` is the shape of the
+      feature value for each node.
+    feature_name: A node feature name.
+
+  Returns:
+    Node value pooled to graph context. Has a shape `[num_components,
+    *feature_shape]`, where `num_components` is the number of components in a
+    graph and `feature_shape` is not affected.
+  """
+  gt.check_scalar_graph_tensor(graph_tensor, "tfgnn.pool_nodes_to_context()")
+  if not isinstance(node_set_name, str):
+    raise TypeError(
+        "pool_nodes_to_context() requires node_set_name to be a string, "
+        f"got {node_set_name}.")
+  return pool_v2(graph_tensor,
+                 const.CONTEXT,
+                 node_set_name=node_set_name,
+                 reduce_type=reduce_type,
+                 feature_value=feature_value,
+                 feature_name=feature_name)
+
+
+def pool_edges_to_context(graph_tensor: GraphTensor,
+                          edge_set_name: EdgeSetName,
+                          reduce_type: str = "sum",
+                          *,
+                          feature_value: Optional[Field] = None,
+                          feature_name: Optional[FieldName] = None) -> Field:
+  """Aggregates (pools) edge values to graph context.
+
+  Given a particular edge set (identified by `edge_set_name`), this operation
+  reduces edge features to their corresponding graph component. For example,
+  setting `reduce_type="sum"` computes the sum over the edge features of each
+  graph, while `reduce_type="sum|mean"` would compute the concatenation of their
+  sum and mean along the innermost axis, in this order.
+
+  For the converse operation of broadcasting from context to edges, see
+  `tfgnn.broadcast_context_to_edges()`. For a generalization beyond a single
+  edge set, see `tfgnn.pool()`.
+
+  The feature to fetch edge values from is provided either by name (using
+  `feature_name`) and found in the graph tensor itself, or provided explicitly
+  (using `feature_value`). One of `feature_value` or `feature_name` must be
+  specified.
+
+  (Note that in most cases the `feature_value` form will be used, because in a
+  regular convolution, we will first broadcast over edges and combine the result
+  of that with this function or a pooling over the nodes.)
+
+  Args:
+    graph_tensor: A scalar GraphTensor.
+    edge_set_name: An edge set name.
+    reduce_type: A pooling operation name, like `"sum"` or `"mean"`, or a 
+      `|`-separated combination of these; see `tfgnn.pool()`.
+    feature_value: A ragged or dense edge feature value. Has a shape
+      `[num_edges, *feature_shape]`, where `num_edges` is the number of edges in
+      the `edge_set_name` edge set and `feature_shape` is the shape of the
+      feature value for each edge.
+    feature_name: An edge feature name.
+
+  Returns:
+    A node value pooled to graph context. Has a shape `[num_components,
+    *feature_shape]`, where `num_components` is the number of components in a
+    graph and `feature_shape` is not affected.
+  """
+  gt.check_scalar_graph_tensor(graph_tensor, "tfgnn.pool_edges_to_context()")
+  if not isinstance(edge_set_name, str):
+    raise TypeError(
+        "pool_edges_to_context() requires edge_set_name to be a string, "
+        f"got {edge_set_name}.")
+  return pool_v2(graph_tensor,
+                 const.CONTEXT,
+                 edge_set_name=edge_set_name,
+                 reduce_type=reduce_type,
+                 feature_value=feature_value,
+                 feature_name=feature_name)
+
+
 # TODO(b/265760014): Export as tfgnn.pool() and remove pool_v1().
 # The difference is that v2 supports multiple node/edge sets,
 # composite reduce types, and is implemenented with a new class-based
 # op registration, separately for each node/edge set and for combining them.
 def pool_v2(
-    graph: GraphTensor,
+    graph_tensor: GraphTensor,
     to_tag: IncidentNodeOrContextTag,
     *,
     edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName, None] = None,
@@ -76,15 +243,18 @@ def pool_v2(
   | `"min"`       | element-wise minimum, or `-inf` for no inputs             |
   | `"min_no_inf"`| element-wise minimum, or zero for no inputs               |
 
+  The helper function `tfgnn.get_registered_reduce_operation_names()` returns
+  a list of these values.
+
   Moreover, `reduce_type` can be set to a `|`-separated list of reduce types,
   such as `reduce_type="mean|sum"`, which will return the concatenation of
-  their individual results.
+  their individual results along the innermost axis in the order of appearance.
 
   TODO(b/265760014): pool() from multiple edge sets (or node sets) does not yet
   support RaggedTensors.
 
   Args:
-    graph: A scalar GraphTensor.
+    graph_tensor: A scalar GraphTensor.
     to_tag: Values are pooled to context if this is `tfgnn.CONTEXT` or to the
       incident node on each edge with this tag.
     edge_set_name: The name of the edge set from which values are pooled, or
@@ -115,11 +285,11 @@ def pool_v2(
     of destination nodes (or graph components if `to_tag=tfgnn.CONTEXT`)
     and `*feature_shape` is as for all the inputs.
   """
-  gt.check_scalar_graph_tensor(graph, "pool()")
+  gt.check_scalar_graph_tensor(graph_tensor, "pool()")
 
   edge_set_names, node_set_names, feature_values, _ = (
       get_pool_args_as_sequences(
-          graph, to_tag,
+          graph_tensor, to_tag,
           edge_set_name=edge_set_name, node_set_name=node_set_name,
           feature_value=feature_value, feature_name=feature_name,
           function_name="pool()"))
@@ -129,7 +299,7 @@ def pool_v2(
       utils.is_ragged_tensor(fv) for fv in feature_values):
     raise ValueError(
         "TODO(b/265760014): pool() from multiple edge sets (or node sets) "
-        "does not yet support RaggedTensors.")
+        "does not (yet?) support RaggedTensors.")
 
   if not reduce_type:
     raise ValueError("pool() requires one more more reduce types, "
@@ -156,7 +326,7 @@ def pool_v2(
     raise ValueError("\n".join(msg_lines))
 
   return _pool_internal(
-      graph, to_tag,
+      graph_tensor, to_tag,
       edge_set_names=edge_set_names, node_set_names=node_set_names,
       reduce_type=reduce_type, feature_values=feature_values)
 
@@ -377,7 +547,8 @@ class GraphPieceReducer(abc.ABC):
 
     # Pooling from edges to node.
     adjacency = graph.edge_sets[edge_set_name].adjacency
-    if isinstance(adjacency, adj.HyperAdjacency):
+    if isinstance(adjacency, (kt.HyperAdjacencyKerasTensor,  # TODO(b/283404258)
+                              adj.HyperAdjacency)):
       node_set = graph.node_sets[adjacency.node_set_name(to_tag)]
       total_node_count = node_set.spec.total_size
       if total_node_count is None:
@@ -468,6 +639,8 @@ class ProdGraphPieceReducer(GraphPieceReducer):
     return tf.math.unsorted_segment_prod(values, segment_ids, num_segments)
 
 
+# IMPORTANT: When adding a public reduce_type, don't forget to add the matching
+# entry to MULTI_REDUCER_CLASSES.
 _GRAPH_PIECE_REDUCER_CLASSES = {
     "_count": CountGraphPieceReducer,   # For internal use only.
     "max": MaxGraphPieceReducer,
@@ -532,9 +705,27 @@ class MaxNoInfMultiReducer(MultiReducer):
   def compute_from_pieces(self,
                           pieces: dict[str, list[Field]]) -> Field:
     result = functools.reduce(tf.math.maximum, pieces["max"])
-    return tf.where(tf.less_equal(result, result.dtype.min),
-                    tf.zeros([], dtype=result.dtype),
-                    result)
+    return _where_scalar_or_field(tf.less_equal(result, result.dtype.min),
+                                  tf.zeros([], dtype=result.dtype),
+                                  result)
+
+
+def _where_scalar_or_field(condition: const.Field, true_scalar_value: tf.Tensor,
+                           false_value: const.Field) -> const.Field:
+  """Fixed tf.where for a scalar true side and possibly ragged false side."""
+  assert true_scalar_value.shape.rank == 0
+  if utils.is_ragged_tensor(false_value):
+    # tf.where specialization for the ragged tensors does not support scalar
+    # inputs broadcasting in generic cases. As a workaround, we create the
+    # ragged tensor with the same type spec as the false side but filled with
+    # `true_scalar_value` values.
+    # TODO(b/216278499): remove this workaround after fixing.
+    true_flat_values = tf.fill(
+        utils.dims_list(false_value.flat_values), true_scalar_value)
+    true_value = false_value.with_flat_values(true_flat_values)
+  else:
+    true_value = true_scalar_value
+  return tf.where(condition, true_value, false_value)
 
 
 class MeanMultiReducer(MultiReducer):
@@ -582,9 +773,9 @@ class MinNoInfMultiReducer(MultiReducer):
   def compute_from_pieces(self,
                           pieces: dict[str, list[Field]]) -> Field:
     result = functools.reduce(tf.math.minimum, pieces["min"])
-    return tf.where(tf.greater_equal(result, result.dtype.max),
-                    tf.zeros([], dtype=result.dtype),
-                    result)
+    return _where_scalar_or_field(tf.greater_equal(result, result.dtype.max),
+                                  tf.zeros([], dtype=result.dtype),
+                                  result)
 
 
 class SumMultiReducer(MultiReducer):
@@ -623,3 +814,8 @@ _MULTI_REDUCER_CLASSES = {
     "sum": SumMultiReducer,
     "prod": ProdMultiReducer,
 }
+
+
+def get_registered_reduce_operation_names() -> list[str]:
+  """Returns the registered list of supported reduce operation names."""
+  return list(_MULTI_REDUCER_CLASSES.keys())

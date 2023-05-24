@@ -22,7 +22,7 @@ from tensorflow_gnn.graph import broadcast_ops
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_ops as ops
-from tensorflow_gnn.graph import pool_ops_v1
+from tensorflow_gnn.graph import pool_ops
 from tensorflow_gnn.graph import readout
 
 
@@ -537,6 +537,8 @@ class AddReadoutFromFirstNode(tf.keras.layers.Layer):
         readout_node_set=self._readout_node_set)
 
 
+# TODO(b/265760014): Reimplement with the generic broadcast_v2() and pool_v2(),
+# including support for multiple edge_set_names / node_set_names.
 class BroadcastPoolBase(tf.keras.layers.Layer):
   """Base class to Broadcast and Pool.
 
@@ -860,14 +862,14 @@ class Pool(BroadcastPoolBase):
 
     if tag == const.CONTEXT:
       if node_set_name is not None:
-        return pool_ops_v1.pool_nodes_to_context(
+        return pool_ops.pool_nodes_to_context(
             graph, node_set_name, reduce_type, feature_name=feature_name)
       else:
-        return pool_ops_v1.pool_edges_to_context(
+        return pool_ops.pool_edges_to_context(
             graph, edge_set_name, reduce_type, feature_name=feature_name)
     else:
       assert tag in (const.SOURCE, const.TARGET), f"Internal error: tag={tag}"
-      return pool_ops_v1.pool_edges_to_node(
+      return pool_ops.pool_edges_to_node(
           graph, edge_set_name, tag, reduce_type, feature_name=feature_name)
 
   @property

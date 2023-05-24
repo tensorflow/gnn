@@ -24,7 +24,7 @@ from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import broadcast_ops
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
-from tensorflow_gnn.graph import pool_ops_v1
+from tensorflow_gnn.graph import pool_ops
 from tensorflow_gnn.keras import keras_tensors as kt
 
 as_tensor = tf.convert_to_tensor
@@ -148,6 +148,8 @@ class FunctionalModelTest(_TestBase):
         tf.keras.Model(adjacency_input, adjacency_input[0])(adjacency), [0, 1])
     self.assertIsInstance(adjacency_input.get_indices_dict(), dict)
 
+  # TODO(b/283404258): Remove {broadcast,pool}_*() support for KeradGraphTensor.
+  # Users are meant to call tfgnn.keras.layers.Broadcast and Pool instead.
   def testGraphTensorOps(self):
     example = gt.GraphTensor.from_pieces(
         gt.Context.from_fields(features={'f': as_tensor([1])}),
@@ -173,9 +175,9 @@ class FunctionalModelTest(_TestBase):
     graph_output = graph_input.replace_features(
         context={
             'f':
-                pool_ops_v1.pool_edges_to_context(
+                pool_ops.pool_edges_to_context(
                     graph_input, 'edge', feature_name='f') +
-                pool_ops_v1.pool_nodes_to_context(
+                pool_ops.pool_nodes_to_context(
                     graph_input, 'node', feature_name='f')
         },
         node_sets={
@@ -183,7 +185,7 @@ class FunctionalModelTest(_TestBase):
                 'f':
                     broadcast_ops.broadcast_context_to_nodes(
                         graph_input, 'node', feature_name='f') +
-                    pool_ops_v1.pool_edges_to_node(
+                    pool_ops.pool_edges_to_node(
                         graph_input, 'edge', const.TARGET, feature_name='f')
             }
         },
@@ -321,7 +323,7 @@ class FunctionalModelTest(_TestBase):
     source_value = broadcast_ops.broadcast_node_to_edges(
         graph, 'edge', const.SOURCE, feature_name='state')
     message = tf.multiply(weight, source_value)
-    pooled_message = pool_ops_v1.pool_edges_to_node(
+    pooled_message = pool_ops.pool_edges_to_node(
         graph, 'edge', const.TARGET, feature_value=message)
     node_updates = fnn(pooled_message)
     node_state += node_updates

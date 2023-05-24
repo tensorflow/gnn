@@ -23,7 +23,7 @@ from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import broadcast_ops
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
-from tensorflow_gnn.graph import pool_ops_v1
+from tensorflow_gnn.graph import pool_ops
 
 
 def validate_graph_tensor_spec_for_readout(
@@ -246,7 +246,7 @@ def readout_named(
         "non-numeric dtypes yet, because it relies on sum-pooling.")
 
   pooled_values = [
-      pool_ops_v1.pool_edges_to_node(
+      pool_ops.pool_edges_to_node(
           graph, edge_set_name, const.TARGET, "sum", feature_value=value)
       for edge_set_name, value in broadcast_values.items()]
   result = tf.math.add_n(pooled_values)
