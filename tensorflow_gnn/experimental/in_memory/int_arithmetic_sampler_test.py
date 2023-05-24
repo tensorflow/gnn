@@ -368,7 +368,7 @@ class IntArithmeticSamplerTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
       ('TFLoadSavedModel', 'TFLoadModel'),
-      # ('KerasLoadSavedGModel', 'KerasLoadModel'),  # blocked by cl/530981500
+      ('KerasLoadSavedGModel', 'KerasLoadModel'),
       ('KerasModel', 'KerasModel')
   )
   def test_smoke_integration_sampling_pipeline_model(self, operation_mode):

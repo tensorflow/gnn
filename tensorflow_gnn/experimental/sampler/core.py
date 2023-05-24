@@ -1030,6 +1030,9 @@ class GraphTensorBuilder(tf.keras.layers.Layer):
     return dict(validate=self._validate, **super().get_config())
 
   def call(self, inputs: GraphPieces) -> tfgnn.GraphTensor:
+    # When saving `tf.keras.Model`, the loaded model passes a tuple.
+    # Convert to namedtuple.
+    inputs = GraphPieces(*inputs)
     context: Features = inputs.context
     node_sets: Mapping[tfgnn.NodeSetName,
                        Union[Features, List[Features]]] = inputs.node_sets
