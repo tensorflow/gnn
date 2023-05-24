@@ -124,7 +124,7 @@ message Feature {
   // example data. When generating random graph tensor= data, values are sampled
   // from any array you provided here. This allows us to generate random tensors
   // with more realistic values (that look more like the real thing).
-  optional tensorflow.Feature sample_values = 6;
+  optional tensorflow.Feature sample_values = 6 [deprecated = true];
 
   // Extension to attach domain-specific metadata about the feature.
   repeated tensorflow.Feature example_values = 5 [deprecated = true];
