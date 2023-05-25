@@ -29,6 +29,7 @@ build_graph_tensor = core.build_graph_tensor
 # Export.
 create_program = eval_dag.create_program
 save_model = eval_dag.save_model
+Artifacts = eval_dag.Artifacts
 
 # Sampling layers.
 InMemUniformEdgesSampler = core.InMemUniformEdgesSampler

@@ -95,7 +95,8 @@ def create_sampling_model_from_spec(
   )
   seed_nodes = tf.keras.Input(
       type_spec=tf.RaggedTensorSpec(
-          shape=[None, None], ragged_rank=1, dtype=seed_node_dtype))
+          shape=[None, None], ragged_rank=1, dtype=seed_node_dtype),
+      name='Input')
   subgraph = pipeline(seed_nodes)
   return tf.keras.Model(inputs=seed_nodes, outputs=subgraph)
 

@@ -127,3 +127,57 @@ pytype_strict_contrib_test(
         "//:expect_tensorflow_installed",
     ],
 )
+
+pytype_strict_library(
+    name = "unigraph_utils",
+    srcs = ["unigraph_utils.py"],
+    srcs_version = "PY3ONLY",
+    deps = [
+        "//third_party/py/apache_beam",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+        "//tensorflow_gnn/data:unigraph",
+        "//tensorflow_gnn/sampler:sampling_spec_py_proto",
+    ],
+)
+
+py_binary(
+    name = "sampler",
+    srcs = ["sampler.py"],
+    deps = [
+        ":accessors",
+        ":edge_samplers",
+        ":executor_lib",
+        ":unigraph_utils",
+        "//third_party/py/absl:app",
+        "//third_party/py/absl/flags",
+        "//third_party/py/absl/logging",
+        "//third_party/py/apache_beam",
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+        "//tensorflow_gnn/data:unigraph",
+        "//tensorflow_gnn/experimental/sampler",
+        "//tensorflow_gnn/experimental/sampler:subgraph_pipeline",
+        "//tensorflow_gnn/proto:graph_schema_py_proto",
+        "//tensorflow_gnn/sampler:sampling_spec_py_proto",
+    ],
+)
+
+pytype_strict_contrib_test(
+    name = "unigraph_utils_test",
+    srcs = ["unigraph_utils_test.py"],
+    data = ["@tensorflow_gnn//testdata/heterogeneous"],
+    python_version = "PY3",
+    srcs_version = "PY3ONLY",
+    deps = [
+        ":unigraph_utils",
+        "//testing/pybase",
+        "//third_party/py/apache_beam",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+        "//tensorflow_gnn/data:unigraph",
+        "//tensorflow_gnn/utils:test_utils",
+    ],
+)
