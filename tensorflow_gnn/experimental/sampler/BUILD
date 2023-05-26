@@ -19,7 +19,6 @@ py_proto_library(
 py_test(
     name = "core_test",
     srcs = ["core_test.py"],
-    tags = ["no_oss"],  # TODO(b/284063221)
     python_version = "PY3",
     deps = [],
 )

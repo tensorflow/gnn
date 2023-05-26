@@ -37,6 +37,7 @@ ln -s "$(pwd)"/tensorflow_gnn "$TEST_ROOT"/tensorflow_gnn
 tag_filters="-no_oss,-oss_excluded"
 
 bazel clean
+pip install --upgrade pip
 pip install -r requirements-dev.txt --progress-bar off
 pip install tf-nightly --progress-bar off --upgrade
 # We need to remove the dependency on tensorflow to test nightly
