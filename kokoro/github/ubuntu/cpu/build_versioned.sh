@@ -44,6 +44,7 @@ ln -s "$(pwd)"/tensorflow_gnn "$TEST_ROOT"/tensorflow_gnn
 tag_filters="-no_oss,-oss_excluded${TAG_FILTERS}"
 
 bazel clean
+pip install --upgrade pip
 pip install -r requirements-dev.txt --progress-bar off
 pip install tensorflow=="${TF_VERSION}" --progress-bar off --upgrade
 python3 setup.py bdist_wheel
