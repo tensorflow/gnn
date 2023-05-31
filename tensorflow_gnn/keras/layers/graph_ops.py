@@ -14,7 +14,8 @@
 # ==============================================================================
 """Keras layer types for fundamental graph ops: Broadcast, Pool and Readout."""
 
-from typing import Any, Mapping, Optional
+from __future__ import annotations
+from typing import Any, Mapping, Optional, Sequence, Union
 
 import tensorflow as tf
 
@@ -24,6 +25,14 @@ from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_ops as ops
 from tensorflow_gnn.graph import pool_ops
 from tensorflow_gnn.graph import readout
+
+Field = const.Field
+FieldName = const.FieldName
+NodeSetName = const.NodeSetName
+EdgeSetName = const.EdgeSetName
+IncidentNodeTag = const.IncidentNodeTag
+IncidentNodeOrContextTag = const.IncidentNodeOrContextTag
+GraphTensor = gt.GraphTensor
 
 
 @tf.keras.utils.register_keras_serializable(package="GNN")
@@ -76,10 +85,10 @@ class Readout(tf.keras.layers.Layer):
 
   def __init__(self,
                *,
-               edge_set_name: Optional[gt.EdgeSetName] = None,
-               node_set_name: Optional[gt.NodeSetName] = None,
+               edge_set_name: Optional[EdgeSetName] = None,
+               node_set_name: Optional[NodeSetName] = None,
                from_context: bool = False,
-               feature_name: Optional[gt.FieldName] = None,
+               feature_name: Optional[FieldName] = None,
                **kwargs):
     super().__init__(**kwargs)
     self._location = self._get_location(node_set_name=node_set_name,
@@ -94,12 +103,12 @@ class Readout(tf.keras.layers.Layer):
     return config
 
   def call(self,
-           graph: gt.GraphTensor,
+           graph: GraphTensor,
            *,
-           edge_set_name: Optional[gt.EdgeSetName] = None,
-           node_set_name: Optional[gt.NodeSetName] = None,
+           edge_set_name: Optional[EdgeSetName] = None,
+           node_set_name: Optional[NodeSetName] = None,
            from_context: bool = False,
-           feature_name: Optional[gt.FieldName] = None) -> gt.Field:
+           feature_name: Optional[FieldName] = None) -> Field:
     location = self._get_location(node_set_name=node_set_name,
                                   edge_set_name=edge_set_name,
                                   from_context=from_context)
@@ -140,7 +149,7 @@ class Readout(tf.keras.layers.Layer):
     return self._location
 
   @property
-  def feature_name(self) -> Optional[gt.FieldName]:
+  def feature_name(self) -> Optional[FieldName]:
     """Returns the feature_name argument to init, or None if unset."""
     return self._feature_name
 
@@ -197,7 +206,7 @@ class AddSelfLoops(tf.keras.layers.Layer):
     super().__init__()
     self._edge_set_name = edge_set_name
 
-  def call(self, graph_tensor: gt.GraphTensor) -> gt.GraphTensor:
+  def call(self, graph_tensor: GraphTensor) -> GraphTensor:
     return ops.add_self_loops(graph_tensor, self._edge_set_name)
 
   def get_config(self):
@@ -243,8 +252,8 @@ class ReadoutFirstNode(tf.keras.layers.Layer):
 
   def __init__(self,
                *,
-               node_set_name: Optional[gt.NodeSetName] = None,
-               feature_name: Optional[gt.FieldName] = None,
+               node_set_name: Optional[NodeSetName] = None,
+               feature_name: Optional[FieldName] = None,
                **kwargs):
     super().__init__(**kwargs)
     self._node_set_name = node_set_name
@@ -257,10 +266,10 @@ class ReadoutFirstNode(tf.keras.layers.Layer):
     return config
 
   def call(self,
-           graph: gt.GraphTensor,
+           graph: GraphTensor,
            *,
-           node_set_name: Optional[gt.NodeSetName] = None,
-           feature_name: Optional[gt.FieldName] = None) -> gt.Field:
+           node_set_name: Optional[NodeSetName] = None,
+           feature_name: Optional[FieldName] = None) -> Field:
 
     _check_init_call_arg_consistency("ReadoutFirstNode", "node_set_name",
                                      self._node_set_name, node_set_name)
@@ -291,7 +300,7 @@ class ReadoutFirstNode(tf.keras.layers.Layer):
       return dict()
 
   @property
-  def feature_name(self) -> Optional[gt.FieldName]:
+  def feature_name(self) -> Optional[FieldName]:
     """Returns the feature_name argument to init, or None if unset."""
     return self._feature_name
 
@@ -349,7 +358,7 @@ class ReadoutNamed(tf.keras.layers.Layer):
                key: Optional[str] = None,
                *,
                feature_name: str = const.HIDDEN_STATE,
-               readout_node_set: const.NodeSetName = "_readout",
+               readout_node_set: NodeSetName = "_readout",
                validate: bool = True,
                **kwargs):
     super().__init__(**kwargs)
@@ -367,9 +376,9 @@ class ReadoutNamed(tf.keras.layers.Layer):
         **super().get_config())
 
   def call(self,
-           graph: gt.GraphTensor,
+           graph: GraphTensor,
            *,
-           key: Optional[str] = None) -> gt.Field:
+           key: Optional[str] = None) -> Field:
     _check_init_call_arg_consistency("ReadoutNamed", "key",
                                      self._key, key)
     if key is None:
@@ -437,11 +446,11 @@ class ReadoutNamedIntoFeature(tf.keras.layers.Layer):
       self,
       key: Optional[str] = None,
       *,
-      feature_name: const.FieldName,
-      new_feature_name: Optional[const.FieldName] = None,
+      feature_name: FieldName,
+      new_feature_name: Optional[FieldName] = None,
       remove_input_feature: bool = False,
       overwrite: bool = False,
-      readout_node_set: const.NodeSetName = "_readout",
+      readout_node_set: NodeSetName = "_readout",
       validate: bool = True,
       **kwargs):
     super().__init__(**kwargs)
@@ -465,9 +474,9 @@ class ReadoutNamedIntoFeature(tf.keras.layers.Layer):
         **super().get_config())
 
   def call(self,
-           graph: gt.GraphTensor,
+           graph: GraphTensor,
            *,
-           key: Optional[str] = None) -> gt.GraphTensor:
+           key: Optional[str] = None) -> GraphTensor:
     _check_init_call_arg_consistency("ReadoutNamedIntoFeature", "key",
                                      self._key, key)
     if key is None:
@@ -513,8 +522,8 @@ class AddReadoutFromFirstNode(tf.keras.layers.Layer):
       self,
       key: str,
       *,
-      node_set_name: const.NodeSetName,
-      readout_node_set: const.NodeSetName = "_readout",
+      node_set_name: NodeSetName,
+      readout_node_set: NodeSetName = "_readout",
       **kwargs):
     super().__init__(**kwargs)
     self._key = key
@@ -528,7 +537,7 @@ class AddReadoutFromFirstNode(tf.keras.layers.Layer):
         readout_node_set=self._readout_node_set,
         **super().get_config())
 
-  def call(self, graph: gt.GraphTensor) -> gt.GraphTensor:
+  def call(self, graph: GraphTensor) -> GraphTensor:
     gt.check_scalar_graph_tensor(graph, "AddReadoutFromFirstNode")
     return readout.add_readout_from_first_node(
         graph,
@@ -537,8 +546,6 @@ class AddReadoutFromFirstNode(tf.keras.layers.Layer):
         readout_node_set=self._readout_node_set)
 
 
-# TODO(b/265760014): Reimplement with the generic broadcast_v2() and pool_v2(),
-# including support for multiple edge_set_names / node_set_names.
 class BroadcastPoolBase(tf.keras.layers.Layer):
   """Base class to Broadcast and Pool.
 
@@ -547,9 +554,9 @@ class BroadcastPoolBase(tf.keras.layers.Layer):
   provides their common handling of init and call args that specify the
   relationship:
 
-    * An edge_set_name or node_set_name specifies the "many" things that are
-      being broadcast to or pooled from. Collectively, the edge or node set name
-      is called the location.
+    * An edge_set_name or node_set_name (or a sequence thereof) specifies the
+      "many" things that are being broadcast to or pooled from. Collectively,
+      the edge or node set name is called the location.
     * An incident node tag SOURCE or TARGET or the special tag CONTEXT
       specifies the "one" thing that is being broadcast from or pooled to.
       The tag is understood relative to each edge (or node): the SOURCE or
@@ -559,21 +566,21 @@ class BroadcastPoolBase(tf.keras.layers.Layer):
 
   This base class also manages the feature_name used to select a feature
   at the origin of the Broadcast or Pool operation.
-  Broadcast and Pool also select a feature by name from their respective
-  origin.
 
   This base class manages tag, edge_set_name, node_set_name and feature_name
   for init, get_config and call but leaves the actual computation and
   user-visible documentation to concrete subclasses Broadcast and Pool.
   """
 
-  def __init__(self,
-               *,
-               tag: Optional[const.IncidentNodeOrContextTag] = None,
-               edge_set_name: Optional[gt.EdgeSetName] = None,
-               node_set_name: Optional[gt.NodeSetName] = None,
-               feature_name: Optional[gt.FieldName] = None,
-               **kwargs):
+  def __init__(
+      self,
+      *,
+      tag: Optional[IncidentNodeOrContextTag] = None,
+      edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName, None] = None,
+      node_set_name: Union[Sequence[NodeSetName], NodeSetName, None] = None,
+      feature_name: Optional[FieldName] = None,
+      **kwargs,
+  ):
     super().__init__(**kwargs)
     self._check_tag(tag)
     self._tag = tag
@@ -589,11 +596,13 @@ class BroadcastPoolBase(tf.keras.layers.Layer):
     config["feature_name"] = self._feature_name
     return config
 
-  def _fixup_call_args(self,
-                       tag: Optional[const.IncidentNodeOrContextTag] = None,
-                       edge_set_name: Optional[gt.EdgeSetName] = None,
-                       node_set_name: Optional[gt.NodeSetName] = None,
-                       feature_name: Optional[gt.FieldName] = None):
+  def _fixup_call_args(
+      self,
+      tag: Optional[IncidentNodeOrContextTag] = None,
+      edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName, None] = None,
+      node_set_name: Union[Sequence[NodeSetName], NodeSetName, None] = None,
+      feature_name: Optional[FieldName] = None,
+  ):
     self._check_tag(tag)
     _check_init_call_arg_consistency(self._layer_name, "tag", self._tag, tag)
     if tag is None:
@@ -622,17 +631,17 @@ class BroadcastPoolBase(tf.keras.layers.Layer):
     return tag, edge_set_name, node_set_name, feature_name
 
   @property
-  def tag(self) -> Optional[const.IncidentNodeOrContextTag]:
+  def tag(self) -> Optional[IncidentNodeOrContextTag]:
     """Returns the tag argument to init, or None if unset."""
     return self._tag
 
   @property
-  def location(self) -> Mapping[str, str]:
+  def location(self) -> Mapping[str, Union[str, Sequence[str]]]:
     """Returns dict of kwarg to init with the node or edge set name."""
     return self._location
 
   @property
-  def feature_name(self) -> Optional[gt.FieldName]:
+  def feature_name(self) -> Optional[FieldName]:
     """Returns the feature_name argument to init, or None if unset."""
     return self._feature_name
 
@@ -648,9 +657,18 @@ class BroadcastPoolBase(tf.keras.layers.Layer):
 
   def _get_location(self, *, node_set_name, edge_set_name):
     """Returns dict of non-None kwargs for selecting the node or edge set."""
+    def clone_sequence(x):
+      if isinstance(x, Sequence) and not isinstance(x, str):
+        # Make a copy to avoid references to user-visible mutable lists.
+        return tuple(x)
+      return x
+
     result = dict()
-    if node_set_name is not None: result.update(node_set_name=node_set_name)
-    if edge_set_name is not None: result.update(edge_set_name=edge_set_name)
+    if node_set_name is not None:
+      result.update(node_set_name=clone_sequence(node_set_name))
+    if edge_set_name is not None:
+      result.update(edge_set_name=clone_sequence(edge_set_name))
+
     if len(result) > 1:
       raise ValueError(f"The {self._layer_name} layer allows at most one of "
                        "edge_set_name and node_set_name to be set.")
@@ -678,86 +696,91 @@ class BroadcastPoolBase(tf.keras.layers.Layer):
 class Broadcast(BroadcastPoolBase):
   """Broadcasts a GraphTensor feature.
 
-  This layer accepts a complete GraphTensor and returns a tensor with the
-  broadcast feature value.
+  This layer accepts a complete GraphTensor and returns a tensor (or tensors)
+  with the broadcast feature value.
 
   There are two kinds of broadcast that this layer can be used for:
 
-    * From a node set to an edge set. This is selected by specifying
-      the origin by tag `tgnn.SOURCE` or `tfgnn.TARGET` and the receiver
-      as `edge_set_name=...`; the node set name is implied.
-      The result is a tensor shaped like an edge feature in which each edge
-      has a copy of the feature that is present at its SOURCE or TARGET node.
-      From a node's point of view, SOURCE means broadcast to outgoing edges,
-      and TARGET means broadcast to incoming edges.
-    * From the context to a node set or edge set. This is selected by
-      specifying the origin by tag `tfgnn.CONTEXT` and the receiver as either
-      a `node_set_name=...` or an `edge_set_name=...`.
-      The result is a tensor shaped like a node/edge feature in which each
-      node/edge has a copy of the context feature in its graph component.
-      (For more on components, see GraphTensor.merge_batch_to_components().)
+    * From a node set to an edge set (or multiple edge sets). This is selected
+      by specifying the receiver edge set(s) as `edge_set_name=...` and the
+      sender by tag `tgnn.SOURCE` or `tfgnn.TARGET` relative to the edge set(s).
+      The node set name is implied. (In case of multiple edge sets, it must
+      agree between all of them.)
+      The result is a tensor (or list of tensors) shaped like an edge feature
+      in which each edge has a copy of the feature that is present at its
+      `SOURCE` or `TARGET` node. From a node's point of view, `SOURCE` means
+      broadcast to outgoing edges, and `TARGET` means broadcast to incoming
+      edges.
+    * From the context to one (or more) node sets or one (or more) edge sets.
+      This is selected by specifying the receiver(s) as either
+      `node_set_name=...` or `edge_set_name=...` and the sender by tag
+      `tfgnn.CONTEXT`.
+      The result is a tensor (or list of tensors) shaped like a node/edge
+      feature in which each node/edge has a copy of the context feature from
+      the graph component it belongs to. (For more on components, see
+      `tfgnn.GraphTensor.merge_batch_to_components()`.)
 
   Both the initialization of and the call to this layer accept arguments to
-  set the tag, node/edge_set_name, and the feature_name. The call
-  arguments take effect for that call only and can supply missing values,
+  set the `tag`, `node_set_name`/`edge_set_name`, and the `feature_name`. The
+  call arguments take effect for that call only and can supply missing values,
   but they are not allowed to contradict initialization arguments.
-  The feature name can be left unset to select tfgnn.HIDDEN_STATE.
+  The feature name can be left unset to select `tfgnn.HIDDEN_STATE`.
 
   Init args:
-    tag: Can be set to one of tfgnn.SOURCE, tfgnn.TARGET or tfgnn.CONTEXT.
+    tag: Can be set to one of `tfgnn.SOURCE`, `tfgnn.TARGET` or `tfgnn.CONTEXT`
+      to select the sender from which feature values are broadcast.
     edge_set_name: If set, the feature will be broadcast to this edge set
-      from the given origin. Mutually exclusive with node_set_name.
-    node_set_name: If set, the feature will be broadcast to this node set.
-      Origin must be CONTEXT. Mutually exclusive with edge_set_name.
+      (or this sequence of edge sets) from the sender given by `tag`.
+      Mutually exclusive with `node_set_name`.
+    node_set_name: If set, the feature will be broadcast to this node set
+      (or sequence of node sets). The sender must be selected as
+      `tag=tfgn.CONTEXT`. Mutually exclusive with `edge_set_name`.
     feature_name: The name of the feature to read. If unset (also in call),
-      the default state feature will be read.
+      the `tfgnn.HIDDEN_STATE` feature will be read.
 
   Call args:
-    graph: The scalar GraphTensor to read from.
+    graph: The scalar `tfgnn.GraphTensor` to read from.
     tag: Same meaning as for init. Must be passed to init, or to call,
       or to both (with the same value).
     edge_set_name, node_set_name: Same meaning as for init. One of them must
       be passed to init, or to call, or to both (with the same value).
     feature_name: Same meaning as for init. If passed to both, the value must
-      be the same. If passed to neither, tfgnn.HIDDEN_STATE is used.
+      be the same. If passed to neither, `tfgnn.HIDDEN_STATE` is used.
 
   Returns:
-    A tensor with the feature value broadcast to the target.
+    A tensor (or list of tensors) with the feature values broadcast to the
+    requested receivers.
   """
 
-  def __init__(self,
-               tag: Optional[const.IncidentNodeOrContextTag] = None,
-               *,
-               edge_set_name: Optional[gt.EdgeSetName] = None,
-               node_set_name: Optional[gt.NodeSetName] = None,
-               feature_name: Optional[gt.FieldName] = None,
-               **kwargs):
+  def __init__(
+      self,
+      tag: Optional[IncidentNodeOrContextTag] = None,
+      *,
+      edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName, None] = None,
+      node_set_name: Union[Sequence[NodeSetName], NodeSetName, None] = None,
+      feature_name: Optional[FieldName] = None,
+      **kwargs,
+  ):
     super().__init__(
         tag=tag, edge_set_name=edge_set_name, node_set_name=node_set_name,
         feature_name=feature_name, **kwargs)
 
-  def call(self,
-           graph: gt.GraphTensor,
-           *,
-           tag: Optional[const.IncidentNodeOrContextTag] = None,
-           edge_set_name: Optional[gt.EdgeSetName] = None,
-           node_set_name: Optional[gt.NodeSetName] = None,
-           feature_name: Optional[gt.FieldName] = None) -> gt.Field:
+  def call(
+      self,
+      graph: GraphTensor,
+      *,
+      tag: Optional[IncidentNodeOrContextTag] = None,
+      edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName, None] = None,
+      node_set_name: Union[Sequence[NodeSetName], NodeSetName, None] = None,
+      feature_name: Optional[FieldName] = None,
+  ) -> Union[list[Field], Field]:
     gt.check_scalar_graph_tensor(graph, "Broadcast")
     tag, edge_set_name, node_set_name, feature_name = self._fixup_call_args(
         tag, edge_set_name, node_set_name, feature_name)
 
-    if tag == const.CONTEXT:
-      if node_set_name is not None:
-        return broadcast_ops.broadcast_context_to_nodes(
-            graph, node_set_name, feature_name=feature_name)
-      else:
-        return broadcast_ops.broadcast_context_to_edges(
-            graph, edge_set_name, feature_name=feature_name)
-    else:
-      assert tag in (const.SOURCE, const.TARGET), f"Internal error: tag={tag}"
-      return broadcast_ops.broadcast_node_to_edges(
-          graph, edge_set_name, tag, feature_name=feature_name)
+    return broadcast_ops.broadcast_v2(
+        graph, tag, edge_set_name=edge_set_name, node_set_name=node_set_name,
+        feature_name=feature_name)
 
 
 @tf.keras.utils.register_keras_serializable(package="GNN")
@@ -769,46 +792,48 @@ class Pool(BroadcastPoolBase):
 
   There are two kinds of pooling that this layer can be used for:
 
-    * From an edge set to a node set. This is selected by specifying the
-      origin as `edge_set_name=...` and the receiver with tag `tgnn.SOURCE`
-      or `tfgnn.TARGET`; the corresponding node set name is implied.
+    * From an edge set (or multiple edge sets) to a single node set. This is
+      selected by specifying the sender as `edge_set_name=...` and the receiver
+      with tag `tgnn.SOURCE` or `tfgnn.TARGET`; the corresponding node set name
+      is implied. (In case of multiple edge sets, it must be the same for all.)
       The result is a tensor shaped like a node feature in which each node
-      has the aggregated feature values from the edges of the edge set that
-      have it as their SOURCE or TARGET, resp.; that is, the outgoing or
+      has the aggregated feature values from the edges of the edge set(s) that
+      have it as their `SOURCE` or `TARGET`, resp.; that is, the outgoing or
       incoming edges of the node.
-    * From a node set or edge set to the context. This is selected by specifying
-      the origin as either a `node_set_name=...` or an `edge_set_name=...` and
-      the receiver with tag `tfgnn.CONTEXT`. The result is a tensor shaped
-      like a context feature in which each graph component has the aggregated
-      feature values from those nodes/edges in the selected node or edge set
-      that belong to the component.
-      (For more on components, see GraphTensor.merge_batch_to_components().)
+    * From one (or more) node sets or one (or more) edge sets to the context.
+      This is selected by specifying the sender as either `node_set_name=...`
+      or `edge_set_name=...` and the receiver with tag `tfgnn.CONTEXT`.
+      The result is a tensor shaped like a context feature in which the entry
+      for each graph component has the aggregated feature values from its
+      nodes/edges in the selected node or edge set(s). (For more on components,
+      see `tfgnn.GraphTensor.merge_batch_to_components()`.)
 
   Feature values are aggregated into a single value by a reduction function
-  from `tfgnn.get_registered_reduce_operation_names()`. The pre-configured
-  choices include "sum", "mean", "max" and "min".
+  like `"sum"` or `"mean|max_no_inf"` as described for `tfgnn.pool()`; see there
+  for more details.
 
   Both the initialization of and the call to this layer accept arguments for
-  the receiver tag, the node/edge_set_name, the reduce_type and the
-  feature_name. The call arguments take effect for that call only and can
+  the receiver `tag`, the `node_set_name`/`edge_set_name`, the `reduce_type` and
+  the `feature_name`. The call arguments take effect for that call only and can
   supply missing values, but they are not allowed to contradict initialization
   arguments.
-  The feature name can be left unset to select tfgnn.HIDDEN_STATE.
+  The feature name can be left unset to select `tfgnn.HIDDEN_STATE`.
 
   Init args:
-    tag: Can be set to one of tfgnn.SOURCE, tfgnn.TARGET or tfgnn.CONTEXT
+    tag: Can be set to one of `tfgnn.SOURCE`, `tfgnn.TARGET` or `tfgnn.CONTEXT`
       to select the receiver.
-    reduce_type: Can be set to any name from
-      tfgnn.get_registered_reduce_operation_names().
+    reduce_type: Can be set to any `reduce_type` understood by `tfgnn.pool()`.
     edge_set_name: If set, the feature will be pooled from this edge set
-      to the given receiver `tag`. Mutually exclusive with node_set_name.
-    node_set_name: If set, the feature will be pooled from this node set.
-      The `tag` must be CONTEXT. Mutually exclusive with edge_set_name.
+      (or this sequence of edge sets) to the receiver given by `tag`.
+      Mutually exclusive with `node_set_name`.
+    node_set_name: If set, the feature will be pooled from this node set
+      (or sequence of node sets). The receiver must be selected as
+      `tag=tfgnn.CONTEXT`. Mutually exclusive with `edge_set_name`.
     feature_name: The name of the feature to read. If unset (also in call),
-      the default state feature will be read.
+      the `tfgnn.HIDDEN_STATE` feature will be read.
 
   Call args:
-    graph: The scalar GraphTensor to read from.
+    graph: The scalar `tfgnn.GraphTensor` to read from.
     reduce_type: Same meaning as for init. Must be passed to init, or to call,
       or to both (with the same value).
     tag: Same meaning as for init. Must be passed to init, or to call,
@@ -816,20 +841,22 @@ class Pool(BroadcastPoolBase):
     edge_set_name, node_set_name: Same meaning as for init. One of them must
       be passed to init, or to call, or to both (with the same value).
     feature_name: Same meaning as for init. If passed to both, the value must
-      be the same. If passed to neither, tfgnn.HIDDEN_STATE is used.
+      be the same. If passed to neither, `tfgnn.HIDDEN_STATE` is used.
 
   Returns:
     A tensor with the pooled feature value.
   """
 
-  def __init__(self,
-               tag: Optional[const.IncidentNodeOrContextTag] = None,
-               reduce_type: Optional[str] = None,
-               *,
-               edge_set_name: Optional[gt.EdgeSetName] = None,
-               node_set_name: Optional[gt.NodeSetName] = None,
-               feature_name: Optional[gt.FieldName] = None,
-               **kwargs):
+  def __init__(
+      self,
+      tag: Optional[IncidentNodeOrContextTag] = None,
+      reduce_type: Optional[str] = None,
+      *,
+      edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName, None] = None,
+      node_set_name: Union[Sequence[NodeSetName], NodeSetName, None] = None,
+      feature_name: Optional[FieldName] = None,
+      **kwargs,
+  ):
     super().__init__(
         tag=tag, edge_set_name=edge_set_name, node_set_name=node_set_name,
         feature_name=feature_name, **kwargs)
@@ -840,14 +867,16 @@ class Pool(BroadcastPoolBase):
     config["reduce_type"] = self._reduce_type
     return config
 
-  def call(self,
-           graph: gt.GraphTensor,
-           *,
-           tag: Optional[const.IncidentNodeOrContextTag] = None,
-           reduce_type: Optional[str] = None,
-           edge_set_name: Optional[gt.EdgeSetName] = None,
-           node_set_name: Optional[gt.NodeSetName] = None,
-           feature_name: Optional[gt.FieldName] = None) -> gt.Field:
+  def call(
+      self,
+      graph: GraphTensor,
+      *,
+      tag: Optional[IncidentNodeOrContextTag] = None,
+      reduce_type: Optional[str] = None,
+      edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName, None] = None,
+      node_set_name: Union[Sequence[NodeSetName], NodeSetName, None] = None,
+      feature_name: Optional[FieldName] = None,
+  ) -> Field:
     gt.check_scalar_graph_tensor(graph, "Pool")
     tag, edge_set_name, node_set_name, feature_name = self._fixup_call_args(
         tag, edge_set_name, node_set_name, feature_name)
@@ -860,17 +889,9 @@ class Pool(BroadcastPoolBase):
       raise ValueError("The Pool layer requires reduce_type "
                        "to be set at init or call time")
 
-    if tag == const.CONTEXT:
-      if node_set_name is not None:
-        return pool_ops.pool_nodes_to_context(
-            graph, node_set_name, reduce_type, feature_name=feature_name)
-      else:
-        return pool_ops.pool_edges_to_context(
-            graph, edge_set_name, reduce_type, feature_name=feature_name)
-    else:
-      assert tag in (const.SOURCE, const.TARGET), f"Internal error: tag={tag}"
-      return pool_ops.pool_edges_to_node(
-          graph, edge_set_name, tag, reduce_type, feature_name=feature_name)
+    return pool_ops.pool_v2(
+        graph, tag, edge_set_name=edge_set_name, node_set_name=node_set_name,
+        reduce_type=reduce_type, feature_name=feature_name)
 
   @property
   def reduce_type(self) -> str:

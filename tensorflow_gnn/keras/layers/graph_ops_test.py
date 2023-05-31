@@ -185,6 +185,34 @@ class ReadoutTest(tf.test.TestCase, parameterized.TestCase):
     return graph
 
 
+# TODO(b/274779989): Replace this layer with a more standard representation
+# of GraphTensor as a dict of plain Tensors.
+class _MakeGraphTensor(tf.keras.layers.Layer):
+
+  def call(self, inputs):
+    node_sizes = tf.shape(inputs["nodes_value"])[0]
+    edge_sizes = tf.shape(inputs["edges_value"])[0]
+    return gt.GraphTensor.from_pieces(
+        context=gt.Context.from_fields(
+            features={"value": inputs["context_value"]}),
+        node_sets={
+            "nodes": gt.NodeSet.from_fields(
+                sizes=tf.expand_dims(node_sizes, axis=0),
+                features={"value": inputs["nodes_value"]},
+            )
+        },
+        edge_sets={
+            "edges": gt.EdgeSet.from_fields(
+                sizes=tf.expand_dims(edge_sizes, axis=0),
+                adjacency=adj.Adjacency.from_indices(
+                    ("nodes", inputs["source"]), ("nodes", inputs["target"])
+                ),
+                features={"value": inputs["edges_value"]},
+            )
+        },
+    )
+
+
 class ReadoutFirstNodeTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
@@ -646,206 +674,6 @@ class _MakeGraphTensorReadoutNamed(tf.keras.layers.Layer):
     return gt.GraphTensor.from_pieces(node_sets=node_sets, edge_sets=edge_sets)
 
 
-class BroadcastTest(tf.test.TestCase, parameterized.TestCase):
-
-  def testFeatureName(self):
-    red_values = [[11., 12.]]
-    blue_values = [[21., 22.]]
-    default_values = [[31., 32.]]
-    graph = gt.GraphTensor.from_pieces(
-        context=gt.Context.from_fields(
-            features={"red": tf.constant(red_values),
-                      "blue": tf.constant(blue_values),
-                      const.HIDDEN_STATE: tf.constant(default_values)}),
-        node_sets={"nodes": gt.NodeSet.from_fields(
-            sizes=tf.constant([2]), features={})})
-
-    broadcast = graph_ops.Broadcast(const.CONTEXT, node_set_name="nodes",
-                                    feature_name="red")
-    self.assertEqual("red", broadcast.feature_name)
-    self.assertAllEqual(red_values * 2, broadcast(graph))
-
-    with self.assertRaisesRegex(ValueError, r"initialized .* but called with"):
-      _ = broadcast(graph, feature_name="blue")
-
-    self.assertAllEqual(
-        default_values * 2,
-        graph_ops.Broadcast(const.CONTEXT, node_set_name="nodes")(graph))
-
-  @parameterized.named_parameters(
-      ("ContextToNodes", const.CONTEXT, "nodes", [[10.], [10.], [10.]]),
-      ("ContextToEdges", const.CONTEXT, "edges", [[10.], [10.]]),
-      ("SourceToEdges", const.SOURCE, "edges", [[21.], [21.]]),
-      ("TargetToEdges", const.TARGET, "edges", [[20.], [22.]]))
-  def testTagAndLocation(self, tag, location, expected):
-    values = dict(context=tf.constant([[10.]]),
-                  nodes=tf.constant([[20. + k] for k in range(3)]),
-                  edges=tf.constant([[30. + k] for k in range(2)]))
-    graph = _make_test_graph_132(values)
-    location_kwarg = (dict(node_set_name="nodes") if location == "nodes" else
-                      dict(edge_set_name="edges"))
-
-    # Initialized with all three args, called with zero to three (redundantly).
-    broadcast = graph_ops.Broadcast(tag, feature_name="value", **location_kwarg)
-    self.assertEqual(tag, broadcast.tag)
-    self.assertEqual(location_kwarg, broadcast.location)
-    self.assertAllEqual(expected, broadcast(graph))
-    self.assertAllEqual(expected, broadcast(graph, tag=tag))
-    self.assertAllEqual(expected, broadcast(graph, feature_name="value"))
-    self.assertAllEqual(expected, broadcast(graph, **location_kwarg))
-    self.assertAllEqual(expected, broadcast(graph, tag=tag,
-                                            feature_name="value"))
-    self.assertAllEqual(expected, broadcast(graph, tag=tag,
-                                            **location_kwarg))
-    self.assertAllEqual(expected, broadcast(graph, feature_name="value",
-                                            **location_kwarg))
-    self.assertAllEqual(expected, broadcast(graph, tag=tag,
-                                            feature_name="value",
-                                            **location_kwarg))
-
-    # Initialized with one arg, called with the other two.
-    broadcast = graph_ops.Broadcast(tag)
-    self.assertEqual(tag, broadcast.tag)
-    self.assertEqual({}, broadcast.location)
-    self.assertAllEqual(expected, broadcast(graph, feature_name="value",
-                                            **location_kwarg))
-
-    broadcast = graph_ops.Broadcast(**location_kwarg)
-    self.assertIsNone(broadcast.tag)
-    self.assertEqual(location_kwarg, broadcast.location)
-    self.assertAllEqual(expected, broadcast(graph, tag=tag,
-                                            feature_name="value"))
-
-    broadcast = graph_ops.Broadcast(feature_name="value")
-    self.assertIsNone(broadcast.tag)
-    self.assertEqual({}, broadcast.location)
-    self.assertAllEqual(expected, broadcast(graph, tag=tag, **location_kwarg))
-
-    # Initialized with zero args, called with all.
-    broadcast = graph_ops.Broadcast()
-    self.assertIsNone(broadcast.tag)
-    self.assertEqual({}, broadcast.location)
-    self.assertAllEqual(expected, broadcast(graph, tag=tag,
-                                            feature_name="value",
-                                            **location_kwarg))
-
-  def testConflictingTag(self):
-    graph = gt.GraphTensor.from_pieces(
-        context=gt.Context.from_fields(features={"value": tf.constant([[0.]])}))
-    with self.assertRaisesRegex(ValueError, r"initialized .* but called with"):
-      broadcast = graph_ops.Broadcast(const.SOURCE, edge_set_name="wronk",
-                                      feature_name="value")
-      _ = broadcast(graph, tag=const.CONTEXT)
-
-  @parameterized.named_parameters(
-      ("Nodes", dict(node_set_name="nodes")),
-      ("Edges", dict(edge_set_name="edges")))
-  def testConflictingLocation(self, location_kwarg):
-    graph = gt.GraphTensor.from_pieces(
-        context=gt.Context.from_fields(features={"value": tf.constant([[0.]])}))
-    with self.assertRaisesRegex(ValueError, r"initialized .* but called with"):
-      broadcast = graph_ops.Broadcast(const.CONTEXT, node_set_name="wronk",
-                                      feature_name="value")
-      _ = broadcast(graph, feature_name="value", **location_kwarg)
-
-  def testTooFewOrManyLocations(self):
-    graph = gt.GraphTensor.from_pieces(
-        context=gt.Context.from_fields(features={"value": tf.constant([[0.]])}))
-    with self.assertRaisesRegex(ValueError, "at most one of"):
-      graph_ops.Broadcast(const.CONTEXT,
-                          node_set_name="nodes", edge_set_name="edges")
-    with self.assertRaisesRegex(ValueError, "requires exactly one of"):
-      graph_ops.Broadcast(const.CONTEXT)(graph)
-
-  @parameterized.parameters(const.SOURCE, const.TARGET)
-  def testNodeSetNameVsNonContext(self, origin):
-    with self.assertRaisesRegex(ValueError, "requires edge_set_name"):
-      graph_ops.Broadcast(origin, node_set_name="nodes")
-
-  @parameterized.named_parameters(
-      ("ContextToNodes", const.CONTEXT, "nodes", [[10.], [10.], [10.]]),
-      ("ContextToEdges", const.CONTEXT, "edges", [[10.], [10.]]),
-      ("SourceToEdges", const.SOURCE, "edges", [[21.], [21.]]),
-      ("TargetToEdges", const.TARGET, "edges", [[20.], [22.]]))
-  def testFromConfig(self, tag, location, expected):
-    values = dict(context=tf.constant([[10.]]),
-                  nodes=tf.constant([[20. + k] for k in range(3)]),
-                  edges=tf.constant([[30. + k] for k in range(2)]))
-    graph = _make_test_graph_132(values)
-    location_kwarg = (dict(node_set_name="nodes") if location == "nodes" else
-                      dict(edge_set_name="edges"))
-    kwargs = dict(location_kwarg, tag=tag, feature_name="value",
-                  name="test_broadcast")
-    config = graph_ops.Broadcast(**kwargs).get_config()
-    self.assertDictContainsSubset(kwargs, config)
-
-    broadcast = graph_ops.Broadcast.from_config(config)
-    self.assertEqual(tag, broadcast.tag)
-    self.assertEqual("value", broadcast.feature_name)
-    self.assertEqual(location_kwarg, broadcast.location)
-    self.assertAllEqual(expected, broadcast(graph))
-
-  @parameterized.named_parameters(
-      ("ContextToNodes", const.CONTEXT, "nodes"),
-      ("ContextToEdges", const.CONTEXT, "edges"),
-      ("SourceToEdges", const.SOURCE, "edges"),
-      ("TargetToEdges", const.TARGET, "edges"))
-  def testTFLite(self, tag, location):
-    values = dict(context=tf.constant([[10.]]),
-                  nodes=tf.constant([[20. + k] for k in range(3)]),
-                  edges=tf.constant([[30. + k] for k in range(2)]))
-    test_graph_132_dict = {
-        "nodes_value": values["nodes"],
-        "edges_value": values["edges"],
-        "context_value": values["context"],
-        "source": tf.constant([1, 1]),
-        "target": tf.constant([0, 2]),
-    }
-    inputs = {
-        "nodes_value": tf.keras.Input([1], None, "nodes_value", tf.float32),
-        "edges_value": tf.keras.Input([1], None, "edges_value", tf.float32),
-        "context_value": tf.keras.Input([1], None, "context_value", tf.float32),
-        "source": tf.keras.Input([], None, "source", tf.int32),
-        "target": tf.keras.Input([], None, "target", tf.int32),
-    }
-    location_kwarg = (dict(node_set_name="nodes") if location == "nodes" else
-                      dict(edge_set_name="edges"))
-    kwargs = dict(location_kwarg, tag=tag, feature_name="value",
-                  name="test_broadcast")
-    input_graph = _MakeGraphTensor()(inputs)
-    broadcast = graph_ops.Broadcast(**kwargs)
-    outputs = broadcast(input_graph)
-    model = tf.keras.Model(inputs, outputs)
-    expected = model(test_graph_132_dict)
-
-    # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith("2.9.") or tf.__version__.startswith("2.10."):
-      self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
-                    f"got TF {tf.__version__}")
-    converter = tf.lite.TFLiteConverter.from_keras_model(model)
-    model_content = converter.convert()
-    interpreter = tf.lite.Interpreter(model_content=model_content)
-    signature_runner = interpreter.get_signature_runner("serving_default")
-    obtained = signature_runner(**test_graph_132_dict)["test_broadcast"]
-    self.assertAllEqual(expected, obtained)
-
-
-def _make_test_graph_132(values):
-  """Returns GraphTensor for [v0] <-e0-- [v1] --e1--> [v2] with values."""
-  def maybe_features(key):
-    return dict(features={"value": values[key]} if key in values else {})
-  graph = gt.GraphTensor.from_pieces(
-      context=gt.Context.from_fields(**maybe_features("context")),
-      node_sets={"nodes": gt.NodeSet.from_fields(
-          sizes=tf.constant([3]), **maybe_features("nodes"))},
-      edge_sets={"edges": gt.EdgeSet.from_fields(
-          sizes=tf.constant([2]),
-          adjacency=adj.Adjacency.from_indices(("nodes", tf.constant([1, 1])),
-                                               ("nodes", tf.constant([0, 2]))),
-          **maybe_features("edges"))})
-  return graph
-
-
 class AddSelfLoopsTest(tf.test.TestCase, parameterized.TestCase):
   """Ensures that AddSelfLoops invokes well-tested function add_self_loops."""
 
@@ -897,6 +725,255 @@ class AddSelfLoopsTest(tf.test.TestCase, parameterized.TestCase):
     signature_runner = interpreter.get_signature_runner("serving_default")
     obtained = signature_runner(**test_graph_134_dict)["final_edge_states"]
     self.assertAllEqual(expected, obtained)
+
+
+class BroadcastTest(tf.test.TestCase, parameterized.TestCase):
+
+  def testFeatureName(self):
+    red_values = [[11., 12.]]
+    blue_values = [[21., 22.]]
+    default_values = [[31., 32.]]
+    graph = gt.GraphTensor.from_pieces(
+        context=gt.Context.from_fields(
+            features={"red": tf.constant(red_values),
+                      "blue": tf.constant(blue_values),
+                      const.HIDDEN_STATE: tf.constant(default_values)}),
+        node_sets={"nodes": gt.NodeSet.from_fields(
+            sizes=tf.constant([2]), features={})})
+
+    broadcast = graph_ops.Broadcast(const.CONTEXT, node_set_name="nodes",
+                                    feature_name="red")
+    self.assertEqual("red", broadcast.feature_name)
+    self.assertAllEqual(red_values * 2, broadcast(graph))
+
+    with self.assertRaisesRegex(ValueError, r"initialized .* but called with"):
+      _ = broadcast(graph, feature_name="blue")
+
+    self.assertAllEqual(
+        default_values * 2,
+        graph_ops.Broadcast(const.CONTEXT, node_set_name="nodes")(graph))
+
+  @parameterized.named_parameters(
+      ("ContextToNodes", const.CONTEXT, dict(node_set_name="v"),
+       tf.constant([[10.], [10.], [10.]])),
+      ("ContextToNodesSeq1", const.CONTEXT, dict(node_set_name=("v",)),
+       [tf.constant([[10.], [10.], [10.]])]),
+      ("ContextToNodesSeq2", const.CONTEXT, dict(node_set_name=("v", "w")),
+       [tf.constant([[10.], [10.], [10.]]), tf.constant([[10.]])]),
+      ("ContextToEdges", const.CONTEXT, dict(edge_set_name="e"),
+       tf.constant([[10.], [10.]])),
+      ("SourceToEdgesSeq2", const.SOURCE, dict(edge_set_name=("e", "f")),
+       [tf.constant([[21.], [21.]]), tf.constant([[21.]])]),
+      ("TargetToEdges", const.TARGET, dict(edge_set_name="e"),
+       tf.constant([[20.], [22.]])))
+  def testTagAndLocation(self, tag, location, expected):
+    values = dict(context=tf.constant([[10.]]),
+                  v=tf.constant([[20. + k] for k in range(3)]),
+                  e=tf.constant([[30. + k] for k in range(2)]))
+    graph = _make_test_graph_y(values)
+
+    def assert_equal(expected, actual):
+      self.assertEqual(isinstance(expected, (list, tuple)),
+                       isinstance(actual, (list, tuple)))
+      if not isinstance(expected, (list, tuple)):
+        self.assertAllEqual(expected, actual)
+      else:
+        self.assertLen(actual, len(expected))
+        for i, (exp, act) in enumerate(zip(expected, actual)):
+          self.assertAllEqual(exp, act,
+                              msg=f"at sequence position i={i} (zero-based)")
+
+    # Initialized with all three args, called with zero to three (redundantly).
+    broadcast = graph_ops.Broadcast(tag, feature_name="value", **location)
+    self.assertEqual(tag, broadcast.tag)
+    self.assertEqual(location, broadcast.location)
+    assert_equal(expected, broadcast(graph))
+    assert_equal(expected, broadcast(graph, tag=tag))
+    assert_equal(expected, broadcast(graph, feature_name="value"))
+    assert_equal(expected, broadcast(graph, **location))
+    assert_equal(expected, broadcast(graph, tag=tag, feature_name="value"))
+    assert_equal(expected, broadcast(graph, tag=tag, **location))
+    assert_equal(expected, broadcast(graph, feature_name="value", **location))
+    assert_equal(expected, broadcast(graph, tag=tag,
+                                     feature_name="value", **location))
+
+    # Initialized with one arg, called with the other two.
+    broadcast = graph_ops.Broadcast(tag)
+    self.assertEqual(tag, broadcast.tag)
+    self.assertEqual({}, broadcast.location)
+    assert_equal(expected, broadcast(graph, feature_name="value", **location))
+
+    broadcast = graph_ops.Broadcast(**location)
+    self.assertIsNone(broadcast.tag)
+    self.assertEqual(location, broadcast.location)
+    assert_equal(expected, broadcast(graph, tag=tag, feature_name="value"))
+
+    broadcast = graph_ops.Broadcast(feature_name="value")
+    self.assertIsNone(broadcast.tag)
+    self.assertEqual({}, broadcast.location)
+    assert_equal(expected, broadcast(graph, tag=tag, **location))
+
+    # Initialized with zero args, called with all.
+    broadcast = graph_ops.Broadcast()
+    self.assertIsNone(broadcast.tag)
+    self.assertEqual({}, broadcast.location)
+    assert_equal(expected, broadcast(graph, tag=tag, feature_name="value",
+                                     **location))
+
+  def testConflictingTag(self):
+    graph = gt.GraphTensor.from_pieces(
+        context=gt.Context.from_fields(features={"value": tf.constant([[0.]])}))
+    with self.assertRaisesRegex(ValueError, r"initialized .* but called with"):
+      broadcast = graph_ops.Broadcast(const.SOURCE, edge_set_name="wronk",
+                                      feature_name="value")
+      _ = broadcast(graph, tag=const.CONTEXT)
+
+  @parameterized.named_parameters(
+      ("Nodes", dict(node_set_name="nodes")),
+      ("Edges", dict(edge_set_name="edges")))
+  def testConflictingLocation(self, location_kwarg):
+    graph = gt.GraphTensor.from_pieces(
+        context=gt.Context.from_fields(features={"value": tf.constant([[0.]])}))
+    with self.assertRaisesRegex(ValueError, r"initialized .* but called with"):
+      broadcast = graph_ops.Broadcast(const.CONTEXT, node_set_name="wronk",
+                                      feature_name="value")
+      _ = broadcast(graph, feature_name="value", **location_kwarg)
+
+  def testTooFewOrManyLocations(self):
+    graph = gt.GraphTensor.from_pieces(
+        context=gt.Context.from_fields(features={"value": tf.constant([[0.]])}))
+    with self.assertRaisesRegex(ValueError, "at most one of"):
+      graph_ops.Broadcast(const.CONTEXT,
+                          node_set_name="nodes", edge_set_name="edges")
+    with self.assertRaisesRegex(ValueError, "requires exactly one of"):
+      graph_ops.Broadcast(const.CONTEXT)(graph)
+
+  @parameterized.parameters(const.SOURCE, const.TARGET)
+  def testNodeSetNameVsNonContext(self, tag):
+    with self.assertRaisesRegex(ValueError, "requires edge_set_name"):
+      graph_ops.Broadcast(tag, node_set_name="nodes")
+
+  @parameterized.named_parameters(
+      ("ContextToNodes", const.CONTEXT, dict(node_set_name="v"),
+       tf.constant([[10.], [10.], [10.]])),
+      ("ContextToNodesSeq1", const.CONTEXT, dict(node_set_name=("v",)),
+       [tf.constant([[10.], [10.], [10.]])]),
+      ("ContextToNodesSeq2", const.CONTEXT, dict(node_set_name=("v", "w")),
+       [tf.constant([[10.], [10.], [10.]]), tf.constant([[10.]])]),
+      ("ContextToEdges", const.CONTEXT, dict(edge_set_name="e"),
+       tf.constant([[10.], [10.]])),
+      ("SourceToEdgesSeq2", const.SOURCE, dict(edge_set_name=("e", "f")),
+       [tf.constant([[21.], [21.]]), tf.constant([[21.]])]),
+      ("TargetToEdges", const.TARGET, dict(edge_set_name="e"),
+       tf.constant([[20.], [22.]])))
+  def testFromConfig(self, tag, location, expected):
+    values = dict(context=tf.constant([[10.]]),
+                  v=tf.constant([[20. + k] for k in range(3)]),
+                  e=tf.constant([[30. + k] for k in range(2)]))
+    graph = _make_test_graph_y(values)
+    kwargs = dict(location, tag=tag, feature_name="value",
+                  name="test_broadcast")
+    config = graph_ops.Broadcast(**kwargs).get_config()
+    self.assertDictContainsSubset(kwargs, config)
+
+    broadcast = graph_ops.Broadcast.from_config(config)
+    self.assertEqual(tag, broadcast.tag)
+    self.assertEqual("value", broadcast.feature_name)
+    self.assertEqual(location, broadcast.location)
+    actual = broadcast(graph)
+    if not isinstance(expected, (list, tuple)):
+      self.assertAllEqual(expected, actual)
+    else:
+      self.assertIsInstance(actual, (list, tuple))
+      self.assertLen(actual, len(expected))
+      for i, (exp, act) in enumerate(zip(expected, actual)):
+        self.assertAllEqual(exp, act,
+                            msg=f"at sequence position i={i} (zero-based)")
+
+  # NOTE: TFLite testing of tfgnn.broadcast() itself is delegated to this test,
+  # because it requires a Keras wrapper. The case of multiple receivers needs
+  # no TFLite test, because there are no extra TF ops involved in repeating the
+  # broadcast.
+  @parameterized.named_parameters(
+      ("ContextToNodes", const.CONTEXT, dict(node_set_name="v")),
+      ("ContextToEdges", const.CONTEXT, dict(edge_set_name="e")),
+      ("SourceToEdges", const.SOURCE, dict(edge_set_name="e")),
+      ("TargetToEdges", const.TARGET, dict(edge_set_name="e")))
+  def testTFLite(self, tag, location):
+    test_values = dict(context=tf.constant([[10.]]),
+                       v=tf.constant([[20. + k] for k in range(3)]),
+                       e=tf.constant([[30. + k] for k in range(2)]))
+
+    inputs = {k: tf.keras.Input(v.shape[1:], None, k, v.dtype)
+              for k, v in test_values.items()}
+    input_graph = MakeTestGraphY()(inputs)
+    broadcast = graph_ops.Broadcast(
+        tag, **location, feature_name="value", name="test_broadcast")
+    outputs = broadcast(input_graph)
+    model = tf.keras.Model(inputs, outputs)
+    expected = model(test_values)
+
+    # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
+    if tf.__version__.startswith("2.9.") or tf.__version__.startswith("2.10."):
+      self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
+                    f"got TF {tf.__version__}")
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    model_content = converter.convert()
+    interpreter = tf.lite.Interpreter(model_content=model_content)
+    signature_runner = interpreter.get_signature_runner("serving_default")
+    obtained = signature_runner(**test_values)["test_broadcast"]
+    self.assertAllEqual(expected, obtained)
+
+
+def _make_test_graph_y(values):
+  r"""Returns GraphTensor for a y-shaped heterogeneous graph.
+
+  The node sets v, w and edge sets e, f are connected as follows:
+
+  ```
+    [v0]    [v2]
+     ^        ^
+      \      /
+      e0   e1
+        \  /
+        [v1]
+          |
+         f0
+          |
+          v
+        [w0]
+  ```
+
+  Args:
+    values: Dict of optional feature values, keyed by node/edge set name.
+  """
+  def maybe_features(key):
+    return dict(features={"value": values[key]} if key in values else {})
+  graph = gt.GraphTensor.from_pieces(
+      context=gt.Context.from_fields(**maybe_features("context")),
+      node_sets={
+          "v": gt.NodeSet.from_fields(sizes=tf.constant([3]),
+                                      **maybe_features("v")),
+          "w": gt.NodeSet.from_fields(sizes=tf.constant([1]),
+                                      **maybe_features("w"))},
+      edge_sets={
+          "e": gt.EdgeSet.from_fields(
+              sizes=tf.constant([2]),
+              adjacency=adj.Adjacency.from_indices(("v", tf.constant([1, 1])),
+                                                   ("v", tf.constant([0, 2]))),
+              **maybe_features("e")),
+          "f": gt.EdgeSet.from_fields(
+              sizes=tf.constant([1]),
+              adjacency=adj.Adjacency.from_indices(("v", tf.constant([1])),
+                                                   ("w", tf.constant([0]))),
+              **maybe_features("f"))})
+  return graph
+
+
+class MakeTestGraphY(tf.keras.layers.Layer):
+
+  def call(self, values):
+    return _make_test_graph_y(values)
 
 
 class PoolTest(tf.test.TestCase, parameterized.TestCase):
@@ -953,47 +1030,54 @@ class PoolTest(tf.test.TestCase, parameterized.TestCase):
       _ = pool(graph, reduce_type=other)
 
   @parameterized.named_parameters(
-      ("NodesToContext", const.CONTEXT, "nodes", "sum", [[20. + 21. + 22.]]),
-      ("EdgesToContext", const.CONTEXT, "edges", "sum", [[30. + 31.]]),
-      ("EdgesToSource", const.SOURCE, "edges", "sum", [[0.], [30.+31.], [0.]]),
-      ("EdgesToTarget", const.TARGET, "edges", "sum", [[30.], [0.], [31.]]))
+      ("NodesToContext", const.CONTEXT, dict(node_set_name="v"),
+       "sum", [[20. + 21. + 22.]]),
+      ("NodesSeq1ToContext", const.CONTEXT, dict(node_set_name=("v",)),
+       "sum", [[20. + 21. + 22.]]),
+      ("NodesSeq2ToContext", const.CONTEXT, dict(node_set_name=("v", "w")),
+       "sum", [[20. + 21. + 22. + 23.]]),
+      ("EdgesToContext", const.CONTEXT, dict(edge_set_name="e"),
+       "sum", [[30. + 31.]]),
+      ("EdgesSeq2ToSource", const.SOURCE, dict(edge_set_name=("e", "f")),
+       "sum", [[0.], [30. + 31. + 32.], [0.]]),
+      ("EdgesToTarget", const.TARGET, dict(edge_set_name="e"),
+       "sum", [[30.], [0.], [31.]]))
   def testTagAndLocation(self, tag, location, reduce_type, expected):
     values = dict(context=tf.constant([[10.]]),
-                  nodes=tf.constant([[20. + k] for k in range(3)]),
-                  edges=tf.constant([[30. + k] for k in range(2)]))
-    graph = _make_test_graph_132(values)
-    location_kwarg = (dict(node_set_name="nodes") if location == "nodes" else
-                      dict(edge_set_name="edges"))
+                  v=tf.constant([[20. + k] for k in range(3)]),
+                  w=tf.constant([[23.]]),
+                  e=tf.constant([[30. + k] for k in range(2)]),
+                  f=tf.constant([[32.]]))
+    graph = _make_test_graph_y(values)
 
     # Initialized with all four args, called with zero, one or all args.
-    pool = graph_ops.Pool(tag, reduce_type, feature_name="value",
-                          **location_kwarg)
+    pool = graph_ops.Pool(tag, reduce_type, feature_name="value", **location)
     self.assertEqual(tag, pool.tag)
-    self.assertEqual(location_kwarg, pool.location)
+    self.assertEqual(location, pool.location)
     self.assertAllEqual(expected, pool(graph))
     self.assertAllEqual(expected, pool(graph, tag=tag))
     self.assertAllEqual(expected, pool(graph, reduce_type=reduce_type))
     self.assertAllEqual(expected, pool(graph, feature_name="value"))
-    self.assertAllEqual(expected, pool(graph, **location_kwarg))
+    self.assertAllEqual(expected, pool(graph, **location))
     self.assertAllEqual(expected, pool(graph, tag=tag, reduce_type=reduce_type,
-                                       feature_name="value", **location_kwarg))
+                                       feature_name="value", **location))
 
     # Initialized with one arg, called with the other three.
     pool = graph_ops.Pool(tag)
     self.assertEqual(tag, pool.tag)
     self.assertEqual({}, pool.location)
     self.assertAllEqual(expected, pool(graph, reduce_type=reduce_type,
-                                       feature_name="value", **location_kwarg))
+                                       feature_name="value", **location))
 
     pool = graph_ops.Pool(reduce_type=reduce_type)
     self.assertIsNone(pool.tag)
     self.assertEqual({}, pool.location)
     self.assertAllEqual(expected, pool(graph, tag=tag,
-                                       feature_name="value", **location_kwarg))
+                                       feature_name="value", **location))
 
-    pool = graph_ops.Pool(**location_kwarg)
+    pool = graph_ops.Pool(**location)
     self.assertIsNone(pool.tag)
-    self.assertEqual(location_kwarg, pool.location)
+    self.assertEqual(location, pool.location)
     self.assertAllEqual(expected, pool(graph, tag=tag, reduce_type=reduce_type,
                                        feature_name="value"))
 
@@ -1001,14 +1085,14 @@ class PoolTest(tf.test.TestCase, parameterized.TestCase):
     self.assertIsNone(pool.tag)
     self.assertEqual({}, pool.location)
     self.assertAllEqual(expected, pool(graph, tag=tag, reduce_type=reduce_type,
-                                       **location_kwarg))
+                                       **location))
 
     # Initialized with zero args, called with all.
     pool = graph_ops.Pool()
     self.assertIsNone(pool.tag)
     self.assertEqual({}, pool.location)
     self.assertAllEqual(expected, pool(graph, tag=tag, reduce_type=reduce_type,
-                                       feature_name="value", **location_kwarg))
+                                       feature_name="value", **location))
 
   def testConflictingTag(self):
     graph = gt.GraphTensor.from_pieces(
@@ -1044,18 +1128,26 @@ class PoolTest(tf.test.TestCase, parameterized.TestCase):
       graph_ops.Pool(origin, "sum", node_set_name="nodes")
 
   @parameterized.named_parameters(
-      ("NodesToContext", const.CONTEXT, "nodes", "mean", [[(20.+21.+22.)/3.]]),
-      ("EdgesToContext", const.CONTEXT, "edges", "max", [[31.]]),
-      ("EdgesToSource", const.SOURCE, "edges", "sum", [[0.], [30.+31.], [0.]]),
-      ("EdgesToTarget", const.TARGET, "edges", "sum", [[30.], [0.], [31.]]))
+      ("NodesToContext", const.CONTEXT, dict(node_set_name="v"),
+       "sum", [[20. + 21. + 22.]]),
+      ("NodesSeq1ToContext", const.CONTEXT, dict(node_set_name=("v",)),
+       "sum", [[20. + 21. + 22.]]),
+      ("NodesSeq2ToContext", const.CONTEXT, dict(node_set_name=("v", "w")),
+       "sum", [[20. + 21. + 22. + 23.]]),
+      ("EdgesToContext", const.CONTEXT, dict(edge_set_name="e"),
+       "sum", [[30. + 31.]]),
+      ("EdgesSeq2ToSource", const.SOURCE, dict(edge_set_name=("e", "f")),
+       "sum", [[0.], [30. + 31. + 32.], [0.]]),
+      ("EdgesToTarget", const.TARGET, dict(edge_set_name="e"),
+       "sum", [[30.], [0.], [31.]]))
   def testFromConfig(self, tag, location, reduce_type, expected):
     values = dict(context=tf.constant([[10.]]),
-                  nodes=tf.constant([[20. + k] for k in range(3)]),
-                  edges=tf.constant([[30. + k] for k in range(2)]))
-    graph = _make_test_graph_132(values)
-    location_kwarg = (dict(node_set_name="nodes") if location == "nodes" else
-                      dict(edge_set_name="edges"))
-    kwargs = dict(location_kwarg, reduce_type=reduce_type, tag=tag,
+                  v=tf.constant([[20. + k] for k in range(3)]),
+                  w=tf.constant([[23.]]),
+                  e=tf.constant([[30. + k] for k in range(2)]),
+                  f=tf.constant([[32.]]))
+    graph = _make_test_graph_y(values)
+    kwargs = dict(location, reduce_type=reduce_type, tag=tag,
                   feature_name="value", name="test_pool")
     config = graph_ops.Pool(**kwargs).get_config()
     self.assertDictContainsSubset(kwargs, config)
@@ -1064,42 +1156,66 @@ class PoolTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(tag, pool.tag)
     self.assertEqual(reduce_type, pool.reduce_type)
     self.assertEqual("value", pool.feature_name)
-    self.assertEqual(location_kwarg, pool.location)
+    self.assertEqual(location, pool.location)
     self.assertAllEqual(expected, pool(graph))
 
+  # NOTE: TFLite testing of tfgnn.pool() itself is delegated to this test,
+  # because it requires a Keras wrapper.
   @parameterized.named_parameters(
-      ("NodesToContext", const.CONTEXT, "nodes", "mean"),
-      ("EdgesToContext", const.CONTEXT, "edges", "max"),
-      ("EdgesToContextMaxNoInf", const.CONTEXT, "edges", "max_no_inf"),
-      ("EdgesToSource", const.SOURCE, "edges", "sum"),
-      ("EdgesToTarget", const.TARGET, "edges", "sum"))
+      # Tests sender/receiver combinations as above, for reduce_type="sum".
+      ("NodesToContextSum", const.CONTEXT, dict(node_set_name="v"), "sum"),
+      ("NodesSeq1ToContextSum", const.CONTEXT, dict(node_set_name=("v",)),
+       "sum"),
+      ("NodesSeq2ToContextSum", const.CONTEXT, dict(node_set_name=("v", "w")),
+       "sum"),
+      ("EdgesToContextSum", const.CONTEXT, dict(edge_set_name="e"), "sum"),
+      ("EdgesSeq2ToSourceSum", const.SOURCE, dict(edge_set_name=("e", "f")),
+       "sum"),
+      ("EdgesToTargetSum", const.TARGET, dict(edge_set_name="e"), "sum"),
+      # Tests op coverage of other reduce_types, for both the single- and
+      # multi-receiver case, incl. behavior for zero senders (nodes v0, v2).
+      ("EdgesSeq2ToSourceProd", const.SOURCE, dict(edge_set_name=("e", "f")),
+       "prod"),
+      ("EdgesToTargetProd", const.TARGET, dict(edge_set_name="e"), "prod"),
+      ("EdgesSeq2ToSourceMean", const.SOURCE, dict(edge_set_name=("e", "f")),
+       "mean"),
+      ("EdgesToTargetMean", const.TARGET, dict(edge_set_name="e"), "mean"),
+      ("EdgesSeq2ToSourceMax", const.SOURCE, dict(edge_set_name=("e", "f")),
+       "max"),
+      ("EdgesToTargetMax", const.TARGET, dict(edge_set_name="e"), "max"),
+      ("EdgesSeq2ToSourceMaxNoInf", const.SOURCE,
+       dict(edge_set_name=("e", "f")), "max_no_inf"),
+      ("EdgesToTargetMaxNoInf", const.TARGET, dict(edge_set_name="e"),
+       "max_no_inf"),
+      ("EdgesSeq2ToSourceMin", const.SOURCE, dict(edge_set_name=("e", "f")),
+       "min"),
+      ("EdgesToTargetMin", const.TARGET, dict(edge_set_name="e"), "min"),
+      ("EdgesSeq2ToSourceMinNoInf", const.SOURCE,
+       dict(edge_set_name=("e", "f")), "min_no_inf"),
+      ("EdgesToTargetMinNoInf", const.TARGET, dict(edge_set_name="e"),
+       "min_no_inf"),
+      # Tests op coverage for concatentaion.
+      ("EdgesSeq2ToSourceSumMean", const.SOURCE, dict(edge_set_name=("e", "f")),
+       "sum|mean"),
+      ("EdgesToTargetSumMean", const.TARGET, dict(edge_set_name="e"),
+       "sum|mean"),
+  )
   def testTFLite(self, tag, location, reduce_type):
-    values = dict(context=tf.constant([[10.]]),
-                  nodes=tf.constant([[20. + k] for k in range(3)]),
-                  edges=tf.constant([[30. + k] for k in range(2)]))
-    test_graph_132_dict = {
-        "nodes_value": values["nodes"],
-        "edges_value": values["edges"],
-        "context_value": values["context"],
-        "source": tf.constant([1, 1]),
-        "target": tf.constant([0, 2]),
-    }
-    inputs = {
-        "nodes_value": tf.keras.Input([1], None, "nodes_value", tf.float32),
-        "edges_value": tf.keras.Input([1], None, "edges_value", tf.float32),
-        "context_value": tf.keras.Input([1], None, "context_value", tf.float32),
-        "source": tf.keras.Input([], None, "source", tf.int32),
-        "target": tf.keras.Input([], None, "target", tf.int32),
-    }
-    location_kwarg = (dict(node_set_name="nodes") if location == "nodes" else
-                      dict(edge_set_name="edges"))
-    kwargs = dict(location_kwarg, reduce_type=reduce_type, tag=tag,
-                  feature_name="value", name="test_pool")
-    input_graph = _MakeGraphTensor()(inputs)
-    pool = graph_ops.Pool(**kwargs)
+    test_values = dict(context=tf.constant([[10.]]),
+                       v=tf.constant([[20. + k] for k in range(3)]),
+                       w=tf.constant([[23.]]),
+                       e=tf.constant([[30. + k] for k in range(2)]),
+                       f=tf.constant([[32.]]))
+
+    inputs = {k: tf.keras.Input(v.shape[1:], None, k, v.dtype)
+              for k, v in test_values.items()}
+    input_graph = MakeTestGraphY()(inputs)
+    pool = graph_ops.Pool(
+        tag, **location, reduce_type=reduce_type, feature_name="value",
+        name="test_pool")
     outputs = pool(input_graph)
     model = tf.keras.Model(inputs, outputs)
-    expected = model(test_graph_132_dict)
+    expected = model(test_values)
 
     # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
     if tf.__version__.startswith("2.9.") or tf.__version__.startswith("2.10."):
@@ -1109,36 +1225,9 @@ class PoolTest(tf.test.TestCase, parameterized.TestCase):
     model_content = converter.convert()
     interpreter = tf.lite.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
-    obtained = signature_runner(**test_graph_132_dict)["test_pool"]
+    obtained = signature_runner(**test_values)["test_pool"]
     self.assertAllEqual(expected, obtained)
 
-
-# TODO(b/274779989): Replace this layer with a more standard representation
-# of GraphTensor as a dict of plain Tensors.
-class _MakeGraphTensor(tf.keras.layers.Layer):
-
-  def call(self, inputs):
-    node_sizes = tf.shape(inputs["nodes_value"])[0]
-    edge_sizes = tf.shape(inputs["edges_value"])[0]
-    return gt.GraphTensor.from_pieces(
-        context=gt.Context.from_fields(
-            features={"value": inputs["context_value"]}),
-        node_sets={
-            "nodes": gt.NodeSet.from_fields(
-                sizes=tf.expand_dims(node_sizes, axis=0),
-                features={"value": inputs["nodes_value"]},
-            )
-        },
-        edge_sets={
-            "edges": gt.EdgeSet.from_fields(
-                sizes=tf.expand_dims(edge_sizes, axis=0),
-                adjacency=adj.Adjacency.from_indices(
-                    ("nodes", inputs["source"]), ("nodes", inputs["target"])
-                ),
-                features={"value": inputs["edges_value"]},
-            )
-        },
-    )
 
 if __name__ == "__main__":
   tf.test.main()

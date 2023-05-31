@@ -28,6 +28,8 @@ as_tensor = tf.convert_to_tensor
 as_ragged = tf.ragged.constant
 
 
+# NOTE: Testing with TFLite requires a Keras wrapper and therefore is delegated
+# to tensorflow_gnn/keras/layers/graph_ops_test.py.
 class BroadcastXToYTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for basic broadcasting operations broadcast_*_to_*().
 

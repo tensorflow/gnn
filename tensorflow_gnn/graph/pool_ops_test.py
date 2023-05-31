@@ -240,6 +240,8 @@ def _get_test_graph_abc_efx():
       })
 
 
+# NOTE: Testing with TFLite requires a Keras wrapper and therefore is delegated
+# to tensorflow_gnn/keras/layers/graph_ops_test.py.
 class PoolReduceTypesTest(tf.test.TestCase, parameterized.TestCase):
   """Tests GraphPieceReducer and MultiReducer for *all* reduce_types."""
 
