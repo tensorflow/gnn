@@ -167,7 +167,7 @@ class CompositeLayer(tf.keras.layers.Layer, metaclass=abc.ABCMeta):
           self.name, self._wrapped_model_input_spec, input_spec
       )
 
-    return self._model(_pack_args(args, kwargs), training=training)
+    return self._model(tf.nest.flatten([args, kwargs]), training=training)
 
   def _build_wrapped_model(self):
     assert not self._wrapped_model_is_built
@@ -180,7 +180,7 @@ class CompositeLayer(tf.keras.layers.Layer, metaclass=abc.ABCMeta):
       )
       outputs = self.symbolic_call(*args, **kwargs)
       self._model = tf.keras.Model(
-          inputs=_pack_args(args, kwargs), outputs=outputs
+          inputs=tf.nest.flatten([args, kwargs]), outputs=outputs
       )
 
     self._wrapped_model_is_built = True

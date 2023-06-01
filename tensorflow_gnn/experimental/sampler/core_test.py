@@ -16,11 +16,9 @@ import tempfile
 from typing import Optional
 
 from absl.testing import parameterized
-
 import google.protobuf.text_format as pbtext
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
-
 from tensorflow_gnn.experimental.sampler import core
 
 rt = tf.ragged.constant
@@ -75,6 +73,41 @@ class Dense32(core.CompositeLayer):
 
   def symbolic_call(self, inputs):
     return tf.keras.layers.Dense(32)(inputs)
+
+
+class AplusB(core.CompositeLayer):
+
+  def __init__(self, **kwargs) -> None:
+    super().__init__(**kwargs)
+    self._l1 = tf.keras.layers.Dense(32)
+    self._l2 = tf.keras.layers.Dense(32)
+
+  def symbolic_call(self, inputs):
+    part_a = self._l1(inputs['a'])
+    part_b = self._l2(inputs['b'])
+    return part_a + part_b
+
+
+class GenericAplusB(core.CompositeLayer):
+
+  def __init__(self, *, l1, l2, **kwargs) -> None:
+    super().__init__(**kwargs)
+    self._l1 = l1
+    self._l2 = l2
+
+  def get_config(self):
+    return {'l1': self._l1, 'l2': self._l2, **super().get_config()}
+
+  def symbolic_call(self, inputs):
+    part_a = self._l1(inputs['a'])
+    part_b = self._l2(inputs['b'])
+    return part_a + part_b
+
+
+class Multiplier(core.CompositeLayer):
+
+  def symbolic_call(self, value: tf.Tensor, *, factor: tf.Tensor):
+    return value * factor
 
 
 class ResetIfTrainingImpl(tf.keras.layers.Layer):
@@ -177,6 +210,69 @@ class CompositeLayerTest(tf.test.TestCase):
       model_1 = save_and_load(model)
       self.assertEqual(model_1.trainable_weights[0].shape.as_list(), [32, 32])
 
+  def testAplusB(self):
+    a = tf.keras.Input([32], dtype=tf.float32)
+    b = tf.keras.Input([32], dtype=tf.float32)
+    o = AplusB()(dict(a=a, b=b))
+    model = tf.keras.Model([a, b], o)
+    test_inputs = [tf.ones([3, 32]), tf.zeros([3, 32])]
+    output = model(test_inputs)
+    self.assertEqual(model.trainable_weights[0].shape.as_list(), [32, 32])
+
+    with tf.keras.utils.custom_object_scope({'AplusB': AplusB}):
+      model_1 = save_and_load(model)
+      self.assertEqual(model_1.trainable_weights[0].shape.as_list(), [32, 32])
+      self.assertIsInstance(model_1.layers[2], AplusB)
+      self.assertAllClose(output, model_1(test_inputs))
+
+  def testGenericAplusB(self):
+    a = tf.keras.Input([32], dtype=tf.float32)
+    b = tf.keras.Input([32], dtype=tf.float32)
+    l = tf.keras.layers.Dense(32)
+    o = GenericAplusB(l1=l, l2=l)(dict(a=a, b=b))
+    model = tf.keras.Model([a, b], o)
+    test_inputs = [tf.ones([3, 32]), tf.zeros([3, 32])]
+    output = model(test_inputs)
+    self.assertEqual(model.trainable_weights[0].shape.as_list(), [32, 32])
+
+    with tf.keras.utils.custom_object_scope({'GenericAplusB': GenericAplusB}):
+      model_1 = save_and_load(model)
+      self.assertEqual(model_1.trainable_weights[0].shape.as_list(), [32, 32])
+      self.assertIsInstance(model_1.layers[2], GenericAplusB)
+      self.assertAllClose(output, model_1(test_inputs))
+
+  def testKeywordArguments(self):
+    i1 = tf.keras.Input([1], dtype=tf.float32)
+    i2 = tf.keras.Input([1], dtype=tf.float32)
+    o = Multiplier()(i1, factor=i2)
+    model = tf.keras.Model([i1, i2], o)
+    test_inputs = [tf.fill([32, 1], 10.0), tf.fill([32, 1], 2.0)]
+    self.assertAllEqual(model(test_inputs), tf.fill([32, 1], 20.0))
+    with tf.keras.utils.custom_object_scope({'Multiplier': Multiplier}):
+      model_1 = save_and_load(model)
+      self.assertAllEqual(model_1(test_inputs), tf.fill([32, 1], 20.0))
+
+  def testLayersSharing(self):
+    a = tf.keras.Input([8], dtype=tf.float32)
+    b = tf.keras.Input([8], dtype=tf.float32)
+    transform1 = tf.keras.layers.Dense(8, use_bias=False)
+    transform2 = tf.keras.layers.Dense(8, use_bias=False)
+    o1 = GenericAplusB(l1=transform1, l2=transform2)(dict(a=a, b=b))
+    o2 = GenericAplusB(l1=transform2, l2=transform1)(dict(a=a, b=b))
+    model = tf.keras.Model([a, b], o1 + o2)
+
+    test_inputs = [tf.ones([5, 8]), tf.zeros([5, 8])]
+    output = model(test_inputs)
+    self.assertEqual(model.trainable_weights[0].shape.as_list(), [8, 8])
+    self.assertEqual(model.trainable_weights[1].shape.as_list(), [8, 8])
+
+    with tf.keras.utils.custom_object_scope({'GenericAplusB': GenericAplusB}):
+      model_1 = save_and_load(model)
+      self.assertIsInstance(model_1.layers[2], GenericAplusB)
+      self.assertEqual(model_1.trainable_weights[0].shape.as_list(), [8, 8])
+      self.assertEqual(model_1.trainable_weights[1].shape.as_list(), [8, 8])
+      self.assertAllClose(output, model_1(test_inputs))
+
   def testTrainingFlag(self):
     def check(model):
       self.assertAllEqual(model(tf.ones([3]), training=True), tf.zeros([3]))
@@ -208,6 +304,23 @@ class CompositeLayerTest(tf.test.TestCase):
         ValueError, 'called with different argument types'
     ):
       adder(tf.convert_to_tensor([2], tf.int64))
+
+  def testRaisesOnArgumentKeyChange(self):
+    layer = AplusB()
+    a = tf.convert_to_tensor([[1.]])
+    b = tf.convert_to_tensor([[2.]])
+    o = layer(dict(a=a, b=b))
+    self.assertEqual(o.shape, [1, 32])
+    with self.assertRaisesRegex(ValueError, 'called with different arguments'):
+      layer(dict(x=a, b=b))
+
+  def testRaisesOnArgumentNameChange(self):
+    layer = Multiplier()
+    value = tf.fill([32, 1], 10.0)
+    factor = tf.fill([32, 1], 2.0)
+    self.assertAllEqual(layer(value, factor=factor), tf.fill([32, 1], 20.0))
+    with self.assertRaisesRegex(ValueError, 'called with different arguments'):
+      _ = layer(value, multiplier=factor), tf.fill([32, 1], 20.0)
 
   def _check_lvl2(self, adder):
     self.assertAllEqual(adder(tf.convert_to_tensor([100])), [110])
