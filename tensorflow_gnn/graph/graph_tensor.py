@@ -854,7 +854,7 @@ class GraphTensor(gp.GraphPieceBase):
       # from the context feature shapes or set to zero-shaped tensor if the
       # context has no features.
       context_sizes = tf.ones_like(indicative_piece.sizes,
-                                   context.indices_dtype)
+                                   indicative_piece.indices_dtype)
       context = context.from_fields(
           features=context.features, sizes=context_sizes)
 
