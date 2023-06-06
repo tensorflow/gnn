@@ -68,8 +68,9 @@ def add_params_mt_albis(
   if not use_attention:
     root.add_categorical_param(
         prefix + "attention_type", ["none"])
-    # TODO(b/265760014): Add "simple_conv_reduce_type" with values
-    # other than "mean".
+    root.add_categorical_param(
+        prefix + "simple_conv_reduce_type",
+        ["mean", "mean|sum", "mean|max", "mean|sum|max"])
   else:
     root.add_categorical_param(
         prefix + "attention_type", ["multi_head"])

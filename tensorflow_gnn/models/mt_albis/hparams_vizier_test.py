@@ -37,7 +37,7 @@ class HparamsVizierTest(absltest.TestCase):
     self.assertCountEqual(
         [p.name for p in problem.search_space.parameters],
         ["foo.attention_type",
-         # "foo.simple_conv_reduce_type",  # TODO(b/265760014): Add this.
+         "foo.simple_conv_reduce_type",
          "foo.edge_dropout_rate",
          "foo.state_dropout_rate",
          "foo.l2_regularization",

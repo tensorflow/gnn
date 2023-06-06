@@ -47,7 +47,10 @@ def MtAlbisSimpleConv(  # To be called like a class initializer.  pylint: disabl
       pooled for the nodes at that endpoint of edges.
       If left unset for init, the tag must be passed at call time.
     reduce_type: Controls how messages are aggregated on an EdgeSet for each
-      receiver node.
+      receiver node; defaults to `"mean"`. Can be any reduce_type understood by
+      `tfgnn.pool()`, including concatenations like `"mean|max"` (but mind the
+      increased dimension of the result and the growing number of model weights
+      in the next-state layer).
     activation: The nonlinearity used on each message before pooling.
       This can be specified as a Keras layer, a tf.keras.activations.*
       function, or a string understood by `tf.keras.layers.Activation`.
@@ -245,7 +248,6 @@ def MtAlbisGraphUpdate(  # To be called like a class initializer.  pylint: disab
     attention_type: Literal["none", "multi_head", "gat_v2"] = "none",
     attention_edge_set_names: Optional[Collection[tfgnn.EdgeSetName]] = None,
     attention_num_heads: int = 4,
-    # TODO(b/265760014): Implement "mean|sum", "mean|max", and "mean|sum|max".
     simple_conv_reduce_type: str = "mean",
     simple_conv_use_receiver_state: bool = True,
     # TODO(b/265755979): Do we need dropout_rate for use beyond NextState?
@@ -282,8 +284,11 @@ def MtAlbisGraphUpdate(  # To be called like a class initializer.  pylint: disab
     attention_num_heads: For attention_types `"multi_head"` or `"gat_v2"`,
       the number of attention heads.
     simple_conv_reduce_type: For attention_type `"none"`, controls how messages
-      are aggregated on an EdgeSet for each receiver node. Defaults to `"mean"`,
-      can be set to... TODO(b/265760014): nothing else yet.
+      are aggregated on an EdgeSet for each receiver node. Defaults to `"mean"`;
+      other recommened values are the concatenations `"mean|sum"`, `"mean|max"`,
+      and `"mean|sum|max"` (but mind the increased output dimension and the
+      corresponding increase in the number of weights in the next-state layer).
+      Technically, can be set to any reduce_type understood by `tfgnn.pool()`.
     simple_conv_use_receiver_state: For attention_type `"none"`, controls
       whether the receiver node state is used in computing each edge's message
       (in addition to the sender node state and possibly an `edge feature`).

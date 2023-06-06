@@ -57,7 +57,9 @@ class SimpleConv(convolution_base.AnyToAnyConvolutionBase):
     message_fn: A Keras layer that computes the individual messages from the
       combined input features (see combine_type).
     reduce_type: Specifies how to pool the messages to receivers. Defaults to
-      "sum", can be any name from tfgnn.get_registered_reduce_operation_names().
+      `"sum"`, can be any reduce_type understood by `tfgnn.pool()`, including
+      concatenations like `"sum|max"` (but mind the increased dimension of the
+      result and the growing number of model weights in the next-state layer).
     combine_type: a string understood by tfgnn.combine_values(), to specify how
       the inputs are combined before passing them to the message_fn. Defaults
       to "concat", which concatenates inputs along the last axis.

@@ -14,8 +14,10 @@ node sets and edge sets) by passing messages along edges and updating node
 states from incoming messages. Its main architectural choices are:
 
   * how to aggregate the incoming messages from each node set:
-    simply by averaging (TODO(b/265760014): or other fixed expressions),
-    or with attention (that is, a trained, data-dependent weighting);
+      * by element-wise averaging (reduce type `"mean"`),
+      * by a concatenation of the average with other fixed expressions
+        (e.g., `"mean|max"`, `"mean|sum"`), or
+      * with attention, that is, a trained, data-dependent weighting;
   * whether to use residual connections for updating node states;
   * how to normalize hidden activations.
 
