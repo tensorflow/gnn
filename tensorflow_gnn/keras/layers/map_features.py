@@ -137,6 +137,16 @@ class MapFeatures(tf.keras.layers.Layer):
   outputs of the right shape, but not `graph_piece.spec.total_size`, which
   breaks the dependency chain of KerasTensors.
 
+  Weight sharing between the transformation of different graph pieces is
+  possible by sharing the Keras objects between the respective callback
+  invocations.
+
+  WARNING: Weight sharing fails in `tf.keras.models.load_model()`
+  with an error message on weights missing from the checkpoint.
+  (Most users don't need to re-load their models this way.)
+
+  TODO(b/285243815): Remove warning when fixed.
+
   Init args:
     context_fn: A callback to build a Keras model for transforming context
       features. It will be called as `output = context_fn(g.context)`.
