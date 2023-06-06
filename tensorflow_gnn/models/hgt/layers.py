@@ -39,9 +39,6 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
   also assumes that the paper's notion of "edge type" is equivalent to
   TFGNN "edge_set_name". Edge features are ignored as in the paper.
 
-  IMPORTANT: Using this layer requires TensorFlow 2.10 or greater,
-  because it uses `tf.keras.layers.EinsumDense`.
-
   Init args:
     num_heads: The number of attention heads.
     per_head_channels: The dimensionality of each attention head
@@ -97,14 +94,6 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     self._feature_name = feature_name
     # TODO(b/269076334): Does this class need an init kwarg to override this?
     self._aux_graph_piece_re = re.compile(tfgnn.AUX_GRAPH_PIECE_PATTERN)
-    # TODO(b/266868417): Remove when TF2.10+ is required by all of TF-GNN.
-    try:
-      _ = tf.keras.layers.EinsumDense
-    except AttributeError as e:
-      raise ValueError(
-          'HGTGraphUpdate requires tf.keras.layers.EinsumDense from '
-          f'TensorFlow 2.10 or newer, got TensorFlow {tf.__version__}'
-      ) from e
 
   def get_config(self):
     return dict(

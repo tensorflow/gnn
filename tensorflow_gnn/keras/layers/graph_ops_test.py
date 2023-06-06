@@ -161,7 +161,7 @@ class ReadoutTest(tf.test.TestCase, parameterized.TestCase):
     expected = model(test_graph_134_dict)
 
     # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith("2.9.") or tf.__version__.startswith("2.10."):
+    if tf.__version__.startswith("2.10."):
       self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
                     f"got TF {tf.__version__}")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
@@ -291,7 +291,7 @@ class ReadoutFirstNodeTest(tf.test.TestCase, parameterized.TestCase):
     expected = model(test_graph_22_dict)
 
     # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith("2.9.") or tf.__version__.startswith("2.10."):
+    if tf.__version__.startswith("2.10."):
       self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
                     f"got TF {tf.__version__}")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
@@ -393,7 +393,7 @@ class ReadoutNamedTest(tf.test.TestCase):
 
   def testTFLite(self):
     # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith("2.9.") or tf.__version__.startswith("2.10."):
+    if tf.__version__.startswith("2.10."):
       self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
                     f"got TF {tf.__version__}")
 
@@ -517,7 +517,7 @@ class ReadoutNamedIntoFeatureTest(tf.test.TestCase):
 
   def testTFLite(self):
     # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith("2.9.") or tf.__version__.startswith("2.10."):
+    if tf.__version__.startswith("2.10."):
       self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
                     f"got TF {tf.__version__}")
 
@@ -579,7 +579,7 @@ class AddReadoutFromFirstNodeTest(tf.test.TestCase):
 
   def testTFLite(self):
     # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith("2.9.") or tf.__version__.startswith("2.10."):
+    if tf.__version__.startswith("2.10."):
       self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
                     f"got TF {tf.__version__}")
 
@@ -716,7 +716,7 @@ class AddSelfLoopsTest(tf.test.TestCase, parameterized.TestCase):
     expected = model(test_graph_134_dict).numpy()
 
     # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith("2.9.") or tf.__version__.startswith("2.10."):
+    if tf.__version__.startswith("2.10."):
       self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
                     f"got TF {tf.__version__}")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
@@ -914,7 +914,7 @@ class BroadcastTest(tf.test.TestCase, parameterized.TestCase):
     expected = model(test_values)
 
     # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith("2.9.") or tf.__version__.startswith("2.10."):
+    if tf.__version__.startswith("2.10."):
       self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
                     f"got TF {tf.__version__}")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
@@ -1218,7 +1218,7 @@ class PoolTest(tf.test.TestCase, parameterized.TestCase):
     expected = model(test_values)
 
     # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith("2.9.") or tf.__version__.startswith("2.10."):
+    if tf.__version__.startswith("2.10."):
       self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
                     f"got TF {tf.__version__}")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)

@@ -604,7 +604,7 @@ class ReorderNodesTest(tf.test.TestCase, parameterized.TestCase):
     expected = model(test_graph_dict).numpy()
 
     # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith('2.9.') or tf.__version__.startswith('2.10.'):
+    if tf.__version__.startswith('2.10.'):
       self.skipTest('GNN models are unsupported in TFLite until TF 2.11 but '
                     f'got TF {tf.__version__}')
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
@@ -1256,7 +1256,7 @@ class EdgeMaskingTest(tf.test.TestCase, parameterized.TestCase):
     expected = model(test_graph_dict).numpy()
 
     # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith('2.9.') or tf.__version__.startswith('2.10.'):
+    if tf.__version__.startswith('2.10.'):
       self.skipTest('GNN models are unsupported in TFLite until TF 2.11 but '
                     f'got TF {tf.__version__}')
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
@@ -1614,7 +1614,7 @@ class LineGraphTest(tf.test.TestCase):
     expected = model(test_graph_dict).numpy()
 
     # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith('2.9.') or tf.__version__.startswith('2.10.'):
+    if tf.__version__.startswith('2.10.'):
       self.skipTest('GNN models are unsupported in TFLite until TF 2.11 but '
                     f'got TF {tf.__version__}')
     converter = tf.lite.TFLiteConverter.from_keras_model(model)

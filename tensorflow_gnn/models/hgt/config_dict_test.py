@@ -45,9 +45,6 @@ class ConfigDictTest(tf.test.TestCase):
     cfg.use_bias = use_bias
     cfg.activation = activation
 
-    if tf.__version__.startswith("2.9."):
-      self.skipTest(f"HGTGraphUpdate requires TF 2.10+, got {tf.__version__}")
-
     actual = hgt_config_dict.graph_update_from_config_dict(cfg)
     expected = layers.HGTGraphUpdate(
         num_heads=num_heads,

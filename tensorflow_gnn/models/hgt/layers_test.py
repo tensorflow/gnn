@@ -125,25 +125,9 @@ def _parallel_vee_example_graph():
 
 class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
 
-  # TODO(b/266868417): Remove when TF2.10+ is required by all of TF-GNN.
-  def _skip_if_unsupported(self):
-    """Skips test if TF is too old."""
-    if tf.__version__.startswith("2.9."):
-      self.skipTest(f"HGTGraphUpdate requires TF 2.10+, got {tf.__version__}")
-
-  def test_tf_too_old(self):
-    if tf.__version__.startswith("2.9."):
-      kwargs = dict(num_heads=1, per_head_channels=3, receiver_tag=tfgnn.TARGET)
-      self.assertRaisesRegex(
-          ValueError,
-          "HGTGraphUpdate requires tf.keras.layers.EinsumDense",
-          lambda: layers.HGTGraphUpdate(**kwargs),
-      )
-
   # TODO(b/269076334): Test with "_readout" node set.
   def test_ndim_input(self):
     """Tests that HGT can handle inputs with more than 2 dimensions."""
-    self._skip_if_unsupported()
     test_graph = _homogeneous_cycle_graph(tf.zeros((3, 2, 3)))
     conv = layers.HGTGraphUpdate(
         num_heads=1,
@@ -156,7 +140,6 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_latent_receiver(self):
     """Tests that HGT updates latent features in receiver node sets."""
-    self._skip_if_unsupported()
     test_graph = tfgnn.GraphTensor.from_pieces(
         node_sets={
             "source":
@@ -201,7 +184,6 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_wrong_size_receiver(self):
     """Tests that HGT throws an error with wrong-sized receiver features."""
-    self._skip_if_unsupported()
     test_graph = tfgnn.GraphTensor.from_pieces(
         node_sets={
             "source":
@@ -245,7 +227,6 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
     )
 
   def test_homogeneous_multi_head(self):
-    self._skip_if_unsupported()
     test_graph = tfgnn.GraphTensor.from_pieces(
         node_sets={
             "nodes":
@@ -309,7 +290,6 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
     )
 
   def test_multi_senders_one_receiver_multi_head(self):
-    self._skip_if_unsupported()
     log20 = tf.math.log(20.0).numpy()
     log80 = tf.math.log(80.0).numpy()
     sqrt2 = tf.math.sqrt(2.0).numpy()
@@ -396,7 +376,6 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
     )
 
   def test_one_sender_multi_receivers_multi_head(self):
-    self._skip_if_unsupported()
     test_graph = tfgnn.GraphTensor.from_pieces(
         node_sets={
             "sender":
@@ -470,7 +449,6 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
     )
 
   def test_multi_senders_multi_receivers_multi_head(self):
-    self._skip_if_unsupported()
     log20 = tf.math.log(20.0).numpy()
     log80 = tf.math.log(80.0).numpy()
     sqrt2 = tf.math.sqrt(2.0).numpy()
@@ -572,7 +550,6 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_multi_edge_set_attention(self):
     """Tests uniform attention over 2 edge sets with edge-dependent weights."""
-    self._skip_if_unsupported()
     conv = layers.HGTGraphUpdate(
         num_heads=1,
         per_head_channels=2,
@@ -657,7 +634,6 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
       ),
   )
   def test_hgtconv_saving(self, reload_model, kernel_initializer):
-    self._skip_if_unsupported()
     # Build a Model around the Layer, possibly saved and restored.
     inputs = tf.keras.layers.Input(
         type_spec=_heterogeneous_example_graph().spec)
@@ -695,7 +671,6 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(("baseline", False), ("", True))
   def test_ignores_readout(self, add_readout):
-    self._skip_if_unsupported()
     test_graph = _heterogeneous_example_graph(add_readout=add_readout)
     conv = layers.HGTGraphUpdate(
         num_heads=2,
@@ -737,14 +712,12 @@ class HGTTFLiteTest(tf.test.TestCase, parameterized.TestCase):
         # initialized weights that we keep here).
         "airframe_features": tf.eye(4, 3),
         "engine_features": tf.eye(3, 2),
-        "airframe_source":
-            tf.constant([0, 1, 2, 3]),
-        "engine_target":
-            tf.constant([0, 1, 2, 1]),
+        "airframe_source": tf.constant([0, 1, 2, 3]),
+        "engine_target": tf.constant([0, 1, 2, 1]),
     }
 
     # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith("2.9.") or tf.__version__.startswith("2.10."):
+    if tf.__version__.startswith("2.10."):
       self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
                     f"got TF {tf.__version__}")
     layer = layers.HGTGraphUpdate(

@@ -34,20 +34,9 @@ class ReloadModel(int, enum.Enum):
 
 class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
 
-  # TODO(b/266868417): Remove when TF2.10+ is required by all of TF-GNN.
-  def _skip_if_unsupported(self, transform_values_after_pooling=None):
-    """Skips test if TF is tool old for a requested option."""
-    if transform_values_after_pooling:
-      if tf.__version__.startswith("2.8.") or tf.__version__.startswith("2.9."):
-        self.skipTest(
-            "MultiHeadAttentionConv(transform_values_after_pooling=True) "
-            f"requires TF 2.10+, got {tf.__version__}")
-
   @parameterized.named_parameters(("", False), ("TransformAfter", True))
   def testBasic(self, transform_values_after_pooling):
     """Tests that a single-headed MHA is correct given predefined weights."""
-    self._skip_if_unsupported(
-        transform_values_after_pooling=transform_values_after_pooling)
     # NOTE: Many following tests use minor variations of the explicit
     # construction of weights and results introduced here.
 
@@ -514,8 +503,6 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters(("", False), ("TransformAfter", True))
   def testMultihead(self, transform_values_after_pooling):
     """Extends testBasic with multiple attention heads."""
-    self._skip_if_unsupported(
-        transform_values_after_pooling=transform_values_after_pooling)
     # The same test graph as in the testBasic above.
     gt_input = _get_test_bidi_cycle_graph(
         tf.constant([
@@ -608,8 +595,6 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
       ("RestoredKerasTransformAfter", ReloadModel.KERAS, True))
   def testFullModel(self, reload_model, transform_values_after_pooling):
     """Tests MultiHeadAttentionHomGraphUpdate in a Model with edge input."""
-    self._skip_if_unsupported(
-        transform_values_after_pooling=transform_values_after_pooling)
     # The same example as in the testBasic above, but with extra inputs
     # from edges.
     gt_input = _get_test_bidi_cycle_graph(
@@ -1267,7 +1252,7 @@ class MultiHeadAttentionMPNNTFLiteTest(tf.test.TestCase,
                 [4.]]),
     }
     # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith("2.9.") or tf.__version__.startswith("2.10."):
+    if tf.__version__.startswith("2.10."):
       self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
                     f"got TF {tf.__version__}")
     layer = multi_head_attention.MultiHeadAttentionHomGraphUpdate(

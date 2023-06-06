@@ -24,8 +24,6 @@ class CloneInitializerTest(tf.test.TestCase, parameterized.TestCase):
 
   def testProblem(self):
     """Verifies that there even is a problem to fix (b/268648226)."""
-    if tf.__version__.startswith("2.9."):
-      self.skipTest("The problem starts with TF2.10.")
     initializer = tf.keras.initializers.RandomUniform(-2., 5.)
     self.assertAllClose(initializer([10]), initializer([10]))
 
