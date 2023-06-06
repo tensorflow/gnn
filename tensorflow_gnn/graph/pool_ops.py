@@ -204,10 +204,6 @@ def pool_edges_to_context(graph_tensor: GraphTensor,
                  feature_name=feature_name)
 
 
-# TODO(b/265760014): Export as tfgnn.pool() and remove pool_v1().
-# The difference is that v2 supports multiple node/edge sets,
-# composite reduce types, and is implemenented with a new class-based
-# op registration, separately for each node/edge set and for combining them.
 def pool_v2(
     graph_tensor: GraphTensor,
     to_tag: IncidentNodeOrContextTag,
@@ -250,7 +246,7 @@ def pool_v2(
   such as `reduce_type="mean|sum"`, which will return the concatenation of
   their individual results along the innermost axis in the order of appearance.
 
-  TODO(b/265760014): pool() from multiple edge sets (or node sets) does not yet
+  TODO(b/286005254): pool() from multiple edge sets (or node sets) does not yet
   support RaggedTensors.
 
   Args:
@@ -298,7 +294,7 @@ def pool_v2(
   if len(feature_values) > 1 and any(
       utils.is_ragged_tensor(fv) for fv in feature_values):
     raise ValueError(
-        "TODO(b/265760014): pool() from multiple edge sets (or node sets) "
+        "TODO(b/286005254): pool() from multiple edge sets (or node sets) "
         "does not (yet?) support RaggedTensors.")
 
   if not reduce_type:
@@ -361,7 +357,7 @@ def _pool_internal(
       _promote_from_single_to_multi("mean")
       _promote_from_single_to_multi("sum")
     # "max_no_inf" and "min_no_inf" are only available as MultiReducers.
-    # TODO(b/265760014): Automate this kind of fallback.
+    # TODO(b/286007330): Automate this kind of fallback.
     if "max_no_inf" in reduce_types:
       _promote_from_single_to_multi("max_no_inf")
     if "min_no_inf" in reduce_types:

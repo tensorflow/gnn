@@ -420,7 +420,7 @@ def GATv2EdgePool(*,  # To be called like a class initializer.  pylint: disable=
       **kwargs)
 
 
-# TODO(b/236941740): a systematic solution for adding loops.
+# TODO(b/286015280): a systematic solution for adding loops.
 def GATv2HomGraphUpdate(
     *,  # To be called like a class initializer.  pylint: disable=invalid-name
     num_heads: int,
