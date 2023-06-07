@@ -7,7 +7,12 @@ package(
     default_visibility = [":__subpackages__"],
 )
 
-package_group(name = "users")
+package_group(
+    name = "users",
+    packages = [
+        "//third_party/google_research/google_research/ugsl/...",
+    ],
+)
 
 pytype_strict_library(
     name = "gcn",
