@@ -103,6 +103,10 @@ class KeyToBytesAccessorTest(ExecutorTestBase):
             np.array([b'x', b'y'], np.object_),
             np.array([2], np.int64),
         ]],
+        b's5': [[
+            np.array([], np.object_),
+            np.array([0], np.int64),
+        ]],
     }
     with beam.Pipeline() as root:
       keys = root | 'keys' >> beam.Create(keys)
@@ -151,6 +155,15 @@ class KeyToBytesAccessorTest(ExecutorTestBase):
                         feature {
                           key: "s"
                           value { int64_list { value: [-1, -1] } }
+                        }
+                      }""",
+                  ),
+                  (
+                      b's5',
+                      """features {
+                        feature {
+                          key: "s"
+                          value { int64_list { value: [] } }
                         }
                       }""",
                   ),
@@ -211,6 +224,14 @@ class KeyToBytesAccessorTest(ExecutorTestBase):
             np.array([-1, 20, 10], np.int32),
             np.array([3], np.int32),
         ]],
+        b's3': [[
+            np.array([], np.int32),
+            np.array([0], np.int32),
+        ]],
+        b's4': [[
+            np.array([-1], np.int32),
+            np.array([1], np.int32),
+        ]],
     }
     with beam.Pipeline() as root:
       keys = root | 'keys' >> beam.Create(keys)
@@ -249,6 +270,24 @@ class KeyToBytesAccessorTest(ExecutorTestBase):
                                 value: [0.0, 0.0, 3.0, 4.0, 1.0, 2.0]
                               }
                             }
+                          }
+                        }""",
+                  ),
+                  (
+                      b's3',
+                      """features {
+                          feature {
+                            key: "f"
+                            value { float_list { value: [] } }
+                          }
+                        }""",
+                  ),
+                  (
+                      b's4',
+                      """features {
+                          feature {
+                            key: "f"
+                            value { float_list { value: [0.0, 0.0] } }
                           }
                         }""",
                   ),

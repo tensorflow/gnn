@@ -311,6 +311,10 @@ class EdgeSamplersTest(ExecutorTestBase):
             np.array([-1], np.int64),
             np.array([1], np.int64),
         ]],
+        b's3': [[
+            np.array([], np.int64),
+            np.array([0], np.int64),
+        ]],
     }
 
     with beam.Pipeline() as root:
@@ -342,6 +346,20 @@ class EdgeSamplersTest(ExecutorTestBase):
                   ),
                   (
                       b's2',
+                      """features {
+                          feature {
+                            key: "#source"
+                            value { int64_list { value: [] } }
+                          }
+                          feature {
+                            key: "#target"
+                            value { int64_list { value: [] } }
+                          }
+                        }
+                        """,
+                  ),
+                  (
+                      b's3',
                       """features {
                           feature {
                             key: "#source"

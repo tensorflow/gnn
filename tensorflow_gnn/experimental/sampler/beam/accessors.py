@@ -14,14 +14,11 @@
 # ==============================================================================
 """Stage executors for features accessors."""
 
-from typing import cast, Dict, Iterator, Iterable, Optional, Tuple
-
+from typing import Dict, Iterable, Iterator, Optional, Tuple, cast
 
 import apache_beam as beam
 from apache_beam import typehints as beam_typehints
-
 import numpy as np
-
 from tensorflow_gnn.experimental.sampler import eval_dag_pb2 as pb
 from tensorflow_gnn.experimental.sampler.beam import executor_lib
 from tensorflow_gnn.experimental.sampler.beam import utils
@@ -52,6 +49,21 @@ class KeyToBytesAccessor(beam.PTransform):
   keys. The lookup results are returned for each input key, either as a value
   if one is found, or as a configured default value if no value is found.
   """
+
+  @beam_typehints.with_input_types(Tuple[ExampleId, Values])
+  @beam_typehints.with_output_types(ExampleId)
+  class FilterEmptyInputs(beam.DoFn):
+    """Filters example ids for inputs with empty sets of lookup keys."""
+
+    def __init__(self):
+      self._count = beam.metrics.Metrics.counter('FilterEmptyInputs', 'Count')
+
+    def process(self, inputs: Tuple[ExampleId, Values]) -> Iterator[ExampleId]:
+      example_id, keys = inputs
+      assert len(keys) == 1 and len(keys[0]) == 2
+      if keys[0][0].size == 0:
+        yield example_id
+        self._count.inc()
 
   @beam_typehints.with_input_types(Tuple[_Query, Optional[_Value]])
   @beam_typehints.with_output_types(Tuple[ExampleId, Tuple[int, bytes]])
@@ -104,6 +116,28 @@ class KeyToBytesAccessor(beam.PTransform):
       ]
       yield (example_id, [values])
 
+  @beam_typehints.with_input_types(ExampleId)
+  @beam_typehints.with_output_types(Tuple[ExampleId, Values])
+  class CreateEmptyResults(beam.DoFn):
+    """Creates empty lookup results for input example ids."""
+
+    def __init__(self, layer: pb.Layer):
+      self._layer = layer
+
+    def setup(self):
+      value_dtype, splits_dtype = utils.get_ragged_np_types(
+          self._layer.outputs[0].ragged_tensor
+      )
+      self._empty_value = [[
+          np.array([], dtype=value_dtype),
+          np.array([0], dtype=splits_dtype),
+      ]]
+
+    def process(
+        self, example_id: ExampleId
+    ) -> Iterator[Tuple[ExampleId, Values]]:
+      yield (example_id, self._empty_value)
+
   def __init__(self, layer: pb.Layer):
     _check_signature(layer.inputs, 'input')
     _check_signature(layer.outputs, 'output')
@@ -114,10 +148,13 @@ class KeyToBytesAccessor(beam.PTransform):
 
   def expand(self, inputs: Tuple[PValues, PKeyToBytes]) -> PValues:
     keys, values = inputs
-    keys = keys | 'Queries' >> beam.ParDo(_create_queries)
+    queries = keys | 'RekeyBySourceIds' >> beam.ParDo(_rekey_by_source_ids)
+    empty_inputs = keys | 'FilterEmptyInputs' >> beam.ParDo(
+        self.FilterEmptyInputs()
+    )
 
-    return (
-        (keys, values)
+    lookup_results = (
+        (queries, values)
         | 'LeftJoin' >> utils.LeftLookupJoin()
         | 'DropKeys' >> beam.Values()
         | 'ProcessLookupResults'
@@ -126,8 +163,14 @@ class KeyToBytesAccessor(beam.PTransform):
         | 'AgggregateResults' >> beam.ParDo(self.AgggregateResults(self._layer))
     )
 
+    empty_results = empty_inputs | 'CreateEmptyResults' >> beam.ParDo(
+        self.CreateEmptyResults(self._layer)
+    )
 
-def _create_queries(
+    return [lookup_results, empty_results] | 'Flatten' >> beam.Flatten()
+
+
+def _rekey_by_source_ids(
     inputs: Tuple[ExampleId, Values]
 ) -> Iterator[Tuple[SourceId, _Query]]:
   """Prepares lookup queries."""

@@ -14,14 +14,11 @@
 # ==============================================================================
 """Executors for edge sampling stages."""
 
-from typing import cast, Dict, Iterator, Iterable, List, Optional, Tuple
-
+from typing import Dict, Iterable, Iterator, List, Optional, Tuple, cast
 
 import apache_beam as beam
 from apache_beam import typehints as beam_typehints
-
 import numpy as np
-
 from tensorflow_gnn.experimental.sampler import eval_dag_pb2 as pb
 from tensorflow_gnn.experimental.sampler.beam import executor_lib
 from tensorflow_gnn.experimental.sampler.beam import utils
@@ -92,7 +89,7 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
 
   @beam_typehints.with_input_types(Tuple[ExampleId, Values])
   @beam_typehints.with_output_types(Tuple[SourceId, Tuple[ExampleId, int]])
-  class ExtractSourceIds(beam.DoFn):
+  class RekeyBySourceIds(beam.DoFn):
     """Extracts source node ids from the input values.
 
     The input are tuples of (example id, source node ids). The source node ids
@@ -112,6 +109,21 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
         source_id = utils.as_pytype(source_id)
         assert isinstance(source_id, (int, bytes))
         yield source_id, (example_id, index)
+
+  @beam_typehints.with_input_types(Tuple[ExampleId, Values])
+  @beam_typehints.with_output_types(ExampleId)
+  class FilterEmptyInputs(beam.DoFn):
+    """Filters example ids of empty source node ids inputs."""
+
+    def __init__(self):
+      self._count = beam.metrics.Metrics.counter('FilterEmptyInputs', 'Count')
+
+    def process(self, inputs: Tuple[ExampleId, Values]) -> Iterator[ExampleId]:
+      example_id, values = inputs
+      assert len(values) == 1 and len(values[0]) == 2
+      if values[0][0].size == 0:
+        yield example_id
+        self._count.inc()
 
   @beam_typehints.with_input_types(
       Tuple[
@@ -335,32 +347,73 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
       ]
       yield (example_id, [sources, targets])
 
+  @beam_typehints.with_input_types(ExampleId)
+  @beam_typehints.with_output_types(Tuple[ExampleId, Values])
+  class CreateEmptyResults(beam.DoFn):
+    """Creates empty sampling results for input example ids."""
+
+    def __init__(self, layer: pb.Layer):
+      self._layer = layer
+
+    def setup(self):
+      source_dtypes = utils.get_ragged_np_types(
+          self._layer.outputs[0].ragged_tensor
+      )
+      target_dtypes = utils.get_ragged_np_types(
+          self._layer.outputs[1].ragged_tensor
+      )
+      sources = [
+          np.array([], dtype=source_dtypes[0]),
+          np.array([0], dtype=source_dtypes[1]),
+      ]
+      targets = [
+          np.array([], dtype=target_dtypes[0]),
+          np.array([0], dtype=target_dtypes[1]),
+      ]
+      self._empty_value = [sources, targets]
+
+    def process(
+        self,
+        example_id: ExampleId,
+    ) -> Iterator[Tuple[ExampleId, Values]]:
+      yield (example_id, self._empty_value)
+
   def expand(self, inputs) -> PValues:
     source_ids, edges = inputs
 
     out_degrees = edges | 'OutDegree' >> beam.combiners.Count.PerKey()
-    source_ids = source_ids | 'SourceIds' >> beam.ParDo(self.ExtractSourceIds())
-    queries = (
-        (source_ids, out_degrees)
+    queries = source_ids | 'RekeyBySourceIds' >> beam.ParDo(
+        self.RekeyBySourceIds()
+    )
+    empty_inputs = source_ids | 'FilterEmptyInputs' >> beam.ParDo(
+        self.FilterEmptyInputs()
+    )
+
+    query_buckets = (
+        (queries, out_degrees)
         | 'JoinSourceIdsWithOutDegrees' >> utils.LeftLookupJoin()
         | 'Queries' >> beam.ParDo(self.CreateQueries(self._sample_size))
     )
-    values = (
+    value_buckets = (
         edges
         | 'GroupEdges' >> beam.GroupByKey()
         | 'Values' >> beam.ParDo(self.CreateValues(self._layer))
     )
 
-    return (
+    sampling_results = (
         (
-            queries,
-            values,
+            query_buckets,
+            value_buckets,
         )
         | 'LookupEdgeBuckets' >> utils.LeftLookupJoin()
         | 'SampleFromBuckets' >> beam.ParDo(self.SampleFromBuckets())
         | 'GroupByExampleId' >> beam.GroupByKey()
         | 'AgggregateResults' >> beam.ParDo(self.AgggregateResults(self._layer))
     )
+    empty_results = empty_inputs | 'CreateEmptyResults' >> beam.ParDo(
+        self.CreateEmptyResults(self._layer)
+    )
+    return [sampling_results, empty_results] | 'Flatten' >> beam.Flatten()
 
 
 def _uniform_edge_sampler(
