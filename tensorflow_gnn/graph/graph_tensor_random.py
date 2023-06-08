@@ -145,7 +145,6 @@ def random_graph_tensor(
     spec: gt.GraphTensorSpec,
     sample_dict: Optional[SampleDict] = None,
     row_lengths_range: Tuple[int, int] = (2, 8),
-    row_splits_dtype: tf.dtypes.DType = tf.int32,
     validate: bool = True) -> gt.GraphTensor:
   """Generate a graph tensor from a schema, with random features.
 
@@ -162,7 +161,6 @@ def random_graph_tensor(
       random features are inserted of the right type.
     row_lengths_range: Minimum and maximum values for each row lengths in a
       ragged range.
-    row_splits_dtype: Data type for row splits.
     validate: If true, then use assertions to check that the arguments form a
       valid RaggedTensor. Note: these assertions incur a runtime cost, since
       they must be checked for each tensor value.
@@ -186,11 +184,13 @@ def random_graph_tensor(
         shape[0] = prefix
       key = (set_type, set_name, fname)
       sample_values = sample_dict.get(key, None)
-      tensors[fname] = random_ragged_tensor(shape=shape,
-                                            dtype=feature_spec.dtype,
-                                            sample_values=sample_values,
-                                            row_splits_dtype=row_splits_dtype,
-                                            validate=validate)
+      tensors[fname] = random_ragged_tensor(
+          shape=shape,
+          dtype=feature_spec.dtype,
+          sample_values=sample_values,
+          row_splits_dtype=spec.row_splits_dtype,
+          validate=validate,
+      )
     return tensors
 
   # Create random context features.
@@ -202,7 +202,7 @@ def random_graph_tensor(
   min_nodes, max_nodes = row_lengths_range
   node_sets = {}
   for set_name, node_set_spec in spec.node_sets_spec.items():
-    sizes = tf.random.uniform([1], min_nodes, max_nodes, row_splits_dtype)
+    sizes = tf.random.uniform([1], min_nodes, max_nodes, spec.indices_dtype)
     node_sets[set_name] = gt.NodeSet.from_fields(
         sizes=sizes,
         features=_gen_features(gc.NODES, set_name,
@@ -216,15 +216,17 @@ def random_graph_tensor(
     source_size = node_sets[adj_spec.source_name].sizes
     target_size = node_sets[adj_spec.target_name].sizes
     sum_sizes = tf.cast(source_size[0] + target_size[0], tf.float32)
-    min_edges = tf.cast(sum_sizes / 1.5, row_splits_dtype)
-    max_edges = tf.cast(sum_sizes * 2.25, row_splits_dtype)
-    sizes = tf.random.uniform([1], min_edges, max_edges, dtype=row_splits_dtype)
+    min_edges = tf.cast(sum_sizes / 1.5, spec.indices_dtype)
+    max_edges = tf.cast(sum_sizes * 2.25, spec.indices_dtype)
+    sizes = tf.random.uniform(
+        [1], min_edges, max_edges, dtype=spec.indices_dtype
+    )
 
     # Generate a random matching.
     source_indices = tf.random.uniform(sizes, 0, source_size[0],
-                                       dtype=row_splits_dtype)
+                                       dtype=spec.indices_dtype)
     target_indices = tf.random.uniform(sizes, 0, target_size[0],
-                                       dtype=row_splits_dtype)
+                                       dtype=spec.indices_dtype)
     adjacency = adj.Adjacency.from_indices(
         source=(adj_spec.source_name, source_indices),
         target=(adj_spec.target_name, target_indices))

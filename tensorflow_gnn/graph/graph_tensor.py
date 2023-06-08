@@ -137,6 +137,8 @@ class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
     """Constructs graph piece from features and component sizes."""
     assert isinstance(features, Mapping)
     sizes = gp.convert_to_tensor_or_ragged(sizes)
+    gp.check_indices_dtype(sizes.dtype, what='`sizes`')
+
     prepared_features = {
         key: gp.convert_to_tensor_or_ragged(value)
         for key, value in features.items()
@@ -149,13 +151,38 @@ class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
         key: gp.convert_to_tensor_or_ragged(value)
         for key, value in extra_data.items()
     })
+    indices_dtype = gp.max_index_dtype(
+        sizes.dtype, gp.get_max_indices_dtype(data)
+    )
+    row_splits_dtype = gp.get_max_row_splits_dtype(data)
+    if const.allow_indices_auto_casting:
+      data = cls._data_with_indices_dtype(data, indices_dtype)
+      data = cls._data_with_row_splits_dtype(data, row_splits_dtype)
+    else:
+      # TODO(b/285269757): check that indices are consistent.
+      raise NotImplementedError
+
     # Note that this graph piece does not use any metadata fields.
     return cls._from_data(
-        data=data, shape=sizes.shape[:-1], indices_dtype=sizes.dtype)
+        data=data,
+        shape=sizes.shape[:-1],
+        indices_dtype=indices_dtype,
+        row_splits_dtype=row_splits_dtype,
+    )
 
   def get_features_dict(self) -> Dict[FieldName, Field]:
     """Returns features copy as a dictionary."""
     return dict(self._get_features_ref)
+
+  @classmethod
+  def _data_with_indices_dtype(
+      cls, data: gp.Data, dtype: tf.dtypes.DType
+  ) -> gp.Data:
+    data = data.copy()
+    sizes = data.pop(_GraphPieceWithFeatures._DATAKEY_SIZES)
+    data = gp.data_with_indices_dtype(data, dtype)
+    data[_GraphPieceWithFeatures._DATAKEY_SIZES] = tf.cast(sizes, dtype)
+    return data
 
 
 class _GraphPieceWithFeaturesSpec(gp.GraphPieceSpecBase):
@@ -200,14 +227,50 @@ class _GraphPieceWithFeaturesSpec(gp.GraphPieceSpecBase):
     """Constructs GraphPieceSpec from specs of features and component sizes."""
     # pylint: disable=protected-access
     assert isinstance(features_spec, Mapping)
+
+    gp.check_indices_dtype(sizes_spec.dtype, what='`sizes_spec`')
+
+    features_spec = features_spec.copy()
     data_spec = {
-        _NodeOrEdgeSet._DATAKEY_FEATURES: features_spec.copy(),
-        _NodeOrEdgeSet._DATAKEY_SIZES: sizes_spec
+        _NodeOrEdgeSet._DATAKEY_FEATURES: features_spec,
+        _NodeOrEdgeSet._DATAKEY_SIZES: sizes_spec,
     }
     data_spec.update(extra_data)
+
+    indices_dtype = gp.max_index_dtype(
+        sizes_spec.dtype, gp.get_max_indices_dtype(data_spec)
+    )
+    row_splits_dtype = gp.get_max_row_splits_dtype(data_spec)
+    if const.allow_indices_auto_casting:
+      data_spec = cls._data_spec_with_indices_dtype(data_spec, indices_dtype)
+      data_spec = cls._data_spec_with_row_splits_dtype(
+          data_spec, row_splits_dtype
+      )
+    else:
+      # TODO(b/285269757): check that indices are consistent.
+      raise NotImplementedError
+
     # Note that this graph piece does not use any metadata fields.
     return cls._from_data_spec(
-        data_spec, shape=sizes_spec.shape[:-1], indices_dtype=sizes_spec.dtype)
+        data_spec,
+        shape=sizes_spec.shape[:-1],
+        indices_dtype=indices_dtype,
+        row_splits_dtype=row_splits_dtype,
+    )
+
+  @classmethod
+  def _data_spec_with_indices_dtype(
+      cls, data_spec: gp.DataSpec, dtype: tf.dtypes.DType
+  ) -> gp.DataSpec:
+    # pylint: disable=protected-access
+    data_spec = data_spec.copy()
+    sizes_spec = data_spec.pop(_GraphPieceWithFeatures._DATAKEY_SIZES)
+    data_spec = gp.data_spec_with_indices_dtype(data_spec, dtype)
+    data_spec[_GraphPieceWithFeatures._DATAKEY_SIZES] = gp.set_field_spec_dtype(
+        sizes_spec, dtype
+    )
+
+    return data_spec
 
 
 def resolve_value(graph_piece: _GraphPieceWithFeatures,
@@ -277,9 +340,8 @@ class Context(_GraphPieceWithFeatures):
     """
 
     if indices_dtype is not None:
-      if indices_dtype not in (tf.int64, tf.int32):
-        raise ValueError(f'Expected indices_dtype={indices_dtype}'
-                         ' to be tf.int64 or tf.int32')
+      gp.check_indices_dtype(indices_dtype)
+
     if shape is not None:
       shape = shape if isinstance(shape,
                                   tf.TensorShape) else tf.TensorShape(shape)
@@ -357,6 +419,8 @@ class ContextSpec(_GraphPieceWithFeaturesSpec):
       indices_dtype: tf.dtypes.DType = const.default_indices_dtype
   ) -> 'ContextSpec':
     """The counterpart of `Context.from_fields()` for field type specs."""
+    gp.check_indices_dtype(indices_dtype)
+
     shape = shape if isinstance(shape,
                                 tf.TensorShape) else tf.TensorShape(shape)
 
@@ -379,7 +443,7 @@ class ContextSpec(_GraphPieceWithFeaturesSpec):
             shape=sizes_shape,
             ragged_rank=shape.rank + 1,
             dtype=indices_dtype,
-            row_splits_dtype=indices_dtype)
+            row_splits_dtype=indicative_feature_spec.row_splits_dtype)
       else:
         sizes_spec = tf.TensorSpec(shape=sizes_shape, dtype=indices_dtype)
 
@@ -829,6 +893,29 @@ class GraphTensor(gp.GraphPieceBase):
   ragged dimension of a RaggedTensor. (Note this is only allowed for the items
   dimension, not a graph dimension.) In all other cases, the type of the field
   (Tensor or RaggedTensor) is preserved.
+
+  Graph tensor allows `int64` or `int32` types to index graph items. There are
+  two types of indices: `indices_dtype` and `row_splits_dtype`. The
+  `indices_dtype` is used to index itemes within graph pieces (`sizes`) and as
+  a `dtype` of adjacency indices. The `row_splits_dtype` is a dtype for all
+  ragged row partitions of all GraphTensor fields of type `tf.RaggedTensor`.
+
+  RULE: `indices_dtype` and `row_splits_dtype` are consistent for all graph
+  pieces within the graph tensor.
+
+  The `indices_dtype` is `int32` by default, the default integer type in
+  Tensorflow The `indices_dtype` for graph tensor and its pieces can be changed
+  using `.with_indices_dtype()` method.
+
+  The `row_splits_dtype` is `int64` by default, the same as for `RaggedTensor`s.
+  They can be changed using `.with_row_splits_dtype()` method.
+
+  NOTE: graph tensors can be constructed from pieces with inconsistent
+  `indices_dtype` and `row_splits_dtype`. The indices types of the result
+  `GraphTensor` are resolved towards the integer types with the maximum
+  capacity and all pieces are casted towards those types. For example, if *any*
+  graph piece used in `.from_pieces()` has `int64` `indices_dtype` the result
+  graph tensor (and all its pieces) would have `int64` `indices_dtype`.
   """
   _DATAKEY_CONTEXT = 'context'  # A Context.
   _DATAKEY_NODE_SETS = 'node_sets'  # A Mapping[NodeSetName, NodeSet].
@@ -842,31 +929,50 @@ class GraphTensor(gp.GraphPieceBase):
       edge_sets: Optional[Mapping[EdgeSetName, EdgeSet]] = None,
   ) -> 'GraphTensor':
     """Constructs a new `GraphTensor` from context, node sets and edge sets."""
-    context = _ifnone(context, Context.from_fields(features={}))
     node_sets = _ifnone(node_sets, dict()).copy()
     edge_sets = _ifnone(edge_sets, dict()).copy()
-    indicative_piece = _get_indicative_graph_piece(context, node_sets,
-                                                   edge_sets)
-    if isinstance(context.spec, ContextSpec) and isinstance(
-        indicative_piece.spec, _NodeOrEdgeSetSpec):
-      # Reevaluate context sizes from the node or edge set sizes. The latter are
-      # directly set by user, whereas the context sizes are indirectly inferred
-      # from the context feature shapes or set to zero-shaped tensor if the
-      # context has no features.
-      context_sizes = tf.ones_like(indicative_piece.sizes,
-                                   indicative_piece.indices_dtype)
-      context = context.from_fields(
-          features=context.features, sizes=context_sizes)
 
-    assert isinstance(indicative_piece, _GraphPieceWithFeatures)
+    if not node_sets and not edge_sets:
+      # Special case: no nodes or edges.
+      context = _ifnone(context, Context.from_fields())
+    else:
+      any_piece = tf.nest.flatten([edge_sets, node_sets])[0]
+      context_sizes = tf.ones_like(any_piece.sizes)
+      if context is None:
+        context = Context.from_fields(sizes=context_sizes)
+        context = context.with_row_splits_dtype(any_piece.row_splits_dtype)
+      else:
+        # Reevaluate context sizes from the node or edge set sizes. The latter
+        # are directly set by user, whereas the context sizes are indirectly
+        # inferred from the context feature shapes or set to zero-shaped tensor
+        # if the context has no features.
+        context = Context.from_fields(
+            features=context.features, sizes=context_sizes
+        )
+
+      assert context.indices_dtype == any_piece.indices_dtype
+
+    data = {
+        GraphTensor._DATAKEY_CONTEXT: context,
+        GraphTensor._DATAKEY_NODE_SETS: node_sets,
+        GraphTensor._DATAKEY_EDGE_SETS: edge_sets,
+    }
+
+    indices_dtype = gp.get_max_indices_dtype(data)
+    row_splits_dtype = gp.get_max_row_splits_dtype(data)
+    if const.allow_indices_auto_casting:
+      data = cls._data_with_indices_dtype(data, indices_dtype)
+      data = cls._data_with_row_splits_dtype(data, row_splits_dtype)
+    else:
+      # TODO(b/285269757): check that indices are consistent.
+      raise NotImplementedError
+
     return cls._from_data(
-        data={
-            GraphTensor._DATAKEY_CONTEXT: context,
-            GraphTensor._DATAKEY_NODE_SETS: node_sets,
-            GraphTensor._DATAKEY_EDGE_SETS: edge_sets
-        },
-        shape=indicative_piece.shape,
-        indices_dtype=indicative_piece.indices_dtype)
+        data=data,
+        shape=context.shape,
+        indices_dtype=indices_dtype,
+        row_splits_dtype=row_splits_dtype,
+    )
 
   def merge_batch_to_components(self) -> 'GraphTensor':
     """Merges all contained graphs into one contiguously indexed graph.
@@ -1216,29 +1322,52 @@ class GraphTensorSpec(gp.GraphPieceSpecBase):
       edge_sets_spec: Optional[Mapping[EdgeSetName, EdgeSetSpec]] = None,
   ) -> 'GraphTensorSpec':
     """The counterpart of `GraphTensor.from_pieces` for pieces type specs."""
-    context_spec = _ifnone(context_spec, ContextSpec.from_field_specs())
     node_sets_spec = _ifnone(node_sets_spec, dict())
     edge_sets_spec = _ifnone(edge_sets_spec, dict())
-    indicative_piece = _get_indicative_graph_piece(context_spec, node_sets_spec,
-                                                   edge_sets_spec)
-    assert isinstance(indicative_piece, _GraphPieceWithFeaturesSpec)
-    if isinstance(context_spec,
-                  ContextSpec) and context_spec != indicative_piece:
-      entity_sizes_spec = indicative_piece.sizes_spec
-      if entity_sizes_spec is not None:
-        context_spec = context_spec.from_field_specs(
-            features_spec=context_spec.features_spec,
-            sizes_spec=entity_sizes_spec)
+
+    if not node_sets_spec and not edge_sets_spec:
+      # Special case: no nodes or edges.
+      context_spec = _ifnone(context_spec, ContextSpec.from_field_specs())
+    else:
+      # See GraphTensor.from_pieces.
+      any_piece = tf.nest.flatten([edge_sets_spec, node_sets_spec])[0]
+      sizes_spec = any_piece.sizes_spec
+      if context_spec is None:
+        context_spec = ContextSpec.from_field_specs(sizes_spec=sizes_spec)
+        context_spec = context_spec.with_row_splits_dtype(
+            any_piece.row_splits_dtype
+        )
+      else:
+        context_spec = ContextSpec.from_field_specs(
+            features_spec=context_spec.features_spec, sizes_spec=sizes_spec
+        )
+
+      assert context_spec.indices_dtype == any_piece.indices_dtype
+
+    # pylint: disable=protected-access
+    data_spec = {
+        GraphTensor._DATAKEY_CONTEXT: context_spec,
+        GraphTensor._DATAKEY_NODE_SETS: node_sets_spec,
+        GraphTensor._DATAKEY_EDGE_SETS: edge_sets_spec,
+    }
+    indices_dtype = gp.get_max_indices_dtype(data_spec)
+    row_splits_dtype = gp.get_max_row_splits_dtype(data_spec)
+    if const.allow_indices_auto_casting:
+      data_spec = gp.data_spec_with_indices_dtype(data_spec, indices_dtype)
+      data_spec = gp.data_spec_with_row_splits_dtype(
+          data_spec, row_splits_dtype
+      )
+    else:
+      # TODO(b/285269757): check that indices are consistent.
+      raise NotImplementedError
 
     # pylint: disable=protected-access
     return cls._from_data_spec(
-        {
-            GraphTensor._DATAKEY_CONTEXT: context_spec,
-            GraphTensor._DATAKEY_NODE_SETS: node_sets_spec,
-            GraphTensor._DATAKEY_EDGE_SETS: edge_sets_spec
-        },
-        shape=indicative_piece.shape,
-        indices_dtype=indicative_piece.indices_dtype)
+        data_spec=data_spec,
+        shape=context_spec.shape,
+        indices_dtype=indices_dtype,
+        row_splits_dtype=row_splits_dtype,
+    )
 
   @property
   def value_type(self):
