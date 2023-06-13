@@ -690,6 +690,21 @@ def _check_line_graph_args(
   """Check arguments for `tfgnn.convert_to_line_graph()`."""
   gt.check_scalar_graph_tensor(graph_tensor, 'tfgnn.convert_to_line_graph()')
 
+  # Check that the graph tensor does not use a hyper adjacency
+  for edge_set in graph_tensor.edge_sets.values():
+    if (
+        set(edge_set.adjacency.get_indices_dict())
+        != {const.SOURCE, const.TARGET}
+    ):
+      # TODO(b/276726198): Handle more general HyperAdjacency, perhaps by
+      # introducing a special key for line graph nodes.
+      raise ValueError(
+          'Expected an adjacency with exactly one tfgnn.SOURCE and one '
+          'tfgnn.TARGET endpoint in `tfgnn.convert_to_line_graph()`. '
+          'Other cases are currently not supported for '
+          '`connect_with_original_nodes=True`.'
+      )
+
   # Check for unhandled auxiliary node sets
   for node_set_name in graph_tensor.node_sets:
     if re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, node_set_name):
@@ -712,7 +727,7 @@ def _check_line_graph_args(
         )
 
   # Check for unhandled auxiliary edge sets
-  for edge_set_name, edge_set in graph_tensor.edge_sets.items():
+  for edge_set_name in graph_tensor.edge_sets:
     if re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, edge_set_name):
       if edge_set_name.startswith('_readout/'):
         if not connect_with_original_nodes:
@@ -728,20 +743,6 @@ def _check_line_graph_args(
             'currently cannot handle. Please delete this set before calling '
             '`tfgnn.convert_to_line_graph()`.'
         )
-    else:
-      if connect_with_original_nodes:
-        if (
-            set(edge_set.adjacency.get_indices_dict())
-            != {const.SOURCE, const.TARGET}
-        ):
-          # TODO(b/276726198): Handle more general HyperAdjacency, perhaps by
-          # introducing a special key for line graph nodes.
-          raise ValueError(
-              'Expected an adjacency with exactly one tfgnn.SOURCE and one '
-              'tfgnn.TARGET endpoint in `tfgnn.convert_to_line_graph()`. '
-              'Other cases are currently not supported for '
-              '`connect_with_original_nodes=True`.'
-          )
 
 
 def _connect_line_graph_with_original(
@@ -966,9 +967,15 @@ def convert_to_line_graph(
   The _node_ sets of the resulting graph are the _edge_ sets of the original
   graph, with the same name. The resulting edge sets are named
   `{edge_set_name1}=>{edge_set_name2}`, for every pair of edge sets that
-  connects through a common node set (as selected by the args).
-  Note that representing undirected edges {a,b} as a pair of two directed edges
-  a->b and b->a will result in a pair of separate line graph nodes.
+  connects through a common node set (as selected by the args). In particular,
+  a pair of edges `u_0->u_1`, `v_0->v_1` will be connected if `u_i == v_j`,
+  where the index `i in {0, 1}` is specified by `connect_from` and
+  `j in {0, 1}` is specified by `connect_to`.
+
+  This function only supports graphs where all edge set adjacencies contain only
+  one SOURCE and one TARGET end point, i.e. non-hypergraphs.
+  Note that representing undirected edges {u,v} as a pair of two directed edges
+  u->v and v->u will result in a pair of separate line graph nodes.
 
   Auxiliary node sets are not converted. This will raise an error if (a) the
   graph contains a _readout node set and `preserve_node_sets` is False or
@@ -991,9 +998,9 @@ def convert_to_line_graph(
   Args:
     graph_tensor: Graph to convert to a line graph.
     connect_from: Specifies which endpoint of the original edges
-      will be the source for the line graph edges.
+      will determine the source for the line graph edges.
     connect_to: Specifies which endpoint of the original edges
-      will be the target for the line graph edges.
+      will determine the target for the line graph edges.
     connect_with_original_nodes: If true, keep the original node sets (not the
       original edge sets) and connect them to line graph nodes according to
       source and target in the original graph. The node set names will be called
