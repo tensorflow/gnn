@@ -45,9 +45,11 @@ pytype_strict_library(
     srcs_version = "PY3",
     deps = [
         ":adjacency",
+        ":broadcast_ops",
         ":graph_constants",
         ":graph_tensor",
         ":pool_ops",
+        ":tag_utils",
         ":tensor_utils",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/keras:keras_tensors",
