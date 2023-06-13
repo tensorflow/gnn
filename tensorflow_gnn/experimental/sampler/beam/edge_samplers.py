@@ -115,15 +115,11 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
   class FilterEmptyInputs(beam.DoFn):
     """Filters example ids of empty source node ids inputs."""
 
-    def __init__(self):
-      self._count = beam.metrics.Metrics.counter('FilterEmptyInputs', 'Count')
-
     def process(self, inputs: Tuple[ExampleId, Values]) -> Iterator[ExampleId]:
       example_id, values = inputs
       assert len(values) == 1 and len(values[0]) == 2
       if values[0][0].size == 0:
         yield example_id
-        self._count.inc()
 
   @beam_typehints.with_input_types(
       Tuple[
@@ -148,18 +144,6 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
 
     def __init__(self, sample_size: int):
       self._sample_size = sample_size
-      self._no_edges_count = beam.metrics.Metrics.counter(
-          'CreateQueries', 'NoEdges'
-      )
-      self._buckets_count = beam.metrics.Metrics.counter(
-          'CreateQueries', 'Buckets'
-      )
-      self._sampled_edges_count = beam.metrics.Metrics.counter(
-          'CreateQueries', 'SampledEdges'
-      )
-      self._sampled_edges_distr = beam.metrics.Metrics.distribution(
-          'CreateQueries', 'SampledEdges'
-      )
 
     def setup(self):
       self._rng = np.random.Generator(np.random.Philox())
@@ -175,7 +159,6 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
       assert isinstance(source_id, (bytes, int)), type(source_id)
       if out_degree is None:
         edge_indices = np.array([-1])
-        self._no_edges_count.inc()
       elif out_degree <= self._sample_size:
         edge_indices = np.arange(out_degree)
       else:
@@ -193,10 +176,6 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
             index,
         )
 
-      self._sampled_edges_distr.update(len(edge_indices))
-      self._sampled_edges_count.inc(len(edge_indices))
-      self._buckets_count.inc(len(buckets))
-
   @beam_typehints.with_input_types(Tuple[SourceId, Iterable[TargetId]])
   @beam_typehints.with_output_types(Tuple[Tuple[SourceId, int], np.ndarray])
   class CreateValues(beam.DoFn):
@@ -210,10 +189,6 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
 
     def __init__(self, layer: pb.Layer):
       self._layer = layer
-      self._buckets_count = beam.metrics.Metrics.counter(
-          'CreateValues', 'Buckets'
-      )
-      self._edges_count = beam.metrics.Metrics.counter('CreateValues', 'Edges')
 
     def setup(self):
       target_dtypes = utils.get_ragged_np_types(
@@ -242,8 +217,6 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
       if buffer:
         yield (source_id, bucket_id), self._make_bucket(buffer)
         bucket_id += 1
-      self._buckets_count.inc(bucket_id)
-      self._edges_count.inc(num_edges)
 
     def _make_bucket(self, edges: List[TargetId]) -> np.ndarray:
       assert len(edges) <= UniformEdgesSampler.EDGE_BUCKET_SIZE
@@ -317,7 +290,6 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
 
     def __init__(self, layer: pb.Layer):
       self._layer = layer
-      self._edges_count = beam.metrics.Metrics.counter('OutputResults', 'Edges')
 
     def setup(self):
       self._source_dtypes = utils.get_ragged_np_types(
@@ -336,7 +308,6 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
       example_id, values_iter = inputs
       values = [(i, s, t) for i, s, t in values_iter if t is not None]
       values = sorted(values, key=lambda kv: kv[0])
-      self._edges_count.inc(len(values))
       sources = [
           np.array([s for _, s, _ in values], dtype=self._source_dtypes[0]),
           np.array([len(values)], dtype=self._source_dtypes[1]),

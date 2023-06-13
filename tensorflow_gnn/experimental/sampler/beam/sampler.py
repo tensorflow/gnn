@@ -241,7 +241,7 @@ def app_main(argv) -> None:
     if FLAGS.input_seeds:
       seeds = unigraph_utils.read_seeds(root, FLAGS.input_seeds)
     else:
-      seeds = unigraph_utils.seeds_from_graph_dict(feeds)
+      seeds = unigraph_utils.seeds_from_graph_dict(feeds, sampling_spec)
     inputs = {
         'Input': seeds,
     }

@@ -309,6 +309,15 @@ def is_edge_reversed(schema_edge_set: graph_schema_pb2.EdgeSet):
   return False
 
 
+# Needed for cloud storage paths to be treated like absolute paths
+# instead of being spuriously joined with a directory.
+# TODO(b/287083322): Identify if there's a library to check cloud URLs.
+def _is_complete_path(path: str) -> bool:
+  return (os.path.isabs(path)
+          or path.startswith("gs://")
+          or path.startswith("s3://"))
+
+
 class ReadUnigraphPieceFromFile(beam.PTransform):
   """Read a unigraph node/edge/context component from a file.
 
@@ -340,7 +349,7 @@ class ReadUnigraphPieceFromFile(beam.PTransform):
       raise ValueError(f"{fset_name} does not specify a file: {fset}")
 
     self.filename = fset.metadata.filename
-    if not os.path.isabs(self.filename):
+    if not _is_complete_path(self.filename):
       if not self.graph_dir:
         raise ValueError(f"{self.filename} does not specify a full path "
                          "and graph_dir is None.")
