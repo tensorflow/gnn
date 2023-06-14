@@ -30,7 +30,7 @@ class TestConvertForPprint(tf.test.TestCase):
     schema = test_utils.get_proto_resource(
         'testdata/feature_repr.pbtxt', schema_pb2.GraphSchema())
     spec = su.create_graph_spec_from_schema_pb(schema)
-    graph = gr.random_graph_tensor(spec)
+    graph = gr.random_graph_tensor(spec, row_splits_dtype=tf.int64)
     values = gpp.graph_tensor_to_values(graph)
     text = pprint.pformat(values)
     # This just ensures there is no error in the genreation.

@@ -94,38 +94,18 @@ FieldOrFields = Union[Field, Fields]
 # An arbitrarily deep nest of fields. Pytype cannot express this.
 FieldsNest = Union[Field, List[Any], Tuple[Any], Mapping[str, Any]]
 
-# CONFIGURATION CONSTANTS
-# TODO(aferludin): Make them configurable for users.
-
-# If set, enables validation for objects constructed within the library. This
+# If set, enables validation for objects contructed within the library. This
 # flag does not interfere with validation flags controlled by user. It is used
 # to better control library self-consistency.
 #
 # TODO(aferludin): disable in prod as those checks may be expensive.
 validate_internal_results = True
 
-# If set, allows to construct GraphPieces from sub-GraphPieces that are
-# inconsistent in their values of .row_splits_dtype, or of .indices_dtype:
-# The new GraphPiece uses the widest of the input types; sub-GraphPieces
-# with a narrower type are rebuilt after casting the respective tensors to
-# the wider type.
-allow_indices_auto_casting = True
-
-# The default choice for `indices_dtype`.
+# Default representation type for indices and size integers.
 # Can be either tf.int32 or tf.int64.
 #
-# IMPORTANT: On TPUs, `tf.int64` is not well-supported. In particular, TF-GNN
-# relies on `tf.cumsum` for some sparse operations which is currently is not
-# implemented for `tf.int64`. (Last checked June 2023, see
-# https://cloud.google.com/tpu/docs/tensorflow-ops.)
+# IMPORTANT: On TPUs tf.int64 is not implemented.
 default_indices_dtype = tf.int32
-
-# The default choice for `row_splits_dtype`.
-# Can be either tf.int32 or tf.int64.
-#
-# IMPORTANT: `tf.RaggedTensor` defaults to `tf.int64`. Deviating from that
-# may create surprises for users.
-default_row_splits_dtype = tf.int64
 
 # DEPRECATED
 

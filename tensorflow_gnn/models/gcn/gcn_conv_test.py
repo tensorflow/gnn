@@ -54,11 +54,11 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                       adjacency=tfgnn.Adjacency.from_indices(
                           source=(
                               tfgnn.NODES,
-                              tf.constant([0, 1]),
+                              tf.constant([0, 1], dtype=tf.int64),
                           ),
                           target=(
                               tfgnn.NODES,
-                              tf.constant([1, 0]),
+                              tf.constant([1, 0], dtype=tf.int64),
                           ),
                       ),
                   )
@@ -88,11 +88,11 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                       adjacency=tfgnn.Adjacency.from_indices(
                           source=(
                               tfgnn.NODES,
-                              tf.constant([0, 1]),
+                              tf.constant([0, 1], dtype=tf.int64),
                           ),
                           target=(
                               tfgnn.NODES,
-                              tf.constant([1, 0]),
+                              tf.constant([1, 0], dtype=tf.int64),
                           ),
                       ),
                   )
@@ -121,11 +121,11 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                       adjacency=tfgnn.Adjacency.from_indices(
                           source=(
                               tfgnn.NODES,
-                              tf.constant([0, 1, 2, 3]),
+                              tf.constant([0, 1, 2, 3], dtype=tf.int64),
                           ),
                           target=(
                               tfgnn.NODES,
-                              tf.constant([1, 0, 3, 2]),
+                              tf.constant([1, 0, 3, 2], dtype=tf.int64),
                           ),
                       ),
                   )
@@ -166,8 +166,8 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
             tfgnn.EDGES: tfgnn.EdgeSet.from_fields(
                 sizes=[2],
                 adjacency=tfgnn.Adjacency.from_indices(
-                    source=(tfgnn.NODES, tf.constant([0, 1])),
-                    target=(tfgnn.NODES, tf.constant([1, 0])),
+                    source=(tfgnn.NODES, tf.constant([0, 1], dtype=tf.int64)),
+                    target=(tfgnn.NODES, tf.constant([1, 0], dtype=tf.int64)),
                 ),
             )
         },
@@ -201,8 +201,8 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
             tfgnn.EDGES: tfgnn.EdgeSet.from_fields(
                 sizes=[2],
                 adjacency=tfgnn.Adjacency.from_indices(
-                    source=(tfgnn.NODES, tf.constant([0, 1])),
-                    target=('antinodes', tf.constant([1, 0])),
+                    source=(tfgnn.NODES, tf.constant([0, 1], dtype=tf.int64)),
+                    target=('antinodes', tf.constant([1, 0], dtype=tf.int64)),
                 ),
             )
         },
@@ -237,8 +237,8 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                 sizes=[2],
                 features={'weights': tf.constant([1.0, 1.0], dtype=tf.float32)},
                 adjacency=tfgnn.Adjacency.from_indices(
-                    source=(tfgnn.NODES, tf.constant([0, 1])),
-                    target=(tfgnn.NODES, tf.constant([1, 0])),
+                    source=(tfgnn.NODES, tf.constant([0, 1], dtype=tf.int64)),
+                    target=(tfgnn.NODES, tf.constant([1, 0], dtype=tf.int64)),
                 ),
             )
         },
@@ -306,8 +306,8 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                 sizes=[2],
                 features={'weights': tf.constant([9.0, 4.0], dtype=tf.float32)},
                 adjacency=tfgnn.Adjacency.from_indices(
-                    source=(tfgnn.NODES, tf.constant([0, 1])),
-                    target=(tfgnn.NODES, tf.constant([1, 0])),
+                    source=(tfgnn.NODES, tf.constant([0, 1], dtype=tf.int64)),
+                    target=(tfgnn.NODES, tf.constant([1, 0], dtype=tf.int64)),
                 ),
             )
         },
@@ -342,8 +342,8 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
             tfgnn.EDGES: tfgnn.EdgeSet.from_fields(
                 sizes=[2],
                 adjacency=tfgnn.Adjacency.from_indices(
-                    source=(tfgnn.NODES, tf.constant([0, 1])),
-                    target=(tfgnn.NODES, tf.constant([1, 0])),
+                    source=(tfgnn.NODES, tf.constant([0, 1], dtype=tf.int64)),
+                    target=(tfgnn.NODES, tf.constant([1, 0], dtype=tf.int64)),
                 ),
             )
         },
@@ -374,8 +374,8 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                     'weights': tf.constant([[9.0], [4.0]], dtype=tf.float32)
                 },
                 adjacency=tfgnn.Adjacency.from_indices(
-                    source=(tfgnn.NODES, tf.constant([0, 1])),
-                    target=(tfgnn.NODES, tf.constant([1, 0])),
+                    source=(tfgnn.NODES, tf.constant([0, 1], dtype=tf.int64)),
+                    target=(tfgnn.NODES, tf.constant([1, 0], dtype=tf.int64)),
                 ),
             )
         },
@@ -403,8 +403,8 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
             tfgnn.EDGES: tfgnn.EdgeSet.from_fields(
                 sizes=[2],
                 adjacency=tfgnn.Adjacency.from_indices(
-                    source=(tfgnn.NODES, tf.constant([0, 1])),
-                    target=(tfgnn.NODES, tf.constant([1, 0])),
+                    source=(tfgnn.NODES, tf.constant([0, 1], dtype=tf.int64)),
+                    target=(tfgnn.NODES, tf.constant([1, 0], dtype=tf.int64)),
                 ),
             )
         },
@@ -521,11 +521,11 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                 adjacency=tfgnn.Adjacency.from_indices(
                     source=(
                         tfgnn.NODES,
-                        tf.constant([0, 1, 2]),
+                        tf.constant([0, 1, 2], dtype=tf.int64),
                     ),
                     target=(
                         tfgnn.NODES,
-                        tf.constant([1, 2, 0]),
+                        tf.constant([1, 2, 0], dtype=tf.int64),
                     ),
                 ),
             )
@@ -597,11 +597,11 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                     # Swapping source and target compared to the previous test.
                     target=(
                         tfgnn.NODES,
-                        tf.constant([0, 1, 2]),
+                        tf.constant([0, 1, 2], dtype=tf.int64),
                     ),
                     source=(
                         tfgnn.NODES,
-                        tf.constant([1, 2, 0]),
+                        tf.constant([1, 2, 0], dtype=tf.int64),
                     ),
                 ),
             )
@@ -647,11 +647,11 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
                 adjacency=tfgnn.Adjacency.from_indices(
                     source=(
                         tfgnn.NODES,
-                        tf.constant([0, 0, 1, 2]),
+                        tf.constant([0, 0, 1, 2], dtype=tf.int64),
                     ),
                     target=(
                         tfgnn.NODES,
-                        tf.constant([1, 2, 0, 0]),
+                        tf.constant([1, 2, 0, 0], dtype=tf.int64),
                     ),
                 ),
             )
@@ -696,8 +696,8 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
             tfgnn.EDGES: tfgnn.EdgeSet.from_fields(
                 sizes=[2],
                 adjacency=tfgnn.Adjacency.from_indices(
-                    source=(tfgnn.NODES, tf.constant([0, 1])),
-                    target=(tfgnn.NODES, tf.constant([1, 0])),
+                    source=(tfgnn.NODES, tf.constant([0, 1], dtype=tf.int64)),
+                    target=(tfgnn.NODES, tf.constant([1, 0], dtype=tf.int64)),
                 ),
             )
         },
@@ -802,8 +802,8 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
             tfgnn.EDGES: tfgnn.EdgeSet.from_fields(
                 sizes=[2],
                 adjacency=tfgnn.Adjacency.from_indices(
-                    source=(tfgnn.NODES, tf.constant([0, 1])),
-                    target=(tfgnn.NODES, tf.constant([0, 0])),
+                    source=(tfgnn.NODES, tf.constant([0, 1], dtype=tf.int64)),
+                    target=(tfgnn.NODES, tf.constant([0, 0], dtype=tf.int64)),
                 ),
             )
         },

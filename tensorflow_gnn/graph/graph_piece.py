@@ -16,7 +16,9 @@
 
 import abc
 import functools
-from typing import Any, Callable, List, Mapping, Optional, Tuple, Union, cast
+from typing import Any, Callable, Mapping, Optional, Union
+from typing import cast
+from typing import List, Tuple
 
 import tensorflow as tf
 
@@ -57,11 +59,6 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
      has a matching `GraphPieceSpec` (a subclass of `GraphPieceSpecBase`) as its
      type spec.
 
-   - A `GraphPiece` object stores a nest of immutable tensors (tensors, ragged
-     tensors, and/or other `GraphPiece`s) together with a `GraphPieceSpec`. The
-     `GraphPieceSpec` contains a nest of specs that mirrors this nest of
-     tensors.
-
    - `GraphPiece` and `GraphPieceSpec` are immutable objects.
 
    - Each `GraphPiece` defines a `shape` attribute that reflects common batching
@@ -92,17 +89,10 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
      statically defined (None), the field is batched as a potentially ragged
      tensor. Otherwise the field is batched as a dense tensor.
 
-   - To help with batching potentially ragged tensors, each `GraphPiece` has a
-     `.row_splits_dtype` attribute that determines the
-     `tf.RaggedTensor.row_splits.dtype` of all its ragged fields. Possible
-     values are `tf.int64` and `tf.int32`; see also `default_row_splits_dtype`.
-     Creating a `GraphPiece` makes sure that all its fields agree on this.
-
-   - Likewise, each `GraphPiece` has an `.indices_dtype`, which is used to index
-     items in the graph (notably, nodes referenced from edges) and to count them
-     (in particular, for the sizes of graph components). Possibe values are
-     `tf.int64` and `tf.int32`; see also `default_indices_dtype`. Creating a
-     `GraphPiece` makes sure that all nested GraphPieces agree on this.
+   - A `GraphPiece` object stores a nest of immutable tensors (tensors, ragged
+     tensors, and/or other `GraphPiece`s) together with a `GraphPieceSpec`. The
+     `GraphPieceSpec` contains a nest of specs that mirrors this nest of
+     tensors.
 
    - A `GraphPiece` object stores optional metadata as a flat mapping from a
      string key to hashable values (see the `Metadata` typedef). Metadata allows
@@ -113,16 +103,24 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
 
    - Each `GraphPiece` shares the following graph-wide attributes with a
      GraphPiece it belongs to (or could belong to): shape, indices_dtype and
-     row_splits_dtype.
-  """
+     metadata.
 
+   - If `GraphPiece` X is a part of `GraphPiece` Y (X->Y), all metadata entries
+     of X and Y with the same keys must have exactly the same values. If X->Y->Z
+     metadata values with the same key `K` from Z and X may have different
+     values if and only if entry with the key `K` is not present in metadata Y.
+     This rule allows to automatically propagate metadata entries from parent
+     graph pieces to all their children.
+
+  """
   # TODO(b/188399175): Migrate to the new Extension Type API.
 
   __slots__ = ['_data', '_spec']
 
   def __init__(self,
                data: Data,
-               spec: 'GraphPieceSpecBase'):
+               spec: 'GraphPieceSpecBase',
+               validate: bool = False):
     """Internal constructor, use `from_*` class factory methods instead.
 
     Creates object from `data` and matching data `spec`.
@@ -135,20 +133,21 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
       data: Nest of Field or subclasses of GraphPieceBase.
       spec: A subclass of GraphPieceSpecBase with a `_data_spec` that matches
         `data`.
+      validate: if set, checks that data and spec are aligned, compatible and
+        supported.
     """
     super().__init__()
     assert data is not None
     assert spec is not None
     assert isinstance(spec, GraphPieceSpecBase), type(spec).__name__
-    if const.validate_internal_results:
+    if validate or const.validate_internal_results:
       tf.nest.assert_same_structure(data, spec._data_spec)
       tf.nest.map_structure(_assert_value_compatible_with_spec, data,
                             spec._data_spec)
     self._data = data
     self._spec = spec
 
-  @staticmethod
-  @abc.abstractmethod
+  @abc.abstractstaticmethod
   def _type_spec_cls():
     """Returns type spec class (sublass fo the `GraphPieceBase`)."""
     raise NotImplementedError('`_type_spec_cls` is not implemented')
@@ -157,9 +156,7 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
   def _from_data(cls,
                  data: Data,
                  shape: tf.TensorShape,
-                 *,
                  indices_dtype: tf.dtypes.DType,
-                 row_splits_dtype: tf.dtypes.DType,
                  metadata: Metadata = None) -> 'GraphPieceBase':
     """Creates a GraphPiece from its data and attributes.
 
@@ -173,11 +170,7 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
         common batch dimensions of the Fields nested in data. (This is meant to
         align this function with the requirements of TypeSpec._from_components()
         and BatchableTypeSpec._from_compatible_tensor_list().)
-      indices_dtype: dtype to use for graph items indexing. All graph pieces in
-        the data must have matching `indices_dtype`.
-      row_splits_dtype: dtype to use for potentially ragged fields batching. All
-        graph pieces in the data must have matching `row_splits_dtype` and all
-        ragged fields must have ragged row partitions of this type.
+      indices_dtype: indices type to use for potentially ragged fields batching.
       metadata: optional mapping from a string key to hashable values.
 
     Returns:
@@ -196,13 +189,15 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
     # with a different dynamic shape, but only if that is statically unknown?
 
     # pylint: disable=protected-access
-    def update_shape_fn(
-        value: Union['GraphPieceBase', Field],
-        shape: tf.TensorShape
-    ) -> Union['GraphPieceBase', Field]:
-      """Updates shapes of graph pieces."""
+    def update_fn(value: Union['GraphPieceBase', Field], shape: tf.TensorShape,
+                  indices_dtype: tf.dtypes.DType,
+                  metadata: Metadata) -> Union['GraphPieceBase', Field]:
+      """Updates data with new attributes."""
       if isinstance(value, GraphPieceBase):
-        return value.with_shape(shape)
+        return value._with_attributes(shape, indices_dtype, metadata)
+      if not isinstance(value, (tf.RaggedTensor, tf.Tensor)):
+        raise TypeError(
+            f'Invalid type for: {value}; should be tensor or ragged tensor')
       return value
 
     shape_from_data = _get_batch_shape_from_fields(data, shape.rank)
@@ -216,26 +211,78 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
                          f' GraphPiece shape {shape}')
 
     data = tf.nest.map_structure(
-        functools.partial(update_shape_fn, shape=shape), data
-    )
-
+        functools.partial(
+            update_fn,
+            shape=shape,
+            indices_dtype=indices_dtype,
+            metadata=metadata), data)
     data_spec = tf.nest.map_structure(tf.type_spec_from_value, data)
 
     cls_spec = cls._type_spec_cls()
     assert issubclass(cls_spec, GraphPieceSpecBase), cls_spec
+    return cls(data, cls_spec(data_spec, shape, indices_dtype, metadata))
 
-    # We delegate all consistency checks of static information (shape,
-    # indices_dtype, row_splits_dtype, etc) to the `GraphPieceSpecBase`.
+  def _apply(self,
+             field_map_fn: Optional[FieldMapFn] = None,
+             piece_map_fn: Optional[PieceMapFn] = None,
+             shape: Optional[tf.TensorShape] = None) -> 'GraphPieceBase':
+    """Constructs a new instance, mapping values while preserving attributes.
+
+    This method allows transforming GraphPiece fields with their specs.
+
+    Args:
+      field_map_fn: takes as an input field (as Field) and its spec (as
+        FieldSpec) tuple and returns new field and new spec tuple.
+      piece_map_fn: takes as an input GraphPiece and returns new GraphPiece.
+      shape: optional updated GraphPiece shape.
+
+    Returns:
+      A transformed instance of the GraphPieceBase object.
+    """
+
+    # pylint: disable=protected-access
+    def update_fn(data, spec):
+      if isinstance(data, GraphPieceBase):
+        assert isinstance(spec, GraphPieceSpecBase)
+        if piece_map_fn is None:
+          return data, spec
+        data = piece_map_fn(data)
+        return data, tf.type_spec_from_value(data)
+
+      if not isinstance(data, (tf.Tensor, tf.RaggedTensor)):
+        raise TypeError(
+            f'Invalid type for: {data}; should be tensor or ragged tensor')
+
+      if field_map_fn is None:
+        return data, spec
+      return field_map_fn(cast(Field, data), cast(FieldSpec, spec))
+
+    data, data_spec = _apply(update_fn, self._data, self.spec._data_spec)
+    cls = self.__class__
+    cls_spec = cls._type_spec_cls()
+    assert issubclass(cls_spec, GraphPieceSpecBase), cls_spec
     return cls(
         data,
-        cls_spec._from_data_spec(
-            data_spec,
-            shape,
-            indices_dtype=indices_dtype,
-            row_splits_dtype=row_splits_dtype,
-            metadata=metadata,
-        ),
-    )
+        cls_spec(data_spec, self.shape if shape is None else shape,
+                 self.indices_dtype, self.spec._metadata))
+
+  def _with_attributes(self, shape: tf.TensorShape,
+                       indices_dtype: tf.dtypes.DType,
+                       metadata: Metadata) -> 'GraphPieceBase':
+    """Returns an instance of this object with replaced attributes."""
+    # pylint: disable=protected-access
+    if self.spec._are_compatible_attributes(shape, indices_dtype, metadata):
+      return self
+    new_spec = self.spec._with_attributes(shape, indices_dtype, metadata)
+
+    def update_fn(value):
+      if isinstance(value, GraphPieceBase):
+        return value._with_attributes(new_spec.shape, new_spec.indices_dtype,
+                                      new_spec._metadata)
+      return value
+
+    return self.__class__(  # pytype: disable=not-instantiable
+        tf.nest.map_structure(update_fn, self._data), new_spec)
 
   @property
   def shape(self) -> tf.TensorShape:
@@ -250,23 +297,13 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
     """
     return self._spec.shape
 
-  def set_shape(self, new_shape: ShapeLike) -> 'GraphPieceBase':
-    """Deprecated. Use `with_shape()`."""
-    return self.with_shape(new_shape)
-
-  def with_shape(self, new_shape: ShapeLike) -> 'GraphPieceBase':
+  def set_shape(self, new_shape: ShapeLike) -> 'GraphPieceSpecBase':
     """Enforce the common prefix shape on all the contained features."""
     # pylint: disable=protected-access
     if not isinstance(new_shape, tf.TensorShape):
       new_shape = tf.TensorShape(new_shape)
-
-    return self._from_data(
-        _set_batch_shape(self._data, new_shape),
-        new_shape,
-        indices_dtype=self.indices_dtype,
-        row_splits_dtype=self.row_splits_dtype,
-        metadata=self.spec._metadata,
-    )
+    return self._with_attributes(new_shape, self.spec._indices_dtype,
+                                 self.spec._metadata)
 
   @property
   def rank(self) -> int:
@@ -276,83 +313,8 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
 
   @property
   def indices_dtype(self) -> tf.dtypes.DType:
-    """The dtype for graph items indexing. One of `tf.int32` or `tf.int64`."""
+    """The integer type to represent ragged splits."""
     return self._spec.indices_dtype
-
-  def with_indices_dtype(self, dtype: tf.dtypes.DType) -> 'GraphPieceBase':
-    """Returns a copy of this piece with the given indices dtype."""
-    check_indices_dtype(dtype)
-
-    if self.indices_dtype == dtype:
-      return self
-
-    # pylint: disable=protected-access
-    return self._from_data(
-        self._data_with_indices_dtype(self._data, dtype),
-        self.shape,
-        indices_dtype=dtype,
-        row_splits_dtype=self.row_splits_dtype,
-        metadata=self.spec._metadata,
-    )
-
-  @classmethod
-  def _data_with_indices_dtype(cls, data: Data, dtype: tf.dtypes.DType) -> Data:
-    """Returns `cls`'s `data` nest converted to new indices dtype.
-
-    This is a default implementation that calls `.with_indices_dtype`
-    recursively on all data items that subclass `GraphPieceBase`.
-
-    IMPORTANT: Subclasses whose data contains fields governed by `indices_dtype`
-    must override this method to carry out the actual conversion.
-
-    Args:
-      data: all class fields as a nest of Field and GraphPiece objects.
-      dtype: the new indices dtype.
-
-    Returns:
-      `data` nest converted to new indices dtype.
-    """
-    return data_with_indices_dtype(data, dtype)
-
-  @property
-  def row_splits_dtype(self) -> tf.dtypes.DType:
-    """The dtype for ragged row partions. One of `tf.int32` or `tf.int64`."""
-    return self._spec.row_splits_dtype
-
-  def with_row_splits_dtype(self, dtype: tf.dtypes.DType) -> 'GraphPieceBase':
-    """Returns a copy of this piece with the given row splits dtype."""
-    check_row_splits_dtype(dtype)
-
-    if self.row_splits_dtype == dtype:
-      return self
-
-    # pylint: disable=protected-access
-    return self._from_data(
-        self._data_with_row_splits_dtype(self._data, dtype),
-        self.shape,
-        indices_dtype=self.indices_dtype,
-        row_splits_dtype=dtype,
-        metadata=self.spec._metadata,
-    )
-
-  @classmethod
-  def _data_with_row_splits_dtype(
-      cls, data: Data, dtype: tf.dtypes.DType
-  ) -> Data:
-    """Returns `cls`'s `data` nest converted to new row splits dtype.
-
-    This function converts fields of type `tf.RaggedTensor` and recursively
-    calls `.with_row_splits_dtype` on all data items that subclass
-    `GraphPieceBase`.
-
-    Args:
-      data: all class fields as a nest of Field and GraphPiece objects.
-      dtype: the new row splits dtype.
-
-    Returns:
-      `data` nest converted to new row splits dtype.
-    """
-    return data_with_row_splits_dtype(data, dtype)
 
   @property
   def spec(self) -> 'GraphPieceSpecBase':
@@ -397,101 +359,111 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
       scalar (rank-0) GraphPiece.
     """
     # pylint: disable=protected-access
-
-    def update_fn(value: Field) -> Field:
-      if isinstance(value, GraphPieceBase):
-        return value._merge_batch_to_components(*args, **kwargs)
-      return field_remove_batch_dimensions(self.rank, value)
-
-    new_data = tf.nest.map_structure(update_fn, self._data)
-    new_shape = tf.TensorShape([])
-    return self._from_data(
-        new_data,
-        new_shape,
-        indices_dtype=self.indices_dtype,
-        row_splits_dtype=self.row_splits_dtype,
-        metadata=self.spec._metadata,
-    )
+    return self._apply(
+        functools.partial(remove_batch_dimensions, self.rank),
+        lambda piece: piece._merge_batch_to_components(*args, **kwargs),
+        tf.TensorShape([]))
 
 
 class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
   """The base class for TypeSpecs of GraphPieces."""
 
-  __slots__ = [
-      '_data_spec',
-      '_shape',
-      '_indices_dtype',
-      '_row_splits_dtype',
-      '_metadata',
-  ]
+  __slots__ = ['_data_spec', '_shape', '_indices_dtype', '_metadata']
 
   def __init__(self,
                data_spec: DataSpec,
                shape: tf.TensorShape,
                indices_dtype: tf.dtypes.DType,
-               row_splits_dtype: tf.dtypes.DType,
-               metadata: Metadata = None):
+               metadata: Metadata = None,
+               validate: bool = False):
     """Constructs GraphTensor type spec."""
     super().__init__()
+    assert isinstance(shape, tf.TensorShape), f'got: {type(shape).__name__}'
+    if not shape[1:].is_fully_defined():
+      raise ValueError(
+          ('All shape dimensions except the outermost must be fully defined,'
+           f' got shape={shape}.'))
 
-    if const.validate_internal_results:
-      if not shape[1:].is_fully_defined():
-        raise ValueError(
-            'All shape dimensions except the outermost must be fully defined,'
-            f' got shape={shape}.'
-        )
-      check_indices_dtype(indices_dtype)
-      check_row_splits_dtype(row_splits_dtype)
+    if metadata is not None and const.validate_internal_results:
+      assert isinstance(metadata, Mapping)
+      for k, v in metadata.items():
+        assert isinstance(k, str), 'See b/187015015'
+        assert isinstance(v, (bool, int, str, float, tf.dtypes.DType))
 
-      if metadata is not None:
-        assert isinstance(metadata, Mapping)
-        for k, v in metadata.items():
-          assert isinstance(k, str), 'See b/187015015'
-          assert isinstance(v, (bool, int, str, float, tf.dtypes.DType))
-
+    if validate or const.validate_internal_results:
       # TODO(b/187011656): currently ragged-rank0 dimensions are not supported.
       tf.nest.map_structure(_assert_not_rank0_ragged, data_spec)
       tf.nest.map_structure(
           functools.partial(_assert_batch_shape_compatible_with_spec, shape),
-          data_spec,
-      )
-      tf.nest.map_structure(
-          functools.partial(
-              _assert_indices_dtype_compatible_with_spec, indices_dtype
-          ),
-          data_spec,
-      )
-      tf.nest.map_structure(
-          functools.partial(
-              _assert_row_splits_dtype_compatible_with_spec, row_splits_dtype
-          ),
-          data_spec,
-      )
+          data_spec)
 
     self._shape = shape
     self._indices_dtype = indices_dtype
-    self._row_splits_dtype = row_splits_dtype
     self._metadata = metadata
     self._data_spec = data_spec
 
   @classmethod
-  def _from_data_spec(
-      cls,
-      data_spec: DataSpec,
-      shape: tf.TensorShape,
-      *,
-      indices_dtype: tf.dtypes.DType,
-      row_splits_dtype: tf.dtypes.DType,
-      metadata: Metadata = None,
-  ) -> 'GraphPieceSpecBase':
+  def _from_data_spec(cls,
+                      data_spec: DataSpec,
+                      shape: tf.TensorShape,
+                      indices_dtype: tf.dtypes.DType,
+                      metadata: Metadata = None) -> 'GraphPieceSpecBase':
     """Counterpart of `GraphPiece.from_data` with data type spec."""
+
+    # pylint: disable=protected-access
+    def update_fn(value_spec):
+      if isinstance(value_spec, GraphPieceSpecBase):
+        return value_spec._with_attributes(shape, indices_dtype, metadata)
+      return _set_batch_shape_in_spec(shape, value_spec)
+
     return cls(
-        _set_batch_shape_in_spec(data_spec, shape),
-        shape,
-        indices_dtype,
-        row_splits_dtype,
-        metadata,
-    )
+        tf.nest.map_structure(update_fn, data_spec), shape, indices_dtype,
+        metadata)
+
+  def _with_attributes(self, shape: tf.TensorShape,
+                       indices_dtype: tf.dtypes.DType,
+                       metadata: Metadata) -> 'GraphPieceSpecBase':
+    """Returns object instance with replaced attributes."""
+    # pylint: disable=protected-access
+    if self._are_compatible_attributes(shape, indices_dtype, metadata):
+      return self
+
+    metadata = self._merge_metadata(metadata)
+
+    def update_fn(value_spec):
+      if isinstance(value_spec, GraphPieceSpecBase):
+        return value_spec._with_attributes(shape, indices_dtype, metadata)
+      return _set_batch_shape_in_spec(shape, value_spec)
+
+    return self.__class__(
+        tf.nest.map_structure(update_fn, self._data_spec), shape, indices_dtype,
+        metadata)
+
+  def _are_compatible_attributes(self, shape: tf.TensorShape,
+                                 indices_dtype: tf.dtypes.DType,
+                                 metadata: Metadata) -> bool:
+    """Checks that the new set of attributes is equivalent to the current."""
+    return self._is_equal_shape(shape) and self._is_compatible_metadata(
+        metadata) and self.indices_dtype == indices_dtype
+
+  def _is_equal_shape(self, shape: tf.TensorShape) -> bool:
+    """Shapes are equal if their dimension lists are equal."""
+    return self.shape.as_list() == shape.as_list()
+
+  def _is_compatible_metadata(self, metadata: Metadata) -> bool:
+    if metadata is None or self._metadata is None:
+      return metadata is None
+    return all(new_v == self._metadata[k]
+               for k, new_v in metadata.items()
+               if k in self._metadata)
+
+  def _merge_metadata(self, metadata: Metadata) -> Metadata:
+    if metadata is None or self._metadata is None:
+      return self._metadata
+    return {
+        k: (metadata[k] if k in metadata else v)
+        for k, v in self._metadata.items()
+    }
 
   @property
   def shape(self) -> tf.TensorShape:
@@ -506,20 +478,6 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
     """
     return self._shape
 
-  def with_shape(self, new_shape: ShapeLike) -> 'GraphPieceSpecBase':
-    """Enforce the common prefix shape on all the contained features."""
-    # pylint: disable=protected-access
-    if not isinstance(new_shape, tf.TensorShape):
-      new_shape = tf.TensorShape(new_shape)
-
-    return self._from_data_spec(
-        _set_batch_shape_in_spec(self._data_spec, new_shape),
-        new_shape,
-        indices_dtype=self.indices_dtype,
-        row_splits_dtype=self.row_splits_dtype,
-        metadata=self._metadata,
-    )
-
   @property
   def rank(self) -> int:
     """The rank of the GraphPiece. Guaranteed not to be `None`."""
@@ -527,86 +485,8 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
 
   @property
   def indices_dtype(self) -> tf.dtypes.DType:
-    """The dtype for graph items indexing. One of `tf.int32` or `tf.int64`."""
+    """The integer type to represent ragged splits."""
     return self._indices_dtype
-
-  def with_indices_dtype(self, dtype: tf.dtypes.DType) -> 'GraphPieceSpecBase':
-    """Returns a copy of this piece spec with the given indices dtype."""
-    check_indices_dtype(dtype)
-
-    if self._indices_dtype == dtype:
-      return self
-
-    return self._from_data_spec(
-        self._data_spec_with_indices_dtype(self._data_spec, dtype),
-        self.shape,
-        indices_dtype=dtype,
-        row_splits_dtype=self._row_splits_dtype,
-        metadata=self._metadata,
-    )
-
-  @classmethod
-  def _data_spec_with_indices_dtype(
-      cls, data_spec: DataSpec, dtype: tf.dtypes.DType
-  ) -> DataSpec:
-    """Returns `cls`'s `data_spec` nest converted to new indices dtype.
-
-    This is a default implementation that calls `.with_indices_dtype`
-    recursively on all data spec items that subclass `GraphPieceSpecBase`.
-
-    IMPORTANT: Subclasses whose data spec contains field specs governed by
-    `indices_dtype` must override this method to carry out the actual
-    conversion.
-
-    Args:
-      data_spec: class field specs as a nest of Field and GraphPiece objects.
-      dtype: the new indices dtype.
-
-    Returns:
-      `data_spec` nest converted to new indices dtype.
-    """
-    return data_spec_with_indices_dtype(data_spec, dtype)
-
-  @property
-  def row_splits_dtype(self) -> tf.dtypes.DType:
-    """The dtype for ragged row partions. One of `tf.int32` or `tf.int64`."""
-    return self._row_splits_dtype
-
-  def with_row_splits_dtype(
-      self, dtype: tf.dtypes.DType
-  ) -> 'GraphPieceSpecBase':
-    """Returns a copy of this piece spec with the given row splits dtype."""
-    check_row_splits_dtype(dtype)
-
-    if self._row_splits_dtype == dtype:
-      return self
-
-    return self._from_data_spec(
-        self._data_spec_with_row_splits_dtype(self._data_spec, dtype),
-        self.shape,
-        indices_dtype=self._indices_dtype,
-        row_splits_dtype=dtype,
-        metadata=self._metadata,
-    )
-
-  @classmethod
-  def _data_spec_with_row_splits_dtype(
-      cls, data_spec: DataSpec, dtype: tf.dtypes.DType
-  ) -> DataSpec:
-    """Returns `cls`'s `data_spec` nest converted to new row splits dtype.
-
-    This function converts field specs of type `tf.RaggedTensorSpec` and
-    recursively calls `.with_row_splits_dtype` on all data spec items that
-    subclass `GraphPieceSpecBase`.
-
-    Args:
-      data_spec: class field specs as a nest of Field and GraphPiece objects.
-      dtype: the new row splits dtype.
-
-    Returns:
-      `data_spec` nest converted to new row splits dtype.
-    """
-    return data_spec_with_row_splits_dtype(data_spec, dtype)
 
   @classmethod
   def from_value(cls, value: GraphPieceBase):
@@ -615,37 +495,19 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
 
   def _serialize(self) -> Tuple[Any, ...]:
     """Extension Types API: Serialization as a nest of simpler types."""
-    return (
-        self._data_spec,
-        self._shape,
-        self._indices_dtype,
-        self._row_splits_dtype,
-        self._metadata,
-    )
+    return (self._data_spec, self._shape, self._indices_dtype, self._metadata)
 
   @classmethod
   def _deserialize(cls, serialization):
     """Extension Types API: Deserialization from a nest of simpler types."""
-    if len(serialization) == 4:
-      # Old format, before indices_dtype and row_splits_dtype were separated.
-      # See b/285269757.
-      data_spec, shape, indices_dtype, metadata = serialization
-      row_splits_dtype = const.default_row_splits_dtype
-    else:
-      data_spec, shape, indices_dtype, row_splits_dtype, metadata = (
-          serialization
-      )
-
+    data_spec, shape, indices_dtype, metadata = serialization
     # Reinstate types lost by Keras Model serialization.
     # TODO(b/241917040): Remove if/when fixed in Keras.
     if not isinstance(shape, tf.TensorShape):
       shape = tf.TensorShape(shape)
     if not isinstance(indices_dtype, tf.dtypes.DType):
       indices_dtype = tf.dtypes.as_dtype(indices_dtype)
-    if not isinstance(row_splits_dtype, tf.dtypes.DType):
-      row_splits_dtype = tf.dtypes.as_dtype(row_splits_dtype)
-
-    return cls(data_spec, shape, indices_dtype, row_splits_dtype, metadata)
+    return cls(data_spec, shape, indices_dtype, metadata)
 
   @property
   def _component_specs(self) -> Any:
@@ -661,13 +523,8 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
     # pylint: disable=protected-access
     cls = self.value_type
     assert issubclass(cls, GraphPieceBase), cls
-    return cls._from_data(
-        components,
-        self._shape,
-        indices_dtype=self._indices_dtype,
-        row_splits_dtype=self._row_splits_dtype,
-        metadata=self._metadata,
-    )
+    return cls._from_data(components, self._shape, self._indices_dtype,
+                          self._metadata)
 
   def _batch(self, batch_size: Optional[int]) -> 'GraphPieceSpecBase':
     """Extension Types API: Batching."""
@@ -688,19 +545,14 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
       # Convert all specs for potentially ragged tensors to ragged rank-0 type
       # specifications to allow variable size (ragged) batching.
       # pylint: disable=protected-access
-      spec = _box_spec(self.rank, spec, self._row_splits_dtype)
+      spec = _box_spec(self.rank, spec, self.indices_dtype)
       spec = spec._batch(batch_size)
       return _unbox_spec(self.rank + 1, spec)
 
     batched_data_spec = tf.nest.map_structure(batch_fn, self._data_spec)
     shape = tf.TensorShape([batch_size]).concatenate(self._shape)
-    return self.__class__(
-        batched_data_spec,
-        shape,
-        self._indices_dtype,
-        self._row_splits_dtype,
-        self._metadata,
-    )
+    return self.__class__(batched_data_spec, shape, self._indices_dtype,
+                          self._metadata)
 
   def _unbatch(self) -> 'GraphPieceSpecBase':
     """Extension Types API: Unbatching."""
@@ -711,20 +563,17 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
       # Convert all ragged rank-0 specs to simple tensor type specs to ensure
       # that it is not leaking to the `to_components`.
       # pylint: disable=protected-access
-      spec = _box_spec(self.rank, spec, self._row_splits_dtype)
+      spec = _box_spec(self.rank, spec, self.indices_dtype)
       spec = spec._unbatch()
       return _unbox_spec(self.rank - 1, spec)
 
     unbatched_data_spec = tf.nest.map_structure(unbatch_fn, self._data_spec)
 
+    batch_size = self._shape.as_list()[0]
+    batch_size = int(batch_size) if batch_size is not None else None
     shape = self._shape[1:]
-    return self.__class__(
-        unbatched_data_spec,
-        shape,
-        self._indices_dtype,
-        self._row_splits_dtype,
-        self._metadata,
-    )
+    return self.__class__(unbatched_data_spec, shape, self.indices_dtype,
+                          self._metadata)
 
   def _from_compatible_tensor_list(self,
                                    tensor_list: List[Any]) -> GraphPieceBase:
@@ -743,7 +592,7 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
 
     flat_values = list()
     for spec in tf.nest.flatten(self._data_spec):
-      spec = _box_spec(self.rank, spec, self._row_splits_dtype)
+      spec = _box_spec(self.rank, spec, self.indices_dtype)
       num_tensors_for_feature = len(spec._flat_tensor_specs)
       feature_tensors = tensor_list[:num_tensors_for_feature]
       del tensor_list[:num_tensors_for_feature]
@@ -754,13 +603,8 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
     fields = tf.nest.pack_sequence_as(self._data_spec, flat_values)
     cls = self.value_type
     assert issubclass(cls, GraphPieceBase)
-    return cls._from_data(
-        fields,
-        self._shape,
-        indices_dtype=self._indices_dtype,
-        row_splits_dtype=self._row_splits_dtype,
-        metadata=self._metadata,
-    )
+    return cls._from_data(fields, self._shape, self._indices_dtype,
+                          self._metadata)
 
   @property
   def _flat_tensor_specs(self) -> List[tf.TensorSpec]:
@@ -768,7 +612,7 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
     # pylint: disable=protected-access
     out = []
     for spec in tf.nest.flatten(self._data_spec):
-      spec = _box_spec(self.rank, spec, self._row_splits_dtype)
+      spec = _box_spec(self.rank, spec, self.indices_dtype)
       out.extend(spec._flat_tensor_specs)
     return out
 
@@ -799,7 +643,7 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
     out = []
 
     def map_fn(spec, value):
-      spec = _box_spec(self.rank, spec, self._row_splits_dtype)
+      spec = _box_spec(self.rank, spec, self.indices_dtype)
       to_list_fn = getattr(spec, spec_method_name)
       out.extend(to_list_fn(value))
 
@@ -826,7 +670,7 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
       2. field values for fixed size dimensions are set to empty with tf.zeros.
       3. resulting tensor should have no values (empty values of flat values).
 
-    NOTE: this is temporary workaround to allow to construct GraphTensors with
+    NOTE: this is temporary workaround to allow to contruct GraphTensors with
     empty batch dimensions to use with TF distribution strategy (b/183969859).
     The method could be removed in the future without notice, PLEASE DO NOT USE.
 
@@ -912,7 +756,7 @@ def _is_var_size_dense(batch_rank: int, spec: _ValueSpec) -> bool:
 
 
 def _box_spec(batch_rank: int, spec: _ValueSpec,
-              row_splits_dtype: tf.dtypes.DType) -> _ValueSpec:
+              indices_dtype: tf.dtypes.DType) -> _ValueSpec:
   """Returns ragged rank-0 specification for potentially ragged tensors.
 
   Dense fields with variable-size components dimension (with static size None)
@@ -924,7 +768,7 @@ def _box_spec(batch_rank: int, spec: _ValueSpec,
   Args:
     batch_rank: number of batch dimensions.
     spec: value specification (FieldSpec or GraphPieceSpec).
-    row_splits_dtype: ragged splits type (tf.int64 or tf.int32).
+    indices_dtype: ragged splits type (tf.int64 or tf.int32).
 
   Returns:
     Type specification to use for field batching.
@@ -942,7 +786,7 @@ def _box_spec(batch_rank: int, spec: _ValueSpec,
         shape=tf.TensorShape([None]).concatenate(spec.shape[1:]),
         ragged_rank=0,
         dtype=spec.dtype,
-        row_splits_dtype=row_splits_dtype)
+        row_splits_dtype=indices_dtype)
   return spec
 
 
@@ -999,28 +843,21 @@ def _assert_batch_shape_compatible_with_spec(batch_shape: tf.TensorShape,
                      f' spec.shape={spec.shape}, batch_shape={batch_shape}')
 
 
-def _assert_indices_dtype_compatible_with_spec(
-    indices_dtype: tf.dtypes.DType, spec: _ValueSpec
-) -> None:
-  """Checks indices dtype consistency."""
-  if isinstance(spec, GraphPieceSpecBase):
-    if spec.indices_dtype != indices_dtype:
-      raise ValueError(
-          f'Field indices dtype {spec.indices_dtype} is not compatible'
-          f' with graph piece indices dtype {indices_dtype}'
-      )
+def _apply(map_fn: FieldMapFn, data_struct: Data,
+           spec_struct: DataSpec) -> Tuple[Data, DataSpec]:
+  """Applies function to each pair of data and its spec from structures."""
+  assert callable(map_fn)
+  flat_data = []
+  flat_spec = []
+  for data, spec in zip(
+      tf.nest.flatten(data_struct), tf.nest.flatten(spec_struct)):
+    new_data, new_spec = map_fn(data, spec)
+    flat_data.append(new_data)
+    flat_spec.append(new_spec)
 
-
-def _assert_row_splits_dtype_compatible_with_spec(
-    row_splits_dtype: tf.dtypes.DType, spec: _ValueSpec
-) -> None:
-  """Checks row splits dtype consistency."""
-  if isinstance(spec, (tf.RaggedTensorSpec, GraphPieceSpecBase)):
-    if spec.row_splits_dtype != row_splits_dtype:
-      raise ValueError(
-          f'Field row splits dtype {spec.row_splits_dtype} is not compatible'
-          f' with graph piece row splits dtype {row_splits_dtype}'
-      )
+  new_data_struct = tf.nest.pack_sequence_as(data_struct, flat_data)
+  new_spec_struct = tf.nest.pack_sequence_as(spec_struct, flat_spec)
+  return new_data_struct, new_spec_struct
 
 
 def relax_dim(dim_index: int, value: Field,
@@ -1088,59 +925,32 @@ def remove_batch_dimensions(rank: int, field: Field,
   return new_field, new_field_spec
 
 
-def _set_batch_shape(data: Data, batch_shape: tf.TensorShape) -> Data:
-  """Returns data with new batch shape."""
-
-  def update_fn(value: Field) -> Field:
-    if isinstance(value, GraphPieceBase):
-      return value.with_shape(batch_shape)
-    old_batch_shape = value.shape[: batch_shape.rank]
-
-    if not old_batch_shape.is_compatible_with(batch_shape):
-      raise ValueError(
-          f'Field shape {value.shape} is not compatible with batch shape'
-          f' {batch_shape}'
-      )
-    return value
-
-  return tf.nest.map_structure(update_fn, data)
-
-
-def _set_batch_shape_in_spec(
-    data_spec: DataSpec, batch_shape: tf.TensorShape
-) -> DataSpec:
-  """Ensures batch dimensions in the `data_spec` to match the `batch_shape`.
+def _set_batch_shape_in_spec(batch_shape: tf.TensorShape,
+                             field_spec: FieldSpec) -> FieldSpec:
+  """Ensures batch dimensions in the `field_spec` to match the `batch_shape`.
 
 
   Args:
-    data_spec: any nest of fields and graph pieces.
     batch_shape: graph piece batch shape.
+    field_spec: field specification.
 
   Returns:
     Field spec with the first shape dimensions set to the batch_shape.
   """
+  _assert_batch_shape_compatible_with_spec(batch_shape, field_spec)
+  old_shape = field_spec.shape
+  new_shape = batch_shape.concatenate(old_shape[batch_shape.rank:])
+  if isinstance(field_spec, tf.RaggedTensorSpec):
+    return tf.RaggedTensorSpec(
+        shape=new_shape,
+        dtype=field_spec.dtype,
+        ragged_rank=field_spec.ragged_rank,
+        row_splits_dtype=field_spec.row_splits_dtype)
 
-  def update_fn(field_spec: FieldSpec) -> FieldSpec:
-    if isinstance(field_spec, GraphPieceSpecBase):
-      return field_spec.with_shape(batch_shape)
+  if isinstance(field_spec, tf.TensorSpec):
+    return tf.TensorSpec(shape=new_shape, dtype=field_spec.dtype)
 
-    _assert_batch_shape_compatible_with_spec(batch_shape, field_spec)
-    old_shape = field_spec.shape
-    new_shape = batch_shape.concatenate(old_shape[batch_shape.rank :])
-    if isinstance(field_spec, tf.RaggedTensorSpec):
-      return tf.RaggedTensorSpec(
-          shape=new_shape,
-          dtype=field_spec.dtype,
-          ragged_rank=field_spec.ragged_rank,
-          row_splits_dtype=field_spec.row_splits_dtype,
-      )
-
-    if isinstance(field_spec, tf.TensorSpec):
-      return tf.TensorSpec(shape=new_shape, dtype=field_spec.dtype)
-
-    raise ValueError(f'Unsupported field spec type {type(field_spec).__name__}')
-
-  return tf.nest.map_structure(update_fn, data_spec)
+  raise ValueError(f'Unsupported field spec type {type(field_spec).__name__}')
 
 
 def _get_fields_list(data: Data) -> List[Field]:
@@ -1211,149 +1021,3 @@ def check_scalar_graph_piece(piece: Union[GraphPieceBase,
          ' graphs into one contiguously indexed graph of the scalar'
          ' GraphTensor.'))
 
-
-def data_with_indices_dtype(data: Data, dtype: tf.dtypes.DType) -> Data:
-  """Sets indices dtype in the data nest."""
-
-  def update_fn(value: Field) -> Field:
-    if isinstance(value, GraphPieceBase):
-      return value.with_indices_dtype(dtype)
-    return value
-
-  return tf.nest.map_structure(update_fn, data)
-
-
-def data_spec_with_indices_dtype(
-    data_spec: DataSpec, dtype: tf.dtypes.DType
-) -> DataSpec:
-  """Sets indices dtype in the data spec nest."""
-
-  def update_fn(value_spec: FieldSpec) -> FieldSpec:
-    if isinstance(value_spec, GraphPieceSpecBase):
-      return value_spec.with_indices_dtype(dtype)
-    return value_spec
-
-  return tf.nest.map_structure(update_fn, data_spec)
-
-
-def data_with_row_splits_dtype(data: Data, dtype: tf.dtypes.DType) -> Data:
-  """Sets row splits dtype in the data nest."""
-
-  def update_fn(value: Field) -> Field:
-    return (
-        value.with_row_splits_dtype(dtype)
-        if isinstance(value, GraphPieceBase)
-        else set_field_row_splits_dtype(value, dtype)
-    )
-
-  return tf.nest.map_structure(update_fn, data)
-
-
-def data_spec_with_row_splits_dtype(
-    data_spec: DataSpec, dtype: tf.dtypes.DType
-) -> DataSpec:
-  """Sets row splits dtype in the data spec nest."""
-
-  def update_fn(value_spec: FieldSpec) -> FieldSpec:
-    return (
-        value_spec.with_row_splits_dtype(dtype)
-        if isinstance(value_spec, GraphPieceSpecBase)
-        else set_field_spec_row_splits_dtype(value_spec, dtype)
-    )
-
-  return tf.nest.map_structure(update_fn, data_spec)
-
-
-def set_field_row_splits_dtype(field: Field, dtype: tf.dtypes.DType) -> Field:
-  """Sets ragged row splits dtype in the field."""
-  if isinstance(field, tf.RaggedTensor) and field.row_splits.dtype != dtype:
-    return field.with_row_splits_dtype(dtype)
-
-  return field
-
-
-def set_field_spec_row_splits_dtype(
-    field_spec: FieldSpec, dtype: tf.dtypes.DType
-) -> FieldSpec:
-  """Sets ragged row splits dtype in the field spec."""
-  if isinstance(field_spec, tf.RaggedTensorSpec):
-    if field_spec.row_splits_dtype == dtype:
-      return field_spec
-    return tf.RaggedTensorSpec(
-        shape=field_spec.shape,
-        dtype=field_spec.dtype,
-        ragged_rank=field_spec.ragged_rank,
-        row_splits_dtype=dtype,
-    )
-  assert isinstance(field_spec, tf.TensorSpec), field_spec
-  return field_spec
-
-
-def set_field_spec_dtype(
-    field_spec: FieldSpec, dtype: tf.dtypes.DType
-) -> FieldSpec:
-  """Returns field spec with the new `dtype`."""
-  if not isinstance(field_spec, (tf.TensorSpec, tf.RaggedTensorSpec)):
-    raise ValueError(f'Unsupported spec type, {type(field_spec).__name__}')
-
-  if field_spec.dtype == dtype:
-    return field_spec
-
-  if isinstance(field_spec, tf.TensorSpec):
-    return tf.TensorSpec(field_spec.shape, dtype=dtype)
-
-  return tf.RaggedTensorSpec(
-      field_spec.shape,
-      dtype=dtype,
-      ragged_rank=field_spec.ragged_rank,
-      row_splits_dtype=field_spec.row_splits_dtype,
-  )
-
-
-def get_max_indices_dtype(nest) -> tf.dtypes.DType:
-  result = None
-  for value in tf.nest.flatten(nest):
-    if isinstance(value, (GraphPieceBase, GraphPieceSpecBase)):
-      result = max_index_dtype(result, value.indices_dtype)
-  return result or const.default_indices_dtype
-
-
-def get_max_row_splits_dtype(nest) -> tf.dtypes.DType:
-  result = None
-  for value in tf.nest.flatten(nest):
-    if isinstance(value, (GraphPieceBase, GraphPieceSpecBase)):
-      result = max_index_dtype(result, value.row_splits_dtype)
-    elif isinstance(value, tf.RaggedTensor):
-      result = max_index_dtype(result, value.row_splits.dtype)
-    elif isinstance(value, tf.RaggedTensorSpec):
-      result = max_index_dtype(result, value.row_splits_dtype)
-
-  return result or const.default_row_splits_dtype
-
-
-def max_index_dtype(
-    a: Optional[tf.dtypes.DType], b: Optional[tf.dtypes.DType]
-) -> tf.dtypes.DType:
-  """Returns `int64` if either `a` or `b` are of `int64` dtype."""
-  assert a in (None, tf.int32, tf.int64), a
-  assert b in (None, tf.int32, tf.int64), b
-  assert (a, b) != (None, None)
-
-  return tf.int64 if tf.int64 in (a, b) else tf.int32
-
-
-def check_indices_dtype(
-    dtype: tf.dtypes.DType, *, what: str = 'indices'
-) -> None:
-  _check_int64_or_int32(dtype, what=what)
-
-
-def check_row_splits_dtype(
-    dtype: tf.dtypes.DType, *, what: str = 'row_splits'
-) -> None:
-  _check_int64_or_int32(dtype, what=what)
-
-
-def _check_int64_or_int32(dtype: tf.dtypes.DType, what: str) -> None:
-  if dtype not in (tf.int32, tf.int64):
-    raise ValueError(f'{what} dtype must be int32 or int64. Received {dtype}')

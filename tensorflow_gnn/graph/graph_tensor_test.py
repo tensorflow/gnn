@@ -58,10 +58,6 @@ class CreationTest(tu.GraphTensorTestBase):
   ])
   def testContext(self, features, shape):
     context = gt.Context.from_fields(features=features, shape=shape)
-
-    self.assertEqual(context.indices_dtype, const.default_indices_dtype)
-    self.assertEqual(context.row_splits_dtype, const.default_row_splits_dtype)
-
     self.assertAllEqual(context.shape, shape)
     self.assertFieldsEqual(context.features, features)
     self.assertFieldsEqual(context.get_features_dict(), features)
@@ -110,10 +106,6 @@ class CreationTest(tu.GraphTensorTestBase):
   ])
   def testNodeSet(self, features, sizes, expected_shape):
     node_set = gt.NodeSet.from_fields(features=features, sizes=sizes)
-
-    self.assertEqual(node_set.indices_dtype, const.default_indices_dtype)
-    self.assertEqual(node_set.row_splits_dtype, const.default_row_splits_dtype)
-
     self.assertAllEqual(node_set.shape, expected_shape)
     self.assertAllEqual(node_set.sizes, sizes)
     self.assertFieldsEqual(node_set.features, features)
@@ -143,10 +135,6 @@ class CreationTest(tu.GraphTensorTestBase):
   def testEdgeSet(self, features, sizes, adjacency, expected_shape):
     edge_set = gt.EdgeSet.from_fields(
         features=features, sizes=sizes, adjacency=adjacency)
-
-    self.assertEqual(edge_set.indices_dtype, const.default_indices_dtype)
-    self.assertEqual(edge_set.row_splits_dtype, const.default_row_splits_dtype)
-
     self.assertAllEqual(edge_set.shape, expected_shape)
     self.assertAllEqual(edge_set.sizes, sizes)
     self.assertFieldsEqual(edge_set.features, features)
@@ -161,10 +149,6 @@ class CreationTest(tu.GraphTensorTestBase):
 
   def testEmptyGraphTensor(self):
     result = gt.GraphTensor.from_pieces()
-
-    self.assertEqual(result.indices_dtype, const.default_indices_dtype)
-    self.assertEqual(result.row_splits_dtype, const.default_row_splits_dtype)
-
     self.assertEqual(result.shape, [])
     self.assertEqual(result.context.shape, [])
     self.assertEmpty(result.context.features)
@@ -200,10 +184,6 @@ class CreationTest(tu.GraphTensorTestBase):
                     )),
         },
     )
-
-    self.assertEqual(result.indices_dtype, const.default_indices_dtype)
-    self.assertEqual(result.row_splits_dtype, const.default_row_splits_dtype)
-
     self.assertEqual(result.shape, [2])
     self.assertEqual(result.context.shape, [2])
     self.assertEqual(result.edge_sets['a->b'].shape, [2])
@@ -238,48 +218,6 @@ class CreationTest(tu.GraphTensorTestBase):
                  "edge_set_names=['a->b'])").split()),
         # Easy way to get rid of whitespace
         ''.join(repr(result).split()))
-
-  @parameterized.product(
-      indices_dtype=[tf.int32, tf.int64],
-      row_splits_dtype=[tf.int32, tf.int64],
-  )
-  def testGraphTensorIndicesAndRowSplitsDTypes(
-      self, indices_dtype: tf.DType, row_splits_dtype: tf.DType
-  ):
-    result = gt.GraphTensor.from_pieces(
-        node_sets={
-            'n': gt.NodeSet.from_fields(
-                features={},
-                sizes=as_tensor([[1], [1]], dtype=indices_dtype),
-            ).with_row_splits_dtype(row_splits_dtype),
-        },
-        edge_sets={
-            'e': gt.EdgeSet.from_fields(
-                sizes=as_tensor([[2], [1]], dtype=indices_dtype),
-                adjacency=adj.Adjacency.from_indices(
-                    source=(
-                        'a',
-                        as_ragged(
-                            [[0, 1], [0]],
-                            dtype=indices_dtype,
-                            row_splits_dtype=row_splits_dtype,
-                        ),
-                    ),
-                    target=(
-                        'b',
-                        as_ragged(
-                            [[1, 2], [0]],
-                            dtype=indices_dtype,
-                            row_splits_dtype=row_splits_dtype,
-                        ),
-                    ),
-                ),
-            ),
-        },
-    )
-
-    self.assertEqual(result.indices_dtype, indices_dtype)
-    self.assertEqual(result.row_splits_dtype, row_splits_dtype)
 
 
 class HomogeneousTest(tu.GraphTensorTestBase):
@@ -980,7 +918,7 @@ class TfFunctionTest(tf.test.TestCase, parameterized.TestCase):
               'edge':
                   gt.EdgeSet.from_fields(
                       features={'f': features},
-                      sizes=tf.reshape(tf.size(features, tf.int64), [1]),
+                      sizes=tf.reshape(tf.size(features), [1]),
                       adjacency=adj.HyperAdjacency.from_indices(
                           indices={
                               const.SOURCE: ('node',
@@ -1005,20 +943,19 @@ class TfFunctionTest(tf.test.TestCase, parameterized.TestCase):
 class BatchingUnbatchingMergingTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for Graph Tensor specification."""
 
-  @parameterized.parameters(tf.int32, tf.int64)
-  def testVarSizeBatching(self, row_splits_dtype: tf.DType):
+  def testVarSizeBatching(self):
 
     @tf.function
     def generate(num_nodes):
       return gt.Context.from_fields(
           features={
-              'x': tf.range(num_nodes),
-              'r': tf.RaggedTensor.from_row_lengths(
-                  tf.ones(tf.stack([num_nodes], 0), dtype=tf.float32),
-                  tf.cast(tf.stack([0, num_nodes, 0], 0), row_splits_dtype),
-              ),
-          }
-      )
+              'x':
+                  tf.range(num_nodes),
+              'r':
+                  tf.RaggedTensor.from_row_lengths(
+                      tf.ones(tf.stack([num_nodes], 0), dtype=tf.float32),
+                      tf.stack([0, num_nodes, 0], 0)),
+          })
 
     ds = tf.data.Dataset.range(0, 9)
     ds = ds.map(generate)
@@ -1049,7 +986,7 @@ class BatchingUnbatchingMergingTest(tf.test.TestCase, parameterized.TestCase):
             shape=[2, 3, None],
             dtype=tf.int64,
             ragged_rank=2,
-            row_splits_dtype=row_splits_dtype))
+            row_splits_dtype=tf.int32))
 
     element = next(itr)
     self.assertAllEqual(
@@ -1064,7 +1001,7 @@ class BatchingUnbatchingMergingTest(tf.test.TestCase, parameterized.TestCase):
             shape=[1, 3, None],
             dtype=tf.int64,
             ragged_rank=2,
-            row_splits_dtype=row_splits_dtype))
+            row_splits_dtype=tf.int32))
 
   def testFixedSizeBatching(self):
 
@@ -1136,8 +1073,8 @@ class BatchingUnbatchingMergingTest(tf.test.TestCase, parameterized.TestCase):
 
     @tf.function
     def generate(seed):
-      edge_count = tf.constant(2, dtype=tf.int64)
-      node_count = tf.constant(2, dtype=tf.int64)
+      edge_count = 2
+      node_count = 2
       edge_set = gt.EdgeSet.from_fields(
           features={'f': tf.range(start=seed, limit=seed + edge_count)},
           sizes=tf.expand_dims(edge_count, 0),
@@ -1155,7 +1092,7 @@ class BatchingUnbatchingMergingTest(tf.test.TestCase, parameterized.TestCase):
       return gt.GraphTensor.from_pieces(
           edge_sets={'edge': edge_set}, node_sets={'node': node_set})
 
-    ds = tf.data.Dataset.range(1, 3, ftype=tf.int64)
+    ds = tf.data.Dataset.range(1, 3)
     ds = ds.map(generate)
     ds = ds.batch(2, drop_remainder=True)
     graph = next(iter(ds))
@@ -1239,7 +1176,7 @@ class BatchingUnbatchingMergingTest(tf.test.TestCase, parameterized.TestCase):
       return gt.GraphTensor.from_pieces(
           edge_sets={'edge': edge_set}, node_sets={'node': node_set})
 
-    ds = tf.data.Dataset.range(0, 3, dtype=tf.int64)
+    ds = tf.data.Dataset.range(0, 3)
     ds = ds.map(generate)
     ds = ds.batch(2, drop_remainder=False)
     spec = ds.element_spec
@@ -1402,7 +1339,7 @@ class NumComponentsTest(tu.GraphTensorTestBase):
           msg=f'case_index={case_index}')
 
   @parameterized.parameters([
-      dict(features={}, sizes=as_tensor([], dtype=tf.int32), expected=0),
+      dict(features={}, sizes=as_tensor([]), expected=0),
       dict(features={}, sizes=as_tensor([2]), expected=1),
       dict(features={}, sizes=as_tensor([[1], [1]]), expected=[1, 1]),
       dict(
@@ -1632,201 +1569,6 @@ class SpecRelaxationTest(tu.GraphTensorTestBase):
 
     self.assertEqual(relaxed1, expected)
     self.assertEqual(relaxed2, expected)
-
-
-class AttributesSettersTest(tf.test.TestCase):
-  rank1 = gt.GraphTensor.from_pieces(
-      context=gt.Context.from_fields(
-          features={'label': as_tensor([['X'], ['Y']])}
-      ),
-      node_sets={
-          'n': gt.NodeSet.from_fields(features={}, sizes=as_tensor([[1], [1]])),
-      },
-      edge_sets={
-          'e': gt.EdgeSet.from_fields(
-              features={'weight': as_ragged([[1.0, 2.0], [3.0]])},
-              sizes=as_tensor([[2], [1]]),
-              adjacency=adj.Adjacency.from_indices(
-                  source=('a', as_ragged([[0, 1], [0]])),
-                  target=('b', as_ragged([[1, 2], [0]])),
-              ),
-          ),
-      },
-  )
-
-  def testRowSplitsDType(self):
-
-    def check(graph: gt.GraphTensor, expected_dtype: tf.DType):
-      self.assertEqual(graph.row_splits_dtype, expected_dtype)
-      self.assertEqual(graph.node_sets['n'].row_splits_dtype, expected_dtype)
-      self.assertEqual(graph.edge_sets['e'].row_splits_dtype, expected_dtype)
-      self.assertEqual(
-          graph.edge_sets['e']['weight'].row_splits.dtype, expected_dtype
-      )
-      self.assertEqual(
-          graph.edge_sets['e'].adjacency.row_splits_dtype, expected_dtype
-      )
-      self.assertEqual(
-          graph.edge_sets['e'].adjacency.source.row_splits.dtype, expected_dtype
-      )
-      self.assertEqual(
-          graph.edge_sets['e'].adjacency.target.row_splits.dtype, expected_dtype
-      )
-    check(self.rank1, tf.int64)
-    check(self.rank1.with_row_splits_dtype(tf.int64), tf.int64)
-    check(self.rank1.with_row_splits_dtype(tf.int32), tf.int32)
-
-  def testSpecRowSplitsDType(self):
-    def check(spec: gt.GraphTensorSpec, expected_dtype: tf.DType):
-      self.assertEqual(spec.row_splits_dtype, expected_dtype)
-      self.assertEqual(
-          spec.node_sets_spec['n'].row_splits_dtype, expected_dtype
-      )
-      self.assertEqual(
-          spec.edge_sets_spec['e'].row_splits_dtype, expected_dtype
-      )
-      self.assertEqual(
-          spec.edge_sets_spec['e']['weight'].row_splits_dtype, expected_dtype
-      )
-      self.assertEqual(
-          spec.edge_sets_spec['e'].adjacency_spec.row_splits_dtype,
-          expected_dtype,
-      )
-      self.assertEqual(
-          spec.edge_sets_spec['e'].adjacency_spec.source.row_splits_dtype,
-          expected_dtype,
-      )
-      self.assertEqual(
-          spec.edge_sets_spec['e'].adjacency_spec.target.row_splits_dtype,
-          expected_dtype,
-      )
-
-    spec = self.rank1.spec
-    check(spec, tf.int64)
-    check(spec.with_row_splits_dtype(tf.int64), tf.int64)
-    check(spec.with_row_splits_dtype(tf.int32), tf.int32)
-
-  def testSpecRowSplitsDTypeAutocasting(self):
-
-    def get_test_case(dtype1, dtype2, dtype3):
-      result = gt.GraphTensor.from_pieces(
-          node_sets={
-              'n': gt.NodeSet.from_fields(
-                  features={
-                      'f': as_ragged([[1], [2, 3]], row_splits_dtype=dtype1)
-                  },
-                  sizes=as_tensor([1, 2]),
-              ),
-          },
-          edge_sets={
-              'e': gt.EdgeSet.from_fields(
-                  features={
-                      'f': as_ragged([[1, 2], [3]], row_splits_dtype=dtype2)
-                  },
-                  sizes=as_tensor([2, 1], dtype2),
-                  adjacency=adj.Adjacency.from_indices(
-                      source=(
-                          'a',
-                          as_ragged([[0, 1], [0]], row_splits_dtype=dtype3),
-                      ),
-                      target=(
-                          'b',
-                          as_ragged([[1, 2], [0]], row_splits_dtype=dtype3),
-                      ),
-                  ),
-              ),
-          },
-      )
-      return result.row_splits_dtype
-
-    self.assertEqual(get_test_case(tf.int32, tf.int32, tf.int32), tf.int32)
-    self.assertEqual(get_test_case(tf.int64, tf.int32, tf.int32), tf.int64)
-    self.assertEqual(get_test_case(tf.int32, tf.int64, tf.int32), tf.int64)
-    self.assertEqual(get_test_case(tf.int32, tf.int32, tf.int64), tf.int64)
-    self.assertEqual(get_test_case(tf.int64, tf.int64, tf.int32), tf.int64)
-    self.assertEqual(get_test_case(tf.int64, tf.int32, tf.int64), tf.int64)
-    self.assertEqual(get_test_case(tf.int32, tf.int64, tf.int64), tf.int64)
-    self.assertEqual(get_test_case(tf.int64, tf.int64, tf.int64), tf.int64)
-
-  def testIndicesDType(self):
-    def check(graph: gt.GraphTensor, expected_dtype: tf.DType):
-      self.assertEqual(graph.indices_dtype, expected_dtype)
-      self.assertEqual(graph.node_sets['n'].indices_dtype, expected_dtype)
-      self.assertEqual(graph.node_sets['n'].sizes.dtype, expected_dtype)
-      self.assertEqual(graph.edge_sets['e'].indices_dtype, expected_dtype)
-      self.assertEqual(graph.edge_sets['e'].sizes.dtype, expected_dtype)
-      self.assertEqual(
-          graph.edge_sets['e'].adjacency.indices_dtype, expected_dtype
-      )
-      self.assertEqual(
-          graph.edge_sets['e'].adjacency.source.dtype, expected_dtype
-      )
-      self.assertEqual(
-          graph.edge_sets['e'].adjacency.target.dtype, expected_dtype
-      )
-
-    check(self.rank1, tf.int32)
-    check(self.rank1.with_indices_dtype(tf.int64), tf.int64)
-    check(self.rank1.with_indices_dtype(tf.int32), tf.int32)
-
-  def testSpecIndicesDType(self):
-    def check(spec: gt.GraphTensorSpec, expected_dtype: tf.DType):
-      self.assertEqual(spec.indices_dtype, expected_dtype)
-      self.assertEqual(spec.node_sets_spec['n'].indices_dtype, expected_dtype)
-      self.assertEqual(
-          spec.node_sets_spec['n'].sizes_spec.dtype, expected_dtype
-      )
-      self.assertEqual(spec.edge_sets_spec['e'].indices_dtype, expected_dtype)
-      self.assertEqual(
-          spec.edge_sets_spec['e'].sizes_spec.dtype, expected_dtype
-      )
-      self.assertEqual(
-          spec.edge_sets_spec['e'].adjacency_spec.indices_dtype,
-          expected_dtype,
-      )
-      self.assertEqual(
-          spec.edge_sets_spec['e'].adjacency_spec.source.dtype,
-          expected_dtype,
-      )
-      self.assertEqual(
-          spec.edge_sets_spec['e'].adjacency_spec.target.dtype,
-          expected_dtype,
-      )
-
-    spec = self.rank1.spec
-    check(spec, tf.int32)
-    check(spec.with_indices_dtype(tf.int64), tf.int64)
-    check(spec.with_indices_dtype(tf.int32), tf.int32)
-
-  def testIndicesDTypeAutocasting(self):
-
-    def get_test_case(dtype1, dtype2, dtype3):
-      return gt.GraphTensor.from_pieces(
-          node_sets={
-              'n': gt.NodeSet.from_fields(
-                  features={}, sizes=as_tensor([1, 1], dtype1)
-              ),
-          },
-          edge_sets={
-              'e': gt.EdgeSet.from_fields(
-                  features={'f': as_ragged([[1, 2], [3]], tf.int64)},
-                  sizes=as_tensor([2, 1], dtype2),
-                  adjacency=adj.Adjacency.from_indices(
-                      source=('a', as_ragged([[0, 1], [0]], dtype3)),
-                      target=('b', as_ragged([[1, 2], [0]], dtype3)),
-                  ),
-              ),
-          },
-      ).indices_dtype
-
-    self.assertEqual(get_test_case(tf.int32, tf.int32, tf.int32), tf.int32)
-    self.assertEqual(get_test_case(tf.int64, tf.int32, tf.int32), tf.int64)
-    self.assertEqual(get_test_case(tf.int32, tf.int64, tf.int32), tf.int64)
-    self.assertEqual(get_test_case(tf.int32, tf.int32, tf.int64), tf.int64)
-    self.assertEqual(get_test_case(tf.int64, tf.int64, tf.int32), tf.int64)
-    self.assertEqual(get_test_case(tf.int64, tf.int32, tf.int64), tf.int64)
-    self.assertEqual(get_test_case(tf.int32, tf.int64, tf.int64), tf.int64)
-    self.assertEqual(get_test_case(tf.int64, tf.int64, tf.int64), tf.int64)
 
 
 if __name__ == '__main__':

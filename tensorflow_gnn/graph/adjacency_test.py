@@ -24,99 +24,75 @@ as_tensor = tf.convert_to_tensor
 
 class HyperAdjacencyTest(tf.test.TestCase, parameterized.TestCase):
 
-  @parameterized.named_parameters([
+  @parameterized.parameters([
       dict(
-          testcase_name='rank-0, simple graph',
+          description='rank-0, simple graph',
           indices={
               const.SOURCE: ('node', as_tensor([0, 1])),
               const.TARGET: ('node', as_tensor([1, 2])),
           },
           expected_shape=[]),
       dict(
-          testcase_name='rank-0, hypergraph',
+          description='rank-0, hypergraph',
           indices={
               0: ('node', as_tensor([0, 1, 2])),
           },
           expected_shape=[]),
       dict(
-          testcase_name='rank-1, variable size',
+          description='rank-1, variable size',
           indices={
-              const.SOURCE: (
-                  'node.a',
-                  tf.ragged.constant([[0, 1], [0]], row_splits_dtype=tf.int32),
-              ),
-              const.TARGET: (
-                  'node.b',
-                  tf.ragged.constant([[1, 2], [1]], row_splits_dtype=tf.int32),
-              ),
+              const.SOURCE: ('node.a', tf.ragged.constant([[0, 1], [0]])),
+              const.TARGET: ('node.b', tf.ragged.constant([[1, 2], [1]])),
           },
           expected_shape=[2]),
       dict(
-          testcase_name='rank-1, fixed size',
+          description='rank-1, fixed size',
           indices={
               const.SOURCE: ('node.a', as_tensor([[0], [1], [2]])),
               const.TARGET: ('node.b', as_tensor([[0], [1], [2]])),
           },
           expected_shape=[3]),
   ])
-  def testShapeResolution(
-      self,
-      indices: adjacency.Indices,
-      expected_shape: tf.TensorShape,
-  ):
+  def testShapeResolution(self, description: str, indices: adjacency.Indices,
+                          expected_shape: tf.TensorShape):
     result = adjacency.HyperAdjacency.from_indices(indices)
     self.assertEqual(result.shape.as_list(), expected_shape)
 
-  @parameterized.named_parameters([
+  @parameterized.parameters([
       dict(
-          testcase_name='rank-0, sizes missmatch',
+          description='rank-0, sizes missmatch',
           indices={
               const.SOURCE: ('a', as_tensor([0, 1])),
               const.TARGET: ('b', as_tensor([1])),
           }),
       dict(
-          testcase_name='rank-0, sizes missmatch for hyper-graph',
+          description='rank-0, sizes missmatch for hyper-graph',
           indices={
               0: ('a', as_tensor([0, 1])),
               2: ('c', as_tensor([0, 1])),
               1: ('b', as_tensor([1])),
           }),
       dict(
-          testcase_name='rank-1, dense',
+          description='rank-1, dense',
           indices={
               const.SOURCE: ('a', as_tensor([[0, 1]])),
               const.TARGET: ('b', as_tensor([[0, 1], [2, 3]])),
           }),
       dict(
-          testcase_name='rank-1, ragged value',
+          description='rank-1, ragged value',
           indices={
-              const.SOURCE: (
-                  'a',
-                  tf.ragged.constant([[0, 1], [0]], row_splits_dtype=tf.int32),
-              ),
-              const.TARGET: (
-                  'b',
-                  tf.ragged.constant([[1, 2], []], row_splits_dtype=tf.int32),
-              ),
+              const.SOURCE: ('a', tf.ragged.constant([[0, 1], [0]])),
+              const.TARGET: ('b', tf.ragged.constant([[1, 2], []])),
           }),
       dict(
-          testcase_name='rank-1, ragged splits',
+          description='rank-1, ragged splits',
           indices={
-              const.SOURCE: (
-                  'a',
-                  tf.ragged.constant(
-                      [[0, 1], [0, 1]], row_splits_dtype=tf.int32
-                  ),
-              ),
-              const.TARGET: (
-                  'b',
-                  tf.ragged.constant(
-                      [[1, 2], [0], [1]], row_splits_dtype=tf.int32
-                  ),
-              ),
+              const.SOURCE: ('a', tf.ragged.constant([[0, 1], [0, 1]])),
+              const.TARGET: ('b', tf.ragged.constant([[1, 2], [0], [1]])),
           }),
   ])
-  def testRaisesOnIncompatibleIndices(self, indices: adjacency.Indices):
+  def testRaisesOnIncompatibleIndices(self, description: str,
+                                      indices: adjacency.Indices):
     self.assertRaisesRegex(
         Exception,
         r'Adjacency indices are not compatible: \(0, a\) and \(1, b\)',
@@ -221,53 +197,50 @@ class HyperAdjacencyTest(tf.test.TestCase, parameterized.TestCase):
 
 class AdjacencyTest(tf.test.TestCase, parameterized.TestCase):
 
-  @parameterized.named_parameters([
+  @parameterized.parameters([
       dict(
-          testcase_name='rank-0, simple graph',
+          description='rank-0, simple graph',
           source=('node', as_tensor([0, 1])),
           target=('node', as_tensor([1, 2])),
           expected_shape=[]),
       dict(
-          testcase_name='rank-1, variable size',
+          description='rank-1, variable size',
           source=('node.a', tf.ragged.constant([[0, 1], [0]])),
           target=('node.b', tf.ragged.constant([[1, 2], [1]])),
           expected_shape=[2]),
       dict(
-          testcase_name='rank-1, fixed size',
+          description='rank-1, fixed size',
           source=('node.a', as_tensor([[0], [1], [2]])),
           target=('node.b', as_tensor([[0], [1], [2]])),
           expected_shape=[3]),
   ])
-  def testShapeResolution(
-      self,
-      source: adjacency.Index,
-      target: adjacency.Index,
-      expected_shape: tf.TensorShape,
-  ):
+  def testShapeResolution(self, description: str, source: adjacency.Index,
+                          target: adjacency.Index,
+                          expected_shape: tf.TensorShape):
     result = adjacency.Adjacency.from_indices(source, target, validate=False)
     self.assertEqual(result.shape.as_list(), expected_shape)
 
-  @parameterized.named_parameters([
+  @parameterized.parameters([
       dict(
-          testcase_name='rank-0, sizes missmatch',
+          description='rank-0, sizes missmatch',
           source=('a', as_tensor([0, 1])),
           target=('b', as_tensor([1]))),
       dict(
-          testcase_name='rank-1, dense',
+          description='rank-1, dense',
           source=('a', as_tensor([[0, 1]])),
           target=('b', as_tensor([[0, 1], [2, 3]]))),
       dict(
-          testcase_name='rank-1, ragged value',
+          description='rank-1, ragged value',
           source=('a', tf.ragged.constant([[0, 1], [0]])),
           target=('b', tf.ragged.constant([[1, 2], []]))),
       dict(
-          testcase_name='rank-1, ragged splits',
+          description='rank-1, ragged splits',
           source=('a', tf.ragged.constant([[0, 1], [0, 1]])),
           target=('b', tf.ragged.constant([[1, 2], [0], [1]]))),
   ])
-  def testRaisesOnIncompatibleIndices(
-      self, source: adjacency.Index, target: adjacency.Index
-  ):
+  def testRaisesOnIncompatibleIndices(self, description: str,
+                                      source: adjacency.Index,
+                                      target: adjacency.Index):
     self.assertRaisesRegex(
         Exception,
         r'Adjacency indices are not compatible: \(0, a\) and \(1, b\)',

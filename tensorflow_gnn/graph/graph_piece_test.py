@@ -30,15 +30,13 @@ class TestPiece(gp.GraphPieceBase):
   """Graph piece implementation for a simple value as a nest."""
 
   @classmethod
-  def from_value(
-      cls,
-      value: Mapping[str, TestValue],
-      shape_dims: Tuple[int, ...] = (),
-      *,
-      metadata=None,
-      indices_dtype: tf.dtypes.DType = tf.int32,
-      row_splits_dtype: tf.dtypes.DType = tf.int64
-  ) -> 'TestPiece':
+  def from_value(cls,
+                 value: Mapping[str, TestValue],
+                 shape_dims: Tuple[int, ...] = (),
+                 *,
+                 metadata=None,
+                 indices_dtype: tf.dtypes.DType = tf.int32) -> 'TestPiece':
+
     def convert_fn(field):
       assert isinstance(
           field, (np.ndarray, tf.Tensor, tf.RaggedTensor, TestPiece)), field
@@ -49,9 +47,7 @@ class TestPiece(gp.GraphPieceBase):
         tf.nest.map_structure(convert_fn, value),
         shape=tf.TensorShape(shape_dims),
         indices_dtype=indices_dtype,
-        row_splits_dtype=row_splits_dtype,
-        metadata=metadata,
-    )
+        metadata=metadata)
 
   @property
   def value(self):
@@ -69,10 +65,6 @@ class TestPieceSpec(gp.GraphPieceSpecBase):
   @property
   def value_type(self):
     return TestPiece
-
-  @property
-  def value_spec(self):
-    return self._data_spec
 
 
 class NestingTest(tf.test.TestCase, parameterized.TestCase):
@@ -116,15 +108,32 @@ class NestingTest(tf.test.TestCase, parameterized.TestCase):
         ValueError, err_msg,
         lambda: TestPiece.from_value(TestPiece.from_value(leaf), batch_shape))
 
-  def testMetadata(self):
+  def testMetadataUpdate(self):
     leaf = TestPiece.from_value(
-        np.array([1]), metadata={'foo': 1, 'bar': 2, 'baz': 3}
-    )
-    root = TestPiece.from_value(leaf, metadata={'foo': 10, 'bar': 20})
-    self.assertAllEqual(root.spec._metadata, {'foo': 10, 'bar': 20})
-    self.assertAllEqual(
-        root.value.spec._metadata, {'foo': 1, 'bar': 2, 'baz': 3}
-    )
+        np.array([1]), metadata={
+            'to_update': 0,
+            'do_not_update': 'x'
+        })
+    root = TestPiece.from_value(leaf, metadata={'to_update': 3, 'ignore': 'y'})
+    self.assertAllEqual(root.value.spec._metadata, {
+        'to_update': 3,
+        'do_not_update': 'x'
+    })
+
+  def testMetadataUpdateChain(self):
+    leaf = TestPiece.from_value(
+        np.array([1]), metadata={
+            'a': 1,
+            'b': 1,
+            'c': 1
+        })
+    node = TestPiece.from_value(leaf, metadata={'a': 2, 'c': 2})
+    root = TestPiece.from_value(node, metadata={'a': 3, 'b': 3})
+    self.assertAllEqual(root.value.value.spec._metadata, {
+        'a': 3,
+        'b': 1,
+        'c': 2
+    })
 
   def testNoMetadataUpdate(self):
     leaf = TestPiece.from_value(np.array([1]))
@@ -338,13 +347,11 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(ds.element_spec._data_spec,
                         tf.TensorSpec(shape=[None, 3, 3], dtype=tf.int64))
 
-  @parameterized.parameters([tf.int32, tf.int64])
-  def testDynamicSpecs(self, row_splits_dtype: tf.DType):
+  def testDynamicSpecs(self):
+
     @tf.function
     def generate(num_nodes):
-      return TestPiece.from_value(
-          value=tf.range(num_nodes), row_splits_dtype=row_splits_dtype
-      )
+      return TestPiece.from_value(value=tf.range(num_nodes))
 
     ds = tf.data.Dataset.range(0, 7)
     ds = ds.map(generate)
@@ -356,7 +363,7 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
             shape=[3, None],
             dtype=tf.int64,
             ragged_rank=1,
-            row_splits_dtype=row_splits_dtype))
+            row_splits_dtype=tf.int32))
 
     ds = ds.batch(2)
     self.assertAllEqual(
@@ -365,10 +372,10 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
             shape=[None, 3, None],
             dtype=tf.int64,
             ragged_rank=2,
-            row_splits_dtype=row_splits_dtype))
+            row_splits_dtype=tf.int32))
 
-  @parameterized.parameters([tf.int32, tf.int64])
-  def testRaggedSpecs(self, row_splits_dtype: tf.DType):
+  def testRaggedSpecs(self):
+
     @tf.function
     def generate(num_nodes):
       return TestPiece.from_value(
@@ -377,9 +384,9 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
                   tf.RaggedTensor.from_row_lengths(
                       tf.ones(tf.stack([num_nodes], 0), dtype=tf.float32),
                       tf.stack([0, num_nodes, 0], 0)),
-          }, row_splits_dtype=row_splits_dtype)
+          })
 
-    ds = tf.data.Dataset.range(0, 9, output_type=row_splits_dtype)
+    ds = tf.data.Dataset.range(0, 9)
     ds = ds.map(generate)
     ds = ds.batch(1)
     ds = ds.unbatch()
@@ -394,7 +401,7 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
             shape=[2, 3, 3, None],
             dtype=tf.float32,
             ragged_rank=3,
-            row_splits_dtype=row_splits_dtype))
+            row_splits_dtype=tf.int64))
 
     element = next(itr)
     self.assertAllEqual(
@@ -403,11 +410,10 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
             shape=[1, 3, 3, None],
             dtype=tf.float32,
             ragged_rank=3,
-            row_splits_dtype=row_splits_dtype,
-        ),
-    )
+            row_splits_dtype=tf.int64))
 
   def testSpecsWithDropRemainder(self):
+
     @tf.function
     def generate(_):
       return TestPiece.from_value(value=np.array([1, 2, 3]))
@@ -550,28 +556,26 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(element.value.value,
                         np.array([[[0, 1], [1, 2]], [[2, 3], [3, 4]]]))
 
-  @parameterized.parameters([tf.int32, tf.int64])
-  def testRagged(self, row_splits_dtype: tf.dtypes.DType):
+  def testRagged(self):
+
     @tf.function
     def generate(num_nodes):
       return TestPiece.from_value(
           value={
               'x':
-                  tf.range(num_nodes, dtype=tf.int32),
+                  tf.range(num_nodes),
               'r':
                   tf.RaggedTensor.from_row_lengths(
                       tf.ones(tf.stack([num_nodes], 0), dtype=tf.float32),
                       tf.stack([0, num_nodes, 0], 0)),
-          }, row_splits_dtype=row_splits_dtype)
+          })
 
-    ds = tf.data.Dataset.range(0, 9, output_type=row_splits_dtype)
+    ds = tf.data.Dataset.range(0, 9)
     ds = ds.map(generate)
     ds = ds.batch(1)
     ds = ds.unbatch()
     ds = ds.batch(3, True)
     ds = ds.batch(2)
-
-    self.assertEqual(ds.element_spec.row_splits_dtype, row_splits_dtype)
 
     itr = iter(ds)
     element = next(itr)
@@ -580,14 +584,14 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
         tf.ragged.constant([
             [[], [0], [0, 1]],
             [[0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3, 4]],
-        ], row_splits_dtype=row_splits_dtype))
+        ]))
     self.assertAllEqual(
         element.value['r'],
         tf.ragged.constant([
             [[[], [], []], [[], [1], []], [[], [1, 1], []]],
             [[[], [1, 1, 1], []], [[], [1, 1, 1, 1], []],
              [[], [1, 1, 1, 1, 1], []]],
-        ], row_splits_dtype=row_splits_dtype))
+        ]))
 
     element = next(itr)
     self.assertAllEqual(element.value['x'],
@@ -595,69 +599,69 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
                             [[0, 1, 2, 3, 4, 5],
                              [0, 1, 2, 3, 4, 5, 6],
                              [0, 1, 2, 3, 4, 5, 6, 7]],
-                        ], row_splits_dtype=row_splits_dtype))
+                        ]))
     self.assertAllEqual(
         tf.type_spec_from_value(element.value['x']),
         tf.RaggedTensorSpec(
             shape=[1, 3, None],
-            dtype=tf.int32,
+            dtype=tf.int64,
             ragged_rank=2,
-            row_splits_dtype=row_splits_dtype))
+            row_splits_dtype=tf.int32))
 
 
 class MergeBatchToComponentsTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for graph piece with TF Dataset batching/unbatching."""
 
-  @parameterized.named_parameters([
+  @parameterized.parameters([
       dict(
-          testcase_name='vector',
+          description='vector',
           dim_size=2,
           source=np.array([[1, 2], [3, 4]]),
           expected=np.array([1, 2, 3, 4])),
       dict(
-          testcase_name='matrix',
+          description='matrix',
           dim_size=2,
           source=np.array([[[1], [2]], [[3], [4]]]),
           expected=np.array([[1], [2], [3], [4]])),
       dict(
-          testcase_name='ragged rank-1, scalar value',
+          description='ragged rank-1, scalar value',
           dim_size=None,
           source=tf.ragged.constant([[1, 2], [], [3], [4]]),
           expected=np.array([1, 2, 3, 4])),
       dict(
-          testcase_name='ragged rank-1, vector value',
+          description='ragged rank-1, vector value',
           dim_size=None,
           source=tf.ragged.constant([[[1], [2]], [], [[3]], [[4]]],
                                     ragged_rank=1,
                                     inner_shape=(1,)),
           expected=np.array([[1], [2], [3], [4]])),
       dict(
-          testcase_name='ragged rank-2',
+          description='ragged rank-2',
           dim_size=None,
           source=tf.ragged.constant([[['a', 'b']], [], [['c']], [['d']], []]),
           expected=tf.ragged.constant([['a', 'b'], ['c'], ['d']])),
   ])
-  def testRank1Plain(self, dim_size: int, source, expected):
+  def testRank1Plain(self, description: str, dim_size: int, source, expected):
     piece = TestPiece.from_value(source, shape_dims=(dim_size,))
     result = piece._merge_batch_to_components()
     self.assertAllEqual(result.shape, [])
     self.assertAllEqual(result.value, expected)
 
-  @parameterized.named_parameters([
+  @parameterized.parameters([
       dict(
-          testcase_name='fixed size scalar',
+          description='fixed size scalar',
           batch_dims=(2, 2),
           source=np.array([[[1], [2]], [[3], [4]]]),
           expected=np.array([1, 2, 3, 4])),
       dict(
-          testcase_name='variable size scalar',
+          description='variable size scalar',
           batch_dims=(None, 4),
           source=tf.RaggedTensor.from_uniform_row_length(
               tf.ragged.constant([['a', 'b'], [], ['c', 'd'], []]),
               uniform_row_length=4),
           expected=np.array(['a', 'b', 'c', 'd'])),
       dict(
-          testcase_name='variable size vector',
+          description='variable size vector',
           batch_dims=(None, 2),
           source=tf.RaggedTensor.from_uniform_row_length(
               tf.ragged.constant([[['a', '1'], ['b', '2']], [], [['c', '3']],
@@ -667,7 +671,8 @@ class MergeBatchToComponentsTest(tf.test.TestCase, parameterized.TestCase):
               uniform_row_length=2),
           expected=np.array([['a', 1], ['b', 2], ['c', 3], ['d', 4]])),
   ])
-  def testRank2Plain(self, batch_dims: Tuple[int, int], source, expected):
+  def testRank2Plain(self, description: str, batch_dims: Tuple[int, int],
+                     source, expected):
     piece = TestPiece.from_value(source, shape_dims=batch_dims)
     result = piece._merge_batch_to_components()
     self.assertAllEqual(result.shape, [])
@@ -764,190 +769,26 @@ class KerasModelSavingLoadingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(readout_x(model(value)), y)
     self.assertAllClose(readout_x(restored_model(value)), y)
 
-  @parameterized.product(
-      indices_dtype=[tf.int32, tf.int64], row_splits_dtype=[tf.int32, tf.int64]
-  )
-  def testAttributesSaving(self, indices_dtype, row_splits_dtype):
-    value = TestPiece.from_value(
-        TestPiece.from_value(
-            TestPiece.from_value(
-                tf.ragged.constant(
-                    [[1, 2], [3]],
-                    dtype=indices_dtype,
-                    row_splits_dtype=row_splits_dtype,
-                ),
-                indices_dtype=indices_dtype,
-                row_splits_dtype=row_splits_dtype,
-            ),
-            indices_dtype=indices_dtype,
-            row_splits_dtype=row_splits_dtype,
-        ),
-        indices_dtype=indices_dtype,
-        row_splits_dtype=row_splits_dtype,
-    )
-    self.assertEqual(value.spec.indices_dtype, indices_dtype)
-    self.assertEqual(value.spec.row_splits_dtype, row_splits_dtype)
-    self.assertEqual(value.value.spec.indices_dtype, indices_dtype)
-    self.assertEqual(value.value.spec.row_splits_dtype, row_splits_dtype)
-
-    inputs = tf.keras.layers.Input(type_spec=value.spec)
-    model = tf.keras.Model(inputs, inputs)
-    restored_model = self._save_and_restore_model(model)
-
-    result = restored_model(value)
-    self.assertEqual(result.spec.indices_dtype, indices_dtype)
-    self.assertEqual(result.spec.row_splits_dtype, row_splits_dtype)
-    self.assertEqual(result.value.spec.indices_dtype, indices_dtype)
-    self.assertEqual(result.value.spec.row_splits_dtype, row_splits_dtype)
-
-
-class AttributesSettersTest(tf.test.TestCase, parameterized.TestCase):
-
-  @parameterized.parameters([tf.int32, tf.int64])
-  def testWithRowSplitsDType(self, row_splits_dtype: tf.DType):
-    value = TestPiece.from_value(
-        TestPiece.from_value(
-            tf.ragged.constant(
-                [[1, 2], [3]],
-                row_splits_dtype=row_splits_dtype,
-            ),
-            row_splits_dtype=row_splits_dtype,
-        ),
-        row_splits_dtype=row_splits_dtype,
-    )
-    self.assertEqual(value.row_splits_dtype, row_splits_dtype)
-    self.assertEqual(value.value.row_splits_dtype, row_splits_dtype)
-    self.assertEqual(value.value.value.row_splits.dtype, row_splits_dtype)
-    self.assertEqual(value.spec.row_splits_dtype, row_splits_dtype)
-    self.assertEqual(value.value.spec.row_splits_dtype, row_splits_dtype)
-
-    new_row_splits_dtype = (
-        tf.int64 if row_splits_dtype == tf.int32 else tf.int32
-    )
-
-    value = value.with_row_splits_dtype(new_row_splits_dtype)
-    self.assertEqual(value.row_splits_dtype, new_row_splits_dtype)
-    self.assertEqual(value.value.row_splits_dtype, new_row_splits_dtype)
-    self.assertEqual(value.value.value.row_splits.dtype, new_row_splits_dtype)
-    self.assertEqual(value.spec.row_splits_dtype, new_row_splits_dtype)
-    self.assertEqual(value.value.spec.row_splits_dtype, new_row_splits_dtype)
-
-    spec = value.spec.with_row_splits_dtype(new_row_splits_dtype)
-    self.assertEqual(spec.row_splits_dtype, new_row_splits_dtype)
-    self.assertEqual(spec.value_spec.row_splits_dtype, new_row_splits_dtype)
-    self.assertEqual(
-        spec.value_spec.value_spec.row_splits_dtype, new_row_splits_dtype
-    )
-
-  @parameterized.parameters([tf.int32, tf.int64])
-  def testWithIndicesDType(self, indices_dtype: tf.DType):
-    value = TestPiece.from_value(
-        TestPiece.from_value(
-            tf.constant(
-                [[1], [3]],
-            ),
-            indices_dtype=indices_dtype,
-        ),
-        indices_dtype=indices_dtype,
-    )
-    self.assertEqual(value.indices_dtype, indices_dtype)
-    self.assertEqual(value.value.indices_dtype, indices_dtype)
-    self.assertEqual(value.spec.indices_dtype, indices_dtype)
-    self.assertEqual(value.value.spec.indices_dtype, indices_dtype)
-
-    new_indices_dtype = tf.int64 if indices_dtype == tf.int32 else tf.int32
-    value = value.with_indices_dtype(new_indices_dtype)
-    self.assertEqual(value.indices_dtype, new_indices_dtype)
-    self.assertEqual(value.value.indices_dtype, new_indices_dtype)
-    self.assertEqual(value.spec.indices_dtype, new_indices_dtype)
-    self.assertEqual(value.value.spec.indices_dtype, new_indices_dtype)
-
-    spec = value.spec.with_indices_dtype(new_indices_dtype)
-    self.assertEqual(spec.indices_dtype, new_indices_dtype)
-    self.assertEqual(spec.value_spec.indices_dtype, new_indices_dtype)
-
-  def testRaisesOnUnsupportedRowSplitsType(self):
-    with self.assertRaisesRegex(ValueError, 'must be int32 or int64'):
-      _ = TestPiece.from_value(
-          tf.constant(
-              [],
-          ),
-          row_splits_dtype=tf.int16,
-      )
-    with self.assertRaisesRegex(ValueError, 'must be int32 or int64'):
-      _ = TestPiece.from_value(
-          tf.constant(
-              [],
-          ),
-      ).with_row_splits_dtype(tf.float32)
-
-  def testRaisesOnIncompatibleRowSplits(self):
-    with self.assertRaisesRegex(ValueError, 'row splits dtype'):
-      _ = TestPiece.from_value(
-          tf.ragged.constant(
-              [[1, 2], [3]],
-              row_splits_dtype=tf.int64,
-          ),
-          row_splits_dtype=tf.int32,
-      )
-
-  def testRaisesOnUnsupportedIndicesType(self):
-    with self.assertRaisesRegex(ValueError, 'must be int32 or int64'):
-      _ = TestPiece.from_value(
-          tf.constant(
-              [[1], [3]],
-          ),
-          indices_dtype=tf.int16,
-      )
-    with self.assertRaisesRegex(ValueError, 'must be int32 or int64'):
-      _ = TestPiece.from_value(
-          tf.constant(
-              [[1], [3]],
-          ),
-      ).with_indices_dtype(tf.float32)
-
-  def testRaisesOnIncompatibleIndices(self):
-    with self.assertRaisesRegex(ValueError, 'indices dtype'):
-      _ = TestPiece.from_value(
-          TestPiece.from_value(
-              tf.constant(
-                  [[1], [3]],
-              ),
-              indices_dtype=tf.int32,
-          ),
-          indices_dtype=tf.int64,
-      )
-
 
 class CreateEmptyValueTest(tf.test.TestCase, parameterized.TestCase):
   """Tests dummy values creation for DistributedStrategies."""
 
-  @parameterized.parameters([tf.int32, tf.int64])
-  def testPlainDynamic(self, row_splits_dtype: tf.DType):
+  def testPlainDynamic(self):
+
     def generate(num_nodes):
       shape = tf.stack([num_nodes], 0)
       ragged = tf.RaggedTensor.from_row_lengths(
           tf.ones((1 + 3) * shape, dtype=tf.float32),
-          tf.concat(
-              [
-                  tf.ones(shape, row_splits_dtype),
-                  3 * tf.ones(shape, row_splits_dtype),
-              ],
-              0,
-          ),
-      )
+          tf.concat([tf.ones(shape, tf.int32), 3 * tf.ones(shape, tf.int32)],
+                    0))
       ragged = tf.RaggedTensor.from_uniform_row_length(ragged, 4)
-      matrix = tf.stack(
-          [tf.range(num_nodes), num_nodes - tf.range(num_nodes)], 1
-      )
-      return TestPiece.from_value(
-          value={
-              'v': tf.range(num_nodes),
-              'm': matrix,
-              'r': ragged,
-          },
-          row_splits_dtype=row_splits_dtype,
-      )
+      matrix = tf.stack([tf.range(num_nodes), num_nodes - tf.range(num_nodes)],
+                        1)
+      return TestPiece.from_value(value={
+          'v': tf.range(num_nodes),
+          'm': matrix,
+          'r': ragged,
+      })
 
     ds = tf.data.Dataset.range(0, 3).map(generate)
     ds = ds.batch(2)
@@ -990,22 +831,10 @@ class CreateEmptyValueTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(result.value['r'],
                         tf.ragged.constant([], dtype=tf.float32, ragged_rank=2))
 
-  @parameterized.product(
-      indices_dtype=[tf.int32, tf.int64], row_splits_dtype=[tf.int32, tf.int64]
-  )
-  def testNestedDynamic(
-      self, indices_dtype: tf.DType, row_splits_dtype: tf.DType
-  ):
+  def testNestedDynamic(self):
+
     def generate(num_nodes):
-      return TestPiece.from_value(
-          TestPiece.from_value(
-              tf.range(num_nodes),
-              indices_dtype=indices_dtype,
-              row_splits_dtype=row_splits_dtype,
-          ),
-          indices_dtype=indices_dtype,
-          row_splits_dtype=row_splits_dtype,
-      )
+      return TestPiece.from_value(TestPiece.from_value(tf.range(num_nodes)))
 
     ds = tf.data.Dataset.range(0, 3).map(generate)
     ds = ds.batch(2)
