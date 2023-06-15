@@ -98,6 +98,8 @@ graph_tensor = graph_data.as_graph_tensor()
 """
 import copy
 import functools
+import io
+import json
 import os
 import pickle
 import sys
@@ -437,6 +439,146 @@ class NodeClassificationGraphData(InMemoryGraphData):
         tf.int64.as_datatype_enum)
     return graph_schema
 
+  def save(self, filename: str):
+    """Saves the dataset on numpy compressed (.npz) file.
+
+    The file runs once the functions,
+    (labeled_nodeset, test_labels, labels, node_split, edge_lists, node_counts,
+     node_features, num_classes),
+    composes a flat dict (keys are json-encoded arrays), then writes as numpy
+    file. Flat dict is needed as numpy only saves named arrays, not nested
+    structures.
+
+    Args:
+      filename: file path to save onto. ".npz" extension is recommended. Parent
+        directory must exist.
+    """
+    features_without_labels = self.node_features_dicts_without_labels()
+    node_split = self.node_split()
+
+    attribute_dict = {
+        ('num_classes',): self.num_classes(),
+        ('node_split', 'train'): node_split.train.numpy(),
+        ('node_split', 'test'): node_split.test.numpy(),
+        ('node_split', 'validation'): node_split.validation.numpy(),
+        ('labels',): self.labels().numpy(),
+        ('test_labels',): self.test_labels().numpy(),
+        ('labeled_nodeset',): self.labeled_nodeset,
+    }
+
+    # Edge sets.
+    for (src_name, es_name, tgt_name), es_indices in self.edge_lists().items():
+      key = ('e', '#', src_name, es_name, tgt_name)
+      attribute_dict[key] = es_indices.numpy()
+
+    for ns_name, features in features_without_labels.items():
+      for feature_name, feature_tensor in features.items():
+        attribute_dict[('n', ns_name, feature_name)] = feature_tensor.numpy()
+
+    for node_set_name, node_count in self.node_counts().items():
+      attribute_dict[('nc', node_set_name)] = node_count
+
+    bytes_io = io.BytesIO()
+    attribute_dict = {json.dumps(k): v for k, v in attribute_dict.items()}
+    np.savez_compressed(bytes_io, **attribute_dict)
+    with tf.io.gfile.GFile(filename, 'wb') as f:
+      f.write(bytes_io.getvalue())
+
+  @staticmethod
+  def load(filename: str) -> 'NodeClassificationGraphData':
+    """Loads from disk `NodeClassificationGraphData` that was `save()`ed."""
+    dataset_dict = dict(np.load(tf.io.gfile.GFile(filename, 'rb')))
+    dataset_dict = {tuple(json.loads(k)): v for k, v in dataset_dict.items()}
+    edge_lists = {}
+    node_features = {}
+    node_counts = {}
+    for key, array in dataset_dict.items():
+      # edge lists.
+      if key[0] == 'e':
+        if key[1] != '#':
+          raise ValueError('Expecting ("e", "#", ...) but got %s' % str(key))
+        src_name = key[2]
+        es_name = key[3]
+        tgt_name = key[4]
+        indices = as_tensor(array)
+        edge_lists[(src_name, es_name, tgt_name)] = indices
+      # node features.
+      if key[0] == 'n':
+        node_set_name = key[1]
+        feature_name = key[2]
+        if node_set_name not in node_features:
+          node_features[node_set_name] = {}
+        node_features[node_set_name][feature_name] = as_tensor(array)
+      if key[0] == 'nc':
+        node_counts[key[1]] = int(array)
+
+    return _PreloadedNodeClassificationGraphData(
+        num_classes=dataset_dict[('num_classes',)],
+        node_features_dicts_without_labels=node_features,
+        node_counts=node_counts,
+        edge_lists=edge_lists,
+        node_split=NodeSplit(
+            train=as_tensor(dataset_dict[('node_split', 'train')]),
+            validation=as_tensor(dataset_dict[('node_split', 'validation')]),
+            test=as_tensor(dataset_dict[('node_split', 'test')])),
+        labels=as_tensor(dataset_dict[('labels',)]),
+        test_labels=as_tensor(dataset_dict[('test_labels',)]),
+        labeled_nodeset=str(dataset_dict[('labeled_nodeset',)]))
+
+
+class _PreloadedNodeClassificationGraphData(NodeClassificationGraphData):
+  """Dataset from pre-computed attributes."""
+
+  def __init__(
+      self, num_classes: int,
+      node_features_dicts_without_labels: Mapping[
+          tfgnn.NodeSetName,
+          MutableMapping[tfgnn.FieldName, tf.Tensor]],
+      node_counts: Mapping[tfgnn.NodeSetName, int],
+      edge_lists: Mapping[
+          Tuple[tfgnn.NodeSetName, tfgnn.EdgeSetName, tfgnn.NodeSetName],
+          tf.Tensor],
+      node_split: NodeSplit, labels: tf.Tensor, test_labels: tf.Tensor,
+      labeled_nodeset: tfgnn.NodeSetName):
+    super().__init__()
+    self._num_classes = num_classes
+    self._node_features_dicts_without_labels = (
+        node_features_dicts_without_labels)
+    self._node_counts = node_counts
+    self._edge_lists = edge_lists
+    self._node_split = node_split
+    self._labels = labels
+    self._test_labels = test_labels
+    self._labeled_nodeset = labeled_nodeset
+
+  def num_classes(self) -> int:
+    return self._num_classes
+
+  def node_features_dicts_without_labels(self) -> Mapping[
+      tfgnn.NodeSetName, MutableMapping[tfgnn.FieldName, tf.Tensor]]:
+    return self._node_features_dicts_without_labels
+
+  def node_counts(self) -> Mapping[tfgnn.NodeSetName, int]:
+    return self._node_counts
+
+  def edge_lists(self) -> Mapping[
+      Tuple[tfgnn.NodeSetName, tfgnn.EdgeSetName, tfgnn.NodeSetName],
+      tf.Tensor]:
+    return self._edge_lists
+
+  def node_split(self) -> NodeSplit:
+    return self._node_split
+
+  def labels(self) -> tf.Tensor:
+    return self._labels
+
+  def test_labels(self) -> tf.Tensor:
+    return self._test_labels
+
+  @property
+  def labeled_nodeset(self) -> str:
+    return self._labeled_nodeset
+
 
 class _OgbGraph:
   """Wraps data exposed by OGB graph objects, while enforcing heterogeneity.
@@ -727,7 +869,7 @@ class PlanetoidGraphData(NodeClassificationGraphData):
     self._train_labels[test_idx] = -1
     self._node_labels = as_tensor(self._node_labels)
     self._train_labels = as_tensor(self._train_labels)
-    self._test_idx = tf.convert_to_tensor(np.array(test_idx, dtype='int32'))
+    self._test_idx = as_tensor(np.array(test_idx, dtype='int32'))
     self._node_split = None  # Populated on `node_split()`
 
     # Will be used to construct (sparse) adjacency matrix.
