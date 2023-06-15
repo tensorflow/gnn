@@ -322,6 +322,8 @@ class IntArithmeticSamplerTest(tf.test.TestCase, parameterized.TestCase):
       export_dir = os.path.join(self.get_temp_dir(), 'sampler')
       edge_model.save(export_dir, include_optimizer=False)
       edge_model = tf.keras.models.load_model(export_dir)
+    else:
+      raise ValueError('unknown operation_mode %s' % operation_mode)
 
     cat_id = toy_dataset.animal2id['cat']
     dog_id = toy_dataset.animal2id['dog']
