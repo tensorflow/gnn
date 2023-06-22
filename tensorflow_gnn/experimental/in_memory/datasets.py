@@ -14,12 +14,20 @@
 # ==============================================================================
 """Infrastructure and implementation of in-memory graph data.
 
+Instantiating an object will download a dataset, and cache it locally. The
+datasets will be cached on ~/data/ogb (for "ogbn-" and "ogbl-" datasets), which
+can be overridden by setting environment variable `OGB_CACHE_DIR`; and on
+~/data/planetoid (for "cora", "citeseer", "pubmed"), which can be overridden by
+environment variable `PLANETOID_CACHE_DIR`.
+
 High-level Abstract Classes:
 
   * `InMemoryGraphData`: provides nodes, edges, and features, for a
      homogeneous or a heteregenous graph.
   * `NodeClassificationGraphData`: an `InMemoryGraphData` that also provides
     list of {train, test, validation} nodes, as well as their labels.
+  * `LinkPredictionGraphData`: an `InMemoryGraphData` that also provides lists
+    of edges in {train, test, validation} partitions.
 
 
 `InMemoryGraphData` implementations can provide
@@ -48,6 +56,11 @@ Concrete implementations:
 
     * `PlanetoidGraphData`: wraps graph data that are popularized by GCN paper
       (cora, citeseer, pubmed).
+
+  * Link prediction (inheriting `LinkPredictionGraphData`)
+
+    * `OgblData`: Wraps link prediction graph data from OGB, i.e., with name
+      prefix of "ogbl-", such as, "ogbl-ddi".
 
 
 # Usage Example.
@@ -96,6 +109,7 @@ graph_data = (
 graph_tensor = graph_data.as_graph_tensor()
 ```
 """
+import abc
 import copy
 import functools
 import io
@@ -103,7 +117,7 @@ import json
 import os
 import pickle
 import sys
-from typing import Any, List, Mapping, MutableMapping, NamedTuple, Tuple, Union, Optional
+from typing import Any, List, Mapping, NamedTuple, Tuple, Union, Optional
 import urllib.request
 
 import numpy as np
@@ -113,7 +127,7 @@ import tensorflow_gnn as tfgnn
 from tensorflow_gnn.experimental.in_memory import reader_utils
 
 
-class InMemoryGraphData:
+class InMemoryGraphData(abc.ABC):
   """Abstract class for hold a graph data in-memory (nodes, edges, features).
 
   Subclasses must implement methods `node_features_dicts()`, `node_counts()`,
@@ -182,12 +196,14 @@ class InMemoryGraphData:
     modified._add_self_loops = add_self_loops  # pylint: disable=protected-access -- same class.
     return modified
 
+  @abc.abstractmethod
   def node_counts(self) -> Mapping[tfgnn.NodeSetName, int]:
     """Returns total number of graph nodes per node set."""
     raise NotImplementedError()
 
+  @abc.abstractmethod
   def node_features_dicts(self) -> Mapping[
-      tfgnn.NodeSetName, MutableMapping[tfgnn.FieldName, tf.Tensor]]:
+      tfgnn.NodeSetName, Mapping[tfgnn.FieldName, tf.Tensor]]:
     """Returns 2-level dict: NodeSetName->FeatureName->Feature tensor.
 
     For every node set (`"x"`), feature tensor must have leading dimension equal
@@ -196,6 +212,7 @@ class InMemoryGraphData:
     """
     raise NotImplementedError()
 
+  @abc.abstractmethod
   def edge_lists(self) -> Mapping[
       Tuple[tfgnn.NodeSetName, tfgnn.EdgeSetName, tfgnn.NodeSetName],
       tf.Tensor]:
@@ -207,7 +224,7 @@ class InMemoryGraphData:
     """
     raise NotImplementedError()
 
-  def node_sets(self) -> MutableMapping[tfgnn.NodeSetName, tfgnn.NodeSet]:
+  def node_sets(self) -> Mapping[tfgnn.NodeSetName, tfgnn.NodeSet]:
     """Returns node sets of entire graph (dict: node set name -> NodeSet)."""
     node_counts = self.node_counts()
     features_dicts = self.node_features_dicts()
@@ -249,7 +266,7 @@ class InMemoryGraphData:
 
     return schema
 
-  def edge_sets(self) -> MutableMapping[tfgnn.EdgeSetName, tfgnn.EdgeSet]:
+  def edge_sets(self) -> Mapping[tfgnn.EdgeSetName, tfgnn.EdgeSet]:
     """Returns edge sets of entire graph (dict: edge set name -> EdgeSet)."""
     edge_sets = {}
     node_counts = self.node_counts() if self._add_self_loops else None
@@ -285,6 +302,20 @@ class NodeSplit(NamedTuple):
   train: tf.Tensor
   validation: tf.Tensor
   test: tf.Tensor
+
+
+class EdgeSplit(NamedTuple):
+  """Contains positive and negative edges in {train, test, valid} partitions.
+
+  Each `tf.Tensor` will be of shape `[2, num_edges]` with dtype int64.
+  """
+  # Only need positive edges. The (entire) graph compliment can be used for
+  # negative edges.
+  train_edges: tf.Tensor
+  validation_edges: tf.Tensor
+  test_edges: tf.Tensor
+  negative_validation_edges: tf.Tensor
+  negative_test_edges: tf.Tensor
 
 
 class NodeClassificationGraphData(InMemoryGraphData):
@@ -360,10 +391,12 @@ class NodeClassificationGraphData(InMemoryGraphData):
   def splits(self) -> List[str]:
     return copy.copy(self._splits)
 
+  @abc.abstractmethod
   def num_classes(self) -> int:
     """Number of node classes. Max of `labels` should be `< num_classes`."""
     raise NotImplementedError('num_classes')
 
+  @abc.abstractmethod
   def node_split(self) -> NodeSplit:
     """`NodeSplit` with attributes `train`, `validation`, `test` set.
 
@@ -372,6 +405,7 @@ class NodeClassificationGraphData(InMemoryGraphData):
     """
     raise NotImplementedError()
 
+  @abc.abstractmethod
   def labels(self) -> tf.Tensor:
     """int vector containing labels for train & validation nodes.
 
@@ -385,6 +419,7 @@ class NodeClassificationGraphData(InMemoryGraphData):
     """
     raise NotImplementedError()
 
+  @abc.abstractmethod
   def test_labels(self) -> tf.Tensor:
     """Like the above but contains no -1's.
 
@@ -393,16 +428,18 @@ class NodeClassificationGraphData(InMemoryGraphData):
     raise NotImplementedError()
 
   @property
+  @abc.abstractmethod
   def labeled_nodeset(self) -> tfgnn.NodeSetName:
     """Name of node set which `labels` and `node_splits` reference."""
     raise NotImplementedError()
 
+  @abc.abstractmethod
   def node_features_dicts_without_labels(self) -> Mapping[
-      tfgnn.NodeSetName, MutableMapping[tfgnn.FieldName, tf.Tensor]]:
+      tfgnn.NodeSetName, Mapping[tfgnn.FieldName, tf.Tensor]]:
     raise NotImplementedError()
 
   def node_features_dicts(self) -> Mapping[
-      tfgnn.NodeSetName, MutableMapping[tfgnn.FieldName, tf.Tensor]]:
+      tfgnn.NodeSetName, Mapping[tfgnn.FieldName, tf.Tensor]]:
     """Implements a method required by the base class.
 
     This method combines the data from `labels()` or `test_labels()` with the
@@ -415,6 +452,8 @@ class NodeClassificationGraphData(InMemoryGraphData):
       NodeSetName -> FeatureName -> Feature Tensor.
     """
     node_features_dicts = self.node_features_dicts_without_labels()
+    node_features_dicts = {ns: dict(features)  # Shallow copy.
+                           for ns, features in node_features_dicts.items()}
     if self._use_labels_as_features:
       if 'test' in self._splits:
         node_features_dicts[self.labeled_nodeset]['label'] = self.test_labels()
@@ -533,7 +572,7 @@ class _PreloadedNodeClassificationGraphData(NodeClassificationGraphData):
       self, num_classes: int,
       node_features_dicts_without_labels: Mapping[
           tfgnn.NodeSetName,
-          MutableMapping[tfgnn.FieldName, tf.Tensor]],
+          Mapping[tfgnn.FieldName, tf.Tensor]],
       node_counts: Mapping[tfgnn.NodeSetName, int],
       edge_lists: Mapping[
           Tuple[tfgnn.NodeSetName, tfgnn.EdgeSetName, tfgnn.NodeSetName],
@@ -555,7 +594,7 @@ class _PreloadedNodeClassificationGraphData(NodeClassificationGraphData):
     return self._num_classes
 
   def node_features_dicts_without_labels(self) -> Mapping[
-      tfgnn.NodeSetName, MutableMapping[tfgnn.FieldName, tf.Tensor]]:
+      tfgnn.NodeSetName, Mapping[tfgnn.FieldName, tf.Tensor]]:
     return self._node_features_dicts_without_labels
 
   def node_counts(self) -> Mapping[tfgnn.NodeSetName, int]:
@@ -637,7 +676,7 @@ class _OgbGraph:
 
   @property
   def node_feat_dict(self) -> Mapping[
-      tfgnn.NodeSetName, MutableMapping[tfgnn.FieldName, tf.Tensor]]:
+      tfgnn.NodeSetName, Mapping[tfgnn.FieldName, tf.Tensor]]:
     """Maps "node set name" to dict of "feature name"->tf.Tensor."""
     return self._node_feat_dict
 
@@ -663,6 +702,13 @@ def _get_ogbn_dataset(dataset_name: str, cache_dir: Optional[str] = None):
   return ogb.nodeproppred.NodePropPredDataset(dataset_name, root=cache_dir)
 
 
+def _get_ogbl_dataset(dataset_name: str, cache_dir: Optional[str] = None):
+  """Imports ogb and returns `LinkPropPredDataset`."""
+  # This is done on purpose: we only import ogb if an ogb dataset is requested.
+  import ogb.linkproppred  # pylint: disable=g-import-not-at-top
+  return ogb.linkproppred.LinkPropPredDataset(dataset_name, root=cache_dir)
+
+
 class OgbnData(NodeClassificationGraphData):
   """Wraps node classification graph data of ogbn-* for in-memory learning."""
 
@@ -672,9 +718,9 @@ class OgbnData(NodeClassificationGraphData):
       cache_dir = os.environ.get(
           'OGB_CACHE_DIR', os.path.expanduser(os.path.join('~', 'data', 'ogb')))
 
-    self.ogb_dataset = _get_ogbn_dataset(dataset_name, cache_dir)
+    self._ogb_dataset = _get_ogbn_dataset(dataset_name, cache_dir)
     self._graph, self._node_labels, self._node_split, self._labeled_nodeset = (
-        OgbnData._to_heterogeneous(self.ogb_dataset))
+        OgbnData._to_heterogeneous(self._ogb_dataset))
 
     # rehape from [N, 1] to [N].
     self._node_labels = self._node_labels[:, 0]
@@ -749,10 +795,10 @@ class OgbnData(NodeClassificationGraphData):
     return ogb_graph, node_labels, idx_split, tfgnn.NODES
 
   def num_classes(self) -> int:
-    return self.ogb_dataset.num_classes
+    return self._ogb_dataset.num_classes
 
   def node_features_dicts_without_labels(self) -> Mapping[
-      tfgnn.NodeSetName, MutableMapping[tfgnn.FieldName, tf.Tensor]]:
+      tfgnn.NodeSetName, Mapping[tfgnn.FieldName, tf.Tensor]]:
     # Deep-copy dict (*but* without copying tf.Tensor objects).
     node_sets = self._graph.node_feat_dict
     node_sets = {node_set_name: dict(node_set.items())
@@ -892,7 +938,7 @@ class PlanetoidGraphData(NodeClassificationGraphData):
     return self._num_classes
 
   def node_features_dicts_without_labels(self) -> Mapping[
-      tfgnn.NodeSetName, MutableMapping[tfgnn.FieldName, tf.Tensor]]:
+      tfgnn.NodeSetName, Mapping[tfgnn.FieldName, tf.Tensor]]:
     features = {'feat': self._allx}
     features['#id'] = tf.range(self._num_nodes, dtype=tf.int32)
     return {tfgnn.NODES: features}
@@ -931,9 +977,95 @@ class PlanetoidGraphData(NodeClassificationGraphData):
     return self._node_labels
 
 
-def get_in_memory_graph_data(dataset_name) -> InMemoryGraphData:
+class LinkPredictionGraphData(InMemoryGraphData):
+  """Superclasses must wrap dataset of graph(s) for link-prediction tasks."""
+
+  @abc.abstractmethod
+  def edge_split(self) -> EdgeSplit:
+    """Returns edge endpoints for {train, test, valid} partitions."""
+    raise NotImplementedError()
+
+  @property
+  @abc.abstractmethod
+  def target_edgeset(self) -> tfgnn.EdgeSetName:
+    """Name of edge set over which link prediction is defined."""
+    raise NotImplementedError()
+
+  @property
+  def source_node_set_name(self) -> tfgnn.NodeSetName:
+    """Node set name of source node of (task) target_edgeset."""
+    return self.graph_schema().edge_sets[self.target_edgeset].source
+
+  @property
+  def target_node_set_name(self) -> tfgnn.NodeSetName:
+    """Node set name of target node of (task) target_edgeset."""
+    return self.graph_schema().edge_sets[self.target_edgeset].target
+
+  @property
+  def num_source_nodes(self) -> int:
+    """Number of nodes in the source endpoint of (task) target_edgeset."""
+    return self.node_counts()[self.source_node_set_name]
+
+  @property
+  def num_target_nodes(self) -> int:
+    """Number of nodes in the target endpoint of (task) target_edgeset."""
+    return self.node_counts()[self.target_node_set_name]
+
+
+class OgblData(LinkPredictionGraphData):
+  """Wraps link prediction datasets of ogbl-* for in-memory learning."""
+
+  def __init__(self, dataset_name: str, cache_dir: None|str = None):
+    super().__init__()
+    if cache_dir is None:
+      cache_dir = os.environ.get(
+          'OGB_CACHE_DIR', os.path.expanduser(os.path.join('~', 'data', 'ogb')))
+
+    self._ogb_dataset = _get_ogbl_dataset(dataset_name, cache_dir)
+
+    ogb_edge_dict = self._ogb_dataset.get_edge_split()
+    self._edge_split = EdgeSplit(
+        train_edges=as_tensor(ogb_edge_dict['train']['edge']),
+        validation_edges=as_tensor(ogb_edge_dict['train']['edge']),
+        test_edges=as_tensor(ogb_edge_dict['test']['edge']),
+        negative_validation_edges=as_tensor(ogb_edge_dict['valid']['edge_neg']),
+        negative_test_edges=as_tensor(ogb_edge_dict['test']['edge_neg']))
+
+    self._ogb_graph = _OgbGraph(self._ogb_dataset.graph)
+
+  def node_features_dicts(self, add_id: bool = True) -> Mapping[
+      tfgnn.NodeSetName, Mapping[str, tf.Tensor]]:
+    features = self._ogb_graph.node_feat_dict
+    # 2-level dict shallow copy. Inner value stores reference to tf.Tensor,
+    features = {node_set_name: copy.copy(features)
+                for node_set_name, features in features.items()}
+    if add_id:
+      counts = self.node_counts()
+      for node_set_name, feats in features.items():
+        feats['#id'] = tf.range(counts[node_set_name], dtype=tf.int32)
+    return features
+
+  def node_counts(self) -> Mapping[tfgnn.NodeSetName, int]:
+    return dict(self._ogb_graph.num_nodes_dict)  # Return copy.
+
+  def edge_lists(self) -> Mapping[
+      Tuple[tfgnn.NodeSetName, tfgnn.EdgeSetName, tfgnn.NodeSetName],
+      tf.Tensor]:
+    return dict(self._ogb_graph.edge_index_dict)  # Return shallow copy.
+
+  def edge_split(self) -> EdgeSplit:
+    return self._edge_split
+
+  @property
+  def target_edgeset(self) -> tfgnn.EdgeSetName:
+    return tfgnn.EDGES
+
+
+def get_in_memory_graph_data(dataset_name: str) -> InMemoryGraphData:
   if dataset_name.startswith('ogbn-'):
     return OgbnData(dataset_name)
+  elif dataset_name.startswith('ogbl-'):
+    return OgblData(dataset_name)
   elif dataset_name in ('cora', 'citeseer', 'pubmed'):
     return PlanetoidGraphData(dataset_name)
   else:
