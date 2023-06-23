@@ -105,26 +105,31 @@ class SamplingPipeline:
   """Callable that accepts seed node IDs to output GraphTensor."""
 
   def __init__(
-      self, graph_schema: tfgnn.GraphSchema,
+      self,
+      graph_schema: tfgnn.GraphSchema,
       sampling_spec: sampling_spec_pb2.SamplingSpec,
       edge_sampler_factory: EdgeSamplerFactory,
-      node_features_accessor_factory: None|NodeFeaturesLookupFactory = None):
+      node_features_accessor_factory: Optional[
+          NodeFeaturesLookupFactory] = None,
+  ):
     assert_sorted_sampling_spec(sampling_spec)
     self._graph_schema = graph_schema
     self._sampling_spec = sampling_spec
     self._edge_sampler_factory = edge_sampler_factory
     self._node_features_accessor_factory = node_features_accessor_factory
-    self._node_accessor: Dict[tfgnn.NodeSetName,
-                              Optional[interfaces.KeyToFeaturesAccessor]] = {}
+    self._node_accessor: Dict[
+        tfgnn.NodeSetName, Optional[interfaces.KeyToFeaturesAccessor]
+    ] = {}
 
   def get_node_features_accessor(
-      self, node_set_name: tfgnn.NodeSetName) -> Optional[
-          interfaces.KeyToFeaturesAccessor]:
+      self, node_set_name: tfgnn.NodeSetName
+  ) -> Optional[interfaces.KeyToFeaturesAccessor]:
     if not self._node_features_accessor_factory:
       return None
     if node_set_name not in self._node_accessor:
       self._node_accessor[node_set_name] = self._node_features_accessor_factory(
-          node_set_name)
+          node_set_name
+      )
     return self._node_accessor[node_set_name]
 
   @property
