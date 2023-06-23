@@ -108,9 +108,7 @@ class SamplingPipeline:
       self, graph_schema: tfgnn.GraphSchema,
       sampling_spec: sampling_spec_pb2.SamplingSpec,
       edge_sampler_factory: EdgeSamplerFactory,
-      node_features_accessor_factory: Optional[
-          Callable[[tfgnn.NodeSetName],
-                   Optional[interfaces.KeyToFeaturesAccessor]]] = None):
+      node_features_accessor_factory: None|NodeFeaturesLookupFactory = None):
     assert_sorted_sampling_spec(sampling_spec)
     self._graph_schema = graph_schema
     self._sampling_spec = sampling_spec
@@ -128,6 +126,10 @@ class SamplingPipeline:
       self._node_accessor[node_set_name] = self._node_features_accessor_factory(
           node_set_name)
     return self._node_accessor[node_set_name]
+
+  @property
+  def seed_node_set_name(self) -> tfgnn.NodeSetName:
+    return self._sampling_spec.seed_op.node_set_name
 
   def __call__(self, seed_nodes: tf.RaggedTensor) -> tfgnn.GraphTensor:
     """Returns subgraph (as `GraphTensor`) sampled around `seed_nodes`.
