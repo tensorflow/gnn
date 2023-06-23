@@ -24,7 +24,8 @@ from tensorflow_gnn.sampler import sampling_spec_pb2
 from google.protobuf import text_format
 
 
-def get_schema(edge_sets=('AA', 'AB', 'AC', 'BC', 'CD')) -> tfgnn.GraphSchema:
+def get_schema(edge_sets=('AA', 'AB', 'AC', 'BC', 'CD'),
+               add_readout_artifacts=False) -> tfgnn.GraphSchema:
   schema = tfgnn.GraphSchema()
   # Schema has DAG like:
   # A -> B
@@ -35,6 +36,14 @@ def get_schema(edge_sets=('AA', 'AB', 'AC', 'BC', 'CD')) -> tfgnn.GraphSchema:
     schema.edge_sets[edge_set_name].target = edge_set_name[1]
     unused_node_set = schema.node_sets[edge_set_name[0]]  # To initalize.
     unused_node_set = schema.node_sets[edge_set_name[1]]
+
+  if add_readout_artifacts:
+    # Auxilary (_readout) node and edge sets should not appear output.
+    unused_node_set = schema.node_sets['_readout']  # Initialize
+    schema.edge_sets['_readout/source'].source = 'A'
+    schema.edge_sets['_readout/source'].target = '_readout'
+    schema.edge_sets['_readout/target'].source = 'B'
+    schema.edge_sets['_readout/target'].target = '_readout'
 
   return schema
 
@@ -199,6 +208,123 @@ class SamplingSpecBuilderTest(parameterized.TestCase):
         }
         """, sampling_spec_pb2.SamplingSpec())
     self.assertEqual(expected_proto, proto)
+
+
+class MakeSamplingSpecTreeTest(parameterized.TestCase):
+
+  def test_1_hop(self):
+    sampling_spec_1hop = sampling_spec_builder.make_sampling_spec_tree(
+        get_schema(), 'A', sample_sizes=[3])
+
+    expected_spec_1hop = text_format.Parse(
+        """
+        seed_op {
+          op_name: "SEED->A"
+          node_set_name: "A"
+        }
+        sampling_ops {
+          op_name: "A->C"
+          input_op_names: "SEED->A"
+          edge_set_name: "AC"
+          sample_size: 3
+          strategy: RANDOM_UNIFORM
+        }
+        sampling_ops {
+          op_name: "A->B"
+          input_op_names: "SEED->A"
+          edge_set_name: "AB"
+          sample_size: 3
+          strategy: RANDOM_UNIFORM
+        }
+        sampling_ops {
+          op_name: "A->A"
+          input_op_names: "SEED->A"
+          edge_set_name: "AA"
+          sample_size: 3
+          strategy: RANDOM_UNIFORM
+        }
+        """, sampling_spec_pb2.SamplingSpec())
+    self.assertEqual(sampling_spec_1hop, expected_spec_1hop)
+
+  def test_2_hops(self):
+    sampling_spec_2hops = sampling_spec_builder.make_sampling_spec_tree(
+        get_schema(add_readout_artifacts=True), 'A', sample_sizes=[3, 2])
+    expected_spec_2hops = text_format.Parse(
+        """
+        seed_op {
+          op_name: "SEED->A"
+          node_set_name: "A"
+        }
+        sampling_ops {
+          op_name: "A->C"
+          input_op_names: "SEED->A"
+          edge_set_name: "AC"
+          sample_size: 3
+          strategy: RANDOM_UNIFORM
+        }
+        sampling_ops {
+          op_name: "C->D"
+          input_op_names: "A->C"
+          edge_set_name: "CD"
+          sample_size: 2
+          strategy: RANDOM_UNIFORM
+        }
+        sampling_ops {
+          op_name: "A->B"
+          input_op_names: "SEED->A"
+          edge_set_name: "AB"
+          sample_size: 3
+          strategy: RANDOM_UNIFORM
+        }
+        sampling_ops {
+          op_name: "B->C"
+          input_op_names: "A->B"
+          edge_set_name: "BC"
+          sample_size: 2
+          strategy: RANDOM_UNIFORM
+        }
+        sampling_ops {
+          op_name: "A->A"
+          input_op_names: "SEED->A"
+          edge_set_name: "AA"
+          sample_size: 3
+          strategy: RANDOM_UNIFORM
+        }
+        sampling_ops {
+          op_name: "A->C.2"
+          input_op_names: "A->A"
+          edge_set_name: "AC"
+          sample_size: 2
+          strategy: RANDOM_UNIFORM
+        }
+        sampling_ops {
+          op_name: "A->B.2"
+          input_op_names: "A->A"
+          edge_set_name: "AB"
+          sample_size: 2
+          strategy: RANDOM_UNIFORM
+        }
+        sampling_ops {
+          op_name: "A->A.2"
+          input_op_names: "A->A"
+          edge_set_name: "AA"
+          sample_size: 2
+          strategy: RANDOM_UNIFORM
+        }
+        """, sampling_spec_pb2.SamplingSpec())
+    self.assertEqual(sampling_spec_2hops, expected_spec_2hops)
+
+  def test_0_hops(self):
+    sampling_spec_0hops = sampling_spec_builder.make_sampling_spec_tree(
+        get_schema(), 'A', sample_sizes=[])
+    expected_spec_0hops = text_format.Parse(
+        """
+        seed_op {
+          op_name: "SEED->A"
+          node_set_name: "A"
+        }
+        """, sampling_spec_pb2.SamplingSpec())
+    self.assertEqual(sampling_spec_0hops, expected_spec_0hops)
 
 
 if __name__ == '__main__':

@@ -88,7 +88,8 @@ This merges together the papers written by author, and written by co-authors,
 and for each of those papers, sample 10 papers citing it.
 """
 import collections
-from typing import Optional, Iterable, Union, List
+import re
+from typing import Optional, Iterable, Union, List, Any, Mapping
 
 import tensorflow_gnn as tfgnn
 
@@ -131,6 +132,54 @@ def _op_name_from_parents(parents):
     return parents[0].node_set_name
 
   return '(%s)' % '|'.join([s.op_name for s in parents])
+
+
+def make_sampling_spec_tree(
+    graph_schema: tfgnn.GraphSchema, seed_nodeset: tfgnn.NodeSetName, *,
+    sample_sizes: List[int]) -> sampling_spec_pb2.SamplingSpec:
+  """Automatically creates `SamplingSpec` by starting from seed node set.
+
+  From seed node set, `sample_sizes[0]` are sampled from *every* edge set `E`
+  that originates from seed node set. Subsequently, from sampled edge `e` in `E`
+  the created `SamplingSpec` instructs sampling up to `sample_sizes[1]` edges
+  for `e`'s target node, and so on, until depth of `len(sample_sizes)`.
+
+  Args:
+    graph_schema: contains node-sets & edge-sets.
+    seed_nodeset: name of node-set that the sampler will be instructed to use as
+      seed nodes.
+    sample_sizes: list of number of nodes to sample. E.g. if `== [5, 2, 2]`,
+      then for every sampled node, up-to 5 of its neighbors will be sampled, and
+      for each, up to 2 of its neighbors will be sampled, etc, totalling sampled
+      nodes up to `5 * 2 * 2 = 20` for each seed node.
+
+  Returns:
+    `SamplingSpec` that instructs the sampler to sample uniformly, `fanout`
+    number of edges *from all edge sets*, up-to depth `depth`.
+  """
+  edge_sets_by_src_node_set = _edge_set_names_by_source(graph_schema)
+  spec_builder = SamplingSpecBuilder(
+      graph_schema,
+      default_strategy=SamplingStrategy.RANDOM_UNIFORM)
+  spec_builder = spec_builder.seed(seed_nodeset)
+
+  def _recursively_sample_all_edge_sets(
+      cur_node_set_name, sampling_step, remaining_sample_sizes):
+    if not remaining_sample_sizes:
+      return
+    for edge_set_name in sorted(edge_sets_by_src_node_set[cur_node_set_name]):
+      if re.fullmatch(tfgnn.AUX_GRAPH_PIECE_PATTERN, edge_set_name):
+        continue  # Skip private edges (e.g., _readout).
+
+      edge_set_schema = graph_schema.edge_sets[edge_set_name]
+      _recursively_sample_all_edge_sets(
+          edge_set_schema.target,
+          sampling_step.sample(remaining_sample_sizes[0], edge_set_name),
+          remaining_sample_sizes[1:])
+
+  _recursively_sample_all_edge_sets(seed_nodeset, spec_builder, sample_sizes)
+
+  return spec_builder.build()
 
 
 class SamplingSpecBuilder(object):
@@ -391,3 +440,19 @@ class Join:
   def sample(self, *sample_args, **sample_kwargs) -> '_SamplingStep':
     return self._steps[0].merge_then_sample(
         self._steps[1:], *sample_args, **sample_kwargs)
+
+
+def _edge_set_names_by_source(
+    graph: Union[tfgnn.GraphSchema, tfgnn.GraphTensor, Any]
+    ) -> Mapping[tfgnn.NodeSetName, List[tfgnn.EdgeSetName]]:
+  """Returns map: node set name -> list of edge names outgoing from node set."""
+  results = collections.defaultdict(list)
+  if isinstance(graph, tfgnn.GraphSchema):
+    for edge_set_name, edge_set_schema in graph.edge_sets.items():
+      results[edge_set_schema.source].append(edge_set_name)
+  elif tfgnn.is_graph_tensor(graph):
+    for edge_set_name, edge_set_tensor in graph.edge_sets.items():
+      results[edge_set_tensor.adjacency.source_name].append(edge_set_name)
+  else:
+    raise TypeError('Not yet supported type %s' % str(graph.__class__))
+  return results
