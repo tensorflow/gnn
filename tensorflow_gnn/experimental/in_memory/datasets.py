@@ -117,7 +117,7 @@ import json
 import os
 import pickle
 import sys
-from typing import Any, List, Mapping, NamedTuple, Tuple, Union, Optional
+from typing import Any, List, Mapping, NamedTuple, Tuple, Union, Optional, Callable
 import urllib.request
 
 import numpy as np
@@ -125,6 +125,12 @@ import scipy
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.experimental.in_memory import reader_utils
+from tensorflow_gnn.experimental.sampler import interfaces
+
+
+# Given node-set-name, must return feature lookup or None.
+NodeFeaturesLookupFactory = Callable[
+    [tfgnn.NodeSetName], None|interfaces.KeyToFeaturesAccessor]
 
 
 class InMemoryGraphData(abc.ABC):
@@ -140,6 +146,11 @@ class InMemoryGraphData(abc.ABC):
                add_self_loops: bool = False):
     self._make_undirected = make_undirected
     self._add_self_loops = add_self_loops
+
+  @property
+  def name(self) -> str:
+    """Returns name of dataset object. Can be overridden to return data name."""
+    return self.__class__.__name__
 
   def with_undirected_edges(self, make_undirected: bool) -> 'InMemoryGraphData':
     """Returns same graph data but with undirected edges added (or removed).
@@ -293,6 +304,43 @@ class InMemoryGraphData(abc.ABC):
                 target=(source_node_set_name, edge_list[0])))
     return edge_sets
 
+  def create_node_features_lookup_factory(self) -> NodeFeaturesLookupFactory:
+    return functools.partial(
+        _node_features_lookup, node_sets=dict(self.node_sets()), cache={},
+        resource_prefix=self.name)
+
+
+class _Accessor(tf.keras.layers.Layer, interfaces.KeyToFeaturesAccessor):
+  """Wraps `NodeSet` with `call` that can select features for node subsets."""
+
+  def __init__(self, node_set: tfgnn.NodeSet, resource_name: str):
+    super().__init__()
+    self._node_set = node_set
+    self._resource_name = resource_name
+
+  def call(self, keys: tf.RaggedTensor) -> interfaces.Features:
+    """Gathers features corresponding to (tf.int) node keys."""
+    return {feature_name: tf.gather(feature_value, keys)
+            for feature_name, feature_value in self._node_set.features.items()}
+
+  @property
+  def resource_name(self) -> str:
+    return self._resource_name
+
+
+def _node_features_lookup(
+    node_set_name: tfgnn.NodeSetName,
+    *,
+    node_sets: dict[tfgnn.NodeSetName, tfgnn.NodeSet],
+    cache: dict[tfgnn.NodeSetName, _Accessor],
+    resource_prefix: str,
+    ) -> interfaces.KeyToFeaturesAccessor:
+  if node_set_name in cache:
+    return cache[node_set_name]
+  cache[node_set_name] = _Accessor(
+      node_sets[node_set_name], f'{resource_prefix}/nodes/{node_set_name}')
+  return cache[node_set_name]
+
 
 class NodeSplit(NamedTuple):
   """Contains 1D int tensors holding positions of {train, valid, test} nodes.
@@ -309,8 +357,8 @@ class EdgeSplit(NamedTuple):
 
   Each `tf.Tensor` will be of shape `[2, num_edges]` with dtype int64.
   """
-  # Only need positive edges. The (entire) graph compliment can be used for
-  # negative edges.
+  # Only need positive edges for training. The (entire) graph compliment can be
+  # used for negative edges.
   train_edges: tf.Tensor
   validation_edges: tf.Tensor
   test_edges: tf.Tensor
@@ -714,6 +762,7 @@ class OgbnData(NodeClassificationGraphData):
 
   def __init__(self, dataset_name, cache_dir=None):
     super().__init__()
+    self._dataset_name = dataset_name
     if cache_dir is None:
       cache_dir = os.environ.get(
           'OGB_CACHE_DIR', os.path.expanduser(os.path.join('~', 'data', 'ogb')))
@@ -731,6 +780,10 @@ class OgbnData(NodeClassificationGraphData):
 
     self._train_labels = as_tensor(self._train_labels)
     self._node_labels = as_tensor(self._node_labels)
+
+  @property
+  def name(self) -> str:
+    return self._dataset_name
 
   @staticmethod
   def _to_heterogeneous(
@@ -861,6 +914,7 @@ class PlanetoidGraphData(NodeClassificationGraphData):
 
   def __init__(self, dataset_name, cache_dir=None):
     super().__init__()
+    self._dataset_name = dataset_name
     allowed_names = ('pubmed', 'citeseer', 'cora')
 
     url_template = (
@@ -926,6 +980,10 @@ class PlanetoidGraphData(NodeClassificationGraphData):
       adj_target.extend(neighbors)
 
     self._edge_list = as_tensor(np.stack([adj_src, adj_target], axis=0))
+
+  @property
+  def name(self) -> str:
+    return self._dataset_name
 
   @staticmethod
   def load_x(filename):
@@ -1017,6 +1075,7 @@ class OgblData(LinkPredictionGraphData):
 
   def __init__(self, dataset_name: str, cache_dir: None|str = None):
     super().__init__()
+    self._dataset_name = dataset_name
     if cache_dir is None:
       cache_dir = os.environ.get(
           'OGB_CACHE_DIR', os.path.expanduser(os.path.join('~', 'data', 'ogb')))
@@ -1032,6 +1091,10 @@ class OgblData(LinkPredictionGraphData):
         negative_test_edges=as_tensor(ogb_edge_dict['test']['edge_neg']))
 
     self._ogb_graph = _OgbGraph(self._ogb_dataset.graph)
+
+  @property
+  def name(self) -> str:
+    return self._dataset_name
 
   def node_features_dicts(self, add_id: bool = True) -> Mapping[
       tfgnn.NodeSetName, Mapping[str, tf.Tensor]]:
