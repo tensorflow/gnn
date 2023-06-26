@@ -17,6 +17,7 @@ from tensorflow_gnn.experimental.sampler import core
 from tensorflow_gnn.experimental.sampler import eval_dag
 from tensorflow_gnn.experimental.sampler import ext_ops
 from tensorflow_gnn.experimental.sampler import interfaces
+from tensorflow_gnn.experimental.sampler import subgraph_pipeline
 
 # Helpers.
 set_ext_ops_implementation = ext_ops.set_ops_implementation
@@ -25,6 +26,10 @@ ragged_unique = ext_ops.ragged_unique
 ragged_choice = ext_ops.ragged_choice
 
 build_graph_tensor = core.build_graph_tensor
+
+create_sampling_model_from_spec = (
+    subgraph_pipeline.create_sampling_model_from_spec
+)
 
 # Export.
 create_program = eval_dag.create_program
@@ -51,3 +56,4 @@ del core
 del eval_dag
 del ext_ops
 del interfaces
+del subgraph_pipeline
