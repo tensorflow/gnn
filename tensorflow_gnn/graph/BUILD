@@ -13,6 +13,7 @@ package(
         "//tensorflow_gnn/experimental:__subpackages__",
         "//tensorflow_gnn/graph:__subpackages__",
         "//tensorflow_gnn/keras:__subpackages__",
+        "//tensorflow_gnn/sampler:__subpackages__",
     ],
 )
 

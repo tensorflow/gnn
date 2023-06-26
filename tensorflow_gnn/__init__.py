@@ -49,6 +49,7 @@ from tensorflow_gnn.graph import schema_validation
 from tensorflow_gnn.graph import tag_utils
 from tensorflow_gnn.graph import tensor_utils
 from tensorflow_gnn.proto import graph_schema
+from tensorflow_gnn.sampler import sampling_spec_builder
 
 # Package version.
 __version__ = version.__version__
@@ -181,6 +182,9 @@ readout_named = readout.readout_named
 add_readout_from_first_node = readout.add_readout_from_first_node
 readout_named_into_feature = readout.readout_named_into_feature
 
+# Sampler
+SamplingSpecBuilder = sampling_spec_builder.SamplingSpecBuilder
+
 # Schema conversion and I/O functions.
 parse_schema = schema_utils.parse_schema
 read_schema = schema_utils.read_schema
@@ -231,3 +235,4 @@ del schema_validation
 del tag_utils
 del tensor_utils
 del graph_schema
+del sampling_spec_builder

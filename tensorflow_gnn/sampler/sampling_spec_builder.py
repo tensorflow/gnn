@@ -26,7 +26,7 @@ is named "edges", then you can create the sampling spec proto as:
 
 ```
 # Assume homogeneous schema with edge-set name "edges" connecting "nodes".
-schema = tfgnn.GraphSchema()
+schema = schema_pb2.GraphSchema()
 schema.edge_sets['edges'].source = s.edge_sets['edges'].target = 'nodes'
 
 proto = (SamplingSpecBuilder(schema).seed('nodes').sample(10, 'edges')
@@ -91,9 +91,17 @@ import collections
 import re
 from typing import Optional, Iterable, Union, List, Any, Mapping
 
-import tensorflow_gnn as tfgnn
-
+from tensorflow_gnn.graph import graph_constants
+from tensorflow_gnn.graph import graph_tensor
+from tensorflow_gnn.graph import graph_tensor_ops
+import tensorflow_gnn.proto.graph_schema_pb2 as schema_pb2
 from tensorflow_gnn.sampler import sampling_spec_pb2
+
+
+AUX_GRAPH_PIECE_PATTERN = graph_constants.AUX_GRAPH_PIECE_PATTERN
+NodeSetName = graph_constants.NodeSetName
+EdgeSetName = graph_constants.EdgeSetName
+GraphTensor = graph_tensor.GraphTensor
 
 SamplingStrategy = sampling_spec_pb2.SamplingStrategy
 
@@ -135,7 +143,7 @@ def _op_name_from_parents(parents):
 
 
 def make_sampling_spec_tree(
-    graph_schema: tfgnn.GraphSchema, seed_nodeset: tfgnn.NodeSetName, *,
+    graph_schema: schema_pb2.GraphSchema, seed_nodeset: NodeSetName, *,
     sample_sizes: List[int]) -> sampling_spec_pb2.SamplingSpec:
   """Automatically creates `SamplingSpec` by starting from seed node set.
 
@@ -168,7 +176,7 @@ def make_sampling_spec_tree(
     if not remaining_sample_sizes:
       return
     for edge_set_name in sorted(edge_sets_by_src_node_set[cur_node_set_name]):
-      if re.fullmatch(tfgnn.AUX_GRAPH_PIECE_PATTERN, edge_set_name):
+      if re.fullmatch(AUX_GRAPH_PIECE_PATTERN, edge_set_name):
         continue  # Skip private edges (e.g., _readout).
 
       edge_set_schema = graph_schema.edge_sets[edge_set_name]
@@ -192,7 +200,7 @@ class SamplingSpecBuilder(object):
 
   ### NOTE: This should come from the outside, e.g., `graph_tensor.schema`.
   ```
-  schema = tfgnn.GraphSchema()
+  schema = schema_pb2.GraphSchema()
   schema.edge_sets['edges'].source = s.edge_sets['edges'].target = 'nodes'
 
   proto = (SamplingSpecBuilder(schema)
@@ -220,7 +228,7 @@ class SamplingSpecBuilder(object):
   """
 
   def __init__(
-      self, graph_schema: tfgnn.GraphSchema,
+      self, graph_schema: schema_pb2.GraphSchema,
       default_strategy: SamplingStrategy = SamplingStrategy.TOP_K):
     self.graph_schema = graph_schema
     self.seeds = []
@@ -443,14 +451,14 @@ class Join:
 
 
 def _edge_set_names_by_source(
-    graph: Union[tfgnn.GraphSchema, tfgnn.GraphTensor, Any]
-    ) -> Mapping[tfgnn.NodeSetName, List[tfgnn.EdgeSetName]]:
+    graph: Union[schema_pb2.GraphSchema, GraphTensor, Any]
+    ) -> Mapping[NodeSetName, List[EdgeSetName]]:
   """Returns map: node set name -> list of edge names outgoing from node set."""
   results = collections.defaultdict(list)
-  if isinstance(graph, tfgnn.GraphSchema):
+  if isinstance(graph, schema_pb2.GraphSchema):
     for edge_set_name, edge_set_schema in graph.edge_sets.items():
       results[edge_set_schema.source].append(edge_set_name)
-  elif tfgnn.is_graph_tensor(graph):
+  elif graph_tensor_ops.is_graph_tensor(graph):
     for edge_set_name, edge_set_tensor in graph.edge_sets.items():
       results[edge_set_tensor.adjacency.source_name].append(edge_set_name)
   else:

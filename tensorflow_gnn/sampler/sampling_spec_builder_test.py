@@ -17,7 +17,7 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 
-import tensorflow_gnn as tfgnn
+import tensorflow_gnn.proto.graph_schema_pb2 as schema_pb2
 from tensorflow_gnn.sampler import sampling_spec_builder
 from tensorflow_gnn.sampler import sampling_spec_pb2
 
@@ -25,8 +25,9 @@ from google.protobuf import text_format
 
 
 def get_schema(edge_sets=('AA', 'AB', 'AC', 'BC', 'CD'),
-               add_readout_artifacts=False) -> tfgnn.GraphSchema:
-  schema = tfgnn.GraphSchema()
+               add_readout_artifacts=False) -> schema_pb2.GraphSchema:
+  schema = schema_pb2.GraphSchema()
+
   # Schema has DAG like:
   # A -> B
   #  \    \
