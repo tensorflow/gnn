@@ -90,6 +90,8 @@ def get_sampling_model(
   def node_features_accessor_factory(
       node_set_name: tfgnn.NodeSetName,
   ) -> sampler.KeyToTfExampleAccessor:
+    if not graph_schema.node_sets[node_set_name].features:
+      return None
     node_features = graph_schema.node_sets[node_set_name].features
     features_spec = {}
     for name, feature in node_features.items():

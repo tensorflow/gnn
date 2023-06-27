@@ -282,11 +282,14 @@ def read_graph(
   pcoll_dict = {}
   for set_type, set_name, fset in tfgnn.iter_sets(schema):
 
+    # Save the collection for output.
+    set_dict = pcoll_dict.setdefault(set_type, {})
     if fset.metadata.HasField("filename"):
       pcoll = (
           rcoll
           | f"ReadFile/{set_name}" >> ReadUnigraphPieceFromFile(
               set_type, set_name, fset, graph_dir))
+      set_dict[set_name] = pcoll
     elif fset.metadata.HasField("bigquery"):
       pcoll = (
           rcoll | f"ReadBigQuery/{set_name}" >> ReadUnigraphPieceFromBigQuery(
@@ -294,10 +297,7 @@ def read_graph(
               fset,
               gcs_location=gcs_location,
               bigquery_reader=bigquery_reader))
-
-    # Save the collection for output.
-    set_dict = pcoll_dict.setdefault(set_type, {})
-    set_dict[set_name] = pcoll
+      set_dict[set_name] = pcoll
 
   return pcoll_dict
 
