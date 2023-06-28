@@ -142,8 +142,8 @@ pytype_strict_library(
     ],
 )
 
-py_binary(
-    name = "sampler",
+pytype_strict_library(
+    name = "sampler-lib",
     srcs = ["sampler.py"],
     deps = [
         ":accessors",
@@ -161,6 +161,27 @@ py_binary(
         "//tensorflow_gnn/experimental/sampler:subgraph_pipeline",
         "//tensorflow_gnn/proto:graph_schema_py_proto",
         "//tensorflow_gnn/sampler:sampling_spec_py_proto",
+    ],
+)
+
+pytype_strict_contrib_test(
+    name = "sampler_test",
+    srcs = ["sampler_test.py"],
+    deps = [
+        ":sampler-lib",
+        "//testing/pybase",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+        "//tensorflow_gnn/sampler:sampling_spec_py_proto",
+    ],
+)
+
+py_binary(
+    name = "sampler",
+    srcs = ["sampler.py"],
+    deps = [
+        ":sampler-lib",
     ],
 )
 

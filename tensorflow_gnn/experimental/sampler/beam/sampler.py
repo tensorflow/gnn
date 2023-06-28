@@ -16,7 +16,9 @@
 
 Closely follows V1.
 """
+from __future__ import annotations
 
+import functools
 import os
 from typing import Optional
 
@@ -30,7 +32,6 @@ import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.data import unigraph
 from tensorflow_gnn.experimental import sampler
-from tensorflow_gnn.experimental.sampler import subgraph_pipeline
 from tensorflow_gnn.experimental.sampler.beam import accessors  # pylint: disable=unused-import
 from tensorflow_gnn.experimental.sampler.beam import edge_samplers  # pylint: disable=unused-import
 from tensorflow_gnn.experimental.sampler.beam import executor_lib
@@ -54,7 +55,7 @@ def _get_shape(feature: graph_schema_pb2.Feature) -> tf.TensorShape:
 def get_sampling_model(
     graph_schema: tfgnn.GraphSchema,
     sampling_spec: sampling_spec_pb2.SamplingSpec,
-) -> tf.keras.Model:
+) -> tuple[tf.keras.Model, dict[str, str]]:
   """Constructs sampling model from schema and sampling spec.
 
   Args:
@@ -64,11 +65,14 @@ def get_sampling_model(
       possibly densified adding all pairwise edges between sampled nodes.
 
   Returns:
-    A Keras model for sampling.
+    A Keras model for sampling and 
+    a mapping from the layer's name to the corresponding edge set.
   """
-
+  layer_name_to_edge_set = {}
   def edge_sampler_factory(
       op: sampling_spec_pb2.SamplingOp,
+      *,
+      counter: dict[str, int],
   ) -> sampler.UniformEdgesSampler:
     accessor = sampler.KeyToTfExampleAccessor(
         sampler.InMemStringKeyToBytesAccessor(
@@ -77,15 +81,23 @@ def get_sampling_model(
             '#target': tf.TensorSpec([None], tf.string),
         },
     )
-
+    edge_set_count = counter.setdefault(op.edge_set_name, 0)
+    counter[op.edge_set_name] += 1
+    layer_name = f'edges/{op.edge_set_name}_{edge_set_count}'
     sample_size = op.sample_size
     edge_target_feature_name = '#target'
-    return sampler.UniformEdgesSampler(
+
+    result = sampler.UniformEdgesSampler(
         outgoing_edges_accessor=accessor,
         sample_size=sample_size,
         edge_target_feature_name=edge_target_feature_name,
-        name=f'edges/{op.edge_set_name}'
+        name=layer_name,
     )
+    assert (
+        layer_name not in layer_name_to_edge_set
+    ), f'Duplicate layer name: {layer_name}'
+    layer_name_to_edge_set[layer_name] = f'edges/{op.edge_set_name}'
+    return result
 
   def node_features_accessor_factory(
       node_set_name: tfgnn.NodeSetName,
@@ -106,12 +118,14 @@ def get_sampling_model(
     )
     return accessor
 
-  return subgraph_pipeline.create_sampling_model_from_spec(
+  counter = {}
+  return sampler.create_sampling_model_from_spec(
       graph_schema,
       sampling_spec,
-      edge_sampler_factory=edge_sampler_factory,
+      edge_sampler_factory=functools.partial(
+          edge_sampler_factory, counter=counter),
       node_features_accessor_factory=node_features_accessor_factory,
-  )
+  ), layer_name_to_edge_set
 
 
 def _create_beam_runner(
@@ -200,7 +214,6 @@ def app_main(argv) -> None:
   pipeline_args = argv[1:]
   graph_schema: tfgnn.GraphSchema = unigraph.read_schema(FLAGS.graph_schema)
 
-  data_path = os.path.dirname(FLAGS.graph_schema)
   with tf.io.gfile.GFile(FLAGS.sampling_spec, 'r') as f:
     sampling_spec = text_format.Parse(
         f.read(), sampling_spec_pb2.SamplingSpec()
@@ -209,11 +222,13 @@ def app_main(argv) -> None:
   # and sampling spec which defines how to sample in V1 format.
   # 1. Let's define sampling model as TF keras model.
   # Example:
-  #  model = get_sampling_model(mag_graph_schema, mag_sampling_spec)
+  #  model, layers_mapping = get_sampling_model(
+  # mag_graph_schema, mag_sampling_spec)
   #  model(tf.ragged.constant([[0], [1]]))
   #  # returns GraphTensor for seed papers 0 and 1.
 
-  model = get_sampling_model(graph_schema, sampling_spec)
+  model, layers_mapping = get_sampling_model(graph_schema, sampling_spec)
+  # layers_mapping: Dict[layer name, nodes/{node_set_nam}|edges/{edge_set_name}]
   # Export sampling model as a "sampling program".
   program_pb, artifacts = sampler.create_program(model)
   # here `eval_dag` defines Beam stages to run, artifacts are TF models
@@ -238,8 +253,14 @@ def app_main(argv) -> None:
   with beam.Pipeline(
       runner=_create_beam_runner(FLAGS.runner), options=pipeline_options
   ) as root:
-    feeds = (root
-             | unigraph_utils.ReadAndConvertUnigraph(graph_schema, data_path))
+    feeds_unique = root | unigraph_utils.ReadAndConvertUnigraph(
+        graph_schema, data_path
+    )
+    feeds = feeds_unique
+    feeds.update({
+        layer_name: feeds_unique[layers_mapping[layer_name]]
+        for layer_name in layers_mapping
+    })
     if FLAGS.input_seeds:
       seeds = unigraph_utils.read_seeds(root, FLAGS.input_seeds)
     else:
