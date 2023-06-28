@@ -88,11 +88,11 @@ def all_tasks() -> Mapping[str, runner.Task]:
       "DGI_projected": tasks.DeepGraphInfomaxTask(
           "node", projector_units=[2], seed=8191
       ),
-      **all_tasks_with_projector_as_dimension([2]),
+      **all_tasks_with_projector_as_inner_dimension([2]),
   }
 
 
-def all_tasks_with_projector_as_dimension(
+def all_tasks_with_projector_as_inner_dimension(
     projector_units: Sequence[int],
 ) -> Mapping[str, runner.Task]:
   return {
@@ -185,7 +185,9 @@ class ContrastiveTasksSharedTests(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(gts[0].spec, gts[1].spec)
 
   @parameterized.named_parameters(
-      tasks_to_named_parameters(all_tasks_with_projector_as_dimension([7]))
+      tasks_to_named_parameters(
+          all_tasks_with_projector_as_inner_dimension([7])
+      )
   )
   def test_projector_shape(self, task: runner.Task):
     gts, _ = task.preprocess(graph_tensor())
