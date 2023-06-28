@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 import functools
-from typing import Any
+from typing import Any, Mapping
 
 from absl.testing import parameterized
 import numpy as np
@@ -80,20 +80,39 @@ def gnn_static(type_spec: tf.TypeSpec) -> tf.keras.Model:
   return tf.keras.Model(inputs, outputs)
 
 
-def all_tasks() -> Sequence[runner.Task]:
-  return [
-      tasks.DeepGraphInfomaxTask("node", seed=8191),
-      tasks.VicRegTask("node", seed=8191),
-      tasks.BarlowTwinsTask("node", seed=8191),
-  ]
+def all_tasks() -> Mapping[str, runner.Task]:
+  return {
+      "DGI": tasks.DeepGraphInfomaxTask("node", seed=8191),
+      "VicReg": tasks.VicRegTask("node", seed=8191),
+      "BarlowTwins": tasks.BarlowTwinsTask("node", seed=8191),
+      "DGI_projected": tasks.DeepGraphInfomaxTask(
+          "node", projector_units=[2], seed=8191
+      ),
+      **all_tasks_with_projector_as_dimension([2]),
+  }
 
 
-def all_tasks_inputs() -> Sequence[dict[str, Any]]:
+def all_tasks_with_projector_as_dimension(
+    projector_units: Sequence[int],
+) -> Mapping[str, runner.Task]:
+  return {
+      "VicReg_projected": tasks.VicRegTask(
+          "node", projector_units=projector_units, seed=8191
+      ),
+      "BarlowTwins_projected": tasks.BarlowTwinsTask(
+          "node", projector_units=projector_units, seed=8191
+      ),
+  }
+
+
+def tasks_to_named_parameters(
+    names_tasks: Mapping[str, runner.Task],
+) -> Sequence[dict[str, Any]]:
   output = []
-  for task in all_tasks():
+  for task_name, task in names_tasks.items():
     output.append(
         dict(
-            testcase_name=task.__class__.__name__,
+            testcase_name=task_name,
             task=task,
         )
     )
@@ -102,10 +121,10 @@ def all_tasks_inputs() -> Sequence[dict[str, Any]]:
 
 def bad_parameters_inputs() -> Sequence[dict[str, Any]]:
   output = []
-  for task in all_tasks():
+  for task_name, task in all_tasks().items():
     output.append(
         dict(
-            testcase_name="NoGraphTensorInputRight" + task.__class__.__name__,
+            testcase_name="NoGraphTensorInputRight" + task_name,
             inputs=(graph_tensor(), tf.constant(range(8))),
             task=task,
             expected_error=r"Expected a `GraphTensor` input \(got .*\)",
@@ -113,7 +132,7 @@ def bad_parameters_inputs() -> Sequence[dict[str, Any]]:
     )
     output.append(
         dict(
-            testcase_name="NoGraphTensorInputLeft" + task.__class__.__name__,
+            testcase_name="NoGraphTensorInputLeft" + task_name,
             inputs=(tf.constant(range(8)), graph_tensor()),
             task=task,
             expected_error=r"Expected a `GraphTensor` input \(got .*\)",
@@ -133,7 +152,7 @@ class ContrastiveTasksSharedTests(tf.test.TestCase, parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, expected_error):
       _ = task.predict(*inputs)
 
-  @parameterized.named_parameters(all_tasks_inputs())
+  @parameterized.named_parameters(tasks_to_named_parameters(all_tasks()))
   def test_fit(self, task: runner.Task):
     ds = tf.data.Dataset.from_tensors(graph_tensor()).repeat()
     ds = ds.batch(2).map(tfgnn.GraphTensor.merge_batch_to_components)
@@ -153,7 +172,7 @@ class ContrastiveTasksSharedTests(tf.test.TestCase, parameterized.TestCase):
 
     self.assertLess(predicted.evaluate(ds), before)
 
-  @parameterized.named_parameters(all_tasks_inputs())
+  @parameterized.named_parameters(tasks_to_named_parameters(all_tasks()))
   def test_preprocess(self, task: runner.Task):
     # See `test_pseudolabels` for tests of the second part of `preprocess` fn.
     gt = graph_tensor()
@@ -165,7 +184,15 @@ class ContrastiveTasksSharedTests(tf.test.TestCase, parameterized.TestCase):
     self.assertIs(gts[0], gt)
     self.assertEqual(gts[0].spec, gts[1].spec)
 
-  @parameterized.named_parameters(all_tasks_inputs())
+  @parameterized.named_parameters(
+      tasks_to_named_parameters(all_tasks_with_projector_as_dimension([7]))
+  )
+  def test_projector_shape(self, task: runner.Task):
+    gts, _ = task.preprocess(graph_tensor())
+    output = task.predict(*gts)
+    self.assertEqual(output.shape, (1, 2, 7))
+
+  @parameterized.named_parameters(tasks_to_named_parameters(all_tasks()))
   def test_predict(self, task: runner.Task):
     gts, _ = task.preprocess(graph_tensor())
     inputs = [tf.keras.Input(type_spec=gt.spec) for gt in gts]

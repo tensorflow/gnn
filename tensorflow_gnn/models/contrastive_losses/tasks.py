@@ -56,8 +56,23 @@ class _ConstrastiveLossTask(runner.Task, abc.ABC):
       feature_name: str = tfgnn.HIDDEN_STATE,
       representations_layer_name: Optional[str] = None,
       corruptor: Optional[layers._Corruptor] = None,
+      projector_units: Optional[Sequence[int]] = None,
       seed: Optional[int] = None,
   ):
+    """Constructs the `runner.Task`.
+
+    Args:
+      node_set_name: Name of the node set for readout.
+      feature_name: Feature name for readout.
+      representations_layer_name: Layer name for uncorrupted representations.
+      corruptor: `Corruptor` instance for creating negative samples. If not
+        specified, we use `ShuffleFeaturesGlobally` by default.
+      projector_units: `Sequence` of layer sizes for projector network.
+        Projectors prevent dimensional collapse, but can hinder training for
+        easy corruptions. For more details, see
+        https://arxiv.org/abs/2304.12210.
+      seed: Random seed for the default corruptor (`ShuffleFeaturesGlobally`).
+    """
     self._representations_layer_name = (
         representations_layer_name or "clean_representations"
     )
@@ -68,6 +83,12 @@ class _ConstrastiveLossTask(runner.Task, abc.ABC):
       self._corruptor = layers.ShuffleFeaturesGlobally(seed=seed)
     else:
       self._corruptor = corruptor
+    if projector_units:
+      self._projector = tf.keras.Sequential(
+          [tf.keras.layers.Dense(units, "relu") for units in projector_units]
+      )
+    else:
+      self._projector = None
 
   def predict(self, *args: tfgnn.GraphTensor) -> tfgnn.Field:
     """Apply a readout head for use with various contrastive losses.
@@ -96,7 +117,9 @@ class _ConstrastiveLossTask(runner.Task, abc.ABC):
     )
     # Corrupted representations.
     x_corrupted = self._readout(gt_corrupted)
-
+    if self._projector:
+      x_clean = self._projector(x_clean)
+      x_corrupted = self._projector(x_corrupted)
     outputs = tf.stack((x_clean, x_corrupted), axis=1)
     return self.make_contrastive_layer()(outputs)
 
