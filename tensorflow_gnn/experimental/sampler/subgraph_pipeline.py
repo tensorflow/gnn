@@ -156,7 +156,8 @@ class SamplingPipeline:
       if accessor:
         node_set_features = accessor(node_set['#id'])
         if node_set_features is not None:
-          features[node_set_name] = node_set_features
+          # TODO(b/289402863): Remove `dict` in future.
+          features[node_set_name] = dict(node_set_features)
 
     if features:
       graph_tensor = graph_tensor.replace_features(node_sets=features)
