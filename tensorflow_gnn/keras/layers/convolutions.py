@@ -96,7 +96,7 @@ class SimpleConv(convolution_base.AnyToAnyConvolutionBase):
       *,
       combine_type: str = "concat",
       receiver_tag: const.IncidentNodeTag = const.TARGET,
-      receiver_feature: const.FieldName = const.HIDDEN_STATE,
+      receiver_feature: Optional[const.FieldName] = const.HIDDEN_STATE,
       sender_node_feature: Optional[
           const.FieldName] = const.HIDDEN_STATE,
       sender_edge_feature: Optional[const.FieldName] = None,
