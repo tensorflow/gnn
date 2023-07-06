@@ -66,7 +66,10 @@ function to encode it to a `tf.train.Example`. However,
 if this is not done in Python, you will have to write your own encoder.
 
 Fortunately, this is not difficult. This section describes in detail the
-encoding of graph tensors that you will need to carry out your data production.
+encoding of graph tensors that you will need to carry out your data production,
+matching the [graph schema](./schema.md) you defined for your application.
+(Recall the schema might require auxiliary node sets and edge sets, e.g., for
+readout.)
 
 ### Feature Names
 
@@ -465,8 +468,9 @@ will become more clear in the next section). Suppose we have a `GraphTensor`
 with student nodes indexed 0, 1, 2, and 3, of which only 1 and 3 have a training
 label, so model training shall make a prediction only for those two seed nodes.
 
-We use the flexibility of heterogeneous graphs to express this by adding
-auxiliary node sets and edge sets to the graph:
+We use the flexibility of heterogeneous graphs to express this as a
+*readout structure* that consists of the following auxiliary node sets and
+edge sets:
 
   * The auxiliary node set `"_readout"` has 2 nodes, one for each prediction
     to make.
@@ -476,16 +480,17 @@ auxiliary node sets and edge sets to the graph:
     and the edges are ordered such that their target indices form a contiguous
     range 0, 1, ... up to the size of node set `"_readout"`.
 
-Readout is not constrained to a fixed node set. Consider a refinement of the
-schema that distinguishes `"undergrad_students"` and `"grad_students"`, which
-may have different input features but feed into the same prediction task.
-This is represented as follows:
+Structured readout is not constrained to a fixed node set. Consider a refinement
+of the schema that distinguishes `"undergrad_students"` and `"grad_students"`,
+which may have different input features but feed into the same prediction task.
+This is represented by a readout structure like the following:
 
   * The auxiliary node set `"_readout"` has one node for each prediction
     to make.
   * The auxiliary edge sets `"_readout/seed/1"` and `"_readout/seed/2"`
     connect the distinct source node sets (here: `"undergrad_students"` and
-    `"grad_students"`) to the target node set `"_readout"`.
+    `"grad_students"`) to the target node set `"_readout"`. (You don't need to
+    number them, just use unique suffixes.)
     Every `"_readout"` node occurs as the target of exactly one edge.
     Within each of these edge sets, the edges are sorted by ascending order of
     target node ids.
@@ -493,11 +498,12 @@ This is represented as follows:
 Readout is not constrained to a single node (what we called `"seed"` above).
 As a different example, consider a link prediction task: given a `"source"`
 and a `"target"` node, predict whether or not there was an edge between them
-in the original graph (before conversion to `GraphTensor`). To make it more
-interesting, let's say the source of the predicted link is from node set
-`"users"` but the target can be from node set `"users"` or `"items"`.
+in the ground-truth graph data (before conversion to the `GraphTensor`s seen in
+the training data). To make it more interesting, let's say the source of the
+predicted link is from node set `"users"` but the target can be from node set
+`"users"` or `"items"`.
 
-This is represented as follows:
+This is represented by a readout structure as follows:
 
   * The auxiliary node set `"_readout"` has one node for each link prediction
     to make.
@@ -509,26 +515,30 @@ This is represented as follows:
     node set `"_readout"` as their respective target, subject to the rules on
     indices explained above.
 
-To summarize: the auxiliary node set `"_readout"` and the
-auxiliary edge sets `"_readout/.*"` define
+To summarize: A readout structure consists of an auxiliary node set,
+conventionally called `"_readout"`, and auxiliary edge sets pointing into that
+node set with matching names `"_readout/.*"`. Together, they define
 
   * a number of predictions to make: the size of node set `"_readout"`;
-  * a set of keys for readout: by the edge sets with target `"_readout"`
-    (`{"seed"}` in the first example, `{"source", "target"}` in the second);
+  * a set of keys for readout: these appear in the names of the edge sets with
+    target `"_readout"` (`{"seed"}` in the first example, `{"source", "target"}`
+    in the second);
   * for each prediction *i* and each key *k*, exactly one node from which
     to read out a value.
 
 As far as `GraphTensor` and its serialization is concerned, these are node sets
 and edge sets like any other. In particular, they need to be declared in the
-`GraphSchema` so that they can be parsed from a `tf.Example` proto.
+[`GraphSchema`](./schema.md) so that they can be parsed from a `tf.Example`
+proto.
 The leading underscore `_` marks them as auxiliary, that is, distinct from
 the arbitrarily-named node sets and edge sets which represent objects and
 relations of the model's application domain.
 
-Prior to TF-GNN 0.6 (released in 2023), there was no support for an explicit
-`"_readout"` node set. Instead, by convention, readout for a subset of nodes
-could only happen for a single node in each input graph, which had to be from
-a fixed node set and appear as the first node of that node set.
+Prior to TF-GNN 0.6 (released in 2023), there was no support for structured
+readout. Instead, by convention, readout for a subset of nodes could only happen
+for a single node in each input graph, which had to be from a fixed node set and
+appear as the first node of that node set. The GraphTensor itself did not
+encode which node set it is. This had to be conveyed separately.
 
 ### Storing labels
 
@@ -543,7 +553,8 @@ and is not seen by the GNN as it operates on the non-auxiliary node sets.
 That makes `"_readout"` a good fit for storing the label, especially for tasks
 like link prediction in which there is no other single item in the `GraphTensor`
 that directly corresponds to the (source, target) pair in question. (The edge
-in question is usually removed, as to not leak the correct prediction.)
+in question is usually removed in case it exists, as to not leak the correct
+prediction.)
 
 
 ## Graph Sampling
@@ -625,19 +636,21 @@ mapping over a stream of these protos provided by a
 as is customary in TensorFlow.
 
 Recall that sampling is meant to give the seed node a sufficiently large
-neighborhood such that a GNN model can compute a useful hidden state. Hence readout only makes sense for the seed node; other nodes
-(even if in the same node set) need their own subgraphs sampled around them
-to compute an equally useful hidden state. Conversely, a node whose hidden state
-is never read out is not useful as a seed node for sampling.
+neighborhood such that a GNN model can compute a useful hidden state.
+Hence readout only makes sense for the seed node; other nodes (even if in the
+same node set) need their own subgraphs sampled around them to compute an
+equally useful hidden state. Conversely, a node whose hidden state is never
+read out is not useful as a seed node for sampling.
 
 Hence training with sampled subgraphs usually implies that readout happens
 precisely from the seed node of each input graph.
 
-As of this writing (March 2023), the sampler tool does not yet create an
-explicit `"_readout"` node set. Instead, it assumes that all seed nodes are
-drawn from the same node set and stores the seed node as the first node of that
-node set in the sampled subgraph. It falls on the model to know that node set
-and read out the node from there.
+As of this writing (July 2023), the sampler tool does not yet create an
+explicit `"_readout"` node set. Instead, it samples each subgraph from a single
+seed node, always from the same node set, and stores the seed as the first node
+of that node set. It falls on the model to know that special node set and read
+out the hidden state of its first node with `tf.gather_first_node()`, or to add
+the equivalent readout structure using `tfgnn.add_readout_from_first_node()`.
 
 ### End-to-End Heterogeneous Graph Sampling: OGBN-MAG
 
@@ -660,18 +673,19 @@ the OBGN-MAG dataset are as follows:
     features.
 *   `"author"` contains the 1,134,649 distinct authors of the papers, with no
     associated features
-*   `"institution"` contains 8740 institutions listed as affiliations of authors,
-    with no associated features.
+*   `"institution"` contains 8740 institutions listed as affiliations of
+    authors, with no associated features.
 
 ##### Edge Sets:
 
 *   `"cites"` contains 5,416,217 edges from papers to the papers they cite.
 *   `"has_topic"` contains 7,505,078 edges from papers to their zero or more
     fields of study.
-*   `"writes"` contains 7,145,660 edges from authors to the papers that list them
-    as authors.
-*   `"affiliated_with"` contains 1,043,998 edges from authors to the zero or more
-    institutions that have been listed as their affiliation(s) on any paper.
+*   `"writes"` contains 7,145,660 edges from authors to the papers that list
+    them as authors.
+*   `"affiliated_with"` contains 1,043,998 edges from authors to the zero or
+    more institutions that have been listed as their affiliation(s) on any
+    paper.
 
 The graph schema file defines the topology of the full graph by enumerating the
 node (entity) and edge (relationship) types, the features each entry contains

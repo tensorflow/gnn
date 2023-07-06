@@ -682,7 +682,7 @@ class ShuffleNodesTest(tf.test.TestCase, parameterized.TestCase):
       # Readout is invariant to the shuffling of "all" node sets by default.
       self.assertAllEqual(result.node_sets['_readout']['label'], [42, 105])
       self.assertAllEqual(
-          readout.readout_named(result, 'thingy', feature_name='s'),
+          readout.structured_readout(result, 'thingy', feature_name='s'),
           ['a', 'b'])
 
     self.assertBetween(a_first_count, 1, 29)
@@ -1626,12 +1626,13 @@ class LineGraphTest(tf.test.TestCase, parameterized.TestCase):
             line_graph_nb.edge_sets[edge_set_name].adjacency.target,
         )
 
-  def testReadoutNamed(self):
+  def testStructuredReadout(self):
     graph_tensor = self._make_test_graph(add_readout=True)
     line_graph = ops.convert_to_line_graph(
         graph_tensor, connect_with_original_nodes=True
     )
-    readout_f2 = readout.readout_named(line_graph, 'testE', feature_name='f2')
+    readout_f2 = readout.structured_readout(line_graph, 'testE',
+                                            feature_name='f2')
     self.assertAllEqual(readout_f2, [100, 102, 101, 109])
 
   def testTFLite(self):

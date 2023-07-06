@@ -56,7 +56,7 @@ def validate_schema(
   Args:
     schema: An instance of the graph schema.
     readout_node_sets: By default, this function checks the "_readout" node set,
-      if present, if it meets the requirements of `tfgnn.readout_named()`.
+      if present, if it meets the requirements of `tfgnn.structured_readout()`.
       That's sufficient for most cases. Optionally, you can pass a list of
       `readout_node_set` names to (a) require their presence and (b) check them.
 

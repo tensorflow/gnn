@@ -1561,7 +1561,7 @@ def get_homogeneous_node_and_edge_set_name(
   """Returns the sole `node_set_name, edge_set_name` or raises ValueError.
 
   By default, this function ignores auxiliary node sets and edge sets
-  (e.g., those needed for `tfgnn.readout_named()`), as appropriate for
+  (e.g., those needed for `tfgnn.structured_readout()`), as appropriate for
   model-building code, but see `aux_graph_piece_pattern`.
 
   Args:

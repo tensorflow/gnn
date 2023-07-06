@@ -566,7 +566,7 @@ def shuffle_nodes(graph_tensor: GraphTensor,
 
   Auxiliary node sets are not shuffled, unless they are explicitly included in
   `node_sets`. Not shuffling is the correct behavior for the auxiliary node
-  sets used by `tfgnn.readout_named()`.
+  sets used by `tfgnn.structured_readout()`.
 
   NOTE(b/277938756): This operation is not available in TFLite (last checked
   for TF 2.12).

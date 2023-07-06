@@ -364,7 +364,7 @@ def run(*,
       `Task`s, that means initializing with `label_feature_name="..."`.) If
       that is not already true for the input datasets, the label feature can
       be moved there by one of the `feature_processors`, using
-      `tfgnn.readout_named_into_feature(...)` or a similar helper function.
+      `tfgnn.structured_readout_into_feature(...)` or a similar helper function.
     * For single-Task training only: Let `Task.preprocess()` return modified
       `GraphTensor`s that no longer contain the separately returned labels.
       (Library-supplied Tasks delegate this to the `label_fn="..."` passed

@@ -46,8 +46,9 @@ class ExportedKerasNamesTest(tf.test.TestCase):
     self.assertIsSubclass(tfgnn.keras.layers.Pool, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.Readout, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.ReadoutFirstNode, Layer)
-    self.assertIsSubclass(tfgnn.keras.layers.ReadoutNamed, Layer)
-    self.assertIsSubclass(tfgnn.keras.layers.ReadoutNamedIntoFeature, Layer)
+    self.assertIsSubclass(tfgnn.keras.layers.StructuredReadout, Layer)
+    self.assertIsSubclass(tfgnn.keras.layers.StructuredReadoutIntoFeature,
+                          Layer)
     self.assertIsSubclass(tfgnn.keras.layers.AddReadoutFromFirstNode, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.AnyToAnyConvolutionBase, Layer)
     self.assertIsSubclass(tfgnn.keras.layers.SimpleConv, Layer)

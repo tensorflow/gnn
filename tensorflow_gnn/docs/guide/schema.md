@@ -443,36 +443,56 @@ to classify into one of a fixed number of categories.
 
 In the context of classifying nodes that are a part of a huge graph, the
 training examples are usually sampled subgraphs around particular "seed" or
-"root" nodes.  For this example, we have simplified matters by letting the
-seed node be the single "channel" node in each sampled subgraph, which makes
-it look a lot like a graph classification problem: after batching,
-the "channel" nodes, their features, and the features on the graph context all
-have aligned indices. That makes it easy to read off the final states of the
+"root" nodes.
+
+For this example, we have simplified matters by letting the seed node be the
+single "channel" node in each sampled subgraph, which makes it look a lot like
+a graph classification problem: after batching, the "channel" nodes, their
+features, and the features on the graph context all have aligned indices.
+That allows us to directly take the tensor with the hidden states of the
 GNN model from the root (i.e., "channel") nodes, put a linear classifier on
-top if it, and train that with the labels from the graph context.
+top if it, and train that with the labels from the graph context. This is the
+simplest kind of readout supported by the library:
+
+  * **Direct readout:** taking a feature tensor from a node set, edge set
+    or the graph context as-is. The library supports this through subscripting
+    syntax on `tfgnn.GraphTensor` like
+    `graph_tensor.node_sets["channel"][tfgnn.HIDDEN_STATE]` or
+    `graph_tensor.context["abuse_class"]`, and also with the Keras convenience
+    wrapper `tfgnn.keras.layers.Readout`.
 
 Real applications of GNNs can be more complex than that: the nodes of interest
 for node classification or the pairs of nodes for link prediction may not be
 the only nodes in their respective node set. TF-GNN offers two ways of
 solving that.
 
-  * Structured readout: Next to the node sets and edge sets for the GNN,
+  * **Structured readout:** Next to the node sets and edge sets for the GNN,
     the graph data defines an auxiliary node set named "_readout" (note the
     leading underscore) and one or more auxiliary edge sets that connect the
     nodes of interest to the auxiliary readout nodes, one for each prediction
-    to make. Final states of the GNN are read out from the nodes of interest
-    along the auxiliary edges onto the "_readout" node set. The library supports
-    this as of release 0.6 with the `tfgnn.readout_named()` function. Training
-    labels can be read out from nodes in the same way, or can be stored on the
-    "_readout" node set right away.
-  * Implicit readout: If there is exactly one single node of interest in each
-    input graph (as in node classification for the seed node of sampled
+    to make. Together, they are called the readout structure. Final states of
+    the GNN are read out from the nodes of interest along the auxiliary edges
+    onto the "_readout" node set. The library supports this as of release 0.6
+    with the `tfgnn.structured_readout()` function and the equivalent Keras
+    layer `tfgnn.keras.layers.StructuredReadout`. Training labels can be read
+    out from nodes in the same way, or can be stored on the `"_readout"`
+    node set right away.
+
+  * **Implicit readout:** If there is exactly one single node of interest in
+    each input graph (as in node classification for the seed node of sampled
     subgraphs), and it always comes from the same node set, then, by convention,
-    the data preparation puts it as the first node of that node set, then it
+    the data preparation puts it as the first node of that node set and it
     can be found without explicit markup for readout. The library provides the
-    `tfgnn.gather_first_node()` function to do this. Matching labels can be
-    stored for readout from the first node, or on the graph context (as in
-    the example above).
+    `tfgnn.gather_first_node()` function to do this and the equivalent Keras
+    layer `tfgnn.keras.layers.ReadoutFirstNode`. The labels corresponding to
+    each read-out node state can be stored for readout from the first node in
+    the same way, or on the graph context as in the example above.
+
+    This approach is less flexible and more error-prone than structured readout.
+    As of TF-GNN 0.6 (released in 2023), users are encouraged to use the former.
+    The helper function `tfgnn.add_readout_from_first_node()` and its Keras
+    wrapper `tfgnn.keras.layers.AddReadoutFromFirstNode` add the necessary
+    readout structure to GraphTensor data that does not have it yet.
 
 The [data preparation](data_prep.md) and [modeling](gnn_modeling.md) guides
 have the details for their respective stages of model building.

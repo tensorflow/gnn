@@ -23,9 +23,12 @@ Broadcast = graph_ops.Broadcast
 Pool = graph_ops.Pool
 Readout = graph_ops.Readout
 ReadoutFirstNode = graph_ops.ReadoutFirstNode
-ReadoutNamed = graph_ops.ReadoutNamed
-ReadoutNamedIntoFeature = graph_ops.ReadoutNamedIntoFeature
 AddReadoutFromFirstNode = graph_ops.AddReadoutFromFirstNode
+StructuredReadout = graph_ops.StructuredReadout
+StructuredReadoutIntoFeature = graph_ops.StructuredReadoutIntoFeature
+# DO NOT USE the obsolete aliases `ReadoutNamed*`.
+ReadoutNamed = graph_ops.StructuredReadout
+ReadoutNamedIntoFeature = graph_ops.StructuredReadoutIntoFeature
 
 AnyToAnyConvolutionBase = convolution_base.AnyToAnyConvolutionBase
 SimpleConv = convolutions.SimpleConv

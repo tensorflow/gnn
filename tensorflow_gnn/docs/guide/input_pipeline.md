@@ -364,7 +364,7 @@ If an auxiliary "_readout" node set is present that references the `"seed"`
 nodes of `"docs"`, their labels can be split out like
 
 ```python
-labels = tfgnn.keras.layers.ReadoutNamed("seed", feature_name="class_id")(graph)
+labels = tfgnn.keras.layers.StructuredReadout("seed", feature_name="class_id")(graph)
 graph = graph.remove_features(node_sets={"docs": ["class_id"]})
 assert "class_id" not in graph.node_sets["docs"].features
 ```

@@ -34,7 +34,7 @@ class MapFeatures(tf.keras.layers.Layer):
   graph piece as input and return a dict of output features computed with
   the Keras functional API, see https://tensorflow.org/guide/keras/functional.
 
-  Auxiliary graph pieces (e.g., those for `tfgnn.keras.layers.ReadoutNamed`)
+  Auxiliary graph pieces (e.g., for `tfgnn.keras.layers.StructuredReadout`)
   are skipped, unless explicitly requested via `allowed_aux_node_sets_pattern`
   or `allowed_aux_edge_sets_pattern`.
 

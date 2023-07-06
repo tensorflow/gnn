@@ -45,8 +45,8 @@ RESERVED_FEATURE_NAME_PATTERN = r'#.*'
 HIDDEN_STATE = 'hidden_state'
 
 # Auxiliary node sets and edge sets in a GraphTensor can store relations for use
-# by various helper functions (such as `tfgnn.readout_named(...)`), beyond the
-# node sets and edge sets that represent the data from the application domain.
+# by various helper functions (such as `tfgnn.structured_readout(...)`), beyond
+# the node sets and edge sets that represent data from the application domain.
 # They are distinguished by names that start with an underscore "_"; additional
 # initial characters are reserved for future use, and "#" is reserved by
 # GraphTensor itself.

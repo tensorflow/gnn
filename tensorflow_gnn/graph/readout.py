@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Defines `tfgnn.readout_named()` and supporting functions."""
+"""Defines `tfgnn.structured_readout()` and supporting functions."""
 
 import re
 from typing import Dict, Optional, Sequence, Tuple
@@ -31,11 +31,11 @@ def validate_graph_tensor_spec_for_readout(
     required_keys: Optional[Sequence[str]] = None,
     *,
     readout_node_set: const.NodeSetName = "_readout") -> None:
-  """Checks `graph_spec` supports `readout_named()` from `required_keys`.
+  """Checks `graph_spec` supports `structured_readout()` from `required_keys`.
 
   This function checks that the `graph.spec` of a `tfgnn.GraphTensor` contains
   correctly connected auxiliary graph pieces (edge sets and node sets) such that
-  subsequent calls to `tfgnn.readout_named(graph, key)` can work for all
+  subsequent calls to `tfgnn.structured_readout(graph, key)` can work for all
   readout keys encoded in the spec. The argument `required_keys` can
   be set to check that these particular values of `key` are present.
 
@@ -69,13 +69,13 @@ def validate_graph_tensor_for_readout(
     required_keys: Optional[Sequence[str]] = None,
     *,
     readout_node_set: const.NodeSetName = "_readout") -> gt.GraphTensor:
-  """Checks `graph` supports `readout_named()` from `required_keys`.
+  """Checks `graph` supports `structured_readout()` from `required_keys`.
 
   This function checks that a `tfgnn.GraphTensor` contains correctly connected
-  auxiliary graph pieces (edge sets and node sets) for `tfgnn.readout_named()`.
+  auxiliary graph pieces (edge sets and node sets) for structured readout.
   It does all the checks of `tfgnn.validate_graph_tensor_spec_for_readout()`.
   Additionally, it checks that the actual tensor values (esp. node indices)
-  are valid for `tfgnn.readout_named(graph, key)` for each `key` in
+  are valid for `tfgnn.structured_readout(graph, key)` for each `key` in
   `required_keys`. If `required_keys` is unset, all keys provided in the graph
   structure are checked.
 
@@ -83,16 +83,16 @@ def validate_graph_tensor_for_readout(
     graph: The graph tensor to check.
     required_keys: Can be set to a list of readout keys to check. If unset,
       checks all keys provided by the graph.
-    readout_node_set: A non-standard name passed to `tfgnn.readout_named()`,
-      if any.
+    readout_node_set: Optionally, a non-default name for use as
+      `tfgnn.structured_readout(..., readout_node_set=...)`.
 
   Returns:
-    The input GraphTensor, unchanged. This helps to put the tf.debugging.assert*
-    ops in this function into a dependency chain.
+    The input GraphTensor, unchanged. This helps to put `tf.debugging.assert*`
+    ops from this function into a dependency chain.
 
   Raises:
     ValueError: if the auxiliary graph pieces for readout are malformed in the
-      GraphTensorSpec.
+      `tfgnn.GraphTensorSpec`.
     KeyError: if any of the `required_keys` is missing.
     tf.errors.InvalidArgumentError: If values in the GraphTensor, notably
       node indices of auxiliary edge sets, are incorrect.
@@ -134,7 +134,7 @@ def validate_graph_tensor_for_readout(
     return tf.identity(graph)
 
 
-def readout_named(
+def structured_readout(
     graph: gt.GraphTensor,
     key: str,
     *,
@@ -143,23 +143,27 @@ def readout_named(
     validate: bool = True) -> const.Field:
   """Reads out a feature value from select nodes (or edges) in a graph.
 
-  This helper function addresses the need to read out final hidden states
-  from a GNN computation to make predictions for some nodes (or edges)
-  of interest. Its typical usage looks as follows:
+  This function implements "structured readout", that is, the readout of final
+  hidden states of a GNN computation from a distinguished subset of nodes
+  (or edges) in a `tfgnn.GraphTensor` into a freestanding `tf.Tensor`, by
+  moving them along one (or more) auxiliary edge sets and collecting them
+  in one auxiliary node set stored in the `tfgnn.GraphTensor`. Collectively,
+  that auxiliary node set and the edge sets into it are called a "readout
+  structure". It is the responsibility of the graph data creation code
+  to create this structure.
+
+  A typical usage of structured readout looks as follows:
 
   ```python
   graph = ...  # Run your GNN here.
-  seed_node_states = tfgnn.readout_named(graph, "seed",
-                                         feature_name=tfgnn.HIDDEN_STATE)
+  seed_node_states = tfgnn.structured_readout(graph, "seed",
+                                              feature_name=tfgnn.HIDDEN_STATE)
   ```
 
-  ...where `"seed"` is an arbitrary key. There can be multiple of those. For
-  example, a link prediction model could read out `"source"` and `"target"` node
-  states from the graph.
-
-  The graph uses auxiliary edge sets to encode the subset of nodes from which
-  values are read out. It is the responsibility of the graph data creation code
-  to put these into place.
+  ...where `"seed"` is a key defined by the readout structure. There can be
+  multiple of those. For example, a link prediction model could read out
+  `"source"` and `"target"` node states from the graph. It is on the dataset
+  to document which keys it provides.
 
   Suppose all `"seed"` nodes come from node set `"users"`. Then this example
   requires an auxiliary edge set called `"_readout/seed"` with source node set
@@ -183,8 +187,17 @@ def readout_named(
   auxiliary node set like `"_readout/seed"`, features are taken from edge set
   `"links"` instead.
 
+  Note that this function returns a tensor shaped like a feature of the
+  `"_readout"` node set, not a modified GraphTensor.
+  See `tfgnn.structured_readout_into_feature()` for a function that returns a
+  GraphTensor with the readout result stored as a feature on the `"_readout"`
+  node set. To retrieve a feature `"ft"` that is stored on the `"_readout"`
+  node set, do not use either of these, but access it as usual with
+  `GraphTensor.node_sets["_readout"]["ft"]`.
+
   Args:
-    graph: A scalar GraphTensor with the auxiliary graph pieces described above.
+    graph: A scalar GraphTensor with a readout structure composed of auxiliary
+      graph pieces as described above.
     key: A string key to select between possibly multiple named readouts
       (such as `"source"` and `"target"` for link prediction).
     feature_name: The name of a feature that is present on the node set(s)
@@ -193,6 +206,9 @@ def readout_named(
       on all graph pieces, and the same dtype.
     readout_node_set: A string, defaults to `"_readout"`. This is used as the
       name for the readout node set and as a name prefix for its edge sets.
+      Setting this to a different value allows to select between multiple
+      independent readout structures in the same graph. Any such name should
+      match `tfgnn.AUX_GRAPH_PIECE_PATTERN`.
     validate: Setting this to false disables the validity checks for the
       auxiliary edge sets. This is stronlgy discouraged, unless great care is
       taken to run `tfgnn.validate_graph_tensor_for_readout()` earlier on
@@ -202,7 +218,7 @@ def readout_named(
     A tensor of shape `[readout_size, *feature_dims]` with the read-out feature
     values.
   """
-  gt.check_scalar_graph_tensor(graph.spec, "tfgnn.readout_named()")
+  gt.check_scalar_graph_tensor(graph.spec, "tfgnn.structured_readout()")
   if validate:
     graph = validate_graph_tensor_for_readout(
         graph, [key], readout_node_set=readout_node_set)
@@ -236,14 +252,14 @@ def readout_named(
   dtypes = {value.dtype for value in broadcast_values.values()}
   if len(dtypes) > 1:
     raise ValueError(
-        "Conflicing feature dtypes found by readout_named(..., '{key}', "
+        "Conflicing feature dtypes found by structured_readout(..., '{key}', "
         f"feature_name='{feature_name}', readout_node_set='{readout_node_set}')"
         f": expected just one, found {dtypes}.")
   dtype = dtypes.pop()
   if not (dtype.is_floating or dtype.is_integer):
     raise NotImplementedError(
-        "b/269076334: readout_named() from multiple sources does not support "
-        "non-numeric dtypes yet, because it relies on sum-pooling.")
+        "b/269076334: structured_readout() from multiple sources does not "
+        "support non-numeric dtypes yet, because it relies on sum-pooling.")
 
   pooled_values = [
       pool_ops.pool_edges_to_node(
@@ -253,7 +269,7 @@ def readout_named(
   return result
 
 
-def readout_named_into_feature(
+def structured_readout_into_feature(
     graph: gt.GraphTensor,
     key: str,
     *,
@@ -266,40 +282,42 @@ def readout_named_into_feature(
 ) -> gt.GraphTensor:
   """Reads out a feature value from select nodes (or edges) in a graph.
 
-  This helper function is similar to `tfgnn.readout_named()` (see there),
+  This helper function works like `tfgnn.structured_readout()` (see there),
   except that it does not return the readout result itself but a modified
   `GraphTensor` in which the readout result is stored as a feature on
   the `readout_node_set`.
 
   Args:
     graph: A scalar GraphTensor with the auxiliary graph pieces required by
-      `tfgnn.readout_named()`.
+      `tfgnn.structured_readout()`.
     key: A string key to select between possibly multiple named readouts
       (such as `"source"` and `"target"` for link prediction).
     feature_name: The name of a feature to read out from, as with
-      `tfgnn.readout_named()`.
+      `tfgnn.structured_readout()`.
     new_feature_name: The name of the feature to add to `readout_node_set`
       for storing the readout result. If unset, defaults to `feature_name`.
       It is an error if the added feature already exists on `readout_node_set`
       in the input `graph`, unless `overwrite=True` is set.
     remove_input_feature: If set, the given `feature_name` is removed from the
       node (or edge) set(s) that supply the input to
-      `tfgnn.readout_named()`.
+      `tfgnn.structured_readout()`.
     overwrite: If set, allows overwriting a potentially already existing
       feature `graph.node_sets[readout_node_set][new_feature_name]`.
     readout_node_set: A string, defaults to `"_readout"`. This is used as the
       name for the readout node set and as a name prefix for its edge sets.
+      See `tfgnn.structured_readout()` for more.
     validate: Setting this to false disables the validity checks of
-      `tfgnn.readout_named()`. This is stronlgy discouraged, unless great care
-      is taken to run `tfgnn.validate_graph_tensor_for_readout()` earlier on
-      structurally unchanged GraphTensors.
+      `tfgnn.structured_readout()`. This is strongly discouraged, unless
+      great care is taken to run `tfgnn.validate_graph_tensor_for_readout()`
+      earlier on structurally unchanged GraphTensors.
 
   Returns:
     A `GraphTensor` like `graph`, with the readout result stored as
     `.node_sets[readout_node_set][new_feature_name]` and possibly the
     readout inputs removed (see `remove_input_feature`).
   """
-  gt.check_scalar_graph_tensor(graph.spec, "tfgnn.readout_named_into_feature()")
+  gt.check_scalar_graph_tensor(graph.spec,
+                               "tfgnn.structured_readout_into_feature()")
   if new_feature_name is None:
     new_feature_name = feature_name
 
@@ -312,10 +330,10 @@ def readout_named_into_feature(
     raise ValueError(
         f"Output feature '{new_feature_name}' already exists on node set "
         f"'{readout_node_set}'. "
-        "Pass tfgnn.readout_named_into_feature(..., overwrite=True) "
+        "Pass tfgnn.structured_readout_into_feature(..., overwrite=True) "
         "to discard the old value."
     )
-  node_sets_features[readout_node_set][new_feature_name] = readout_named(
+  node_sets_features[readout_node_set][new_feature_name] = structured_readout(
       graph, key, feature_name=feature_name,
       readout_node_set=readout_node_set, validate=validate)
 
@@ -347,9 +365,14 @@ def context_readout_into_feature(
 ) -> gt.GraphTensor:
   """Reads a feature value from context and stores it on readout_node_set.
 
-  This helper function is similar to `tfgnn.readout_named_into_feature()`,
-  except that it reads a feature from `graph.context` instead of performing a
-  `tfgnn.readout_named()` operation.
+  This helper function copies a context feature to the `"_readout"` node set.
+  If the `"_readout"` node set does not exist, it is created with 1 node
+  per component; if it exists already, it must have that size already.
+
+  This function exists for symmetry with
+  `tfgnn.structured_readout_into_feature()`, except that it reads a feature
+  unchanged from `graph.context` instead of performing a
+  `tfgnn.structured_readout()` operation.
 
   Args:
     graph: A scalar `GraphTensor`. If it contains the `readout_node_set`
@@ -421,7 +444,7 @@ def get_validated_edge_set_map_for_readout(
 
   where
 
-    * `key` is the readout key for use in `tfgnn.readout_named(..., key)`
+    * `key` is the readout key for use in `tfgnn.structured_readout(..., key)`
       for which the named edge set facilitates readout,
     * `set_type` is either `tfgnn.NODES` or `tfgnn.EDGES`, and
     * `set_name` is the name of the node set or edge set from which
@@ -442,7 +465,7 @@ def get_validated_edge_set_map_for_readout(
     required_keys: Can be set to a list of readout keys that are required to be
       provided by the spec.
     readout_node_set: A non-standard name prefix passed to
-      `tfgnn.readout_named()`, if any.
+      `tfgnn.structured_readout()`, if any.
 
   Returns:
     A dict of dicts, as described above.
@@ -514,21 +537,21 @@ def add_readout_from_first_node(
     node_set_name: const.NodeSetName,
     readout_node_set: const.NodeSetName = "_readout",
 ) -> gt.GraphTensor:
-  """Adds readout node set equivalent to `tfgnn.gather_first_node()`.
+  """Adds a readout structure equivalent to `tfgnn.gather_first_node()`.
 
   Args:
-    graph: A scalar `GraphTensor`. If it contains the readout_node_set already,
-      its size in each graph component must be 1.
-    key: A key, for use with `tfgnn.readout_named()`. The input graph must not
-      already contain auxiliary edge sets for readout with this key.
+    graph: A scalar `GraphTensor`. If it contains the `readout_node_set`
+      already, its size in each graph component must be 1.
+    key: A key, for use with `tfgnn.structured_readout()`. The input graph
+      must not already contain auxiliary edge sets for readout with this key.
     node_set_name: The name of the node set from which values are to be read
       out.
     readout_node_set: The name of the auxiliary node set for readout,
-      as in `tfgnn.readout_named()`.
+      as in `tfgnn.structured_readout()`.
 
   Returns:
-    A modified GraphTensor such that `tfgnn.readout_named(..., key)` works like
-    `tfgnn.gather_first_node(...)` on the input graph.
+    A modified GraphTensor such that `tfgnn.structured_readout(..., key)` works
+    like `tfgnn.gather_first_node(...)` on the input graph.
   """
   gt.check_scalar_graph_tensor(graph, "tfgnn.add_readout_from_first_node()")
 
@@ -580,7 +603,7 @@ def _add_readout_node_set(
     sizes: A Tensor for use as the `NodeSet.sizes` of the readout node set.
       It must have shape `[num_components]` and dtype `graph.indices_dtype`.
     readout_node_set: The name of the auxiliary node set for readout,
-      as in `tfgnn.readout_named()`.
+      as in `tfgnn.structured_readout()`.
 
   Returns:
     A `GraphTensor` that contains a `readout_node_set` with the given `sizes`.

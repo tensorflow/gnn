@@ -219,33 +219,33 @@ Recall from the [input pipeline guide](input_pipeline.md) that the multiple
 input graphs (with one component each) from one batch of training data have been
 merged into one scalar GraphTensor with distinct components, and that context
 features are maintained per component. Therefore, this code snippet produces
-`pooled_features` of shape `[batch_size, node_state_size]` separately for each
-original input graph.
+`pooled_features` of shape `[batch_size, node_state_size]` with separate entries
+for each original input graph.
 
 The code above lets you do simple `"mean"` pooling (or `"sum"` or
 `"max_no_inf"` etc.).
 Smarter ways of pooling (e.g., with attention) are possible with "convolutions
 to context", which are discussed further down.
 
-**Node classification in general** for a dataset with a `"_readout"` node set.
+**Node classification in general** for a dataset with a readout structure.
 
 ```python
 ...  # As above.
-seed_node_states = tfgnn.keras.layers.ReadoutNamed("seed")(graph)
+seed_node_states = tfgnn.keras.layers.StructuredReadout("seed")(graph)
 logits = tf.keras.layers.Dense(1)(seed_node_states)
 model = tf.keras.Model(input_graph, logits)
 ```
 
 This covers a wide variety of applications, *provided* that data preprocessing
-(see its [guide](data_prep.md)) has created the auxiliary `"_readout"` node set
-in addition to the ordinary node sets updated by the base GNN, and one or more
-auxiliary edge sets connecting it to the nodes for which a prediction is to be
-made.
+(see its [guide](data_prep.md)) has created a readout structure: one (or more)
+auxiliary edge sets that connect the nodes to classify with the auxiliary
+`"_readout"` node set.
 
-The `"_readout"` node set is supported starting from TF-GNN 0.6 (released in
+Structured readout is supported starting from TF-GNN 0.6 (released in
 2023) and intended to replace the following older, ad-hoc methods of readout.
 
-**Classifying each node** in a particular node set.
+**Classifying each node** in a particular node set, using direct readout of
+the hidden states at all nodes.
 
 ```python
 ...  # As above.
@@ -255,7 +255,7 @@ model = tf.keras.Model(input_graph, logits)
 ```
 
 **Classifying each sampled subgraph**, based on the hidden state at its root
-node, for a dataset that does not have a `"_readout"` node set but follows
+node, for a dataset that does not have a readout structure but follows
 the older convention of storing the root as the first node of its node set.
 (You can skip this if you are unfamiliar with graph sampling.
 The [data preparation guide](data_prep.md) provides an introduction.)

@@ -178,9 +178,12 @@ softmax_edges_per_node = normalization_ops.softmax_edges_per_node
 # Readout.
 validate_graph_tensor_spec_for_readout = readout.validate_graph_tensor_spec_for_readout
 validate_graph_tensor_for_readout = readout.validate_graph_tensor_for_readout
-readout_named = readout.readout_named
 add_readout_from_first_node = readout.add_readout_from_first_node
-readout_named_into_feature = readout.readout_named_into_feature
+structured_readout = readout.structured_readout
+structured_readout_into_feature = readout.structured_readout_into_feature
+# DO NOT USE the obsolete aliases `readout_named*`.
+readout_named = readout.structured_readout
+readout_named_into_feature = readout.structured_readout_into_feature
 
 # Sampler
 SamplingSpecBuilder = sampling_spec_builder.SamplingSpecBuilder

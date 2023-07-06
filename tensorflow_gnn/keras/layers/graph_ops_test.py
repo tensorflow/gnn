@@ -329,10 +329,10 @@ class _MakeGraphTensorNodesOnly(tf.keras.layers.Layer):
     )
 
 
-class ReadoutNamedTest(tf.test.TestCase):
+class StructuredReadoutTest(tf.test.TestCase):
 
   def testBasic(self):
-    test_graph = _MakeGraphTensorReadoutNamed()(
+    test_graph = _MakeGraphTensorStructuredReadout()(
         {"users.hidden_state": tf.constant(
             [[1., 1.],  # Read out as "source" 1.
              [1., 2.],  # Read out as "source" 0.
@@ -346,9 +346,9 @@ class ReadoutNamedTest(tf.test.TestCase):
     expected_targets = [[2., 2.], [1., 3.]]
 
     # Test common usages that set the key exactly once.
-    readout_source = graph_ops.ReadoutNamed("source")
+    readout_source = graph_ops.StructuredReadout("source")
     self.assertAllEqual(expected_sources, readout_source(test_graph))
-    readout = graph_ops.ReadoutNamed()
+    readout = graph_ops.StructuredReadout()
     self.assertAllEqual(expected_sources, readout(test_graph, key="source"))
     self.assertAllEqual(expected_targets, readout(test_graph, key="target"))
 
@@ -364,7 +364,7 @@ class ReadoutNamedTest(tf.test.TestCase):
       _ = readout_source(test_graph, key="target")
 
   def testExplicitNames(self):
-    test_graph = _MakeGraphTensorReadoutNamed(
+    test_graph = _MakeGraphTensorStructuredReadout(
         right_feature_name="right_feature",
         wrong_feature_name="wrong_feature",
         readout_node_set="_out_it_reads_from_here",
@@ -385,7 +385,7 @@ class ReadoutNamedTest(tf.test.TestCase):
     expected_targets = [[2., 2.], [1., 3.]]
 
     # Test common usages that set the key exactly once.
-    readout = graph_ops.ReadoutNamed(
+    readout = graph_ops.StructuredReadout(
         feature_name="right_feature",
         readout_node_set="_out_it_reads_from_here")
     self.assertAllEqual(expected_sources, readout(test_graph, key="source"))
@@ -397,7 +397,7 @@ class ReadoutNamedTest(tf.test.TestCase):
       self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
                     f"got TF {tf.__version__}")
 
-    test_graph_readout_named_dict = {
+    test_graph_structured_readout_dict = {
         "users.hidden_state": tf.constant(
             [[1., 1.],  # Read out as "source" 1.
              [1., 2.],  # Read out as "source" 0.
@@ -409,26 +409,27 @@ class ReadoutNamedTest(tf.test.TestCase):
              [2., 3.]])}
     inputs = {
         k: tf.keras.Input(v.shape[1:], None, k, v.dtype)
-        for k, v in test_graph_readout_named_dict.items()
+        for k, v in test_graph_structured_readout_dict.items()
     }
-    input_graph = _MakeGraphTensorReadoutNamed()(inputs)
-    readout = graph_ops.ReadoutNamed("source", name="output_layer")
+    input_graph = _MakeGraphTensorStructuredReadout()(inputs)
+    readout = graph_ops.StructuredReadout("source", name="output_layer")
     outputs = readout(input_graph)
     model = tf.keras.Model(inputs, outputs)
-    expected = model(test_graph_readout_named_dict)
+    expected = model(test_graph_structured_readout_dict)
 
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
     interpreter = tf.lite.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
-    actual = signature_runner(**test_graph_readout_named_dict)["output_layer"]
+    actual = signature_runner(
+        **test_graph_structured_readout_dict)["output_layer"]
     self.assertAllEqual(expected, actual)
 
 
-class ReadoutNamedIntoFeatureTest(tf.test.TestCase):
+class StructuredReadoutIntoFeatureTest(tf.test.TestCase):
 
   def testBasic(self):
-    test_graph = _MakeGraphTensorReadoutNamed()(
+    test_graph = _MakeGraphTensorStructuredReadout()(
         {"users.hidden_state": tf.constant(
             [[1., 1.],  # Read out as "source" 1.
              [1., 2.],  # Read out as "source" 0.
@@ -442,7 +443,7 @@ class ReadoutNamedIntoFeatureTest(tf.test.TestCase):
     expected_targets = [[2., 2.], [1., 3.]]
 
     # Test common usage that sets the key at init time.
-    readout_source = graph_ops.ReadoutNamedIntoFeature(
+    readout_source = graph_ops.StructuredReadoutIntoFeature(
         "source", feature_name=const.HIDDEN_STATE)
     result_graph = readout_source(test_graph)
     self.assertAllEqual(expected_sources,
@@ -454,7 +455,8 @@ class ReadoutNamedIntoFeatureTest(tf.test.TestCase):
                         result_graph.node_sets["items"][const.HIDDEN_STATE])
 
     # Test common usages that set the key at call time.
-    readout = graph_ops.ReadoutNamedIntoFeature(feature_name=const.HIDDEN_STATE)
+    readout = graph_ops.StructuredReadoutIntoFeature(
+        feature_name=const.HIDDEN_STATE)
     result_graph = readout(test_graph, key="source")
     self.assertAllEqual(expected_sources,
                         result_graph.node_sets["_readout"][const.HIDDEN_STATE])
@@ -473,7 +475,7 @@ class ReadoutNamedIntoFeatureTest(tf.test.TestCase):
       _ = readout_source(test_graph, key="target")
 
   def testExplicitArgs(self):
-    test_graph = _MakeGraphTensorReadoutNamed(
+    test_graph = _MakeGraphTensorStructuredReadout(
         right_feature_name="right_feature",
         wrong_feature_name="wrong_feature",
         readout_node_set="_out_it_reads_from_here",
@@ -496,7 +498,7 @@ class ReadoutNamedIntoFeatureTest(tf.test.TestCase):
         [0, 1],
         test_graph.node_sets["_out_it_reads_from_here"]["labels"])
 
-    readout = graph_ops.ReadoutNamedIntoFeature(
+    readout = graph_ops.StructuredReadoutIntoFeature(
         feature_name="right_feature",
         new_feature_name="labels",
         remove_input_feature=True,
@@ -521,7 +523,7 @@ class ReadoutNamedIntoFeatureTest(tf.test.TestCase):
       self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
                     f"got TF {tf.__version__}")
 
-    test_graph_readout_named_dict = {
+    test_graph_structured_readout_dict = {
         "users.hidden_state": tf.constant(
             [[1., 1.],  # Read out as "source" 1.
              [1., 2.],  # Read out as "source" 0.
@@ -533,30 +535,31 @@ class ReadoutNamedIntoFeatureTest(tf.test.TestCase):
              [2., 3.]])}
     inputs = {
         k: tf.keras.Input(v.shape[1:], None, k, v.dtype)
-        for k, v in test_graph_readout_named_dict.items()
+        for k, v in test_graph_structured_readout_dict.items()
     }
-    input_graph = _MakeGraphTensorReadoutNamed()(inputs)
-    readout_into_feature = graph_ops.ReadoutNamedIntoFeature(
+    input_graph = _MakeGraphTensorStructuredReadout()(inputs)
+    readout_into_feature = graph_ops.StructuredReadoutIntoFeature(
         "source", feature_name=const.HIDDEN_STATE)
     readout_from_feature = graph_ops.Readout(node_set_name="_readout",
                                              name="output_layer")
     outputs = readout_from_feature(readout_into_feature(input_graph))
 
     model = tf.keras.Model(inputs, outputs)
-    expected = model(test_graph_readout_named_dict)
+    expected = model(test_graph_structured_readout_dict)
 
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
     interpreter = tf.lite.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
-    actual = signature_runner(**test_graph_readout_named_dict)["output_layer"]
+    actual = signature_runner(
+        **test_graph_structured_readout_dict)["output_layer"]
     self.assertAllEqual(expected, actual)
 
 
 class AddReadoutFromFirstNodeTest(tf.test.TestCase):
 
   def testBasic(self):
-    input_graph = _MakeGraphTensorReadoutNamed(readout_node_set=None)(
+    input_graph = _MakeGraphTensorStructuredReadout(readout_node_set=None)(
         {"users.hidden_state": tf.constant(
             [[1., 1.], [1., 2.], [1., 3.], [1., 4.]]),
          "items.hidden_state": tf.constant(
@@ -574,7 +577,7 @@ class AddReadoutFromFirstNodeTest(tf.test.TestCase):
     test_graph = add_readout(input_graph)
     self.assertIn("_readout", test_graph.node_sets)
 
-    actual = graph_ops.ReadoutNamed(key)(test_graph)
+    actual = graph_ops.StructuredReadout(key)(test_graph)
     self.assertAllEqual(expected, actual)
 
   def testTFLite(self):
@@ -583,7 +586,7 @@ class AddReadoutFromFirstNodeTest(tf.test.TestCase):
       self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
                     f"got TF {tf.__version__}")
 
-    test_graph_readout_named_dict = {
+    test_graph_structured_readout_dict = {
         "users.hidden_state": tf.constant(
             [[1., 1.], [1., 2.], [1., 3.], [1., 4.]]),
         "items.hidden_state": tf.constant(
@@ -592,27 +595,29 @@ class AddReadoutFromFirstNodeTest(tf.test.TestCase):
 
     inputs = {
         k: tf.keras.Input(v.shape[1:], None, k, v.dtype)
-        for k, v in test_graph_readout_named_dict.items()
+        for k, v in test_graph_structured_readout_dict.items()
     }
-    input_graph = _MakeGraphTensorReadoutNamed(readout_node_set=None)(inputs)
+    input_graph = _MakeGraphTensorStructuredReadout(readout_node_set=None)(
+        inputs)
     key = "seed"
     graph = graph_ops.AddReadoutFromFirstNode(key, node_set_name=node_set_name)(
         input_graph)
-    outputs = graph_ops.ReadoutNamed(key, name="output_layer")(graph)
+    outputs = graph_ops.StructuredReadout(key, name="output_layer")(graph)
     model = tf.keras.Model(inputs, outputs)
-    expected = model(test_graph_readout_named_dict)
+    expected = model(test_graph_structured_readout_dict)
 
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
     interpreter = tf.lite.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
-    actual = signature_runner(**test_graph_readout_named_dict)["output_layer"]
+    actual = signature_runner(
+        **test_graph_structured_readout_dict)["output_layer"]
     self.assertAllEqual(expected, actual)
 
 
 # TODO(b/274779989): Replace this layer with a more standard representation
 # of GraphTensor as a dict of plain Tensors.
-class _MakeGraphTensorReadoutNamed(tf.keras.layers.Layer):
+class _MakeGraphTensorStructuredReadout(tf.keras.layers.Layer):
 
   def __init__(self,
                *,

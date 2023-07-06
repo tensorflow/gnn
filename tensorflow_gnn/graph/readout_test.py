@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for readout_named() and associated functions."""
+"""Tests for structured_readout() and associated functions."""
 
 from absl.testing import parameterized
 import tensorflow as tf
@@ -23,10 +23,10 @@ from tensorflow_gnn.graph import graph_tensor_ops as ops
 from tensorflow_gnn.graph import readout
 
 
-class ReadoutNamedTest(tf.test.TestCase):
-  """Tests readout_named() and supporting validation functions.
+class StructuredReadoutTest(tf.test.TestCase):
+  """Tests structured_readout() and supporting validation functions.
 
-  TFLite integration is tested with tfgnn.keras.layers.ReadoutNamed.
+  TFLite integration is tested with tfgnn.keras.layers.StructuredReadout.
   """
 
   def testHomNodeClassification(self):
@@ -66,8 +66,8 @@ class ReadoutNamedTest(tf.test.TestCase):
     expected = tf.constant([[1., 1.], [2., 4.]])
     self.assertAllEqual(
         expected,
-        readout.readout_named(test_graph, "seed",
-                              feature_name=const.HIDDEN_STATE))
+        readout.structured_readout(test_graph, "seed",
+                                   feature_name=const.HIDDEN_STATE))
     # Same result as with the older method of ad-hoc readout.
     self.assertAllEqual(
         expected,
@@ -94,8 +94,8 @@ class ReadoutNamedTest(tf.test.TestCase):
     readout.validate_graph_tensor_for_readout(test_graph, ["seed"])
     self.assertAllEqual(
         tf.zeros([0, 2]),
-        readout.readout_named(test_graph, "seed",
-                              feature_name=const.HIDDEN_STATE))
+        readout.structured_readout(test_graph, "seed",
+                                   feature_name=const.HIDDEN_STATE))
 
   def testHomEdgeRegression(self):
     test_graph = gt.GraphTensor.from_pieces(
@@ -133,8 +133,8 @@ class ReadoutNamedTest(tf.test.TestCase):
     readout.validate_graph_tensor_for_readout(test_graph, ["seed_edge"])
     self.assertAllEqual(
         [[1., 12.], [2., 22.]],
-        readout.readout_named(test_graph, "seed_edge",
-                              feature_name=const.HIDDEN_STATE))
+        readout.structured_readout(test_graph, "seed_edge",
+                                   feature_name=const.HIDDEN_STATE))
 
   def testMultiTargetLinkPrediction(self):
     # Node states are [x, y, z] where
@@ -207,15 +207,15 @@ class ReadoutNamedTest(tf.test.TestCase):
          [1., 2., 2.],
          [1., 3., 2.],
          [1., 4., 1.]],
-        readout.readout_named(test_graph, "source",
-                              feature_name=const.HIDDEN_STATE))
+        readout.structured_readout(test_graph, "source",
+                                   feature_name=const.HIDDEN_STATE))
     self.assertAllEqual(
         [[1., 1., 2.],
          [2., 2., 1.],
          [1., 3., 1.],
          [2., 4., 1.]],
-        readout.readout_named(test_graph, "target",
-                              feature_name=const.HIDDEN_STATE))
+        readout.structured_readout(test_graph, "target",
+                                   feature_name=const.HIDDEN_STATE))
 
   def testBadReadoutIndices(self):
     test_graph = gt.GraphTensor.from_pieces(
@@ -234,18 +234,20 @@ class ReadoutNamedTest(tf.test.TestCase):
                     ("_readout", tf.constant([1, 0], tf.int32))))})
     with self.assertRaisesRegex(tf.errors.InvalidArgumentError,
                                 "Not strictly sorted by target"):
-      _ = readout.readout_named(test_graph, "seed",
-                                feature_name=const.HIDDEN_STATE)
+      _ = readout.structured_readout(test_graph, "seed",
+                                     feature_name=const.HIDDEN_STATE)
 
 # TODO(b/269076334): Test error detection more completely: all cases,
 # also from within Dataset.map().
 # TODO(b/269076334): Test alternative values of readout_node_set.
 
 
-class ReadoutNamedIntoFeatureTest(tf.test.TestCase, parameterized.TestCase):
-  """Tests readout_named_into_feature().
+class StructuredReadoutIntoFeatureTest(tf.test.TestCase,
+                                       parameterized.TestCase):
+  """Tests structured_readout_into_feature().
 
-  TFLite integration is tested with tfgnn.keras.layers.ReadoutNamedIntoFeature.
+  TFLite integration is tested with
+  tfgnn.keras.layers.StructuredReadoutIntoFeature.
   """
 
   @parameterized.named_parameters(
@@ -286,7 +288,7 @@ class ReadoutNamedIntoFeatureTest(tf.test.TestCase, parameterized.TestCase):
                     ("_shadow/links", tf.constant([1])),
                     ("_readout", tf.constant([1]))))})
 
-    graph = readout.readout_named_into_feature(
+    graph = readout.structured_readout_into_feature(
         test_graph, "the_key", feature_name="labels", new_feature_name="target",
         remove_input_feature=remove_input_feature)
 
@@ -322,11 +324,11 @@ class ReadoutNamedIntoFeatureTest(tf.test.TestCase, parameterized.TestCase):
                     ("_readout", tf.constant([0, 1]))))})
 
     with self.assertRaisesRegex(ValueError, r"already exists"):
-      _ = readout.readout_named_into_feature(
+      _ = readout.structured_readout_into_feature(
           test_graph, "the_key", feature_name="labels",
           new_feature_name="target")
 
-    graph = readout.readout_named_into_feature(
+    graph = readout.structured_readout_into_feature(
         test_graph, "the_key", feature_name="labels",
         new_feature_name="target", overwrite=True)
     self.assertAllEqual([2, 1], graph.node_sets["_readout"]["target"])
@@ -358,7 +360,7 @@ class AddReadoutFromFirstNodeTest(tf.test.TestCase):
         test_graph, "my_key", node_set_name="objects")
     self.assertAllEqual(
         [11, 33],
-        readout.readout_named(graph, "my_key", feature_name="elevens"))
+        readout.structured_readout(graph, "my_key", feature_name="elevens"))
 
 
 class ContextReadoutIntoFeatureTest(tf.test.TestCase, parameterized.TestCase):
@@ -411,7 +413,7 @@ class ContextReadoutIntoFeatureTest(tf.test.TestCase, parameterized.TestCase):
                                                      node_set_name="objects")
     self.assertCountEqual(["objects", "unrelated", "_readout"],
                           test_graph.node_sets.keys())
-    test_graph = readout.readout_named_into_feature(
+    test_graph = readout.structured_readout_into_feature(
         test_graph, "seed", feature_name="labels",
         new_feature_name="seed_labels")
     self.assertAllEqual([11, 33],

@@ -39,10 +39,11 @@ GraphTensor = gt.GraphTensor
 class Readout(tf.keras.layers.Layer):
   """Reads a feature out of a GraphTensor.
 
-  The Readout layer is a convenience wrapper for accessing a feature from
-  one of the edge_sets, node_sets, or the context of a GraphTensor, intended
-  for use in places such as tf.keras.Sequential that require a Keras layer
-  and do not allow for direct subscripting of the GraphTensor.
+  The `Readout` layer is a convenience wrapper for indexing into a
+  `tfgnn.GraphTensor` and retrieving a feature tensor from one of its edge sets,
+  node sets, or the context. It is intended for use in places such as
+  `tf.keras.Sequential` that require a Keras Layer and do not allow
+  subscrpting syntax like `graph_tensor.node_sets["user"]["name"]`.
 
   A location in the graph is selected by setting exactly one of the keyword
   arguments `edge_set_name=...`, `node_set_name=...` or `from_context=True`.
@@ -61,6 +62,13 @@ class Readout(tf.keras.layers.Layer):
   value = readout(graph_tensor, edge_set_name="edges")
   assert value == graph_tensor.edge_sets["edge"]["value"]
   ```
+
+  Besides this direct readout of a full feature tensor, the library also
+  supports readout that gathers feature values only from the nodes (or edges)
+  that matter for a particular task, see `tfgnn.keras.layers.StructuredReadout`.
+  See also `tfgnn.keras.layers.AddReadoutFromFirstNode` for adding the
+  necessary readout structure to handle the legacy cases that were previously
+  handled by `tfgnn.keras.layers.ReadoutFirstNode`.
 
   Init args:
     edge_set_name: If set, the feature will be read from this edge set.
@@ -230,8 +238,10 @@ class ReadoutFirstNode(tf.keras.layers.Layer):
   must not be used and may raise an error at runtime.)
 
   This implicit convention is inflexible and hard to validate. New models are
-  encouraged to use `ReadoutNamed` instead, provided their source data can be
-  equipped with the auxiliary node sets it needs.
+  encouraged to use `tfgnn.keras.layers.StructuredReadout` instead. The
+  necessary readout structure should preferably be present in the sampled
+  dataset itself; if not, it can be added after the fact by
+  `tfgnn.keras.layers.AddReadoutFromFirstNode`.
 
   Init args:
     node_set_name: If set, the feature will be read from this node set.
@@ -306,10 +316,10 @@ class ReadoutFirstNode(tf.keras.layers.Layer):
 
 
 @tf.keras.utils.register_keras_serializable(package="GNN")
-class ReadoutNamed(tf.keras.layers.Layer):
+class StructuredReadout(tf.keras.layers.Layer):
   """Reads out a feature value from select nodes (or edges) in a graph.
 
-  This Keras layer wraps the `tfgnn.readout_named()` function. It addresses
+  This Keras layer wraps the `tfgnn.structured_readout()` function. It addresses
   the need to read out final hidden states from a GNN computation to make
   predictions for some nodes (or edges) of interest. Its typical usage looks
   as follows:
@@ -317,26 +327,32 @@ class ReadoutNamed(tf.keras.layers.Layer):
   ```python
   input_graph = tf.keras.Input(type_spec=graph_tensor_spec)
   graph = SomeGraphUpdate(...)(input_graph)  # Run your GNN here.
-  seed_node_states = tfgnn.keras.layers.ReadoutNamed("seed")(graph)
+  seed_node_states = tfgnn.keras.layers.StructuredReadout("seed")(graph)
   logits = tf.keras.layers.Dense(num_classes)(seed_node_states)
   model = tf.keras.Model(inputs, logits)
   ```
 
-  ...where `"seed"` is an arbitrary key. There can be multiple of those. For
-  example, a link prediction model could read out `"source"` and `"target"` node
-  states from the graph.
+  ...where `"seed"` is a key defined by the readout structure. There can be
+  multiple of those. For example, a link prediction model could read out
+  `"source"` and `"target"` node states from the graph.
 
-  Please see the documentation of `tfgnn.readout_named()` for the auxiliary
-  node set and edge sets that encode how values are read out from the graph.
-  Whenever these are available, it is strongly recommended to make use of them
-  with this layer and avoid the older `tfgnn.keras.layers.ReadoutFirstNode`.
+  Please see the documentation of `tfgnn.structured_readout()` for the auxiliary
+  node set and edge sets that make up the readout structure which encodes how
+  values are read out from the graph. Whenever these are available, it is
+  strongly recommended to make use of them with this layer and avoid the older
+  `tfgnn.keras.layers.ReadoutFirstNode`.
+
+  Note that this layer returns a tensor shaped like a feature of the
+  `"_readout"` node set but not actually stored on it. To store it there,
+  see `tfgnn.keras.layers.StructuredReadoutIntoFeature`. To retrieve a
+  feature unchanged, see ``tfgnn.keras.layers.Readout`.
 
   Init args:
     key: A string key to select between possibly multiple named readouts
       (such as `"source"` and `"target"` for link prediction). Can be fixed
       in init, or selected for each call.
     feature_name: The name of the feature to read. If unset (also in call),
-      tfgnn.HIDDEN_STATE will be read.
+      `tfgnn.HIDDEN_STATE` will be read.
     readout_node_set: A string, defaults to `"_readout"`. This is used as the
       name for the readout node set and as a name prefix for its edge sets.
     validate: Setting this to false disables the validity checks for the
@@ -379,16 +395,16 @@ class ReadoutNamed(tf.keras.layers.Layer):
            graph: GraphTensor,
            *,
            key: Optional[str] = None) -> Field:
-    _check_init_call_arg_consistency("ReadoutNamed", "key",
+    _check_init_call_arg_consistency("StructuredReadout", "key",
                                      self._key, key)
     if key is None:
       key = self._key
     if key is None:
-      raise ValueError("The ReadoutNamed layer requires a readout key "
+      raise ValueError("The StructuredReadout layer requires a readout key "
                        "to be set at init or call time")
 
-    gt.check_scalar_graph_tensor(graph, "ReadoutNamed")
-    return readout.readout_named(
+    gt.check_scalar_graph_tensor(graph, "StructuredReadout")
+    return readout.structured_readout(
         graph,
         key=key,
         feature_name=self._feature_name,
@@ -397,13 +413,14 @@ class ReadoutNamed(tf.keras.layers.Layer):
 
 
 @tf.keras.utils.register_keras_serializable(package="GNN")
-class ReadoutNamedIntoFeature(tf.keras.layers.Layer):
+class StructuredReadoutIntoFeature(tf.keras.layers.Layer):
   """Reads out a feature value from select nodes (or edges) in a graph.
 
-  This Layer is similar to `tfgnn.keras.layers.ReadoutNamed` (see there),
+  This Keras Layer wraps the `tfgnn.structured_readout_into_feature()` function.
+  It is is similar to `tfgnn.keras.layers.StructuredReadout` (see there),
   except that it does not return the readout result itself but a modified
   `GraphTensor` in which the readout result is stored as a feature on
-  the auxiliary `readout_node_set`. (See `tfgnn.readout_named()` for more
+  the auxiliary `readout_node_set`. (See `tfgnn.structured_readout()` for more
   information on that.)
 
   For example, this layer can be used in data processing before training
@@ -415,21 +432,22 @@ class ReadoutNamedIntoFeature(tf.keras.layers.Layer):
       (such as `"source"` and `"target"` for link prediction). Can be fixed
       in init, or selected for each call.
     feature_name: The name of a feature to read out from, as with
-      `tfgnn.readout_named()`.
+      `tfgnn.structured_readout()`.
     new_feature_name: The name of the feature to add to `readout_node_set`
       for storing the readout result. If unset, defaults to `feature_name`.
       It is an error if the added feature already exists on `readout_node_set`
       in the input `graph`, unless `overwrite=True` is set.
     remove_input_feature: If set, the given `feature_name` is removed from the
-      node (or edge) set(s) that supply the input to `tfgnn.readout_named()`.
+      node (or edge) set(s) that contain the value to be read out in the input
+      `GraphTensor`.
     overwrite: If set, allows overwriting a potentially already existing
       feature `graph.node_sets[readout_node_set][new_feature_name]`.
     readout_node_set: A string, defaults to `"_readout"`. This is used as the
       name for the readout node set and as a name prefix for its edge sets.
     validate: Setting this to false disables the validity checks of
-      `tfgnn.readout_named()`. This is strongly discouraged, unless great care
-      is taken to run `tfgnn.validate_graph_tensor_for_readout()` earlier on
-      structurally unchanged GraphTensors.
+      `tfgnn.structured_readout()`. This is strongly discouraged, unless great
+      care is taken to run `tfgnn.validate_graph_tensor_for_readout()` earlier
+      on structurally unchanged GraphTensors.
 
   Call args:
     graph: The scalar `GraphTensor` to read from.
@@ -439,7 +457,7 @@ class ReadoutNamedIntoFeature(tf.keras.layers.Layer):
   Returns:
     A `GraphTensor` like `graph`, with the readout result stored as
     `.node_sets[readout_node_set][new_feature_name]` and possibly the
-    readout inputs removed (see `remove_input_feature`).
+    readout input feature removed (see `remove_input_feature`).
   """
 
   def __init__(
@@ -477,16 +495,16 @@ class ReadoutNamedIntoFeature(tf.keras.layers.Layer):
            graph: GraphTensor,
            *,
            key: Optional[str] = None) -> GraphTensor:
-    _check_init_call_arg_consistency("ReadoutNamedIntoFeature", "key",
+    _check_init_call_arg_consistency("StructuredReadoutIntoFeature", "key",
                                      self._key, key)
     if key is None:
       key = self._key
     if key is None:
-      raise ValueError("The ReadoutNamedIntoFeature layer requires "
+      raise ValueError("The StructuredReadoutIntoFeature layer requires "
                        "a readout key to be set at init or call time")
 
-    gt.check_scalar_graph_tensor(graph, "ReadoutNamedIntoFeature")
-    return readout.readout_named_into_feature(
+    gt.check_scalar_graph_tensor(graph, "StructuredReadoutIntoFeature")
+    return readout.structured_readout_into_feature(
         graph,
         key=key,
         feature_name=self._feature_name,
@@ -502,20 +520,22 @@ class AddReadoutFromFirstNode(tf.keras.layers.Layer):
   """Adds readout node set equivalent to `tfgnn.keras.layers.ReadoutFirstNode`.
 
   Init args:
-    key: A key, for use with `tfgnn.readout_named()`. The input graph must not
-      already contain auxiliary edge sets for readout with this key.
+    key: A key, for use with `tfgnn.keras.layers.StructuredReadout`. The input
+      graph must not already contain auxiliary edge sets for readout with this
+      key.
     node_set_name: The name of the node set from which values are to be read
       out.
     readout_node_set: The name of the auxiliary node set for readout,
-      as in `tfgnn.readout_named()`.
+      as in `tfgnn.structured_readout()`.
 
   Call args:
     graph: A scalar `GraphTensor`. If it contains the readout_node_set already,
       its size in each graph component must be 1.
 
   Returns:
-    A modified `GraphTensor` such that `tfgnn.readout_named(..., key)` works
-    like `tfgnn.gather_first_node(...)` on the input graph.
+    A modified `GraphTensor` so that `tfgnn.keras.layers.StructuredReadout(key)`
+    acts like `tfgnn.keras.layers.ReadoutFirstNode(node_set_name=node_set_name)`
+    on the input graph.
   """
 
   def __init__(
