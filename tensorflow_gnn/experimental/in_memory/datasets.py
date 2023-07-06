@@ -309,6 +309,10 @@ class InMemoryGraphData(abc.ABC):
         _node_features_lookup, node_sets=dict(self.node_sets()), cache={},
         resource_prefix=self.name)
 
+  def save(self, filename: str):
+    """Superclasses can save themselves to disk."""
+    raise NotImplementedError()
+
 
 class _Accessor(tf.keras.layers.Layer, interfaces.KeyToFeaturesAccessor):
   """Wraps `NodeSet` with `call` that can select features for node subsets."""
