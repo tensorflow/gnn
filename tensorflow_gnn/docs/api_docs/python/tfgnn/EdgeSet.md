@@ -148,8 +148,7 @@ Constructs a new instance from edge set fields.
 tfgnn.EdgeSet.from_fields(
     sizes=tf.constant([3]),
     adjacency=tfgnn.Adjacency.from_indices(
-         source=("paper", [1, 2, 2]),
-         target=("paper", [0, 0, 1])))
+        source=("paper", [1, 2, 2]), target=("paper", [0, 0, 1])))
 ```
 
 #### Example 2:
