@@ -89,7 +89,7 @@ class KeyToBytesAccessor(beam.PTransform):
       Tuple[ExampleId, Iterable[Tuple[int, bytes]]]
   )
   @beam_typehints.with_output_types(Tuple[ExampleId, Values])
-  class AgggregateResults(beam.DoFn):
+  class AggregateResults(beam.DoFn):
     """Aggregates final results from pieces grouped by example ids.
 
     The inputs are tuples of output positions and lookup values grouped by their
@@ -160,7 +160,7 @@ class KeyToBytesAccessor(beam.PTransform):
         | 'ProcessLookupResults'
         >> beam.ParDo(self.ProcessLookupResults(self._default_value))
         | 'GroupByExampleId' >> beam.GroupByKey()
-        | 'AgggregateResults' >> beam.ParDo(self.AgggregateResults(self._layer))
+        | 'AggregateResults' >> beam.ParDo(self.AggregateResults(self._layer))
     )
 
     empty_results = empty_inputs | 'CreateEmptyResults' >> beam.ParDo(

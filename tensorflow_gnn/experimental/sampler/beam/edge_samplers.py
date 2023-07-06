@@ -278,7 +278,7 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
       Tuple[ExampleId, Iterable[Tuple[int, SourceId, Optional[TargetId]]]]
   )
   @beam_typehints.with_output_types(Tuple[ExampleId, Values])
-  class AgggregateResults(beam.DoFn):
+  class AggregateResults(beam.DoFn):
     """Aggregates final sampling results from pieces grouped by example ids.
 
     The inputs are tuples of (source node id index, source node id, sampled
@@ -379,7 +379,7 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
         | 'LookupEdgeBuckets' >> utils.LeftLookupJoin()
         | 'SampleFromBuckets' >> beam.ParDo(self.SampleFromBuckets())
         | 'GroupByExampleId' >> beam.GroupByKey()
-        | 'AgggregateResults' >> beam.ParDo(self.AgggregateResults(self._layer))
+        | 'AggregateResults' >> beam.ParDo(self.AggregateResults(self._layer))
     )
     empty_results = empty_inputs | 'CreateEmptyResults' >> beam.ParDo(
         self.CreateEmptyResults(self._layer)
