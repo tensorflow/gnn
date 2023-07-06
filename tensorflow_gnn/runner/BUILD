@@ -18,6 +18,7 @@ pytype_strict_library(
         ":orchestration",
         "//tensorflow_gnn/runner/input:datasets",
         "//tensorflow_gnn/runner/tasks:classification",
+        "//tensorflow_gnn/runner/tasks:link_prediction",
         "//tensorflow_gnn/runner/tasks:regression",
         "//tensorflow_gnn/runner/trainers:keras_fit",
         "//tensorflow_gnn/runner/utils:attribution",

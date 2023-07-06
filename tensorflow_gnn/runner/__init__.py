@@ -17,6 +17,7 @@ from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.input import datasets
 from tensorflow_gnn.runner.tasks import classification
+from tensorflow_gnn.runner.tasks import link_prediction
 from tensorflow_gnn.runner.tasks import regression
 from tensorflow_gnn.runner.trainers import keras_fit
 from tensorflow_gnn.runner.utils import attribution
@@ -81,6 +82,9 @@ RootNodeBinaryClassification = classification.RootNodeBinaryClassification
 RootNodeMulticlassClassification = classification.RootNodeMulticlassClassification
 GraphBinaryClassification = classification.GraphMulticlassClassification
 GraphMulticlassClassification = classification.GraphMulticlassClassification
+# Tasks (Link Prediction)
+DotProductLinkPrediction = link_prediction.DotProductLinkPrediction
+HadamardProductLinkPrediction = link_prediction.HadamardProductLinkPrediction
 # Tasks (Regression)
 GraphMeanAbsoluteError = regression.GraphMeanAbsoluteError
 GraphMeanAbsolutePercentageError = regression.GraphMeanAbsolutePercentageError
@@ -105,6 +109,7 @@ del interfaces
 del orchestration
 del datasets
 del classification
+del link_prediction
 del regression
 del keras_fit
 del attribution

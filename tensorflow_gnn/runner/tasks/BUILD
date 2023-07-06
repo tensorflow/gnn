@@ -34,6 +34,30 @@ py_strict_test(
 )
 
 pytype_strict_library(
+    name = "link_prediction",
+    srcs = ["link_prediction.py"],
+    srcs_version = "PY3",
+    visibility = ["//tensorflow_gnn/runner:__pkg__"],
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+        "//tensorflow_gnn/runner:interfaces",
+    ],
+)
+
+py_strict_test(
+    name = "link_prediction_test",
+    srcs = ["link_prediction_test.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":link_prediction",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+    ],
+)
+
+pytype_strict_library(
     name = "regression",
     srcs = ["regression.py"],
     srcs_version = "PY3",
