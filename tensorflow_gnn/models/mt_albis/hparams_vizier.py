@@ -70,7 +70,8 @@ def add_params_mt_albis(
         prefix + "attention_type", ["none"])
     root.add_categorical_param(
         prefix + "simple_conv_reduce_type",
-        ["mean", "mean|sum", "mean|max", "mean|sum|max"])
+        ["mean", "mean|sum", "mean|max", "mean|sum|max"],
+        default_value="mean|sum")
   else:
     root.add_categorical_param(
         prefix + "attention_type", ["multi_head"])
@@ -84,8 +85,7 @@ def add_params_mt_albis(
       prefix + "state_dropout_rate", [.0, .1, .2, .3, .5, .8],
       default_value=.1, scale_type=vz.ScaleType.LINEAR)
   root.add_discrete_param(
-      # TODO(b/261835577): Narrow range, add log-interpolated middle values.
-      prefix + "l2_regularization", [1e-8, 1e-7, 1e-6, 1e-5, 1e-4],
+      prefix + "l2_regularization", [1e-6, 3e-6, 1e-5, 3e-5, 1e-4],
       scale_type=vz.ScaleType.LOG)
   root.add_categorical_param(
       prefix + "next_state_type", ["dense", "residual"],

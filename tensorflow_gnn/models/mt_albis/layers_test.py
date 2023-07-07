@@ -113,15 +113,20 @@ class MtAlbisNextNodeStateTest(tf.test.TestCase, parameterized.TestCase):
 
     expected = np.array([[6. if not use_context else 6.5,
                           7. if edge_set_combine_type == "concat" else 5.,
-                          -10.,  # Negative; even after normalization.
+                          -10.,  # Negative.
                           10.]])
-    if normalization_type == "layer":
-      expected = _normalize(expected).numpy()
-    if next_state_type == "residual":
-      expected += input_graph.node_sets["a"][tfgnn.HIDDEN_STATE].numpy()
     if activation == "relu":
       expected[0, 2] = 0.  # Zero out the negative element.
-    self.assertAllClose(expected, model(input_graph), rtol=1e-5)
+    if next_state_type == "residual":
+      expected += input_graph.node_sets["a"][tfgnn.HIDDEN_STATE].numpy()
+    if normalization_type == "layer":
+      expected = _normalize(expected).numpy()
+      # Leave room for an epsilon in the denominator of Keras' normalization.
+      rtol = 1e-4
+    else:
+      rtol = 1e-6  # Default.
+
+    self.assertAllClose(expected, model(input_graph), rtol=rtol)
 
   @parameterized.named_parameters(
       ("", ReloadModel.SKIP),
@@ -130,51 +135,74 @@ class MtAlbisNextNodeStateTest(tf.test.TestCase, parameterized.TestCase):
   )
   def testDropout(self, reload_model):
     """Tests dropout, esp. the switch between training and inference modes."""
-    # Avoid flakiness.
-    tf.random.set_seed(42)
+    tf.random.set_seed(42)  # See discussion below why most values will work.
 
-    input_graph = _make_test_graph_abuv()
+    node_dim = edge_dim = context_dim = 32
+    input_graph = _make_test_graph_ones(
+        node_dim=node_dim, edge_dim=edge_dim, context_dim=context_dim)
 
     # Build a test model that contains a MtAlbisNextNodeState in its natural
     # place: an EdgeSetUpdate layer.
+    # The output size and kernel initializer are chosen such that the output
+    # is simly the concatenation of the inputs:
+    #  - the previous node state,
+    #  - the summed-up edge states (actually just one),
+    #  - the context state.
     pool = tfgnn.keras.layers.Pool(tfgnn.SOURCE, "sum")
     layer = tfgnn.keras.layers.NodeSetUpdate(
-        {"u": pool, "v": pool},
+        {"edge": pool},
         layers.MtAlbisNextNodeState(
-            32,
+            node_dim + edge_dim + context_dim,
             next_state_type="dense",
+            kernel_initializer="identity",
             dropout_rate=1./3,
-            normalization_type="none"))
+            normalization_type="none"),
+        context_input_feature=tfgnn.HIDDEN_STATE)
     inputs = tf.keras.layers.Input(type_spec=input_graph.spec)
-    outputs = layer(inputs, node_set_name="a")
+    outputs = layer(inputs, node_set_name="node")
     model = tf.keras.models.Model(inputs, outputs)
     _ = model(input_graph)  # Trigger the actual building.
-
-    # Initialize weights for predictable results.
-    weights = {v.name: v for v in model.trainable_weights}
-    self.assertLen(weights, 2)
-    weights["node_set_update/mt_albis_next_node_state/dense/kernel:0"].assign(
-        tf.zeros([8, 32]))
-    weights["node_set_update/mt_albis_next_node_state/dense/bias:0"].assign(
-        tf.ones([32]))
 
     model = self._maybe_reload_model(model, reload_model, "dropout-next-state")
 
     def min_max(x):
       return [tf.reduce_min(x), tf.reduce_max(x)]
 
-    # In inference mode (the default), dropout does nothing to the all-ones
-    # input, so min = max = 1.
+    # In inference mode (the default), dropout does nothing, and the all-ones
+    # inputs come out unchanged: so min = max = 1.
     self.assertAllEqual([1., 1.], min_max(model(input_graph)))
     self.assertAllEqual([1., 1.], min_max(model(input_graph, training=False)))
-    # In training mode, each input is zeroed out independently at random with
-    # a probability of 1/3, and the remaining entries are scaled up to 3/2, such
-    # that the expected value remains at (1-1/3) * 3/2 == 1. The odds of seeing
-    # no zeroes in any of the 32 positions is 2/3^32 < 2e-15, and this depends
-    # only on the seed (not the particular run of this test). The odds of seeing
-    # only zeros is even smaller. Hence with very high probability we will see
-    # min = 0 and max = 3/2.
-    self.assertAllClose([0., 1.5], min_max(model(input_graph, training=True)))
+
+    # In training mode, dropout makes a difference.
+    # MtAlbisNextState applies it in two places:
+    #
+    #   - to the pooled and combined inputs from edges and context
+    #     (but not the previous node state),
+    #   - to the entire output (after the transformation, which is trivial
+    #     in our case).
+    #
+    # One application of dropout zeros out each tensor entry independently at
+    # random with a probability of 1/3 and scales up the remaining entries to
+    # to 3/2, such that the expected value remains at (1-1/3) * 3/2 == 1.
+    # This is how we expect the node state inputs to be transformed:
+    actual = model(input_graph, training=True)
+    transformed_node = actual[:, :node_dim]
+    self.assertAllClose([0., 1.5], min_max(transformed_node))
+    # Two applications of dropout zero out an entry with probability
+    # 1 - (1 - 1/3)**2 == 5/9 or else scale it to (3/2)**2 = 9/4.
+    # This is how we expect the edge and context inputs to be transformed:
+    transformed_edge = actual[:, node_dim : node_dim + edge_dim]
+    transformed_context = actual[:, node_dim + edge_dim : ]
+    self.assertAllClose([0., 2.25], min_max(transformed_edge))
+    self.assertAllClose([0., 2.25], min_max(transformed_context))
+
+    # This test runs with a fixed random seed, to avoid flakiness. Most seed
+    # values will lead to random choices that let us observed both expected
+    # values in the result of dropout: All tested parts of the output have
+    # dimension 32. If an output attains a certain value with probability p,
+    # the probability of *not* seeing it anywhere is (1-p)^32. The smallest
+    # such p in this set-up is p = 1/3, for which this failure probability is
+    # 2/3^32 < 2e-15.
 
   # TODO(b/265776928): Maybe refactor to share.
   def _maybe_reload_model(self, model: tf.keras.Model,
@@ -239,6 +267,53 @@ class MtAlbisGraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
           node_set_config["config"]["edge_set_inputs/v"]["class_name"],
           "GNN>models>multi_head_attention>MultiHeadAttentionConv",
       )
+
+
+def _make_test_graph_abuv():
+  return tfgnn.GraphTensor.from_pieces(
+      node_sets={
+          "a": tfgnn.NodeSet.from_fields(
+              sizes=tf.constant([1]),
+              features={tfgnn.HIDDEN_STATE: tf.constant([[3., 1., 1., 1.]])}),
+          "b": tfgnn.NodeSet.from_fields(
+              sizes=tf.constant([1]),
+              features={tfgnn.HIDDEN_STATE: tf.constant([[1., 1.]])}),
+      },
+      edge_sets={
+          "u": tfgnn.EdgeSet.from_fields(
+              sizes=tf.constant([1]),
+              features={tfgnn.HIDDEN_STATE: tf.constant([[1., 0.]])},
+              adjacency=tfgnn.Adjacency.from_indices(
+                  ("a", tf.constant([0])),
+                  ("b", tf.constant([0])))),
+          "v": tfgnn.EdgeSet.from_fields(
+              sizes=tf.constant([1]),
+              features={tfgnn.HIDDEN_STATE: tf.constant([[1., 1.]])},
+              adjacency=tfgnn.Adjacency.from_indices(
+                  ("a", tf.constant([0])),
+                  ("b", tf.constant([0])))),
+      },
+      context=tfgnn.Context.from_fields(
+          sizes=tf.constant([1]),
+          features={"cf": tf.constant([[2.]])}))
+
+
+def _make_test_graph_ones(*, node_dim, edge_dim, context_dim):
+  return tfgnn.GraphTensor.from_pieces(
+      node_sets={
+          "node": tfgnn.NodeSet.from_fields(
+              sizes=tf.constant([1]),
+              features={tfgnn.HIDDEN_STATE: tf.ones([1, node_dim])})},
+      edge_sets={
+          "edge": tfgnn.EdgeSet.from_fields(
+              sizes=tf.constant([1]),
+              features={tfgnn.HIDDEN_STATE: tf.ones([1, edge_dim])},
+              adjacency=tfgnn.Adjacency.from_indices(
+                  ("node", tf.constant([0])),
+                  ("node", tf.constant([0]))))},
+      context=tfgnn.Context.from_fields(
+          sizes=tf.constant([1]),
+          features={tfgnn.HIDDEN_STATE: tf.ones([1, context_dim])}))
 
 
 class MtAlbisTFLiteTest(tf.test.TestCase, parameterized.TestCase):
@@ -337,35 +412,6 @@ class _MakeGraphTensor(tf.keras.layers.Layer):
                         ("nodes", inputs["target"])),
                     features={tfgnn.HIDDEN_STATE: inputs["edge_features"]})
         })
-
-
-def _make_test_graph_abuv():
-  return tfgnn.GraphTensor.from_pieces(
-      node_sets={
-          "a": tfgnn.NodeSet.from_fields(
-              sizes=tf.constant([1]),
-              features={tfgnn.HIDDEN_STATE: tf.constant([[3., 1., 1., 1.]])}),
-          "b": tfgnn.NodeSet.from_fields(
-              sizes=tf.constant([1]),
-              features={tfgnn.HIDDEN_STATE: tf.constant([[1., 1.]])}),
-      },
-      edge_sets={
-          "u": tfgnn.EdgeSet.from_fields(
-              sizes=tf.constant([1]),
-              features={tfgnn.HIDDEN_STATE: tf.constant([[1., 0.]])},
-              adjacency=tfgnn.Adjacency.from_indices(
-                  ("a", tf.constant([0])),
-                  ("b", tf.constant([0])))),
-          "v": tfgnn.EdgeSet.from_fields(
-              sizes=tf.constant([1]),
-              features={tfgnn.HIDDEN_STATE: tf.constant([[1., 1.]])},
-              adjacency=tfgnn.Adjacency.from_indices(
-                  ("a", tf.constant([0])),
-                  ("b", tf.constant([0])))),
-      },
-      context=tfgnn.Context.from_fields(
-          sizes=tf.constant([1]),
-          features={"cf": tf.constant([[2.]])}))
 
 
 if __name__ == "__main__":

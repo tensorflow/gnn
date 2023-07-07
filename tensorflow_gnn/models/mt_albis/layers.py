@@ -29,7 +29,6 @@ def MtAlbisSimpleConv(  # To be called like a class initializer.  pylint: disabl
     receiver_tag: tfgnn.IncidentNodeTag,
     reduce_type: str = "mean",
     activation: Union[str, Callable[..., Any]] = "relu",
-    dropout_rate: float = 0.0,
     edge_dropout_rate: float = 0.0,
     use_receiver_state: bool = True,
     edge_feature_name: Optional[tfgnn.FieldName] = None,
@@ -54,8 +53,6 @@ def MtAlbisSimpleConv(  # To be called like a class initializer.  pylint: disabl
     activation: The nonlinearity used on each message before pooling.
       This can be specified as a Keras layer, a tf.keras.activations.*
       function, or a string understood by `tf.keras.layers.Activation`.
-    dropout_rate: Can be set to a dropout rate for entries in message values
-      (independently for each edge and entry).
     edge_dropout_rate: Can be set to a dropout rate for entire edges:
       with the given probability, the entire message of an edge is dropped,
       as if the edge were not present in the graph.
@@ -81,7 +78,6 @@ def MtAlbisSimpleConv(  # To be called like a class initializer.  pylint: disabl
           kernel_regularizer=kernel_regularizer,
           bias_regularizer=None,  # Intentionally different from VanillaMPNN.
       ),
-      tf.keras.layers.Dropout(dropout_rate),
       tfgnn.keras.layers.ItemDropout(edge_dropout_rate)])
   return tfgnn.keras.layers.SimpleConv(
       message_fn=message_fn,
@@ -145,7 +141,7 @@ class MtAlbisNextNodeState(tf.keras.layers.Layer):
     self._next_state_type = next_state_type
     self._dense = tf.keras.layers.Dense(
         units,
-        activation=None,  # Applied later.
+        activation=activation,
         use_bias=True,
         kernel_initializer=tfgnn.keras.clone_initializer(
             tf.keras.initializers.get(kernel_initializer)),
@@ -176,7 +172,7 @@ class MtAlbisNextNodeState(tf.keras.layers.Layer):
         normalization_type=self._normalization_type,
         batch_normalization_momentum=self._batch_normalization_momentum,
         edge_set_combine_type=self._edge_set_combine_type,
-        activation=self._activation,
+        activation=self._dense.activation,
         # Regularizers and initializers need explicit serialization here
         # (and deserialization in __init__ via .get()) due to b/238163789.
         kernel_initializer=tf.keras.initializers.serialize(
@@ -197,22 +193,21 @@ class MtAlbisNextNodeState(tf.keras.layers.Layer):
     input_state = _require_single_tensor(input_state, "input state")
     flat_inputs.append(input_state)
     # Collect and combine pooled messages (conv results) from edge sets.
-    for k, v in edge_set_inputs.items():
-      _require_single_tensor(v, f"input from edge set {k}")
-    flat_inputs.append(
-        tfgnn.combine_values(list(edge_set_inputs.values()),
-                             self._edge_set_combine_type))
+    edge_input = self._combine_edge_inputs(edge_set_inputs)
+    edge_input = self._dropout(edge_input)
+    flat_inputs.append(edge_input)
     # Collect a context input, if any. (Empty Mapping means none.)
     if isinstance(context_input, Mapping) and not context_input:
       pass
     else:
-      _require_single_tensor(context_input, "input from context")
+      context_input = _require_single_tensor(context_input,
+                                             "input from context")
+      context_input = self._dropout(context_input)
       flat_inputs.append(context_input)
 
     net = tf.concat(flat_inputs, axis=-1)
     net = self._dense(net)
     net = self._dropout(net)
-    net = self._normalization(net)
 
     if (self._next_state_type == "residual" and
         input_state.shape[1:].num_elements() != 0):
@@ -224,8 +219,13 @@ class MtAlbisNextNodeState(tf.keras.layers.Layer):
             f"output shape {net.shape.as_list()}.")
       net = tf.add(net, input_state)
 
-    net = self._activation(net)
+    net = self._normalization(net)
     return net
+
+  def _combine_edge_inputs(self, edge_set_inputs):
+    inputs_list = [_require_single_tensor(v, f"input from edge set {k}")
+                   for k, v in sorted(edge_set_inputs.items())]
+    return tfgnn.combine_values(inputs_list, self._edge_set_combine_type)
 
 
 def _require_single_tensor(x: tfgnn.FieldOrFields, name) -> tfgnn.Field:
@@ -250,9 +250,7 @@ def MtAlbisGraphUpdate(  # To be called like a class initializer.  pylint: disab
     attention_num_heads: int = 4,
     simple_conv_reduce_type: str = "mean",
     simple_conv_use_receiver_state: bool = True,
-    # TODO(b/265755979): Do we need dropout_rate for use beyond NextState?
     state_dropout_rate: float = 0.0,
-    # TODO(b/265755983): Fix dropped-out edges between GraphUpdates?
     edge_dropout_rate: float = 0.0,
     l2_regularization: float = 0.0,
     kernel_initializer: Any = "glorot_uniform",
@@ -292,8 +290,11 @@ def MtAlbisGraphUpdate(  # To be called like a class initializer.  pylint: disab
     simple_conv_use_receiver_state: For attention_type `"none"`, controls
       whether the receiver node state is used in computing each edge's message
       (in addition to the sender node state and possibly an `edge feature`).
-    state_dropout_rate: Can be set to a dropout rate for entries in the output
-      node states (independently for each node and entry).
+    state_dropout_rate: The dropout rate applied to the pooled and combined
+      messages from all edges, to the optional input from context, and to the
+      new node state. This is conventional dropout, independently for each
+      dimension of the network's hidden state. (Unlike VanillaMPNN, dropout
+      is applied to messages after pooling.)
     edge_dropout_rate: Can be set to a dropout rate for entire edges during
       message computation: with the given probability, the entire message of
       an edge is dropped, as if the edge were not present in the graph.
@@ -336,7 +337,6 @@ def MtAlbisGraphUpdate(  # To be called like a class initializer.  pylint: disab
           message_dim,
           receiver_tag=receiver_tag,
           reduce_type=simple_conv_reduce_type,
-          # dropout_rate=edge_dropout_rate,  # See TODO(b/265755979) above).
           edge_dropout_rate=edge_dropout_rate,
           use_receiver_state=simple_conv_use_receiver_state,
           edge_feature_name=edge_feature_name,

@@ -128,6 +128,8 @@ _MASKED_LABELS = flags.DEFINE_enum(
 # and their default values. The subsequent config_flags definition
 # allows users to override them from the command line, for example,
 # --config.gnn.vanilla_mpnn.dropout_rate = 0.1
+# TODO(b/290314181): The model choice should also be able to influence
+# non-model hparams.
 def get_config_dict() -> config_dict.ConfigDict:
   """The default config that users can override with --config.foo=bar."""
   cfg = config_dict.ConfigDict()
@@ -156,10 +158,15 @@ def get_config_dict() -> config_dict.ConfigDict:
   cfg.activation = "gelu"
   # For gnn.type="mt_albis":
   cfg.gnn.mt_albis = mt_albis.graph_update_get_config_dict()
-  cfg.gnn.mt_albis.units = 128
-  cfg.gnn.mt_albis.message_dim = 128
+  cfg.gnn.mt_albis.units = 256
+  cfg.gnn.mt_albis.message_dim = 256
   cfg.gnn.mt_albis.receiver_tag = tfgnn.SOURCE
-  cfg.gnn.mt_albis.state_dropout_rate = 0.2
+  cfg.gnn.mt_albis.simple_conv_reduce_type = "mean|sum"
+  cfg.gnn.mt_albis.state_dropout_rate = 0.1
+  cfg.gnn.mt_albis.edge_dropout_rate = 0.2
+  cfg.gnn.mt_albis.l2_regularization = 1e-5
+  cfg.gnn.mt_albis.normalization_type = "layer"
+  cfg.gnn.mt_albis.next_state_type = "residual"
   # For gnn.type="multi head attention":
   cfg.gnn.multi_head_attention = (
       multi_head_attention.graph_update_get_config_dict())
