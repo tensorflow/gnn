@@ -65,6 +65,7 @@ class KerasTrainer(interfaces.Trainer):
       checkpoint_options: Optional[KerasTrainerCheckpointOptions] = None,
       backup_dir: Optional[str] = None,
       steps_per_epoch: Optional[int] = None,
+      verbose: Union[int, str] = "auto",
       validation_steps: Optional[int] = None,
       validation_per_epoch: Optional[int] = None,
       summarize_every_n_steps: Union[int, str] = 500,
@@ -85,6 +86,9 @@ class KerasTrainer(interfaces.Trainer):
         `(os.path.join(model_dir, "backup"),)` is used.
       steps_per_epoch: The number of training steps per epoch. Optional,
         if unspecified: epochs are at `tf.data.Dataset` end.
+      verbose: Forwarded to `tf.keras.Model.fit()`. Possible values are
+        0 (silent), 1 (print progress bar), 2 (one line per epoch), and
+        "auto" (default) defers to keras to select verbosity.
       validation_steps: The number of steps used during validation. Optional,
         if unspecified: the entire validation `tf.data.Dataset` is evaluated.
       validation_per_epoch: The number of validations done per training epoch.
@@ -127,6 +131,7 @@ class KerasTrainer(interfaces.Trainer):
     self._checkpoint_options = checkpoint_options
     self._backup_dir = backup_dir
     self._steps_per_epoch = steps_per_epoch
+    self._verbose = verbose
     self._validation_steps = validation_steps
     self._validation_per_epoch = validation_per_epoch
     self._summarize_every_n_steps = summarize_every_n_steps
@@ -289,6 +294,7 @@ class KerasTrainer(interfaces.Trainer):
         steps_per_epoch=steps_per_epoch,
         validation_data=valid_ds,
         validation_steps=validation_steps,
+        verbose=self._verbose,
         callbacks=callbacks)
 
     if restore_best_weights:
