@@ -144,11 +144,38 @@ class SamplingPipeline:
         for `sampling_spec.seed_op.node_set_name` and they will be used to
         invoke `edge_sampler_factor("first_hop")(seed_nodes)`.
     """
-    edge_sets = sample_edge_sets(
+    edge_sets = dict(sample_edge_sets(
         seed_nodes, self._graph_schema, self._sampling_spec,
-        self._edge_sampler_factory)
+        self._edge_sampler_factory))
 
+    if hasattr(seed_nodes, 'to_tensor'):  # RaggedTensor!
+      ragged_seed = seed_nodes
+    else:  # Dense tf.Tensor.
+      seed_nodes_shape = tf.shape(seed_nodes)
+      ragged_seed = tf.reshape(seed_nodes, [seed_nodes_shape[0], -1])
+      ragged_seed = tf.RaggedTensor.from_tensor(ragged_seed)
+    # Determine fake edge set name (ensuring unused name)
+    seed_edge_set_names = [edge_set_key.split(',')[1]
+                           for edge_set_key in edge_sets
+                           if edge_set_key.startswith('_seed')]
+    seed_edge_set_names.append('_seed')
+    longest_name = max(
+        map(lambda name: (len(name), name), seed_edge_set_names))[1]
+    fake_edge_set_name = longest_name + '0'  # longer than longest ==> unique.
+    fake_edge_key = ','.join((self.seed_node_set_name, fake_edge_set_name,
+                              self.seed_node_set_name))
+    edge_sets[fake_edge_key] = {
+        tfgnn.SOURCE_NAME: ragged_seed,
+        tfgnn.TARGET_NAME: ragged_seed,
+    }
     graph_tensor = core.build_graph_tensor(edge_sets=edge_sets)
+
+    # Remove fake edge set.
+    graph_tensor = tf.keras.layers.Lambda(
+        lambda g: tfgnn.GraphTensor.from_pieces(  # pylint: disable=g-long-lambda
+            context=g.context, node_sets=g.node_sets,
+            edge_sets={n: e for n, e in g.edge_sets.items()
+                       if n != fake_edge_set_name}))(graph_tensor)
 
     features = {}
     for node_set_name, node_set in graph_tensor.node_sets.items():
@@ -163,6 +190,11 @@ class SamplingPipeline:
       graph_tensor = graph_tensor.replace_features(node_sets=features)
 
     return graph_tensor
+
+  @property
+  def node_features_accessor_factory(
+      self) -> Optional[NodeFeaturesLookupFactory]:
+    return self._node_features_accessor_factory
 
 
 def sample_edge_sets(
@@ -224,6 +256,10 @@ def sample_edge_sets(
     }
 
   return edge_sets
+
+
+def _unique_y(x: tf.Tensor) -> tf.Tensor:
+  return tf.unique(x).y
 
 
 def assert_sorted_sampling_spec(sampling_spec: sampling_spec_pb2.SamplingSpec):

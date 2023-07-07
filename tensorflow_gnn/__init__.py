@@ -187,6 +187,7 @@ readout_named_into_feature = readout.structured_readout_into_feature
 
 # Sampler
 SamplingSpecBuilder = sampling_spec_builder.SamplingSpecBuilder
+make_sampling_spec_tree = sampling_spec_builder.make_sampling_spec_tree
 
 # Schema conversion and I/O functions.
 parse_schema = schema_utils.parse_schema

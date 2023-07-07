@@ -240,6 +240,38 @@ class SubgraphPipelineTest(tf.test.TestCase, parameterized.TestCase):
       self.assertIn(food, sampled_foods)  # Second hop.
       sampled_animals.add(animal)
 
+  def test_orphan_nodes(self):
+    """Tests sampling subgraph from nodes without edges."""
+    (unused_eats_edges, sampler, graph_schema,
+     sampling_spec) = _get_test_edges_sampler_schema_spec()
+    pipeline = subgraph_pipeline.SamplingPipeline(
+        graph_schema, sampling_spec, sampler,
+        node_features_accessor_factory=_test_create_feature_accessor)
+
+    seed_nodes = tf.ragged.constant([
+        ['unicorn'],  # Orphan node (no edges!)
+        ['unicorn', 'dog'],  # Orphan node with a non-orphan node.
+    ])
+    graph_tensor = pipeline(seed_nodes)
+    # Break into its subgraphs.
+    graph_tensors = list(tf.data.Dataset.from_tensors(graph_tensor).unbatch())
+    graph0 = graph_tensors[0]
+    graph1 = graph_tensors[1]
+
+    self.assertAllEqual(graph0.node_sets['animal']['#id'], [b'unicorn'])
+    # No edges (unicorn needs no food).
+    for edge_set0 in graph0.edge_sets.values():
+      self.assertAllEqual(edge_set0.sizes, [0])
+
+    # Dog eats 2 things (unicorn eats none):
+    self.assertAllEqual(graph1.edge_sets['eats'].sizes, [2])
+
+    # Make sure 'unicorn' appears in node set but without edges.
+    bool_mask = graph1.node_sets['animal']['#id'] == b'unicorn'
+    self.assertAllEqual(tf.reduce_sum(tf.cast(bool_mask, tf.int32)), 1)
+    unicorn_index = tf.argmax(bool_mask)
+    self.assertNotIn(unicorn_index, graph1.edge_sets['eats'].adjacency.source)
+
   def test_sampling_pipeline(self):
     (eats_edges, sampler, graph_schema,
      sampling_spec) = _get_test_edges_sampler_schema_spec()

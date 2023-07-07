@@ -325,7 +325,8 @@ class _Accessor(tf.keras.layers.Layer, interfaces.KeyToFeaturesAccessor):
   def call(self, keys: tf.RaggedTensor) -> interfaces.Features:
     """Gathers features corresponding to (tf.int) node keys."""
     return {feature_name: tf.gather(feature_value, keys)
-            for feature_name, feature_value in self._node_set.features.items()}
+            for feature_name, feature_value in self._node_set.features.items()
+            if feature_name != '#id'}
 
   @property
   def resource_name(self) -> str:
