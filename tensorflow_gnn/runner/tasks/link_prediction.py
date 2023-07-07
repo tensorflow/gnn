@@ -15,7 +15,7 @@
 """Link Prediction tasks."""
 
 import abc
-from typing import Callable, Sequence, Tuple
+from typing import Callable, Optional, Sequence, Tuple
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -177,7 +177,7 @@ class HadamardProductLinkPrediction(_LinkPrediction):
 
   The hadamard product is followed by one layer with scalar output.
   """
-  _dense_layer: None|tf.keras.layers.Layer = None
+  _dense_layer: Optional[tf.keras.layers.Layer] = None
 
   def _compute_edge_scores(
       self, src_features: tf.Tensor, tgt_features: tf.Tensor) -> tf.Tensor:
