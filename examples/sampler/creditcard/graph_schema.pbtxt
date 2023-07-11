@@ -1,0 +1,75 @@
+# proto-file: tensorflow_gnn/proto/graph_schema.proto
+# proto-message: GraphSchema
+# Example graph of transactions, credit cards, customer.
+
+node_sets {
+  key: "customer"
+  value {
+    features {
+      key: "name"
+      value: {
+        description: "Name"
+        dtype: DT_STRING
+      }
+    }
+    features {
+      key: "address"
+      value: {
+        description: "address"
+        dtype: DT_STRING
+      }
+    }
+    features {
+      key: "zipcode"
+      value: {
+        description: "Zipcode"
+        dtype: DT_INT64
+      }
+    }
+    features {
+      key: "score"
+      value: {
+        description: "Credit score"
+        dtype: DT_FLOAT
+      }
+    }
+    metadata {
+      filename: "customer.csv"
+    }
+  }
+}
+
+node_sets {
+  key: "creditcard"
+  value {
+    metadata {
+      filename: "creditcard.csv"
+    }
+    features {
+      key: "number"
+      value: {
+        description: "Credit card number"
+        dtype: DT_INT64
+      }
+    }
+    features {
+      key: "issuer"
+      value: {
+        description: "Credit card issuer institution"
+        dtype: DT_STRING
+      }
+    }
+  }
+}
+
+edge_sets {
+  key: "owns_card"
+  value {
+    description: "Owns and uses the credit card."
+    source: "customer"
+    target: "creditcard"
+    metadata {
+      filename: "owns_card.csv"
+    }
+  }
+}

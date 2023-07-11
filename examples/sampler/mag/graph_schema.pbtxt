@@ -1,0 +1,110 @@
+# proto-file: tensorflow_gnn/proto/graph_schema.proto
+# proto-message: GraphSchema
+
+node_sets {
+  key: "author"
+  value {}
+}
+node_sets {
+  key: "field_of_study"
+  value {}
+}
+node_sets {
+  key: "institution"
+  value {}
+}
+node_sets {
+  key: "paper"
+  value {
+    features {
+      key: "feat"
+      value {
+        dtype: DT_FLOAT
+        shape {
+          dim {
+            size: 128
+          }
+        }
+      }
+    }
+    features {
+      key: "labels"
+      value {
+        dtype: DT_INT64
+        shape {
+          dim {
+            size: 1
+          }
+        }
+      }
+    }
+    features {
+      key: "year"
+      value {
+        dtype: DT_INT64
+        shape {
+          dim {
+            size: 1
+          }
+        }
+      }
+    }
+    metadata {
+      filename: "nodes-paper.tfrecords@397"
+    }
+  }
+}
+edge_sets {
+  key: "affiliated_with"
+  value {
+    source: "author"
+    target: "institution"
+    metadata {
+      filename: "edges-affiliated_with.tfrecords@30"
+    }
+  }
+}
+edge_sets {
+  key: "cites"
+  value {
+    source: "paper"
+    target: "paper"
+    metadata {
+      filename: "edges-cites.tfrecords@120"
+    }
+  }
+}
+edge_sets {
+  key: "has_topic"
+  value {
+    source: "paper"
+    target: "field_of_study"
+    metadata {
+      filename: "edges-has_topic.tfrecords@226"
+    }
+  }
+}
+edge_sets {
+  key: "writes"
+  value {
+    source: "author"
+    target: "paper"
+    metadata {
+      filename: "edges-writes.tfrecords@172"
+    }
+  }
+}
+edge_sets {
+  key: "written"
+  value {
+    source: "paper"
+    target: "author"
+    metadata {
+      filename: "edges-writes.tfrecords@172"
+      extra {
+        key: "edge_type"
+        value: "reversed"
+      }
+    }
+  }
+}

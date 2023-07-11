@@ -1,0 +1,14 @@
+# proto-file: tensorflow_gnn/sampler/sampling_spec.proto
+# proto-message: PipelineSpec
+
+seed_op <
+  op_name: "seed"
+  node_set_name: "customer"
+>
+sampling_ops <
+  op_name: "seed->creditcard"
+  input_op_names: "seed"
+  edge_set_name: "owns_card"
+  sample_size: 3
+  strategy: RANDOM_UNIFORM
+>
