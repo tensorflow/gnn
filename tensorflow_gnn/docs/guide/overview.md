@@ -66,15 +66,15 @@ model on a Google server from within your browser.
     of 188 small, homogeneous graphs representing molecules. This is a good
     first read to get acquainted with GNNs.
   * [Solving OGBN-MAG
-    end-to-end](https://colab.research.google.com/github/tensorflow/gnn/blob/master/examples/notebooks/ogbn_mag_e2e.ipynb#scrollTo=udvGTpefWRE_)
+    end-to-end](https://colab.research.google.com/github/tensorflow/gnn/blob/master/examples/notebooks/ogbn_mag_e2e.ipynb)
     trains a model on heterogeneous sampled subgraphs from the
     [OGBN-MAG](https://ogb.stanford.edu/docs/nodeprop/#ogbn-mag) dataset (from
     Stanford's Open Graph Benchmark) that contains 1 million research papers,
     their authors, and other relations. This colab introduces the node
     classification task from sampled subgraphs as well as the nuts and bolts of
     training in parallel on multiple accelerators (GPU, TPU).
-  * An [in-depth OGBN-MAG tutorial]
-    (https://colab.research.google.com/github/tensorflow/gnn/blob/master/examples/notebooks/ogbn_mag_indepth.ipynb#scrollTo=udvGTpefWRE_)
+  * An [in-depth OGBN-MAG
+    tutorial](https://colab.research.google.com/github/tensorflow/gnn/blob/master/examples/notebooks/ogbn_mag_indepth.ipynb)
     that solves OGBN-MAG again while demonstrating how users can exercise
     greater control over the GNN model definition and the training code.
   * [Learning shortest paths with
