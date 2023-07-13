@@ -15,7 +15,6 @@
 """Utility functions to simplify construction of GNN layers."""
 
 import collections
-import re
 from typing import Any, Callable, Collection, Mapping, Optional
 
 import tensorflow as tf
@@ -96,8 +95,6 @@ class ConvGNNBuilder:
     graph_update_factory: If set, called as
       `graph_update_factory(deferred_init_callback, name)` to return the graph
       update. The arguments are as expected by `tfgnn.keras.layers.GraphUpdate`.
-    aux_graph_piece_pattern: Optionally (and rarely needed), can be set to
-      override `tfgnn.AUX_GRAPH_PIECE_PATTERN`.
   """
 
   def __init__(
@@ -112,7 +109,7 @@ class ConvGNNBuilder:
           ..., graph_update_lib.NodeSetUpdateLayer]] = None,
       graph_update_factory: Optional[Callable[
           ..., tf.keras.layers.Layer]] = None,
-      aux_graph_piece_pattern: str = const.AUX_GRAPH_PIECE_PATTERN):
+    ):
     self._convolutions_factory = convolutions_factory
     self._nodes_next_state_factory = nodes_next_state_factory
     self._receiver_tag = receiver_tag
@@ -125,7 +122,6 @@ class ConvGNNBuilder:
       self._graph_update_factory = _default_graph_update_factory
     else:
       self._graph_update_factory = graph_update_factory
-    self._aux_graph_piece_re = re.compile(aux_graph_piece_pattern)
 
   def Convolve(  # To be called like a class initializer.  pylint: disable=invalid-name
       self,
@@ -154,14 +150,12 @@ class ConvGNNBuilder:
     if node_sets is not None:
       node_sets = set(node_sets)
       for node_set_name in node_sets:
-        if self._aux_graph_piece_re.fullmatch(node_set_name):
+        if gt.get_aux_type_prefix(node_set_name):
           # This is not allowed, because it makes no sense for the aux node sets
           # known so far (March 2023). How would aux or non-aux edge sets be
           # selected uniformly for convolving into aux and non-aux node sets?
           raise ValueError(
-              f"Convolution requested towards node set '{node_set_name}' "
-              "that matches "
-              f"aux_graph_piece_pattern=r'{self._aux_graph_piece_re.pattern}'.")
+              f"Convolution requested towards aux node set '{node_set_name}'.")
 
     def _init(graph_spec: gt.GraphTensorSpec) -> Mapping[str, Any]:
       if self._receiver_tag is None:
@@ -174,7 +168,7 @@ class ConvGNNBuilder:
       receiver_to_inputs = collections.defaultdict(dict)
 
       for edge_set_name, edge_set_spec in graph_spec.edge_sets_spec.items():
-        if self._aux_graph_piece_re.fullmatch(edge_set_name):
+        if gt.get_aux_type_prefix(edge_set_name):
           continue
         if not isinstance(edge_set_spec.adjacency_spec, adj.HyperAdjacencySpec):
           raise ValueError("Unsupported adjacency type {}".format(
@@ -183,14 +177,12 @@ class ConvGNNBuilder:
             receiver_tag)
         if node_sets is not None and receiver_node_set not in node_sets:
           continue
-        if self._aux_graph_piece_re.fullmatch(receiver_node_set):
+        if gt.get_aux_type_prefix(receiver_node_set):
           # This cannot happen for the aux node sets known so far (March 2023)
           # and likely indicates the accidental use of an auxiliary name.
           raise ValueError(
-              f"Node set '{receiver_node_set}' matches "
-              f"aux_graph_piece_pattern=r'{self._aux_graph_piece_re.pattern}'"
-              f" but incident edge set '{edge_set_name}' "
-              f"(at tag {receiver_tag}) does not.")
+              f"Node set '{receiver_node_set}' is auxiliary but the incident "
+              f"edge set '{edge_set_name}' (at tag {receiver_tag}) is not.")
         if receiver_tag_specified:
           conv = self._convolutions_factory(edge_set_name,
                                             receiver_tag=receiver_tag)

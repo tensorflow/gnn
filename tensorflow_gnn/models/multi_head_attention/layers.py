@@ -658,9 +658,7 @@ def MultiHeadAttentionHomGraphUpdate(
   # the node_set_name.
   def deferred_init_callback(spec: tfgnn.GraphTensorSpec):
     node_set_name, edge_set_name = tfgnn.get_homogeneous_node_and_edge_set_name(
-        spec, "MultiHeadAttentionHomGraphUpdate",
-        # TODO(b/269076334): Pass through aux_graph_piece_pattern here?
-    )
+        spec, "MultiHeadAttentionHomGraphUpdate")
     node_set_updates = {
         node_set_name:
             tfgnn.keras.layers.NodeSetUpdate(
@@ -779,7 +777,5 @@ def MultiHeadAttentionMPNNGraphUpdate(  # To be called like a class initializer.
           kernel_initializer=kernel_initializer),  # Cloned by the layer.
       lambda node_set_name: tfgnn.keras.layers.NextStateFromConcat(
           dense(units)),
-      receiver_tag=receiver_tag,
-      # TODO(b/269076334): Pass through aux_graph_piece_pattern here?
-  )
+      receiver_tag=receiver_tag)
   return gnn_builder.Convolve(node_set_names)

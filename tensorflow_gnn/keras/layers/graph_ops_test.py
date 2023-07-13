@@ -367,7 +367,7 @@ class StructuredReadoutTest(tf.test.TestCase):
     test_graph = _MakeGraphTensorStructuredReadout(
         right_feature_name="right_feature",
         wrong_feature_name="wrong_feature",
-        readout_node_set="_out_it_reads_from_here",
+        readout_node_set="_readout:non_std_name",
     )(
         {"users.right_feature": tf.constant(
             [[1., 1.],  # Read out as "source" 1.
@@ -387,7 +387,7 @@ class StructuredReadoutTest(tf.test.TestCase):
     # Test common usages that set the key exactly once.
     readout = graph_ops.StructuredReadout(
         feature_name="right_feature",
-        readout_node_set="_out_it_reads_from_here")
+        readout_node_set="_readout:non_std_name")
     self.assertAllEqual(expected_sources, readout(test_graph, key="source"))
     self.assertAllEqual(expected_targets, readout(test_graph, key="target"))
 
@@ -478,7 +478,7 @@ class StructuredReadoutIntoFeatureTest(tf.test.TestCase):
     test_graph = _MakeGraphTensorStructuredReadout(
         right_feature_name="right_feature",
         wrong_feature_name="wrong_feature",
-        readout_node_set="_out_it_reads_from_here",
+        readout_node_set="_readout:non_std_name",
     )(
         {"users.right_feature": tf.constant(
             [[1., 1.],  # Read out as "source" 1.
@@ -496,26 +496,26 @@ class StructuredReadoutIntoFeatureTest(tf.test.TestCase):
     expected_targets = [[2., 2.], [1., 3.]]
     self.assertAllEqual(
         [0, 1],
-        test_graph.node_sets["_out_it_reads_from_here"]["labels"])
+        test_graph.node_sets["_readout:non_std_name"]["labels"])
 
     readout = graph_ops.StructuredReadoutIntoFeature(
         feature_name="right_feature",
         new_feature_name="labels",
         remove_input_feature=True,
         overwrite=True,
-        readout_node_set="_out_it_reads_from_here")
+        readout_node_set="_readout:non_std_name")
 
     result_graph = readout(test_graph, key="source")
     self.assertAllEqual(
         expected_sources,
-        result_graph.node_sets["_out_it_reads_from_here"]["labels"])
+        result_graph.node_sets["_readout:non_std_name"]["labels"])
     self.assertNotIn("right_feature", result_graph.node_sets["users"].features)
     self.assertIn("right_feature", result_graph.node_sets["items"].features)
 
     result_graph = readout(test_graph, key="target")
     self.assertAllEqual(
         expected_targets,
-        result_graph.node_sets["_out_it_reads_from_here"]["labels"])
+        result_graph.node_sets["_readout:non_std_name"]["labels"])
 
   def testTFLite(self):
     # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN

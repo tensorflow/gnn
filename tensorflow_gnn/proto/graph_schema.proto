@@ -51,22 +51,20 @@ message GraphSchema {
   optional Context context = 1;
 
   // A list of available node sets. The keys are the NodeSet names.
-  //  * Names starting with `#` are reserved for internal use.
-  //    Such names must not appear in the schema.
-  //  * Names starting with `_` are reserved for particular auxiliary node sets
-  //    as defined by certain higher-level TF-GNN library functions.
-  //    They are stored in the graph and do appear in the schema as usual, but
-  //    modeling code ignores them when looking for the graph data from the
-  //    application domain.
-  //  * Names starting with any of `!`, `%`, `.`, `^` or `~` are reserved
-  //    for future use.
-  // User code in Pytgon can check for names to be ignored as auxiliary with
-  // `re.fullmatch(tfgnn.AUX_GRAPH_PIECE_PATTERN, name)`.
+  //
+  // A name starting with `_` (preferred) or any of `#`, `!`, `%`, `.`, `^`, `~`
+  // (reserved for future use) marks an **auxiliary node set**, for use by
+  // certain TF-GNN helper functions; see `tfgnn.get_aux_type_prefix(name)` for
+  // more. These node sets are stored in the graph and do appear in the schema
+  // as usual, but modeling code ignores them when looking for the graph data
+  // from the application domain.
   map<string, NodeSet> node_sets = 2;
 
   // A list of available edge sets. The keys are the EdgeSet names.
-  // Names starting with `#` or `_` or any of `!`, `%`, `.`, `^`, `~` are
-  // reserved, analogous to node sets.
+  //
+  // A name starting with `_` (preferred) or any of `#`, `!`, `%`, `.`, `^`, `~`
+  // (reserved for future use) marks an **auxiliary edge set**, analogous to the
+  // auxiliary node sets explained above; see `tfgnn.get_aux_type_prefix(name)`.
   map<string, EdgeSet> edge_sets = 3;
 
   // Optional metadata about the origin of the graph. Tools that produce graph

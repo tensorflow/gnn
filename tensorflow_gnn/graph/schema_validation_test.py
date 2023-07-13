@@ -280,9 +280,9 @@ class GraphValidationTest(tf.test.TestCase):
 
     with self.assertRaisesRegex(
         sv.ValidationError,
-        r'lacks auxiliary node set.*_shmeatout'):
-      sv._validate_schema_readout(schema,
-                                  readout_node_sets=['_readout', '_shmeatout'])
+        r'lacks auxiliary node set.*_readout:train'):
+      sv._validate_schema_readout(
+          schema, readout_node_sets=['_readout', '_readout:train'])
 
     bad_schema = copy.copy(schema)
     bad_schema.edge_sets['_readout/foo'].target = 'documents'

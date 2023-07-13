@@ -44,19 +44,6 @@ RESERVED_FEATURE_NAME_PATTERN = r'#.*'
 # in some modeling libraries on top if explicit names are not needed.
 HIDDEN_STATE = 'hidden_state'
 
-# Auxiliary node sets and edge sets in a GraphTensor can store relations for use
-# by various helper functions (such as `tfgnn.structured_readout(...)`), beyond
-# the node sets and edge sets that represent data from the application domain.
-# They are distinguished by names that start with an underscore "_"; additional
-# initial characters are reserved for future use, and "#" is reserved by
-# GraphTensor itself.
-# Auxiliary node sets and edge sets are ignored by modeling code that wants to
-# operate on "all" pieces of a GraphTensor, but they are handled normally by
-# GraphTensor storage and operations on specific node sets and edge sets.
-# Python code recognizes the names of auxiliary node sets and edge sets as
-# matches of the following pattern according to `re.fullmatch(pattern, name)`.
-AUX_GRAPH_PIECE_PATTERN = r'[_#!%.^~].*'
-
 # The internal metadata key prefix to use for hyper adjacency.
 INDEX_KEY_PREFIX = '#index.'
 

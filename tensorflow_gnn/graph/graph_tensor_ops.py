@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import functools
-import re
 from typing import Any, Callable, Collection, List, Mapping, Optional
 
 import tensorflow as tf
@@ -555,7 +554,6 @@ def reorder_nodes(graph_tensor: GraphTensor,
 def shuffle_nodes(graph_tensor: GraphTensor,
                   *,
                   node_sets: Optional[Collection[gt.NodeSetName]] = None,
-                  aux_graph_piece_pattern: str = const.AUX_GRAPH_PIECE_PATTERN,
                   seed: Optional[int] = None) -> GraphTensor:
   """Randomly reorders nodes of given node sets, within each graph component.
 
@@ -575,8 +573,6 @@ def shuffle_nodes(graph_tensor: GraphTensor,
     graph_tensor: A scalar GraphTensor.
     node_sets: An optional collection of node sets names to shuffle. If None,
       all node sets are shuffled.  Should not overlap with `shuffle_indices`.
-    aux_graph_piece_pattern: Optionally (and rarely needed), can be set to
-      override `tfgnn.AUX_GRAPH_PIECE_PATTERN`.
     seed: Optionally, a fixed seed for random uniform shuffle.
 
   Returns:
@@ -590,7 +586,7 @@ def shuffle_nodes(graph_tensor: GraphTensor,
   if node_sets is None:
     target_node_sets = set(
         node_set_name for node_set_name in graph_tensor.node_sets
-        if not re.fullmatch(aux_graph_piece_pattern, node_set_name))
+        if not gt.get_aux_type_prefix(node_set_name))
   else:
     target_node_sets = set(node_sets)
     diff = target_node_sets - set(graph_tensor.node_sets.keys())
@@ -709,14 +705,15 @@ def _check_line_graph_args(
 
   # Check for unhandled auxiliary node sets
   for node_set_name in graph_tensor.node_sets:
-    if re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, node_set_name):
-      if node_set_name == '_readout':
+    if aux_type := gt.get_aux_type_prefix(node_set_name):
+      if aux_type == '_readout':
         if not connect_with_original_nodes:
           # TODO(b/276907237): Handle special readout node set names.
           raise ValueError(
-              'The original graph contains an auxiliary \'_readout\' node set. '
-              'Set `connect_with_original_nodes=True` to keep it, or delete it '
-              'before calling tfgnn.convert_to_line_graph().'
+              'The original graph contains an auxiliary node set '
+              f'\'{node_set_name}\'. Pass `connect_with_original_nodes=True` '
+              'to keep any readout node/edge sets, or delete them before '
+              'calling tfgnn.convert_to_line_graph().'
           )
       else:
         # TODO(b/276742948): Handle shadow node sets properly, perhaps by
@@ -730,13 +727,14 @@ def _check_line_graph_args(
 
   # Check for unhandled auxiliary edge sets
   for edge_set_name in graph_tensor.edge_sets:
-    if re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, edge_set_name):
-      if edge_set_name.startswith('_readout/'):
+    if aux_type := gt.get_aux_type_prefix(edge_set_name):
+      if aux_type == '_readout':
         if not connect_with_original_nodes:
           raise ValueError(
-              'The original graph contains an auxiliary \'_readout/\' '
-              'edge set. Set `connect_with_original_nodes=True` to keep it, '
-              'or delete it before calling tfgnn.convert_to_line_graph().'
+              'The original graph contains an auxiliary edge set '
+              f'\'{edge_set_name}\'. Pass `connect_with_original_nodes=True` '
+              'to keep any readout node/edge sets, or delete them before '
+              'calling tfgnn.convert_to_line_graph().'
           )
       else:
         raise ValueError(
@@ -768,18 +766,18 @@ def _connect_line_graph_with_original(
   line_edge_sets = {}
 
   for node_set_name, node_set in graph_tensor.node_sets.items():
-    if re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, node_set_name):
+    if gt.get_aux_type_prefix(node_set_name):
       line_node_sets[node_set_name] = node_set
     else:
       line_node_sets[f'original/{node_set_name}'] = node_set
 
   for edge_set_name, edge_set in graph_tensor.edge_sets.items():
-    if re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, edge_set_name):
+    if gt.get_aux_type_prefix(edge_set_name):
       source_name = edge_set.adjacency.node_set_name(const.SOURCE)
       target_name = edge_set.adjacency.node_set_name(const.TARGET)
-      if not re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, source_name):
+      if not gt.get_aux_type_prefix(source_name):
         source_name = f'original/{source_name}'
-      if not re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, target_name):
+      if not gt.get_aux_type_prefix(target_name):
         target_name = f'original/{target_name}'
 
       line_edge_sets[edge_set_name] = gt.EdgeSet.from_fields(
@@ -826,7 +824,7 @@ def _get_line_graph_nodes(
   """Get the graph's edges as node sets for the line graph."""
   line_node_sets = {}
   for edge_set_name, edge_set in graph_tensor.edge_sets.items():
-    if not re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, edge_set_name):
+    if not gt.get_aux_type_prefix(edge_set_name):
       line_node_sets[edge_set_name] = gt.NodeSet.from_fields(
           features=edge_set.get_features_dict(), sizes=edge_set.sizes
       )
@@ -857,7 +855,7 @@ def _get_line_graph_edges(
   line_edge_sets = {}
 
   for edge_set_name_source, edge_set_source in graph_tensor.edge_sets.items():
-    if re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, edge_set_name_source):
+    if gt.get_aux_type_prefix(edge_set_name_source):
       continue
 
     node_set_name_source = edge_set_source.adjacency.node_set_name(
@@ -870,7 +868,7 @@ def _get_line_graph_edges(
       if (
           edge_set_target.adjacency.node_set_name(connect_to)
           != node_set_name_source
-      ) or re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, edge_set_name_target):
+      ) or gt.get_aux_type_prefix(edge_set_name_target):
         continue
 
       # Get the number of edges on each side of a node
@@ -981,10 +979,8 @@ def _convert_to_non_backtracking_line_graph(
   """
 
   for edge_set_name, edge_set in line_graph_tensor.edge_sets.items():
-    if (
-        re.fullmatch(const.AUX_GRAPH_PIECE_PATTERN, edge_set_name)
-        or edge_set_name.startswith('original/')
-    ):
+    if (gt.get_aux_type_prefix(edge_set_name)
+        or edge_set_name.startswith('original/')):
       continue
 
     original_edge_set_in = graph_tensor.edge_sets[

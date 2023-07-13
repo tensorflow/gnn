@@ -304,7 +304,8 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
                                           receiver_tag=const.TARGET)
     with self.assertRaisesRegex(
         ValueError,
-        r"matches aux.* but incident edge set .* does not"):
+        r"Node set '_extra' is auxiliary but the incident "
+        r"edge set 'node->_extra' \(at tag 1\) is not\."):
       _ = gnn_builder.Convolve()(input_graph)
 
 

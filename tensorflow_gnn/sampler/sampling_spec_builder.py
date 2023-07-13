@@ -88,7 +88,6 @@ This merges together the papers written by author, and written by co-authors,
 and for each of those papers, sample 10 papers citing it.
 """
 import collections
-import re
 from typing import Optional, Iterable, Union, List, Any, Mapping
 
 from tensorflow_gnn.graph import graph_constants
@@ -98,7 +97,6 @@ import tensorflow_gnn.proto.graph_schema_pb2 as schema_pb2
 from tensorflow_gnn.sampler import sampling_spec_pb2
 
 
-AUX_GRAPH_PIECE_PATTERN = graph_constants.AUX_GRAPH_PIECE_PATTERN
 NodeSetName = graph_constants.NodeSetName
 EdgeSetName = graph_constants.EdgeSetName
 GraphTensor = graph_tensor.GraphTensor
@@ -176,7 +174,7 @@ def make_sampling_spec_tree(
     if not remaining_sample_sizes:
       return
     for edge_set_name in sorted(edge_sets_by_src_node_set[cur_node_set_name]):
-      if re.fullmatch(AUX_GRAPH_PIECE_PATTERN, edge_set_name):
+      if graph_tensor.get_aux_type_prefix(edge_set_name):
         continue  # Skip private edges (e.g., _readout).
 
       edge_set_schema = graph_schema.edge_sets[edge_set_name]

@@ -17,7 +17,6 @@
 This file contains an implementation of HGT from Hu et al. 2020.
 """
 import collections
-import re
 from typing import Any, Callable, Union
 
 import tensorflow as tf
@@ -92,8 +91,6 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     self._use_bias = use_bias
     self._activation = tf.keras.activations.get(activation)
     self._feature_name = feature_name
-    # TODO(b/269076334): Does this class need an init kwarg to override this?
-    self._aux_graph_piece_re = re.compile(tfgnn.AUX_GRAPH_PIECE_PATTERN)
 
   def get_config(self):
     return dict(
@@ -117,7 +114,7 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     sender_tag = tfgnn.reverse_tag(receiver_tag)
 
     edge_sets_spec = {k: v for k, v in spec.edge_sets_spec.items()
-                      if not self._aux_graph_piece_re.fullmatch(k)}
+                      if not tfgnn.get_aux_type_prefix(k)}
     self._receivers = {
         edge_set_spec.adjacency_spec.node_set_name(receiver_tag)
         for edge_set_spec in edge_sets_spec.values()}
@@ -126,12 +123,11 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
         for edge_set_spec in edge_sets_spec.values()}
     bad_node_set_names = {
         name for name in list(self._receivers) + list(self._receivers)
-        if self._aux_graph_piece_re.fullmatch(name)}
+        if tfgnn.get_aux_type_prefix(name)}
     if bad_node_set_names:
       raise ValueError(
-          f"Node sets {bad_node_set_names} match "
-          f"aux_graph_piece_pattern r'{self._aux_graph_piece_re.pattern}' "
-          f"but are incident to non-auxiliary edge sets.")
+          f'Auxiliary node sets {bad_node_set_names} '
+          f'are incident to non-auxiliary edge sets.')
 
     self._dropout = tf.keras.layers.Dropout(self._dropout_rate)
 
@@ -289,7 +285,7 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     scores_by_receiver = collections.defaultdict(dict)
     rsqrt_dim = tf.math.rsqrt(tf.cast(self._per_head_channels, tf.float32))
     for edge_set_name, edge_set in graph.edge_sets.items():
-      if self._aux_graph_piece_re.fullmatch(edge_set_name):
+      if tfgnn.get_aux_type_prefix(edge_set_name):
         continue
       sender_name = edge_set.adjacency.node_set_name(sender_tag)
       receiver_name = edge_set.adjacency.node_set_name(receiver_tag)

@@ -167,8 +167,6 @@ class MapFeatures(tf.keras.layers.Layer):
     allowed_aux_edge_sets_pattern: If set, `edge_sets_fn` is also invoked for
       those auxiliary edge sets that match this pattern, according to Python's
       `re.fullmatch(pattern, edge_set_name)`.
-    aux_graph_piece_pattern: Optionally (and rarely needed), can be set to
-      override `tfgnn.AUX_GRAPH_PIECE_PATTERN`.
 
   Call args:
     graph: A GraphTensor. The very first call triggers the building of
@@ -187,7 +185,6 @@ class MapFeatures(tf.keras.layers.Layer):
                *,
                allowed_aux_node_sets_pattern: Optional[str] = None,
                allowed_aux_edge_sets_pattern: Optional[str] = None,
-               aux_graph_piece_pattern: str = const.AUX_GRAPH_PIECE_PATTERN,
                **kwargs):
     from_config = kwargs.pop("_from_config", False)
     if from_config:
@@ -219,7 +216,6 @@ class MapFeatures(tf.keras.layers.Layer):
       self._is_initialized = True
     self._allowed_aux_node_sets_pattern = allowed_aux_node_sets_pattern
     self._allowed_aux_edge_sets_pattern = allowed_aux_edge_sets_pattern
-    self._aux_graph_piece_re = re.compile(aux_graph_piece_pattern)  # Never None
 
   def get_config(self):
     if not self._is_initialized:
@@ -232,7 +228,6 @@ class MapFeatures(tf.keras.layers.Layer):
         **du.with_key_prefix(self._edge_set_models, "edge_set_models/"),
         allowed_aux_node_sets_pattern=self._allowed_aux_node_sets_pattern,
         allowed_aux_edge_sets_pattern=self._allowed_aux_edge_sets_pattern,
-        aux_graph_piece_pattern=self._aux_graph_piece_re.pattern,
         **super().get_config())
 
   @classmethod
@@ -307,14 +302,14 @@ class MapFeatures(tf.keras.layers.Layer):
     return result
 
   def _ignore_node_set(self, node_set_name):
-    if not self._aux_graph_piece_re.fullmatch(node_set_name):
+    if not gt.get_aux_type_prefix(node_set_name):
       return False
     if self._allowed_aux_node_sets_pattern is None:
       return True
     return not re.fullmatch(self._allowed_aux_node_sets_pattern, node_set_name)
 
   def _ignore_edge_set(self, edge_set_name):
-    if not self._aux_graph_piece_re.fullmatch(edge_set_name):
+    if not gt.get_aux_type_prefix(edge_set_name):
       return False
     if self._allowed_aux_edge_sets_pattern is None:
       return True

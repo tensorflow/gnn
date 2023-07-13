@@ -1413,6 +1413,35 @@ class CheckScalarGraphTensorTest(tf.test.TestCase):
       gt.check_scalar_graph_tensor(graph_tensor, 'My test code')
 
 
+class GetAuxTypePrefixTest(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.parameters(
+      ('_readout', '_readout'),
+      ('_readout/source/1', '_readout'),
+      ('_readout:train', '_readout'),
+      ('_readout:train/seed', '_readout'),
+      ('#reserved/x', '#reserved'),
+      ('!reserved/x', '!reserved'),
+      ('%reserved/x', '%reserved'),
+      ('.reserved/x', '.reserved'),
+      ('^reserved/x', '^reserved'),
+      ('~reserved/x', '~reserved'),
+  )
+  def testType(self, set_name, expected):
+    actual = gt.get_aux_type_prefix(set_name)
+    self.assertEqual(expected, actual)
+
+  @parameterized.parameters(
+      ('video',),
+      ('User',),
+      ('49ers',),
+      ('-dashed-',),
+  )
+  def testNone(self, set_name):
+    actual = gt.get_aux_type_prefix(set_name)
+    self.assertIsNone(actual)
+
+
 class CheckHomogeneousGraphTensorTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(('', False), ('WithReadout', True))

@@ -20,7 +20,6 @@ import dataclasses
 import functools
 import operator
 import os
-import re
 from typing import Callable, Mapping, Optional, Sequence, Tuple, TypeVar, Union
 
 import tensorflow as tf
@@ -289,12 +288,11 @@ def _per_replica_batch_size(global_batch_size: int, num_replicas: int) -> int:
 
 
 def _without_aux_graph_piece_features() -> tf.keras.layers.Layer:
-  pattern = tfgnn.AUX_GRAPH_PIECE_PATTERN
   def fn(inputs, *, node_set_name=None, edge_set_name=None):
     del inputs
-    if node_set_name is not None and re.fullmatch(pattern, node_set_name):
+    if node_set_name is not None and tfgnn.get_aux_type_prefix(node_set_name):
       return dict()  # Drop features.
-    if edge_set_name is not None and re.fullmatch(pattern, edge_set_name):
+    if edge_set_name is not None and tfgnn.get_aux_type_prefix(edge_set_name):
       return dict()  # Drop features.
     return None  # Passthru.
   return tfgnn.keras.layers.MapFeatures(
@@ -341,8 +339,8 @@ def run(*,
       (for supervised learning, that means: labels) and optionally transform
       the value of the preprocessed `GraphTensor` into a model input (or
       multiple model inputs for tasks like self-supervised contrastive losses).
-   6. If the resulting `GraphTensor`s have any auxillary pieces (as matched by
-      `tfgnn.AUX_GRAPH_PIECE_PATTERN`): all features (typically: labels) are
+   6. If the resulting `GraphTensor`s have any auxillary pieces (as indicated by
+      `tfgnn.get_aux_type_prefix(...)`): all features (typically: labels) are
       removed from those graph pieces.
 
   The base GNN (as built by `model_fn`) is run on all results from step (6).

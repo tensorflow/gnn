@@ -1552,39 +1552,66 @@ def homogeneous(
   )
 
 
+def get_aux_type_prefix(set_name: const.SetName) -> Optional[str]:
+  """Returns type prefix of aux node or edge set names, or `None` if non-aux.
+
+  Auxiliary node sets and edge sets in a `tfgnn.GraphTensor` have names that
+  begin with an underscore `_` (preferred) or any of the characters `#`, `!`,
+  `%`, `.`, `^`, and `~` (reserved for future use). They store structural
+  information needed by helper functions like `tfgnn.structured_readout()`,
+  beyond the node sets and edge sets that represent graph data from the
+  application domain.
+
+  By convention, the names of auxiliary graph pieces begin with a type prefix
+  that contains the leading special character and all letters, digits and
+  underscores following it.
+
+  Users can define their own aux types and handle them in their own code.
+  The TF-GNN library uses the following types:
+
+    * `"_readout"` and (rarely) `"_shadow"`, for `tfgnn.structured_readout()`.
+
+  See the named function(s) for how the respective types of auxiliary edge sets
+  and node sets are formed.
+
+  Args:
+    set_name: The name of a node set or edge set in a `tfgnn.GraphTensor`,
+      `tfgnn.GraphTensorSpec` or `tfgnn.GraphSchema`.
+
+  Returns:
+    For an auxiliary node set or edge set, a non-empty prefix that identifies
+    its type; for other node sets or edge sets, `None`.
+  """
+  match = re.match(r'[_#!%.^~][a-zA-Z0-9_]*', set_name)
+  if match:
+    return match.group()
+
+
 def get_homogeneous_node_and_edge_set_name(
     graph: Union[GraphTensor, GraphTensorSpec],
-    name: str = 'This operation',
-    *,
-    aux_graph_piece_pattern: str = const.AUX_GRAPH_PIECE_PATTERN,
-) -> tuple[str, str]:
+    name: str = 'This operation') -> tuple[str, str]:
   """Returns the sole `node_set_name, edge_set_name` or raises ValueError.
 
-  By default, this function ignores auxiliary node sets and edge sets
-  (e.g., those needed for `tfgnn.structured_readout()`), as appropriate for
-  model-building code, but see `aux_graph_piece_pattern`.
+  By default, this function ignores auxiliary node sets and edge sets for which
+  `tfgnn.get_aux_type_prefix(set_name) is not None` (e.g., those needed for
+  `tfgnn.structured_readout()`), as appropriate for model-building code.
 
   Args:
     graph: the `GraphTensor` or `GraphTensorSpec` to check.
     name: Optionally, the name of the operation (library function, class, ...)
       to mention in the user-visible error message in case an exception is
       raised.
-    aux_graph_piece_pattern: Optionally, can be set to override
-      `tfgnn.AUX_GRAPH_PIECE_PATTERN` to select which graph pieces are ignored,
-      according to Python's `re.fullmatch(pattern, piece_name)`.
-      To not ignore any graph pieces, pass `""`: the empty string is not
-      allowed as node set name or edge set name.
 
   Returns:
-    A tuple `node_set_name, edge_set_name` with the unique node set and
-    edge set, resp., in `graph`, except any node sets and edge sets whose
-    name matches `aux_graph_piece_pattern`.
+    A tuple `node_set_name, edge_set_name` with the unique node set and edge
+    set, resp., in `graph` for which `tfgnn.get_aux_type_prefix(set_name)` is
+    `None`.
   """
   spec = get_graph_tensor_spec(graph)
   node_set_names = [node_set_name for node_set_name in spec.node_sets_spec
-                    if not re.fullmatch(aux_graph_piece_pattern, node_set_name)]
+                    if not get_aux_type_prefix(node_set_name)]
   edge_set_names = [edge_set_name for edge_set_name in spec.edge_sets_spec
-                    if not re.fullmatch(aux_graph_piece_pattern, edge_set_name)]
+                    if not get_aux_type_prefix(edge_set_name)]
   if len(node_set_names) != 1 or len(edge_set_names) != 1:
     raise ValueError(
         f'{name} requires a graph with 1 node set and 1 edge set '
@@ -1595,11 +1622,7 @@ def get_homogeneous_node_and_edge_set_name(
 
 def check_homogeneous_graph_tensor(
     graph: Union[GraphTensor, GraphTensorSpec],
-    name: str = 'This operation',
-    *,
-    aux_graph_piece_pattern: str = const.AUX_GRAPH_PIECE_PATTERN,
-) -> None:
+    name: str = 'This operation') -> None:
   """Raises ValueError when tfgnn.get_homogeneous_node_and_edge_set_name() does.
   """
-  _ = get_homogeneous_node_and_edge_set_name(
-      graph, name=name, aux_graph_piece_pattern=aux_graph_piece_pattern)
+  _ = get_homogeneous_node_and_edge_set_name(graph, name=name)

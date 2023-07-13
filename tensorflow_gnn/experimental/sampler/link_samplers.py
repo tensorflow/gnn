@@ -14,7 +14,6 @@
 # ==============================================================================
 """Functions for sampling subgraphs around edges for link-prediction tasks."""
 import functools
-import re
 from typing import Optional, Union
 
 import tensorflow as tf
@@ -98,7 +97,7 @@ def create_link_prediction_sampling_model(
   if node_features_accessor_factory is not None:
     new_features = {}
     for node_set_name, node_set in sampled_subgraph.node_sets.items():
-      if re.fullmatch(graph_constants.AUX_GRAPH_PIECE_PATTERN, node_set_name):
+      if graph_tensor.get_aux_type_prefix(node_set_name):
         continue
       accessor = node_features_accessor_factory(node_set_name)
       if not accessor:

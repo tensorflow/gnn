@@ -204,11 +204,11 @@ def structured_readout(
       (or edge set(s)) referenced by the auxiliary edge sets. The feature
       must have shape `[num_items, *feature_dims]` with the same `feature_dims`
       on all graph pieces, and the same dtype.
-    readout_node_set: A string, defaults to `"_readout"`. This is used as the
-      name for the readout node set and as a name prefix for its edge sets.
+    readout_node_set: The name for the readout node set and the name prefix for
+      its edge sets. Permissible values are `"_readout"` (the default) and
+      `f"_readout:{tag}"` where `tag` matches `[a-zA-Z0-9_]+`.
       Setting this to a different value allows to select between multiple
-      independent readout structures in the same graph. Any such name should
-      match `tfgnn.AUX_GRAPH_PIECE_PATTERN`.
+      independent readout structures in the same graph.
     validate: Setting this to false disables the validity checks for the
       auxiliary edge sets. This is stronlgy discouraged, unless great care is
       taken to run `tfgnn.validate_graph_tensor_for_readout()` earlier on
@@ -474,6 +474,12 @@ def get_validated_edge_set_map_for_readout(
     ValueError: if the auxiliary graph pieces for readout are malformed.
     KeyError: if any of the `required_keys` is missing.
   """
+  if not re.fullmatch(r"_readout(:[a-zA-Z0-9_]+)?", readout_node_set):
+    raise ValueError(
+        "Malformed name of readout_node_set. Expected '_readout' or "
+        "'_readout:'+tag, where tag consists of letters, digits and "
+        f"underscores; got '{readout_node_set}'.")
+
   if readout_node_set not in graph_spec.node_sets_spec:
     raise ValueError(
         f"GraphTensor lacks auxiliary node set '{readout_node_set}'. "

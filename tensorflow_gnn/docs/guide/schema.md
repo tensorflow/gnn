@@ -95,27 +95,23 @@ addressed in defining the GNN model on top of the input data.
 ### Naming rules
 
 The various node sets and edge sets are identified by `str`-valued keys.
-Typically, these are human-readable names like `"user"` or `"video"`.
-Certain special characters at the beginning of the name are reserved for
-internal purposes of the TF-GNN library.
+Typically, these are human-readable names like `"user"` or `"video"` describing
+concepts from the application domain that is modeled by the graph.
 
-  * The hash mark `#` is reserved for internal use by `tfgnn.GraphTensor`
-    and must not appear as the first character of a node set or edge set name.
-  * The underscore `_` is reserved as the first character of auxiliary node sets
-    or edge sets that can be stored in a GraphTensor, subject to specific rules,
-    in order to encode structural information beyond the nodes and edges from
-    the application domain. (The next section will introduce an example.)
-  * The first characters `!`, `%`, `.`, `^` and `~` are reserved for future use.
+Some library functions (like readout, discussed later in this doc) require
+**auxiliary node sets and edge sets** to encode some structural information
+beyond the nodes and edges from the application domain. Names that begin with an
+underscore `_` (preferred) or any of the characters `#`, `!`, `%`, `.`, `^`,
+or `~` (reserved for future use) distinguish a graph piece as auxiliary and let
+TF-GNN's modeling code ignore it.
 
-Programmatically, this can be checked as
+The helper function `tfgnn.get_aux_type_prefix(name)` (available from
+TF-GNN release 0.6 onwards) returns a non-empty prefix identifying which type of
+auxiliary graph piece it is, or `None` if `name` does not begin with one of the
+special characters.
 
-```python
-import re
-re.fullmatch(tfgnn.AUX_GRAPH_PIECE_PATTERN, name)
-```
-
-Likewise, the dict of features on each node set, edge set, or the context
-is keyed by `str`-valued feature names. Here again, the hash mark `#` is
+Similar to the edge sets and node sets themselves, the features on each graph
+piece are keyed by `str`-valued feature names. Here again, the hash mark `#` is
 reserved for internal use by `tfgnn.GraphTensor` and must not appear as the
 first character of a user-defined feature name. This can be checked with
 

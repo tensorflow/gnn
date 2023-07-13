@@ -130,19 +130,19 @@ class LinkPredictionTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters([
       dict(
           testcase_name='mal_named_readout_nodeset_name',
-          readout_ns_name='_readout_misspelled'),
+          readout_ns_name='_readout:misspelled'),
       dict(
           testcase_name='mal_named_readout_source_edge_set_name',
-          readout_src_es_names=('_readoutAA/source', 'nodes1', '_readout')),
+          readout_src_es_names=('_readout:AA/source', 'nodes1', '_readout')),
       dict(
           testcase_name='mal_named_readout_source_edge_set_target',
-          readout_src_es_names=('_readout/source', 'nodes1', '_readoutBB')),
+          readout_src_es_names=('_readout/source', 'nodes1', '_readout:BB')),
       dict(
           testcase_name='mal_named_readout_target_edge_set_name',
-          readout_tgt_es_names=('_readoutAA/source', 'nodes1', '_readout')),
+          readout_tgt_es_names=('_readout:AA/source', 'nodes1', '_readout')),
       dict(
           testcase_name='mal_named_readout_target_edge_set_target',
-          readout_tgt_es_names=('_readout/source', 'nodes1', '_readoutBB')),
+          readout_tgt_es_names=('_readout/source', 'nodes1', '_readout:BB')),
   ])
   def test_preprocess_fails_on_invalid_input(self, **kwargs):
     task = link_prediction.DotProductLinkPrediction()

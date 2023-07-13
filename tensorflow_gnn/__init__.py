@@ -60,7 +60,6 @@ NODES = graph_constants.NODES
 EDGES = graph_constants.EDGES
 HIDDEN_STATE = graph_constants.HIDDEN_STATE
 DEFAULT_STATE_NAME = graph_constants.DEFAULT_STATE_NAME  # Deprecated.
-AUX_GRAPH_PIECE_PATTERN = graph_constants.AUX_GRAPH_PIECE_PATTERN
 
 # Integer tags.
 SOURCE = graph_constants.SOURCE
@@ -209,6 +208,7 @@ assert_constraints = schema_validation.assert_constraints
 check_scalar_graph_tensor = graph_tensor.check_scalar_graph_tensor
 check_homogeneous_graph_tensor = graph_tensor.check_homogeneous_graph_tensor
 get_homogeneous_node_and_edge_set_name = graph_tensor.get_homogeneous_node_and_edge_set_name
+get_aux_type_prefix = graph_tensor.get_aux_type_prefix
 
 # Type check helpers
 is_dense_tensor = tensor_utils.is_dense_tensor

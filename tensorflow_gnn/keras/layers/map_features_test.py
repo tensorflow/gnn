@@ -90,7 +90,7 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
       ("AllowReadoutNodes",
        {"allowed_aux_node_sets_pattern": r"_readout\W.*"},
        {"ordinary_nodes": 1, "ordinary_edges": 1,
-        "_readout.test": 1, "_readout.train": 1}),
+        "_readout:test": 1, "_readout:train": 1}),
       ("AllowExtraEdges",
        {"allowed_aux_edge_sets_pattern": r"_extra.*"},
        {"ordinary_nodes": 1, "ordinary_edges": 1, "_extra_edges": 1}))
@@ -99,8 +99,8 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
         node_sets={
             "ordinary_nodes": gt.NodeSet.from_fields(sizes=tf.constant([1])),
             "_extra_nodes": gt.NodeSet.from_fields(sizes=tf.constant([1])),
-            "_readout.train": gt.NodeSet.from_fields(sizes=tf.constant([1])),
-            "_readout.test": gt.NodeSet.from_fields(sizes=tf.constant([1])),
+            "_readout:train": gt.NodeSet.from_fields(sizes=tf.constant([1])),
+            "_readout:test": gt.NodeSet.from_fields(sizes=tf.constant([1])),
         },
         edge_sets={
             "ordinary_edges": gt.EdgeSet.from_fields(
@@ -113,11 +113,11 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
                 adjacency=adj.Adjacency.from_indices(
                     ("_extra_nodes", tf.constant([0])),
                     ("_extra_nodes", tf.constant([0])))),
-            "_readout.train/seed": gt.EdgeSet.from_fields(
+            "_readout:train/seed": gt.EdgeSet.from_fields(
                 sizes=tf.constant([]),
                 adjacency=adj.Adjacency.from_indices(
                     ("ordinary_nodes", tf.constant([0])),
-                    ("_readout.train", tf.constant([0])))),
+                    ("_readout:train", tf.constant([0])))),
         })
 
     call_counts = collections.defaultdict(lambda: 0)
