@@ -20,6 +20,7 @@ import tensorflow_gnn as tfgnn
 from tensorflow_gnn.experimental.in_memory import datasets
 from tensorflow_gnn.experimental.in_memory import int_arithmetic_sampler as ia_sampler
 from tensorflow_gnn.experimental.sampler import link_samplers
+from tensorflow_gnn.sampler import sampling_spec_builder
 
 
 class ToyDataset(datasets.InMemoryGraphData):
@@ -90,9 +91,9 @@ class LinkSamplersIntegrationTest(tf.test.TestCase, parameterized.TestCase):
     sampler = ia_sampler.GraphSampler(toy_data)
 
     # sampler.make_edge_sampler
-    source_spec = tfgnn.make_sampling_spec_tree(
+    source_spec = sampling_spec_builder.make_sampling_spec_tree(
         toy_data.graph_schema(), 'animal', sample_sizes=[2, 3])
-    target_spec = tfgnn.make_sampling_spec_tree(
+    target_spec = sampling_spec_builder.make_sampling_spec_tree(
         toy_data.graph_schema(), 'food', sample_sizes=[1, 1])
     lp_sampler = link_samplers.create_link_prediction_sampling_model(
         toy_data.graph_schema(),
