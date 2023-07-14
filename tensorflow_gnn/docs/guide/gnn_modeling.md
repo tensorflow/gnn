@@ -146,8 +146,7 @@ def gnn(graph):
 
 You can get `AGraphUpdate` from several sources:
 
-**Use predefined `tensorflow_gnn.models`**
-[[README](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/models/README.md)].
+**Use predefined `tensorflow_gnn.models`** [[README](../../models/README.md)].
 This subdirectory collects implementations of several standard GNN
 architectures. Typically, they let you do something along the lines of
 
@@ -165,6 +164,11 @@ def gnn(graph):
 ...but it depends on the `FooGraphUpdate` class how to initialize it and how it
 treats multiple node and edge sets in the input. Please browse the models
 documentation to find out more.
+
+If you're unsure which model to use, look for those called "Model Template"
+or `Mt...` for short. A model template provides a small group of
+field-tested GNN architectures behind a common interface; you can start from
+default hyperparameters, train a baseline model, and iterate from there.
 
 **Write your own GNN from scratch.** If you want, you can take matters
 completely into your own hands by defining your own subclass of

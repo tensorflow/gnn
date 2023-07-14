@@ -14,7 +14,10 @@
 # ==============================================================================
 """TF-GNN's Model Template "Albis".
 
-Users of TF-GNN can use this model by importing it next to the core library as
+The TF-GNN Model Template "Albis" provides a small selection of field-tested
+GNN architectures through the `mt_albis.MtAlbisGraphUpdate` class.
+
+Users of TF-GNN can use it by importing it next to the core library as
 
 ```python
 import tensorflow_gnn as tfgnn

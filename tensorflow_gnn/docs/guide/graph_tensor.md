@@ -238,8 +238,8 @@ hood, you can read the following in parallel:
   * the end-to-end example (to be written),
   * the guides that cover its techniques in more depth:
       * the rest of this doc about GraphTensor,
-      * the [modeling guide](gnn_modeling.md) for information about creating
-        your own GNN models,
+      * the [modeling guide](gnn_modeling.md) for information about using and
+        building GNN models,
       * the [input pipeline guide](input_pipeline.md) about the details
         of consuming training data (although the Runner has you covered,
         even for custom models).
@@ -435,8 +435,9 @@ each.
     (In technical terms: they all provide the necessary specializations of the
     KerasTensor wrapper type.) You can even call GraphTensor methods and
     tensor-to-tensor functions from `tf.*`, which will be wrapped ad-hoc as
-    layers. However (as of May 2022), you cannot call freestanding functions
-    from `tfgnn.*`,due to a limitation in Keras.
+    layers. However, you cannot call freestanding functions
+    from `tfgnn.*`, due to a limitation in Keras. Instead, use their wrappers
+    from `tfgnn.keras.layers.*`.
 
   * Keras' [Subclassing API](https://www.tensorflow.org/guide/keras/custom_layers_and_models)
     lets you define your own Keras Layers, or even a complete Keras Model

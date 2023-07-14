@@ -263,7 +263,10 @@ def MtAlbisGraphUpdate(  # To be called like a class initializer.  pylint: disab
     edge_set_combine_type: Literal["concat", "sum"] = "concat"
     # LINT.ThenChange(./config_dict.py:graph_update_get_config_dict)
 ) -> tf.keras.layers.Layer:
-  """Returns a GraphUpdate layer for message passing with the Albis model.
+  """Returns GraphUpdate layer for message passing with Model Template "Albis".
+
+  The TF-GNN Model Template "Albis" provides a small selection of field-tested
+  GNN architectures through the unified interface of this class.
 
   Args:
     units: The dimension of node states in the output GraphTensor.

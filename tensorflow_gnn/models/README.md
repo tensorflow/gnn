@@ -41,8 +41,8 @@ say so in their README files.
   * [GCN](gcn/README.md): Graph Convolutional Networks
     (Kipf&Welling, 2016), for homogeneous graphs only.
   * [GraphSAGE](graph_sage/README.md) (Hamilton&al., 2017).
-  * [MtAlbis](mt_albis/README.md): a model template for easy configuration
-    of selected GNN architectures.
+  * [MtAlbis](mt_albis/README.md): Model Template "Albis" for easy configuration
+    of a few field-tested GNN architectures, generalizing VanillaMPNN.
   * [MultiHeadAttention](multi_head_attention/README.md): Transformer-style
     multi-head attention on graph (Dwivedi&Bresson, 2021).
   * [VanillaMPNN](vanilla_mpnn/README.md): TF-GNN's frequently used baseline
