@@ -41,7 +41,7 @@ valid_ds_provider = runner.TFRecordDatasetProvider(file_pattern="...")
 
 # Use `embedding` feature as the only node feature.
 initial_node_states = lambda node_set, node_set_name: node_set["embedding"]
-# This `tf.keras.layers.Layer` matches the `GraphTensorProcessorFn` protocol.
+
 map_features = tfgnn.keras.layers.MapFeatures(node_sets_fn=initial_node_states)
 
 # Binary classification by the root node.
@@ -59,10 +59,10 @@ trainer = runner.KerasTrainer(
 runner.run(
     train_ds_provider=train_ds_provider,
     train_padding=runner.FitOrSkipPadding(gtspec, train_ds_provider),
-    # simple_gnn is a function: Callable[[tfgnn.GraphTensorSpec], tf.keras.Model].
+    # model_fn is a function: Callable[[tfgnn.GraphTensorSpec], tf.keras.Model].
     # Where the returned model both takes and returns a scalar `GraphTensor` for
     # its inputs and outputs.
-    model_fn=simple_gnn,
+    model_fn=model_fn,
     optimizer_fn=tf.keras.optimizers.Adam,
     epochs=4,
     trainer=trainer,
@@ -74,7 +74,7 @@ runner.run(
 ```
 
 The rest of this document introduces and explains the above building blocks, how
-to reuse them and how to implement your own. For an example of `simple_gnn` and
+to reuse them and how to implement your own. For an example of `model_fn` and
 the orchestration entry point (`runner.run`), skip to the [end](#orchestration)
 of this document.
 
@@ -85,7 +85,7 @@ validation and export) is orchestrated by four abstractions: the
 `DatasetProvider`, `Task`, `Trainer` and `GraphTensorProcessorFn`. The runner
 provides instances for common cases (e.g., the `TFRecordDatasetProvider`, the
 `NodeClassification` task, the `KerasTrainer`), but collaborators are free to
-defne their own. Each abstraction is introduced and explained below.
+define their own. Each abstraction is introduced and explained below.
 
 ### Data Reading
 
@@ -237,7 +237,7 @@ class Trainer(abc.ABC):
 
 A `Trainer` provides any training and validation loops. These may be uses of
 `tf.keras.Model.fit` or arbitrary custom training loops. The `Trainer` provides
-accesors to training properties (like its `tf.distribute.Strategy` and
+accessors to training properties (like its `tf.distribute.Strategy` and
 `model_dir`) and is expected to return a trained `tf.keras.Model`. A version of
 the Keras `fit` training loop is provided with extra functionality (like
 performing validation more than once per epoch):
@@ -307,22 +307,22 @@ The `model_fn` is expected to take a `tfgnn.GraphTensorSpec` and return a
 `export_dirs` are locations for a trained and saved model and any
 `feature_processors` are applied in sequence order. All other arguments may be
 supplied with out of the box or custom implementations of the respective
-protocol or base class. An example `model_fn` built using the *TF-GNN* Keras
-API:
+protocol or base class.
+
+An example `model_fn` built with a ready-to-use Model Template:
 
 ```python
+from tensorflow_gnn.models import mt_albis
+
 def model_fn(gtspec: tfgnn.GraphTensorSpec):
-  """Builds a simple GNN with `ConvGNNBuilder`."""
-  convolver = tfgnn.keras.ConvGNNBuilder(
-      lambda edge_set_name, receiver_tag: tfgnn.keras.layers.SimpleConv(
-          lambda: tf.keras.layers.Dense(32, activation="relu"),
-          "sum",
-          receiver_tag=receiver_tag,
-          sender_edge_feature=tfgnn.HIDDEN_STATE),
-      lambda node_set_name: tfgnn.keras.layers.NextStateFromConcat(
-          lambda: tf.keras.layers.Dense(32, activation="relu")),
-      receiver_tag=tfgnn.SOURCE)
-  return tf.keras.Sequential([
-      convolver.Convolve() for _ in range(4)  # Message pass 4 times.
-  ])
+  """Builds a GNN from Model Template "Albis"."""
+  graph = inputs = tf.keras.layers.Input(type_spec=gtspec)
+  for _ in range(4):
+    graph = mt_albis.MtAlbisGraphUpdate(
+        units=32,
+        message_dim=32,
+        receiver_tag=tfgnn.SOURCE,
+        # More hyperparameters like edge_dropout_rate can be added here.
+    )(graph)
+  return tf.keras.Model(inputs, graph)
 ```
