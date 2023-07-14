@@ -177,7 +177,8 @@ class InMemoryGraphData(abc.ABC):
         (returned by `.edge_sets()`) a new edge-set "rev_EdgeSet" that reverses
         the "EdgeSet".
       * output of `.graph_schema()`. will have both "EdgeSet" and "rev_EdgeSet".
-
+      * `add_reverse_edge_sets()` is an equivalent and a more explicit method to
+        add reverse edge sets to the graph tensor and its schema.
     Args:
       make_undirected: If True, subsequent calls to `.graph_schema()` and
         `.as_graph_tensor()` will export an undirected graph. If False, a
@@ -186,6 +187,16 @@ class InMemoryGraphData(abc.ABC):
     modified = copy.copy(self)
     modified._make_undirected = make_undirected  # pylint: disable=protected-access -- same class.
     return modified
+
+  def add_reverse_edge_sets(self) -> 'InMemoryGraphData':
+    """Returns same graph data but with reverse edge sets added."""
+
+    # Calling `with_undirected_edges` with `False` input automatically makes the
+    # output of `.as_graph_tensor()` to contain, for each edge set "EdgeSet"
+    # (returned by `.edge_sets()`) a new edge-set "rev_EdgeSet" that reverses
+    # the "EdgeSet". Similarly, output of `.graph_schema()`. will have both
+    # "EdgeSet" and "rev_EdgeSet".
+    return self.with_undirected_edges(False)
 
   def with_self_loops(self, add_self_loops: bool) -> 'InMemoryGraphData':
     """Returns same graph data but with self-loops added (or removed).
