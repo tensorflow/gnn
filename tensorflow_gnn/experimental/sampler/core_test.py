@@ -995,7 +995,7 @@ class InMemIndexToFeaturesAccessor(tf.test.TestCase):
     )
 
 
-class GraphTensorBuilderTest(tf.test.TestCase):
+class GraphTensorBuilderTest(tf.test.TestCase, parameterized.TestCase):
 
   def testContext(self):
     graph = core.build_graph_tensor(context={'label': [['G'], ['B']]})
@@ -1041,7 +1041,8 @@ class GraphTensorBuilderTest(tf.test.TestCase):
         rt([[[1, 2], [2, 3]], [[1, 2]]], ragged_rank=1),
     )
 
-  def testHomogeneous(self):
+  @parameterized.parameters([True, False])
+  def testHomogeneous(self, remove_parallel_edges: bool):
     graph = core.build_graph_tensor(
         node_sets={
             'A': [
@@ -1069,19 +1070,30 @@ class GraphTensorBuilderTest(tf.test.TestCase):
                 },
             ],
         },
+        remove_parallel_edges=remove_parallel_edges
     )
     self.assertAllEqual(graph.node_sets['A'].sizes, [[2], [1]])
     self.assertAllEqual(graph.node_sets['A']['#id'], rt([['a', 'b'], ['c']]))
     self.assertAllEqual(graph.node_sets['A']['f.s'], rt([[0, 1], [2]]))
 
-    self.assertAllEqual(graph.edge_sets['A->A'].sizes, [[2], [2]])
-    self.assertAllEqual(
-        graph.edge_sets['A->A'].adjacency.source, rt([[0, 1], [0, 0]])
-    )
-    self.assertAllEqual(
-        graph.edge_sets['A->A'].adjacency.target, rt([[1, 0], [0, 0]])
-    )
-    self.assertAllEqual(graph.edge_sets['A->A']['f.s'], rt([[0, 1], [2, 2]]))
+    if remove_parallel_edges:
+      self.assertAllEqual(graph.edge_sets['A->A'].sizes, [[2], [1]])
+      self.assertAllEqual(
+          graph.edge_sets['A->A'].adjacency.source, rt([[0, 1], [0]])
+      )
+      self.assertAllEqual(
+          graph.edge_sets['A->A'].adjacency.target, rt([[1, 0], [0]])
+      )
+      self.assertAllEqual(graph.edge_sets['A->A']['f.s'], rt([[0, 1], [2]]))
+    else:
+      self.assertAllEqual(graph.edge_sets['A->A'].sizes, [[2], [2]])
+      self.assertAllEqual(
+          graph.edge_sets['A->A'].adjacency.source, rt([[0, 1], [0, 0]])
+      )
+      self.assertAllEqual(
+          graph.edge_sets['A->A'].adjacency.target, rt([[1, 0], [0, 0]])
+      )
+      self.assertAllEqual(graph.edge_sets['A->A']['f.s'], rt([[0, 1], [2, 2]]))
 
   def testLatentNodeSets(self):
     graph = core.build_graph_tensor(
@@ -1091,7 +1103,8 @@ class GraphTensorBuilderTest(tf.test.TestCase):
                 '#target': rt([['a', 'b', 'a'], ['c', 'c']]),
                 'f.s': rt([[1, 2, 3], [1, 2]]),
             },
-        }
+        },
+        remove_parallel_edges=False
     )
     self.assertAllEqual(graph.node_sets['A'].sizes, [[2], [1]])
     self.assertAllEqual(graph.node_sets['A']['#id'], rt([['a', 'b'], ['c']]))
@@ -1185,6 +1198,144 @@ class GraphTensorBuilderTest(tf.test.TestCase):
     )
     self.assertAllEqual(
         graph.edge_sets['B->A'].adjacency.target, rt([[0], [1], [0]])
+    )
+
+
+class ParallelEdgesRemovalTest(tf.test.TestCase):
+
+  def testNoEdges(self):
+    graph = core.build_graph_tensor(
+        edge_sets={
+            'A,A->B,B': {
+                '#source': rt([[], []], dtype=tf.int32),
+                '#target': rt([[], []], dtype=tf.int32),
+            },
+        },
+        remove_parallel_edges=True,
+    )
+    self.assertAllEqual(
+        graph.edge_sets['A->B'].adjacency.source,
+        rt([[], []], dtype=tf.int32),
+    )
+    self.assertAllEqual(
+        graph.edge_sets['A->B'].adjacency.target,
+        rt([[], []], dtype=tf.int32),
+    )
+
+  def testNoParallelEdges(self):
+    source = rt(
+        [[], [], [100], [100, 200], [], [], [], [100, 100, 100, 200], []]
+    )
+    target = rt(
+        [[], [], ['a'], ['a', 'b'], [], [], [], ['a', 'b', 'c', 'a'], []]
+    )
+    graph = core.build_graph_tensor(
+        edge_sets={
+            'A,A->B,B': {
+                '#source': source,
+                '#target': target,
+            },
+        },
+        remove_parallel_edges=True,
+    )
+    self.assertAllEqual(
+        graph.edge_sets['A->B'].adjacency.source,
+        rt([[], [], [0], [0, 1], [], [], [], [0, 0, 0, 1], []]),
+    )
+    self.assertAllEqual(
+        graph.edge_sets['A->B'].adjacency.target,
+        rt([[], [], [0], [0, 1], [], [], [], [0, 1, 2, 0], []]),
+    )
+
+  def testHeterogeneous(self):
+    graph = core.build_graph_tensor(
+        edge_sets={
+            'A,A->B,B': {
+                '#source': rt(
+                    [['c', 'c'], ['c', 'c'], [], ['a', 'a', 'a', 'a', 'b'], []]
+                ),
+                '#target': rt(
+                    [['x', 'x'], ['x', 'y'], [], ['x', 'y', 'x', 'x', 'z'], []]
+                ),
+            },
+            'B,B->A,A': {
+                '#source': rt([['x', 'y', 'x'], [], [], ['x', 'x'], []]),
+                '#target': rt([['a', 'a', 'a'], [], [], ['b', 'b'], []]),
+            },
+        },
+        remove_parallel_edges=True,
+    )
+    self.assertAllEqual(
+        graph.edge_sets['A->B'].adjacency.source,
+        rt([[0], [0, 0], [], [0, 0, 1], []]),
+    )
+    self.assertAllEqual(
+        graph.edge_sets['A->B'].adjacency.target,
+        rt([[0], [0, 1], [], [0, 1, 2], []]),
+    )
+    self.assertAllEqual(
+        graph.edge_sets['B->A'].adjacency.source, rt([[0, 1], [], [], [0], []])
+    )
+    self.assertAllEqual(
+        graph.edge_sets['B->A'].adjacency.target, rt([[1, 1], [], [], [1], []])
+    )
+
+  def testHomogeneous(self):
+    graph = core.build_graph_tensor(
+        edge_sets={
+            'A,A->A,A': {
+                '#source': rt(
+                    [['a'], ['c'] * 5, [], ['e'] * 10, ['g'] * 15 + ['k'] * 10]
+                ),
+                '#target': rt(
+                    [['b'], ['d'] * 5, [], ['e'] * 10, ['h'] * 15 + ['k'] * 10]
+                ),
+                'f': rt([[1], [2] * 5, [], [3] * 10, [4] * 15 + [5] * 10]),
+            },
+        },
+        remove_parallel_edges=True,
+    )
+    self.assertAllEqual(
+        graph.edge_sets['A->A'].adjacency.source,
+        rt([[0], [0], [], [0], [0, 1]]),
+    )
+    self.assertAllEqual(
+        graph.edge_sets['A->A'].adjacency.target,
+        rt([[1], [1], [], [0], [2, 1]]),
+    )
+    self.assertAllEqual(
+        graph.edge_sets['A->A']['f'], rt([[1], [2], [], [3], [4, 5]])
+    )
+
+  def testFeatures(self):
+    graph = core.build_graph_tensor(
+        edge_sets={
+            'A,A->B,B': {
+                '#source': rt([['c', 'c'], ['c', 'a', 'c']]),
+                '#target': rt([['c', 'c'], ['a', 'b', 'a']]),
+                'f.s': rt([[1, 2], [1, 2, 1]]),
+                'f.v': rt(
+                    [[[1, 1], [1, 1]], [[1, 1], [2, 2], [1, 1]]], ragged_rank=1
+                ),
+                'f.r': rt([[[1], [1]], [[], [2, 2], []]], ragged_rank=2),
+            },
+        },
+        remove_parallel_edges=True,
+    )
+    self.assertAllEqual(
+        graph.edge_sets['A->B'].adjacency.source, rt([[0], [0, 1]])
+    )
+    self.assertAllEqual(
+        graph.edge_sets['A->B'].adjacency.target, rt([[0], [0, 1]])
+    )
+    self.assertAllEqual(graph.edge_sets['A->B']['f.s'], rt([[1], [1, 2]]))
+    self.assertAllEqual(
+        graph.edge_sets['A->B']['f.v'],
+        rt([[[1, 1]], [[1, 1], [2, 2]]], ragged_rank=1),
+    )
+    self.assertAllEqual(
+        graph.edge_sets['A->B']['f.r'],
+        rt([[[1]], [[], [2, 2]]], ragged_rank=2),
     )
 
 

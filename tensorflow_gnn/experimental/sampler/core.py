@@ -895,6 +895,7 @@ def build_graph_tensor(
         Mapping[str, Union[Features, List[Features]]]
     ] = None,
     validate: bool = True,
+    remove_parallel_edges: bool = True,
 ) -> tfgnn.GraphTensor:
   """Builds GraphTensor from its pieces using node ids.
 
@@ -923,6 +924,10 @@ def build_graph_tensor(
       features must have shapes `[batch_size, (num_edges), ...]`.
     validate: If True, runs potentially expensive runtime consitency checks,
       like that node sets have unique ids.
+    remove_parallel_edges: if True, deduplicates parallel (duplicate) edges
+      incident to the same source and target nodes. Which particular parallel
+      edge is selected is not deterministic and it is assumed that they are
+      equivalent.
 
   Returns:
     GraphTensor with `rank=1`.
@@ -980,7 +985,9 @@ def build_graph_tensor(
             }
         })
   """
-  layer = GraphTensorBuilder(validate=validate)
+  layer = GraphTensorBuilder(
+      remove_parallel_edges=remove_parallel_edges, validate=validate
+  )
   layer_input = GraphPieces(context=context or {}, node_sets=node_sets or {},
                             edge_sets=edge_sets or {})
   return layer(layer_input)
@@ -1020,14 +1027,20 @@ class GraphTensorBuilder(tf.keras.layers.Layer):
   def __init__(
       self,
       *,
+      remove_parallel_edges: bool = True,
       validate: bool = True,
       **kwargs
   ):
     super().__init__(**kwargs)
+    self._remove_parallel_edges = remove_parallel_edges
     self._validate = validate
 
   def get_config(self):
-    return dict(validate=self._validate, **super().get_config())
+    return dict(
+        remove_parallel_edges=self._remove_parallel_edges,
+        validate=self._validate,
+        **super().get_config(),
+    )
 
   def call(self, inputs: GraphPieces) -> tfgnn.GraphTensor:
     # When saving `tf.keras.Model`, the loaded model passes a tuple.
@@ -1050,7 +1063,7 @@ class GraphTensorBuilder(tf.keras.layers.Layer):
 
     latent_node_sets = collections.defaultdict(list)
     for key, features in edge_sets.items():
-      source_node_set, edge_set_name, target_node_set = (
+      source_node_set, _, target_node_set = (
           _parse_edge_set_definition(key)
       )
 
@@ -1128,17 +1141,21 @@ class GraphTensorBuilder(tf.keras.layers.Layer):
         raise ValueError(
             f'Missing `{list(key_to_index_fn)} in {edge_set_name}.'
         )
+      source, target = indices_[tfgnn.SOURCE_NAME], indices_[tfgnn.TARGET_NAME]
       edge_sets_[edge_set_name] = tfgnn.EdgeSet.from_fields(
           features=features_,
           sizes=sizes_,
           adjacency=tfgnn.Adjacency.from_indices(
-              source=(source_node_set, indices_[tfgnn.SOURCE_NAME]),
-              target=(target_node_set, indices_[tfgnn.TARGET_NAME]),
+              source=(source_node_set, source),
+              target=(target_node_set, target),
           ),
       )
-    return tfgnn.GraphTensor.from_pieces(
+    result = tfgnn.GraphTensor.from_pieces(
         context=context_, node_sets=node_sets_, edge_sets=edge_sets_
     )
+    if self._remove_parallel_edges:
+      result = _remove_parallel_edges(result)
+    return result
 
 
 def concat_features(pieces: List[Features]) -> Features:
@@ -1324,6 +1341,137 @@ class _UniformEdgesSelector(tf.keras.layers.Layer):
         self._sample_size,
         self._seed,
     )
+
+
+def _remove_parallel_edges(
+    graph_tensor: tfgnn.GraphTensor,
+) -> tfgnn.GraphTensor:
+  """Removes duplicate edges connecting the same source and target nodes."""
+  # TODO(aferludin): allow deduplication using edge id feature.
+
+  assert graph_tensor.rank == 1, graph_tensor.rank
+
+  num_components = graph_tensor.num_components
+  with tf.control_dependencies(
+      [
+          tf.debugging.assert_equal(
+              graph_tensor.num_components,
+              tf.constant(1, num_components.dtype),
+              message='Expected graphs with a single graph component per graph',
+          )
+      ]
+  ):
+    graph_tensor = tf.identity(graph_tensor)
+
+  unique_edge_indices = _get_unique_parallel_edges_indices(graph_tensor)
+
+  edge_sets = {}
+  for edge_set_name, edge_set in graph_tensor.edge_sets.items():
+    adj = edge_set.adjacency
+    assert isinstance(adj, tfgnn.Adjacency), edge_set_name
+    indices = unique_edge_indices[edge_set_name]
+    source, target, features = tf.nest.map_structure(
+        functools.partial(tf.gather, indices=indices, batch_dims=1),
+        (adj.source, adj.target, edge_set.get_features_dict()),
+    )
+
+    new_sizes = tf.expand_dims(
+        tf.cast(indices.row_lengths(), edge_set.sizes.dtype), axis=-1
+    )
+    edge_sets[edge_set_name] = tfgnn.EdgeSet.from_fields(
+        features=features,
+        sizes=new_sizes,
+        adjacency=tfgnn.Adjacency.from_indices(
+            (adj.source_name, source),
+            (adj.target_name, target),
+        ),
+    )
+
+  return tfgnn.GraphTensor.from_pieces(
+      graph_tensor.context, graph_tensor.node_sets, edge_sets
+  )
+
+
+def _get_unique_parallel_edges_indices(
+    graph_tensor: tfgnn.GraphTensor,
+) -> Mapping[tfgnn.EdgeSetName, tf.RaggedTensor]:
+  """Returns indices of unique parallel edges within each graph.
+
+  Unique indices are returned as ragged rank 1 tensors for each edge set. Each
+  ragged row `r` of those tensors contains 0-base indices of unique edges for
+  graph `r` of `graph_tensor`.
+
+  Args:
+    graph_tensor: graph tensor of rank 1 with single graph component per graph.
+
+  Returns:
+    Indices of unique edges within each graph for each edge set.
+  """
+
+  assert graph_tensor.rank == 1, graph_tensor.rank
+  result = {}
+
+  # Flatten graph, so edges have continuous indices.
+  flat = graph_tensor.replace_features({}, {}, {}).merge_batch_to_components()
+  for edge_set_name, flat_edge_set in flat.edge_sets.items():
+    sizes, adj = flat_edge_set.sizes, flat_edge_set.adjacency
+    assert isinstance(sizes, tf.Tensor), edge_set_name
+    sizes = tf.cast(sizes, tf.int64)
+    assert isinstance(adj, tfgnn.Adjacency), edge_set_name
+    # Pack edges (source, target) into int64 ids, such that `ids[i] = ids[j]` if
+    # and only if `(source[i], target[i]) = (source[j], target[j])`.
+    edge_ids = _edges_to_ids(adj.source, adj.target)
+    unique_edge_ids, unique_edge_idx = tf.unique(edge_ids, tf.int64)
+    # unique_edge_ids contains flattened unique edges for graph0, graph1, ...
+    # unique_edge_idx[i] is an index in unique_edge_ids for original edge `i`
+    num_unique_edges = tf.size(unique_edge_ids, out_type=tf.int64)
+
+    # allows to project feature of the original edge to the unique edge.
+    map_to_unique_edge = functools.partial(
+        tf.math.unsorted_segment_min,
+        segment_ids=unique_edge_idx,
+        num_segments=num_unique_edges,
+    )
+    # the total number of graphs of the original input `graph_tensor`.
+    num_graphs = tf.size(sizes, out_type=tf.int64)
+    # 0-base indices of edges within original graphs
+    original_edges_idx = tf.ragged.range(sizes).values
+    # assignes to each edge its graph index within the original graph tensor.
+    original_graph_idx = tf.repeat(tf.range(num_graphs), sizes)
+    result[edge_set_name] = tf.RaggedTensor.from_value_rowids(
+        map_to_unique_edge(original_edges_idx),
+        map_to_unique_edge(original_graph_idx),
+        nrows=num_graphs,
+        validate=False,
+    )
+
+  return result
+
+
+def _edges_to_ids(source: tf.Tensor, target: tf.Tensor) -> tf.Tensor:
+  """Returns unique `tf.int64` ids for (source, target) pairs.
+
+  result[i] = result[j] <-> (source[i], target[i]) = (source[j], target[j]).
+
+  Args:
+    source: indices of edge source nodes.
+    target: indices of edge target nodes.
+
+  Returns:
+    `tf.int64` ids tensor.
+  """
+
+  source, target = tf.cast(source, tf.int64), tf.cast(target, tf.int64)
+  base = tf.math.reduce_max(target)
+  base = tf.maximum(base, tf.constant(0, tf.int64)) + tf.constant(1, tf.int64)
+
+  check_ops = tf.debugging.assert_less(
+      source,
+      tf.dtypes.int64.max // (base + 1),
+      message='The number nodes > 2^31 is not supported. Contact TF-GNN team',
+  )
+  with tf.control_dependencies([check_ops]):
+    return source * base + target
 
 
 def _pack_args(args, kwargs):
