@@ -68,6 +68,7 @@ class KerasTrainer(interfaces.Trainer):
       verbose: Union[int, str] = "auto",
       validation_steps: Optional[int] = None,
       validation_per_epoch: Optional[int] = None,
+      validation_freq: Optional[int] = None,
       summarize_every_n_steps: Union[int, str] = 500,
       checkpoint_every_n_steps: Union[int, str] = "epoch",
       backup_and_restore: bool = True,
@@ -93,6 +94,12 @@ class KerasTrainer(interfaces.Trainer):
         if unspecified: the entire validation `tf.data.Dataset` is evaluated.
       validation_per_epoch: The number of validations done per training epoch.
         Optional, if unspecified: Perform one validation per training epoch.
+        Only one of `validation_per_epoch` and `validation_freq` can be
+        specified.
+      validation_freq: Specifies how many training epochs to run before a new
+        validation run is performed. Optional, if unspecified: Performs
+        validation after every training epoch. Only one of
+        `validation_per_epoch` and `validation_freq` can be specified.
       summarize_every_n_steps: The frequency for writing TensorBoard summaries,
         as an integer number of steps, or "epoch" for once per epoch, or
         "never".
@@ -126,6 +133,11 @@ class KerasTrainer(interfaces.Trainer):
     if backup_dir is None:
       backup_dir = os.path.join(model_dir, "backup")
 
+    if (validation_freq is not None and validation_per_epoch is not None):
+      raise ValueError(
+          "`validation_freq` and `validation_per_epoch` are mutually exclusive."
+      )
+
     self._strategy = strategy
     self._model_dir = model_dir
     self._checkpoint_options = checkpoint_options
@@ -134,6 +146,7 @@ class KerasTrainer(interfaces.Trainer):
     self._verbose = verbose
     self._validation_steps = validation_steps
     self._validation_per_epoch = validation_per_epoch
+    self._validation_freq = validation_freq
     self._summarize_every_n_steps = summarize_every_n_steps
     self._checkpoint_every_n_steps = checkpoint_every_n_steps
     self._backup_and_restore = backup_and_restore
@@ -204,6 +217,13 @@ class KerasTrainer(interfaces.Trainer):
 
     if validation_steps is not None and valid_ds_provider is None:
       raise ValueError("`validation_steps` requires a `valid_ds_fn`")
+
+    if self._validation_freq is not None and valid_ds_provider is None:
+      raise ValueError("`validation_freq` requires a `valid_ds_fn`")
+
+    validation_freq = (
+        self._validation_freq if self._validation_freq is not None else 1
+    )
 
     # Adjust `restore_best_weights` given `valid_ds_provider`:
     restore_best_weights = self._restore_best_weights
@@ -294,6 +314,7 @@ class KerasTrainer(interfaces.Trainer):
         steps_per_epoch=steps_per_epoch,
         validation_data=valid_ds,
         validation_steps=validation_steps,
+        validation_freq=validation_freq,
         verbose=self._verbose,
         callbacks=callbacks)
 
