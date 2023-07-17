@@ -1155,3 +1155,26 @@ def get_in_memory_graph_data(dataset_name: str) -> InMemoryGraphData:
 def as_tensor(obj: Any) -> tf.Tensor:
   """short-hand for tf.convert_to_tensor."""
   return tf.convert_to_tensor(obj)
+
+
+def load_ogbn_graph_tensor(
+    dataset_path: str, *, add_reverse_edge_sets: bool = False
+)-> tfgnn.GraphTensor:
+  """Load OGBN graph data as a graph tensor from numpy compressed (.npz) files.
+
+  To generate the .npz files from the original OGB dataset, please refer to
+  tensorflow_gnn/converters/ogb/convert_ogb_to_npz.py
+
+  Args:
+    dataset_path: Path to the saved OGBN numpy compressed (.npz) files.
+    add_reverse_edge_sets: Flag to determine whether to add reversed edge sets.
+
+  Returns:
+    A tfgnn.GraphTensor comprising of the full OGBN graph loaded in-memory.
+  """
+  graph_data = NodeClassificationGraphData.load(dataset_path)
+  graph_data = graph_data.with_labels_as_features(True)
+  if add_reverse_edge_sets:
+    graph_data = graph_data.with_reverse_edge_sets()
+  graph_tensor = graph_data.as_graph_tensor()
+  return graph_tensor
