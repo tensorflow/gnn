@@ -37,7 +37,7 @@ from tensorflow_gnn.experimental.sampler.beam import edge_samplers  # pylint: di
 from tensorflow_gnn.experimental.sampler.beam import executor_lib
 from tensorflow_gnn.experimental.sampler.beam import unigraph_utils
 from tensorflow_gnn.proto import graph_schema_pb2
-from tensorflow_gnn.sampler import sampling_spec_pb2
+import tensorflow_gnn.sampler as sampler_lib
 
 from google.protobuf import text_format
 
@@ -54,7 +54,7 @@ def _get_shape(feature: graph_schema_pb2.Feature) -> tf.TensorShape:
 
 def get_sampling_model(
     graph_schema: tfgnn.GraphSchema,
-    sampling_spec: sampling_spec_pb2.SamplingSpec,
+    sampling_spec: sampler_lib.SamplingSpec,
 ) -> tuple[tf.keras.Model, dict[str, str]]:
   """Constructs sampling model from schema and sampling spec.
 
@@ -70,7 +70,7 @@ def get_sampling_model(
   """
   layer_name_to_edge_set = {}
   def edge_sampler_factory(
-      op: sampling_spec_pb2.SamplingOp,
+      op: sampler_lib.SamplingOp,
       *,
       counter: dict[str, int],
   ) -> sampler.UniformEdgesSampler:
@@ -216,7 +216,7 @@ def app_main(argv) -> None:
 
   with tf.io.gfile.GFile(FLAGS.sampling_spec, 'r') as f:
     sampling_spec = text_format.Parse(
-        f.read(), sampling_spec_pb2.SamplingSpec()
+        f.read(), sampler_lib.SamplingSpec()
     )
   # we have graph schema which defines Graph...
   # and sampling spec which defines how to sample in V1 format.

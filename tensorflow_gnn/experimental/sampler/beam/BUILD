@@ -138,7 +138,7 @@ pytype_strict_library(
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
         "//tensorflow_gnn/data:unigraph",
-        "//tensorflow_gnn/sampler:sampling_spec_py_proto",
+        "//tensorflow_gnn/sampler",
     ],
 )
 
@@ -160,7 +160,7 @@ pytype_strict_library(
         "//tensorflow_gnn/experimental/sampler",
         "//tensorflow_gnn/experimental/sampler:subgraph_pipeline",
         "//tensorflow_gnn/proto:graph_schema_py_proto",
-        "//tensorflow_gnn/sampler:sampling_spec_py_proto",
+        "//tensorflow_gnn/sampler",
     ],
 )
 
@@ -173,7 +173,7 @@ pytype_strict_contrib_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-        "//tensorflow_gnn/sampler:sampling_spec_py_proto",
+        "//tensorflow_gnn/sampler",
     ],
 )
 

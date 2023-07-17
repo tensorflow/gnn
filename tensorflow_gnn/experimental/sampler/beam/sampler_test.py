@@ -20,7 +20,7 @@ from absl.testing import parameterized
 import tensorflow as tf
 import tensorflow_gnn
 from tensorflow_gnn.experimental.sampler.beam import sampler
-from tensorflow_gnn.sampler import sampling_spec_pb2
+import tensorflow_gnn.sampler as sampler_lib
 
 from google.protobuf import text_format
 
@@ -152,7 +152,7 @@ class TestGetSamplingModel(tf.test.TestCase, parameterized.TestCase):
     """, tensorflow_gnn.GraphSchema())
 
     sampling_spec = text_format.Parse(
-        sampling_spec_pbtxt, sampling_spec_pb2.SamplingSpec())
+        sampling_spec_pbtxt, sampler_lib.SamplingSpec())
     _, layer_name_dict = sampler.get_sampling_model(graph_schema,
                                                     sampling_spec)
     self.assertDictEqual(

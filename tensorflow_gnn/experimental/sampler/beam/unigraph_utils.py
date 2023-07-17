@@ -14,14 +14,14 @@
 # ==============================================================================
 """Functions to read from unigraph format into that accepted by sampler_v2."""
 
-from typing import List, Tuple, Dict
+from typing import Dict, List, Tuple
 
 import apache_beam as beam
 import numpy as np
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
+from tensorflow_gnn import sampler as sampler_lib
 from tensorflow_gnn.data import unigraph
-from tensorflow_gnn.sampler import sampling_spec_pb2
 
 
 PCollection = beam.pvalue.PCollection
@@ -55,7 +55,7 @@ def read_seeds(root: beam.Pipeline, data_path: str) -> PCollection:
 
 def seeds_from_graph_dict(
     graph_dict: Dict[str, PCollection],
-    sampling_spec: sampling_spec_pb2.SamplingSpec) -> PCollection:
+    sampling_spec: sampler_lib.SamplingSpec) -> PCollection:
   """Emits sampler-compatible seeds from a collection of graph data and a sampling spec.
   
   Args:
