@@ -101,3 +101,52 @@ def numerical_rank(representations: tf.Tensor) -> tf.Tensor:
   trace = tf.reduce_sum(tf.math.square(representations))
   denominator = tf.math.square(sigma[0])
   return tf.math.divide_no_nan(trace, denominator)
+
+
+@tf.function
+def rankme(
+    representations: tf.Tensor,
+    *,
+    epsilon: float = 1e-12,
+) -> tf.Tensor:
+  """RankMe metric implementation.
+
+  Computes a metric that measures the decay rate of the singular values.
+  For the paper, see https://arxiv.org/abs/2210.02885.
+
+  Args:
+    representations: Input representations as rank-2 tensor.
+    epsilon: Epsilon for numerican stability.
+
+  Returns:
+    Metric value as scalar `tf.Tensor`.
+  """
+  if representations.shape.rank != 2:
+    raise ValueError(f"Expected 2D tensor (got shape {representations.shape})")
+  sigma = tf.linalg.svd(representations, compute_uv=False)
+  return rankme_from_singular_values(sigma, epsilon)
+
+
+def rankme_from_singular_values(
+    sigma: tf.Tensor, epsilon: float = 1e-12
+) -> tf.Tensor:
+  """RankMe metric implementation.
+
+  Computes a metric that measures the decay rate of the singular values.
+  For the paper, see https://arxiv.org/abs/2210.02885.
+
+  Args:
+    sigma: Singular values of the input representations as rank-1 tensor.
+    epsilon: Epsilon for numerican stability.
+
+  Returns:
+    Metric value as scalar `tf.Tensor`.
+  """
+  if sigma.shape.rank != 1:
+    raise ValueError(f"Expected 1D tensor (got shape {sigma.shape})")
+  tf.debugging.assert_non_negative(
+      sigma,
+      message="All singular values must be non-negative.",
+  )
+  p_ks = tf.math.divide_no_nan(sigma, tf.math.reduce_sum(sigma)) + epsilon
+  return tf.math.exp(-tf.math.reduce_sum(p_ks * tf.math.log(p_ks)))

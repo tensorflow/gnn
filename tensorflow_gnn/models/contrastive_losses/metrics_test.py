@@ -77,6 +77,16 @@ class MetricsTest(tf.test.TestCase, parameterized.TestCase):
           expected=2.0,
       ),
       dict(
+          testcase_name="rankme_constructed",
+          # In this case, singular values equal to [2, 2].
+          # p_ks equal to 1 / 2, meaning rankme = 2.
+          metric_fn=metrics.rankme,
+          inputs=tf.convert_to_tensor(
+              [[1.0, 1.0], [1.0, -1.0], [-1.0, 1.0], [-1.0, -1.0]]
+          ),
+          expected=2.0,
+      ),
+      dict(
           testcase_name="self_clustering_collapsed",
           metric_fn=metrics.self_clustering,
           inputs=tf.ones((2, 4)),
@@ -95,10 +105,22 @@ class MetricsTest(tf.test.TestCase, parameterized.TestCase):
           expected=1.0,
       ),
       dict(
+          testcase_name="rankme_collapsed",
+          metric_fn=metrics.rankme,
+          inputs=tf.ones((4, 2)),
+          expected=1.0,
+      ),
+      dict(
           testcase_name="numerical_rank_allzero",
           metric_fn=metrics.numerical_rank,
           inputs=tf.zeros((2, 2)),
           expected=0.0,
+      ),
+      dict(
+          testcase_name="rankme_allzero",
+          metric_fn=metrics.rankme,
+          inputs=tf.zeros((2, 2)),
+          expected=1.0,
       ),
   ])
   def test_value(self, metric_fn, inputs, expected):
