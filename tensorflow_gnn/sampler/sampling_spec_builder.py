@@ -141,8 +141,12 @@ def _op_name_from_parents(parents):
 
 
 def make_sampling_spec_tree(
-    graph_schema: schema_pb2.GraphSchema, seed_nodeset: NodeSetName, *,
-    sample_sizes: List[int]) -> sampling_spec_pb2.SamplingSpec:
+    graph_schema: schema_pb2.GraphSchema,
+    seed_nodeset: NodeSetName,
+    *,
+    sample_sizes: List[int],
+    sampling_strategy=SamplingStrategy.RANDOM_UNIFORM
+) -> sampling_spec_pb2.SamplingSpec:
   """Automatically creates `SamplingSpec` by starting from seed node set.
 
   From seed node set, `sample_sizes[0]` are sampled from *every* edge set `E`
@@ -158,15 +162,17 @@ def make_sampling_spec_tree(
       then for every sampled node, up-to 5 of its neighbors will be sampled, and
       for each, up to 2 of its neighbors will be sampled, etc, totalling sampled
       nodes up to `5 * 2 * 2 = 20` for each seed node.
+    sampling_strategy: one of the supported sampling strategies, the same for
+      each depth.
 
   Returns:
-    `SamplingSpec` that instructs the sampler to sample uniformly, `fanout`
-    number of edges *from all edge sets*, up-to depth `depth`.
+    `SamplingSpec` that instructs the sampler to sample according to the
+    `sampling_strategy` and `sample_sizes`.
   """
   edge_sets_by_src_node_set = _edge_set_names_by_source(graph_schema)
   spec_builder = SamplingSpecBuilder(
       graph_schema,
-      default_strategy=SamplingStrategy.RANDOM_UNIFORM)
+      default_strategy=sampling_strategy)
   spec_builder = spec_builder.seed(seed_nodeset)
 
   def _recursively_sample_all_edge_sets(

@@ -247,72 +247,81 @@ class MakeSamplingSpecTreeTest(parameterized.TestCase):
         """, sampling_spec_pb2.SamplingSpec())
     self.assertEqual(sampling_spec_1hop, expected_spec_1hop)
 
-  def test_2_hops(self):
+  @parameterized.parameters(
+      [sampling_spec_pb2.RANDOM_UNIFORM, sampling_spec_pb2.TOP_K]
+  )
+  def test_2_hops(self, sampling_strategy: sampling_spec_pb2.SamplingStrategy):
     sampling_spec_2hops = sampling_spec_builder.make_sampling_spec_tree(
-        get_schema(add_readout_artifacts=True), 'A', sample_sizes=[3, 2])
+        get_schema(add_readout_artifacts=True),
+        'A',
+        sample_sizes=[3, 2],
+        sampling_strategy=sampling_strategy,
+    )
     expected_spec_2hops = text_format.Parse(
         """
-        seed_op {
+        seed_op {{
           op_name: "SEED->A"
           node_set_name: "A"
-        }
-        sampling_ops {
+        }}
+        sampling_ops {{
           op_name: "A->C"
           input_op_names: "SEED->A"
           edge_set_name: "AC"
           sample_size: 3
-          strategy: RANDOM_UNIFORM
-        }
-        sampling_ops {
+          strategy: {sampling_strategy}
+        }}
+        sampling_ops {{
           op_name: "C->D"
           input_op_names: "A->C"
           edge_set_name: "CD"
           sample_size: 2
-          strategy: RANDOM_UNIFORM
-        }
-        sampling_ops {
+          strategy: {sampling_strategy}
+        }}
+        sampling_ops {{
           op_name: "A->B"
           input_op_names: "SEED->A"
           edge_set_name: "AB"
           sample_size: 3
-          strategy: RANDOM_UNIFORM
-        }
-        sampling_ops {
+          strategy: {sampling_strategy}
+        }}
+        sampling_ops {{
           op_name: "B->C"
           input_op_names: "A->B"
           edge_set_name: "BC"
           sample_size: 2
-          strategy: RANDOM_UNIFORM
-        }
-        sampling_ops {
+          strategy: {sampling_strategy}
+        }}
+        sampling_ops {{
           op_name: "A->A"
           input_op_names: "SEED->A"
           edge_set_name: "AA"
           sample_size: 3
-          strategy: RANDOM_UNIFORM
-        }
-        sampling_ops {
+          strategy: {sampling_strategy}
+        }}
+        sampling_ops {{
           op_name: "A->C.2"
           input_op_names: "A->A"
           edge_set_name: "AC"
           sample_size: 2
-          strategy: RANDOM_UNIFORM
-        }
-        sampling_ops {
+          strategy: {sampling_strategy}
+        }}
+        sampling_ops {{
           op_name: "A->B.2"
           input_op_names: "A->A"
           edge_set_name: "AB"
           sample_size: 2
-          strategy: RANDOM_UNIFORM
-        }
-        sampling_ops {
+          strategy: {sampling_strategy}
+        }}
+        sampling_ops {{
           op_name: "A->A.2"
           input_op_names: "A->A"
           edge_set_name: "AA"
           sample_size: 2
-          strategy: RANDOM_UNIFORM
-        }
-        """, sampling_spec_pb2.SamplingSpec())
+          strategy: {sampling_strategy}
+        }}
+        """.format(sampling_strategy=sampling_strategy),
+        sampling_spec_pb2.SamplingSpec(),
+    )
     self.assertEqual(sampling_spec_2hops, expected_spec_2hops)
 
   def test_0_hops(self):
