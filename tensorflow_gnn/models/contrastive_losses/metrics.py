@@ -150,3 +150,44 @@ def rankme_from_singular_values(
   )
   p_ks = tf.math.divide_no_nan(sigma, tf.math.reduce_sum(sigma)) + epsilon
   return tf.math.exp(-tf.math.reduce_sum(p_ks * tf.math.log(p_ks)))
+
+
+@tf.function
+def coherence(representations: tf.Tensor) -> tf.Tensor:
+  """Coherence metric implementation.
+
+  Coherence measures how easy it is to construct a linear classifier on top of
+  data without knowing downstream labels.
+  Refer to https://arxiv.org/abs/2305.16562 for more details.
+
+  Args:
+    representations: Input representations, a rank-2 tensor.
+
+  Returns:
+    Metric value as scalar `tf.Tensor`.
+  """
+  if representations.shape.rank != 2:
+    raise ValueError(f"Expected 2D tensor (got shape {representations.shape})")
+  _, u, _ = tf.linalg.svd(representations, compute_uv=True, full_matrices=False)
+  return coherence_from_singular_vectors(u)
+
+
+@tf.function
+def coherence_from_singular_vectors(u: tf.Tensor) -> tf.Tensor:
+  """Coherence metric implementation.
+
+  Refer to https://arxiv.org/abs/2305.16562 for more details.
+
+  Args:
+    u: Left singular vectors of representations, a rank-2 tensor.
+
+  Returns:
+    Metric value as scalar `tf.Tensor`.
+  """
+  if u.shape.rank != 2:
+    raise ValueError(f"Expected 2D tensor (got shape {u.shape})")
+  n_examples, dimensions = tf.unstack(tf.shape(u))
+  maximum_norm = tf.math.reduce_max(tf.norm(u, axis=1))
+  return tf.square(maximum_norm) * tf.cast(
+      tf.divide(n_examples, dimensions), tf.float32
+  )

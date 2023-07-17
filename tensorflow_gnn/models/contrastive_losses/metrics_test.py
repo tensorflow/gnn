@@ -87,6 +87,22 @@ class MetricsTest(tf.test.TestCase, parameterized.TestCase):
           expected=2.0,
       ),
       dict(
+          testcase_name="coherence_constructed",
+          # In this case, both singular values equal to 2.
+          # Left singular vectors of the inputs are
+          # [-1/2, 1/2]
+          # [-1/2, -1/2]
+          # [1/2, 1/2]
+          # [1/2, -1/2]
+          # with the maximum row norm equal to sqrt(2)/2.
+          # Thus, the metric value shoud be close to 1/2 * 4 / 2 = 1.
+          metric_fn=metrics.coherence,
+          inputs=tf.convert_to_tensor(
+              [[1.0, 1.0], [1.0, -1.0], [-1.0, 1.0], [-1.0, -1.0]]
+          ),
+          expected=1.0,
+      ),
+      dict(
           testcase_name="self_clustering_collapsed",
           metric_fn=metrics.self_clustering,
           inputs=tf.ones((2, 4)),
@@ -109,6 +125,12 @@ class MetricsTest(tf.test.TestCase, parameterized.TestCase):
           metric_fn=metrics.rankme,
           inputs=tf.ones((4, 2)),
           expected=1.0,
+      ),
+      dict(
+          testcase_name="coherence_collapsed",
+          metric_fn=metrics.coherence,
+          inputs=tf.ones((20, 2)),
+          expected=10.0,
       ),
       dict(
           testcase_name="numerical_rank_allzero",
