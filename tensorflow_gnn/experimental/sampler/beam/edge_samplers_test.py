@@ -54,8 +54,6 @@ class ExecutorTestBase(tf.test.TestCase):
 class EdgeSamplersTest(ExecutorTestBase):
 
   def test_sampling(self):
-    # TODO(b/291057185): Re-enable when beam bug is fixed or worked around.
-    self.skipTest('Test started failing due to a beam problem with GroupByKey.')
     edges = {1: 2, 2: 3}
     feats = {
         1: text_format.Merge(
