@@ -31,6 +31,7 @@ from tensorflow_gnn.runner.utils import parsing as parsing_utils
 T = TypeVar("T")
 OneOrMappingOf = Union[T, Mapping[str, T]]
 
+
 Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
 # TODO(b/274672364): make this tuple[...] in Python 3.9 style
@@ -50,6 +51,12 @@ ModelExporter = interfaces.ModelExporter
 Task = interfaces.Task
 Trainer = interfaces.Trainer
 RunResult = interfaces.RunResult
+
+Loss = interfaces.Loss
+Metric = interfaces.Metric
+Predictions = interfaces.Predictions
+Losses = interfaces.Losses
+Metrics = interfaces.Metrics
 
 _BASE_MODEL_TAG = "UNDERSCORE_TFGNN_RUNNER_BASE_MODEL"
 _TPU_DEFAULT_STEPS_PER_EXECUTION = 100
@@ -301,6 +308,37 @@ def _without_aux_graph_piece_features() -> tf.keras.layers.Layer:
       name="without_aux_graph_piece_features")
 
 
+def _check_prediction_rules(p: Predictions, l: Losses, m: Metrics) -> None:
+  """Checks predictions to conform with model losses and metrics.
+
+  Args:
+    p: Model predictions.
+    l: Model losses.
+    m: Model metrics
+
+  Raises:
+    ValueError: For unsupported prediction type.
+  """
+  # Single task, multiple outputs OR multi-task.
+  if isinstance(p, Mapping):
+    assert isinstance(p, Mapping)
+    assert isinstance(l, Mapping)
+    assert isinstance(m, Mapping)
+    assert set(p.keys()) == set(l.keys()) == set(m.keys())
+    for k in p.keys():
+      _check_prediction_rules(p[k], l[k], m[k])
+    return
+  # Single-task, one output.
+  assert tf.keras.backend.is_keras_tensor(p), (
+      "Unsupported prediction return type. Expected a Tensor or Mapping, got"
+      f" {type(p)}."
+  )
+  # We only allow 1 loss to be present.
+  assert isinstance(l, Callable)
+  # But more than one metric.
+  assert isinstance(m, Sequence) or isinstance(m, Callable)
+
+
 def run(*,
         train_ds_provider: DatasetProvider,
         model_fn: Callable[[GraphTensorSpec], tf.keras.Model],
@@ -522,6 +560,8 @@ def run(*,
 
     losses = tf.nest.map_structure(operator.methodcaller("losses"), task)
     metrics = tf.nest.map_structure(operator.methodcaller("metrics"), task)
+
+    _check_prediction_rules(outputs, losses, metrics)
 
     if train_padding is None:
       model.compile(

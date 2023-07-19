@@ -27,6 +27,8 @@ GraphTensor = tfgnn.GraphTensor
 # TODO(b/274672364): make this tuple[...] in Python 3.9 style
 # when we drop py38 support.
 LabelFn = Callable[[GraphTensor], Tuple[GraphTensor, Field]]
+Losses = interfaces.Losses
+Metrics = interfaces.Metrics
 
 
 class _FromLogitsMixIn(tf.keras.metrics.Metric):
@@ -161,11 +163,11 @@ class _Classification(interfaces.Task):
     return x, y
 
   @abc.abstractmethod
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+  def losses(self) -> Losses:
     raise NotImplementedError()
 
   @abc.abstractmethod
-  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+  def metrics(self) -> Metrics:
     raise NotImplementedError()
 
 
@@ -175,10 +177,10 @@ class _BinaryClassification(_Classification):
   def __init__(self, units: int = 1, **kwargs):
     super().__init__(units, **kwargs)
 
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return (tf.keras.losses.BinaryCrossentropy(from_logits=True),)
+  def losses(self) -> Losses:
+    return tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
-  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+  def metrics(self) -> Metrics:
     return (FromLogitsPrecision(from_logits=True),
             FromLogitsRecall(from_logits=True),
             tf.keras.metrics.AUC(from_logits=True, name="auc_roc"),
@@ -208,11 +210,11 @@ class _MulticlassClassification(_Classification):
       self._class_names = class_names
     self._per_class_statistics = per_class_statistics
 
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+  def losses(self) -> Losses:
     """Sparse categorical crossentropy loss."""
-    return (tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),)
+    return tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
-  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+  def metrics(self) -> Metrics:
     """Sparse categorical metrics."""
     metric_objs = [
         tf.keras.metrics.SparseCategoricalAccuracy(),

@@ -198,10 +198,7 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
     self.assertTrue(expected_shape.is_compatible_with(dense.output_shape))
 
     # Assert losses.
-    losses = task.losses()
-    self.assertLen(losses, 1)
-
-    [loss] = losses
+    loss = task.losses()
     self.assertIsInstance(loss, expected_loss)
     self.assertTrue(loss.get_config()["from_logits"])
 

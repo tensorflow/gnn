@@ -34,10 +34,14 @@ pytype_strict_library(
     name = "interfaces",
     srcs = ["interfaces.py"],
     srcs_version = "PY3",
-    visibility = [":__subpackages__"],
+    visibility = [
+        ":__subpackages__",
+        "//tensorflow_gnn/models:__subpackages__",
+    ],
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//third_party/py/typing_extensions",
     ],
 )
 
