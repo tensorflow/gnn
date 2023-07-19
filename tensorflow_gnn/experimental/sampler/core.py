@@ -1438,12 +1438,16 @@ def _get_unique_parallel_edges_indices(
     original_edges_idx = tf.ragged.range(sizes).values
     # assignes to each edge its graph index within the original graph tensor.
     original_graph_idx = tf.repeat(tf.range(num_graphs), sizes)
+    # TODO(b/285269757): replace with `graph_tensor.row_splits_dtype`
+    row_splits_dtype = graph_tensor.edge_sets[
+        edge_set_name
+    ].adjacency.source.dtype
     result[edge_set_name] = tf.RaggedTensor.from_value_rowids(
         map_to_unique_edge(original_edges_idx),
         map_to_unique_edge(original_graph_idx),
         nrows=num_graphs,
         validate=False,
-    )
+    ).with_row_splits_dtype(row_splits_dtype)
 
   return result
 

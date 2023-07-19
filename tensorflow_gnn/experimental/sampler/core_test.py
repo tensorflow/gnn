@@ -1201,7 +1201,7 @@ class GraphTensorBuilderTest(tf.test.TestCase, parameterized.TestCase):
     )
 
 
-class ParallelEdgesRemovalTest(tf.test.TestCase):
+class ParallelEdgesRemovalTest(tf.test.TestCase, parameterized.TestCase):
 
   def testNoEdges(self):
     graph = core.build_graph_tensor(
@@ -1280,29 +1280,40 @@ class ParallelEdgesRemovalTest(tf.test.TestCase):
         graph.edge_sets['B->A'].adjacency.target, rt([[1, 1], [], [], [1], []])
     )
 
-  def testHomogeneous(self):
+  @parameterized.product(
+      indices_dtype=[tf.int32, tf.int64], row_splits_dtype=[tf.int32, tf.int64]
+  )
+  def testHomogeneous(
+      self, indices_dtype: tf.DType, row_splits_dtype: tf.DType
+  ):
     graph = core.build_graph_tensor(
         edge_sets={
             'A,A->A,A': {
                 '#source': rt(
-                    [['a'], ['c'] * 5, [], ['e'] * 10, ['g'] * 15 + ['k'] * 10]
+                    [[1], [3] * 5, [], [5] * 10, [7] * 15 + [9] * 10],
+                    dtype=indices_dtype,
+                    row_splits_dtype=row_splits_dtype,
                 ),
                 '#target': rt(
-                    [['b'], ['d'] * 5, [], ['e'] * 10, ['h'] * 15 + ['k'] * 10]
+                    [[2], [4] * 5, [], [5] * 10, [8] * 15 + [9] * 10],
+                    dtype=indices_dtype,
+                    row_splits_dtype=row_splits_dtype,
                 ),
-                'f': rt([[1], [2] * 5, [], [3] * 10, [4] * 15 + [5] * 10]),
+                'f': rt(
+                    [[1], [2] * 5, [], [3] * 10, [4] * 15 + [5] * 10],
+                    row_splits_dtype=row_splits_dtype,
+                ),
             },
         },
         remove_parallel_edges=True,
     )
-    self.assertAllEqual(
-        graph.edge_sets['A->A'].adjacency.source,
-        rt([[0], [0], [], [0], [0, 1]]),
-    )
-    self.assertAllEqual(
-        graph.edge_sets['A->A'].adjacency.target,
-        rt([[1], [1], [], [0], [2, 1]]),
-    )
+    source = graph.edge_sets['A->A'].adjacency.source
+    target = graph.edge_sets['A->A'].adjacency.target
+    self.assertAllEqual(source, rt([[0], [0], [], [0], [0, 1]]))
+    self.assertAllEqual(source.row_splits.dtype, row_splits_dtype)
+    self.assertAllEqual(target, rt([[1], [1], [], [0], [2, 1]]))
+    self.assertAllEqual(target.row_splits.dtype, row_splits_dtype)
+
     self.assertAllEqual(
         graph.edge_sets['A->A']['f'], rt([[1], [2], [], [3], [4, 5]])
     )
