@@ -1006,6 +1006,7 @@ def _get_batch_shape_from_fields(data: Data,
   return result
 
 
+@tf.autograph.experimental.do_not_convert
 def check_scalar_graph_piece(piece: Union[GraphPieceBase,
                                           GraphPieceSpecBase],
                              name='This operation') -> None:
