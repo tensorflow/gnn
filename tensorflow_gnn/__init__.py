@@ -217,7 +217,7 @@ is_graph_tensor = graph_tensor_ops.is_graph_tensor
 del version
 del adjacency
 del batching_utils
-del broadcast
+del broadcast_ops
 del graph_constants
 del graph_tensor
 del graph_tensor_encode
