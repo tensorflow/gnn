@@ -16,15 +16,15 @@
 
 Output `SamplingSpec` will contain topologically-sorted `SamplingOp`s.
 
-# Usage examples.
 
-## Homogeneous Graphs.
+
+Example: Homogeneous Graphs.
 
 If your graph is *homogeneous* and your node set is named "nodes" and edge set
 is named "edges", then you can create the sampling spec proto as:
 
 
-```
+```python
 # Assume homogeneous schema with edge-set name "edges" connecting "nodes".
 schema = schema_pb2.GraphSchema()
 schema.edge_sets['edges'].source = s.edge_sets['edges'].target = 'nodes'
@@ -52,11 +52,11 @@ The above spec is instructing to start at:
   - for each of those neighbors, sample (up to) 5 neighbors (from same edgeset).
 
 
-## Heterogeneous Graphs.
+Example: Heterogeneous Graphs.
 
 E.g., if you consider citation datasets, you can make a SamplingSpec proto as:
 
-```
+```python
 proto = (SamplingSpecBuilder(schema)
           .seed('author').sample('writes', 10).sample('cited_by', 5)
           .build())
@@ -66,12 +66,12 @@ This samples, starting from author node, 10 papers written by author, and for
 each paper, 10 papers citing it.
 
 
-## DAG Sampling.
+Example: DAG Sampling.
 
 Finally, your sampling might consist of a DAG. For this, you need to cache
 some returns of `.sample()` calls. For example:
 
-```
+```python
 # Store builder at level of "author written papers":
 builder = tfgnn.SamplingSpecBuilder(schema).seed('author').sample('writes', 10)
 path1 = builder.sample('cited_by', 5)
@@ -158,10 +158,10 @@ def make_sampling_spec_tree(
     graph_schema: contains node-sets & edge-sets.
     seed_nodeset: name of node-set that the sampler will be instructed to use as
       seed nodes.
-    sample_sizes: list of number of nodes to sample. E.g. if `== [5, 2, 2]`,
-      then for every sampled node, up-to 5 of its neighbors will be sampled, and
-      for each, up to 2 of its neighbors will be sampled, etc, totalling sampled
-      nodes up to `5 * 2 * 2 = 20` for each seed node.
+    sample_sizes: list of number of nodes to sample. E.g. if `sample_sizes` are
+      `[5, 2, 2]`, then for every sampled node, up-to `5` of its neighbors will
+      be sampled, and for each, up to `2` of its neighbors will be sampled, etc,
+      totalling sampled nodes up to `5 * 2 * 2 = 20` for each seed node.
     sampling_strategy: one of the supported sampling strategies, the same for
       each depth.
 
@@ -197,13 +197,15 @@ def make_sampling_spec_tree(
 class SamplingSpecBuilder(object):
   """Mimics builder pattern that eases creation of `tfgnn.SamplingSpec`.
 
-  # Usage examples.
-  ## Homogeneous Graphs.
+
+  Example: Homogeneous Graphs.
+
   If your graph is *homogeneous* and your node set is named "nodes" and edge set
   is named "edges", then you can create the sampling spec proto as:
 
-  ### NOTE: This should come from the outside, e.g., `graph_tensor.schema`.
-  ```
+  NOTE: This should come from the outside, e.g., `graph_tensor.schema`.
+  
+  ```python
   schema = schema_pb2.GraphSchema()
   schema.edge_sets['edges'].source = s.edge_sets['edges'].target = 'nodes'
 
@@ -211,22 +213,28 @@ class SamplingSpecBuilder(object):
            .seed('nodes').sample('edges', 10).sample('edges', 5)
            .build())
   ```
+
   The above spec is instructing to start at:
     - Nodes of type set name "nodes", then,
     - for each seed node, sample 10 of its neighbors (from edge set "edges").
     - for each of those neighbors, sample 5 neighbors (from same edge set).
 
-  ## Heterogeneous Graphs.
+  Example: Heterogeneous Graphs.
+
   E.g., if you consider citation datasets, you can make a SamplingSpec proto as:
-  ```
+
+  ```python
   proto = (SamplingSpecBuilder(schema)
            .seed('author').sample('writes', 10).sample('cited_by', 5)
            .build())
   ```
+
   This samples, starting from author node, 10 papers written by author, and for
   each paper, 10 papers citing it.
 
-  ## DAG Sampling.
+
+  Example: DAG Sampling.
+
   Finally, your sampling might consist of a DAG. For this, you need to cache
   some returns of `.sample()` calls.
   """

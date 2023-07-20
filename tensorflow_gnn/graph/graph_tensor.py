@@ -1590,7 +1590,7 @@ def get_aux_type_prefix(set_name: const.SetName) -> Optional[str]:
 def get_homogeneous_node_and_edge_set_name(
     graph: Union[GraphTensor, GraphTensorSpec],
     name: str = 'This operation') -> tuple[str, str]:
-  """Returns the sole `node_set_name, edge_set_name` or raises ValueError.
+  """Returns the sole `node_set_name, edge_set_name` or raises `ValueError`.
 
   By default, this function ignores auxiliary node sets and edge sets for which
   `tfgnn.get_aux_type_prefix(set_name) is not None` (e.g., those needed for
