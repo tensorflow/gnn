@@ -19,11 +19,9 @@ Returns tf.io parsing features for `GraphTensorSpec` type spec.
 <code>tfgnn.get_io_spec(
     spec: <a href="../tfgnn/GraphTensorSpec.md"><code>tfgnn.GraphTensorSpec</code></a>,
     prefix: Optional[str] = None,
-    validate: bool = False
+    validate: bool = True
 ) -> Dict[str, IOFeature]
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
 

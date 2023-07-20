@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/padding_ops.py#L30-L180">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/padding_ops.py#L30-L183">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -45,6 +45,9 @@ user-provided scalar values or with zeros if the latter are not specified.
 Fake edges are created such that each fake node has an approximately uniform
 number of incident edges (this behavior is not guaranteed and may change in
 the future).
+
+NOTE(b/275338236): This operation is not available in TFLite (last checked for
+TF 2.12).
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

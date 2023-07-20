@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gat_v2/layers.py#L487-L581">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gat_v2/layers.py#L493-L589">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -31,7 +31,7 @@ Returns a GraphUpdate layer for message passing with GATv2 pooling.
     attention_activation: Union[str, Callable[..., Any]] = &#x27;leaky_relu&#x27;,
     conv_activation: Union[str, Callable[..., Any]] = &#x27;relu&#x27;,
     activation: Union[str, Callable[..., Any]] = &#x27;relu&#x27;,
-    kernel_initializer: Union[None, str, tf.keras.initializers.Initializer] = &#x27;glorot_uniform&#x27;
+    kernel_initializer: Any = &#x27;glorot_uniform&#x27;
 ) -> tf.keras.layers.Layer
 </code></pre>
 
@@ -136,7 +136,7 @@ The dropout rate applied to the resulting node states.
 The nonlinearity used on the transformed inputs
 before multiplying with the trained weights of the attention layer.
 This can be specified as a Keras layer, a tf.keras.activations.*
-function, or a string understood by tf.keras.layers.Activation().
+function, or a string understood by `tf.keras.layers.Activation()`.
 Defaults to "leaky_relu", which in turn defaults to a negative slope
 of `alpha=0.2`.
 </td>
@@ -161,7 +161,7 @@ this graph update.
 `kernel_initializer`<a id="kernel_initializer"></a>
 </td>
 <td>
-Can be set to a `kerner_initializer` as understood
+Can be set to a `kernel_initializer` as understood
 by `tf.keras.layers.Dense` etc.
 </td>
 </tr>

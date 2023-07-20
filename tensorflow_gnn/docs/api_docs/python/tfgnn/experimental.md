@@ -27,5 +27,5 @@ This is the preferred way to expose individual functions on track to inclusion
 into the stable public interface of TensorFlow GNN.
 
 Beyond these symbols, there are also experimental sub-libraries that need to be
-imported separately (`from tensorflow_gnn.experimental import foo`). This is for
+imported separately (`from tensorflow_gnn.experimental import foo`). That is for
 special cases only.

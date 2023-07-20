@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L1173-L1200">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L620-L647">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -17,15 +17,15 @@ Returns the degree of each node w.r.t. one side of an edge set.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.node_degree(
-    graph_tensor: <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>,
+    graph_tensor: GraphTensor,
     edge_set_name: EdgeSetName,
     node_tag: IncidentNodeTag
-) -> <a href="../tfgnn/Field.md"><code>tfgnn.Field</code></a>
+) -> Field
 </code></pre>
 
 <!-- Placeholder for "Used in" -->
-<!-- Tabular view -->
 
+<!-- Tabular view -->
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -57,7 +57,6 @@ specified by its tag in the edge set (e.g., <a href="../tfgnn.md#SOURCE"><code>t
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>

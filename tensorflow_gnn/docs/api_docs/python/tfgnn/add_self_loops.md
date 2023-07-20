@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L448-L563">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L63-L178">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -17,11 +17,11 @@ Adds self-loops for edge with name `edge_set_name` EVEN if already exist.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.add_self_loops(
-    graph: <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>,
+    graph: GraphTensor,
     edge_set_name: gt.EdgeSetName,
     *,
     edge_feature_initializer: _EdgeFeatureInitializer = _zero_edge_feat_init
-) -> <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>
+) -> GraphTensor
 </code></pre>
 
 <!-- Placeholder for "Used in" -->

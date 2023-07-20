@@ -35,6 +35,8 @@ of the public interface of TensorFlow GNN.
 
 [`keras`](./tfgnn/keras.md) module: The tfgnn.keras package.
 
+[`sampler`](./tfgnn/sampler.md) module: Public interface for GNN Sampler.
+
 ## Classes
 
 [`class Adjacency`](./tfgnn/Adjacency.md): Stores how edges connect pairs of nodes from source and target node sets.
@@ -73,6 +75,10 @@ of the public interface of TensorFlow GNN.
 
 ## Functions
 
+[`add_readout_from_first_node(...)`](./tfgnn/add_readout_from_first_node.md):
+Adds a readout structure equivalent to
+<a href="./tfgnn/gather_first_node.md"><code>tfgnn.gather_first_node()</code></a>.
+
 [`add_self_loops(...)`](./tfgnn/add_self_loops.md): Adds self-loops for edge
 with name `edge_set_name` EVEN if already exist.
 
@@ -95,13 +101,16 @@ or from context to nodes or edges.
 Checks that the given spec or value is compatible with the graph schema.
 
 [`check_homogeneous_graph_tensor(...)`](./tfgnn/check_homogeneous_graph_tensor.md):
-Raises ValueError unless there is exactly one node set and edge set.
+Raises ValueError when tfgnn.get_homogeneous_node_and_edge_set_name() does.
 
 [`check_required_features(...)`](./tfgnn/check_required_features.md): Checks the requirements of a given schema against another.
 
 [`check_scalar_graph_tensor(...)`](./tfgnn/check_scalar_graph_tensor.md)
 
 [`combine_values(...)`](./tfgnn/combine_values.md): Combines a list of tensors into one (by concatenation or otherwise).
+
+[`convert_to_line_graph(...)`](./tfgnn/convert_to_line_graph.md): Obtain a
+graph's line graph.
 
 [`create_graph_spec_from_schema_pb(...)`](./tfgnn/create_graph_spec_from_schema_pb.md): Converts a graph schema proto message to a scalar GraphTensorSpec.
 
@@ -117,6 +126,12 @@ dataset from generator of any nest of scalar graph pieces.
 
 [`gather_first_node(...)`](./tfgnn/gather_first_node.md): Gathers feature value from the first node of each graph component.
 
+[`get_aux_type_prefix(...)`](./tfgnn/get_aux_type_prefix.md): Returns type
+prefix of aux node or edge set names, or `None` if non-aux.
+
+[`get_homogeneous_node_and_edge_set_name(...)`](./tfgnn/get_homogeneous_node_and_edge_set_name.md):
+Returns the sole `node_set_name, edge_set_name` or raises `ValueError`.
+
 [`get_io_spec(...)`](./tfgnn/get_io_spec.md): Returns tf.io parsing features for `GraphTensorSpec` type spec.
 
 [`get_registered_reduce_operation_names(...)`](./tfgnn/get_registered_reduce_operation_names.md): Returns the registered list of supported reduce operation names.
@@ -125,6 +140,9 @@ dataset from generator of any nest of scalar graph pieces.
 
 [`homogeneous(...)`](./tfgnn/homogeneous.md): Constructs a homogeneous
 `GraphTensor` with node features and one edge_set.
+
+[`is_dense_tensor(...)`](./tfgnn/is_dense_tensor.md): Returns whether a tensor
+(TF or Keras) is a Tensor.
 
 [`is_graph_tensor(...)`](./tfgnn/is_graph_tensor.md): Returns whether `value` is a GraphTensor (possibly wrapped for Keras).
 
@@ -164,8 +182,6 @@ or edges to context.
 
 [`read_schema(...)`](./tfgnn/read_schema.md): Read a proto schema from a file with text-formatted contents.
 
-[`register_reduce_operation(...)`](./tfgnn/register_reduce_operation.md): Register a new reduction operation for pooling.
-
 [`reorder_nodes(...)`](./tfgnn/reorder_nodes.md): Reorders nodes within node
 sets according to indices.
 
@@ -184,6 +200,18 @@ given node sets, within each graph component.
 [`softmax(...)`](./tfgnn/softmax.md): Computes softmax over a many-to-one relationship in a GraphTensor.
 
 [`softmax_edges_per_node(...)`](./tfgnn/softmax_edges_per_node.md): Returns softmax() of edge values per common `node_tag` node.
+
+[`structured_readout(...)`](./tfgnn/structured_readout.md): Reads out a feature
+value from select nodes (or edges) in a graph.
+
+[`structured_readout_into_feature(...)`](./tfgnn/structured_readout_into_feature.md):
+Reads out a feature value from select nodes (or edges) in a graph.
+
+[`validate_graph_tensor_for_readout(...)`](./tfgnn/validate_graph_tensor_for_readout.md):
+Checks `graph` supports `structured_readout()` from `required_keys`.
+
+[`validate_graph_tensor_spec_for_readout(...)`](./tfgnn/validate_graph_tensor_spec_for_readout.md):
+Checks `graph_spec` supports `structured_readout()` from `required_keys`.
 
 [`validate_schema(...)`](./tfgnn/validate_schema.md): Validates the correctness of a graph schema instance.
 
@@ -280,7 +308,7 @@ TARGET_NAME<a id="TARGET_NAME"></a>
 **version**<a id="__version__"></a>
 </td>
 <td>
-`'0.5.0.dev1'`
+`'0.6.0.dev1'`
 </td>
 </tr>
 </table>

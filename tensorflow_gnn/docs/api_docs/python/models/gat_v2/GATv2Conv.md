@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gat_v2/layers.py#L22-L323">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gat_v2/layers.py#L22-L331">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -29,8 +29,8 @@ The multi-head attention from Graph Attention Networks v2 (GATv2).
     attention_activation: Union[str, Callable[..., Any]] = &#x27;leaky_relu&#x27;,
     heads_merge_type: str = &#x27;concat&#x27;,
     activation: Union[str, Callable[..., Any]] = &#x27;relu&#x27;,
-    kernel_initializer: Union[None, str, tf.keras.initializers.Initializer] = None,
-    kernel_regularizer: Union[None, str, tf.keras.regularizers.Regularizer] = None,
+    kernel_initializer: Any = None,
+    kernel_regularizer: Any = None,
     **kwargs
 )
 </code></pre>
@@ -140,7 +140,7 @@ from this input.)
 <td>
 Can be set to override `tfgnn.HIDDEN_STATE` for use as
 the input feature from sender nodes to attention.
-IMPORANT: Must be set to `None` for use with `receiver_tag=tfgnn.CONTEXT`
+IMPORTANT: Must be set to `None` for use with `receiver_tag=tfgnn.CONTEXT`
 on an edge set, or for pooling from edges without sender node states.
 </td>
 </tr><tr>
@@ -179,7 +179,7 @@ is dropped out.)
 The nonlinearity used on the transformed inputs
 before multiplying with the trained weights of the attention layer.
 This can be specified as a Keras layer, a tf.keras.activations.*
-function, or a string understood by tf.keras.layers.Activation().
+function, or a string understood by `tf.keras.layers.Activation()`.
 Defaults to "leaky_relu", which in turn defaults to a negative slope
 of `alpha=0.2`.
 </td>
@@ -206,8 +206,10 @@ specified in the same ways as attention_activation.
 `kernel_initializer`<a id="kernel_initializer"></a>
 </td>
 <td>
-Can be set to a `kerner_initializer` as understood
+Can be set to a `kernel_initializer` as understood
 by `tf.keras.layers.Dense` etc.
+An `Initializer` object gets cloned before use to ensure a fresh seed,
+if not set explicitly. For more, see `tfgnn.keras.clone_initializer()`.
 </td>
 </tr><tr>
 <td>
@@ -310,7 +312,7 @@ If `False`, all calls to convolve() will get `sender_node_input=None`.
 
 <h3 id="convolve"><code>convolve</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gat_v2/layers.py#L242-L301">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gat_v2/layers.py#L250-L309">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">

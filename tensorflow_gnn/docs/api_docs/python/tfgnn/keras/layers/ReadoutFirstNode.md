@@ -6,25 +6,23 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L206-L289">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L226-L315">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
 
-Reads a feature from the first node of each graph conponent.
+Reads a feature from the first node of each graph component.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.keras.layers.ReadoutFirstNode(
     *,
-    node_set_name: Optional[gt.NodeSetName] = None,
-    feature_name: Optional[gt.FieldName] = None,
+    node_set_name: Optional[NodeSetName] = None,
+    feature_name: Optional[FieldName] = None,
     **kwargs
 )
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
 
@@ -37,6 +35,13 @@ the first node of its component in the respective node set, and this layer
 reads out the information it has accumulated there. (In other node sets, the
 first node may be arbitrary -- or nonexistant, in which case this operation
 must not be used and may raise an error at runtime.)
+
+This implicit convention is inflexible and hard to validate. New models are
+encouraged to use
+<a href="../../../tfgnn/keras/layers/StructuredReadout.md"><code>tfgnn.keras.layers.StructuredReadout</code></a>
+instead. The necessary readout structure should preferably be present in the
+sampled dataset itself; if not, it can be added after the fact by
+<a href="../../../tfgnn/keras/layers/AddReadoutFromFirstNode.md"><code>tfgnn.keras.layers.AddReadoutFromFirstNode</code></a>.
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L918-L951">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L350-L383">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -17,12 +17,9 @@ Combines a list of tensors into one (by concatenation or otherwise).
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.combine_values(
-    inputs: List[<a href="../tfgnn/Field.md"><code>tfgnn.Field</code></a>],
-    combine_type: str
-) -> <a href="../tfgnn/Field.md"><code>tfgnn.Field</code></a>
+    inputs: List[Field], combine_type: str
+) -> Field
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
 

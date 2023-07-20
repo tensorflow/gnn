@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L247-L288">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/pool_ops.py#L99-L148">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -17,24 +17,27 @@ Aggregates (pools) node values to graph context.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.pool_nodes_to_context(
-    graph_tensor: <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>,
+    graph_tensor: GraphTensor,
     node_set_name: NodeSetName,
     reduce_type: str = &#x27;sum&#x27;,
     *,
     feature_value: Optional[Field] = None,
     feature_name: Optional[FieldName] = None
-) -> <a href="../tfgnn/Field.md"><code>tfgnn.Field</code></a>
+) -> Field
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
 
 Given a particular node set (identified by `node_set_name`), this operation
 reduces node features to their corresponding graph component. For example,
-setting `reduce_type='sum'` computes the sum over the node features of each
-graph. (See the corresponding `broadcast_context_to_nodes()` mirror
-operation).
+setting `reduce_type="sum"` computes the sum over the node features of each
+graph, while `reduce_type="sum|mean"` would compute the concatenation of their
+sum and mean along the innermost axis, in this order.
+
+For the converse operation of broadcasting from context to nodes, see
+<a href="../tfgnn/broadcast_context_to_nodes.md"><code>tfgnn.broadcast_context_to_nodes()</code></a>.
+For a generalization beyond a single node set, see
+<a href="../tfgnn/pool.md"><code>tfgnn.pool()</code></a>.
 
 The feature to fetch node values from is provided either by name (using
 `feature_name`) and found in the graph tensor itself, or provided explicitly
@@ -65,9 +68,8 @@ A node set name.
 `reduce_type`<a id="reduce_type"></a>
 </td>
 <td>
-A pooling operation name, like 'sum', 'mean' or 'max'. For the
-list of supported values use `get_registered_reduce_operation_names()`.
-You may `register_reduce_operation()` to register new ops.
+A pooling operation name, like `"sum"` or `"mean"`, or a
+`|`-separated combination of these; see <a href="../tfgnn/pool.md"><code>tfgnn.pool()</code></a>.
 </td>
 </tr><tr>
 <td>

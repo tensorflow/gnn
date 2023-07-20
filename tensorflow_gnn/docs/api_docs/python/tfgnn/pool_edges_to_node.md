@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L109-L166">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/pool_ops.py#L41-L96">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -17,25 +17,29 @@ Aggregates (pools) edge values to incident nodes.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.pool_edges_to_node(
-    graph_tensor: <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>,
+    graph_tensor: GraphTensor,
     edge_set_name: EdgeSetName,
     node_tag: IncidentNodeTag,
     reduce_type: str = &#x27;sum&#x27;,
     *,
     feature_value: Optional[Field] = None,
     feature_name: Optional[FieldName] = None
-) -> <a href="../tfgnn/Field.md"><code>tfgnn.Field</code></a>
+) -> Field
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
 
-Given a particular edge set (identified by `edge_set_name` name), this
-operation reduces edge features at the specific incident node of each edge (as
-indicated by `node_tag`). For example, setting `node_tag=tfgnn.TARGET` and
-`reduce_type='sum'` computes the sum over the incoming edge features at each
-node. (See the corresponding `broadcast_node_to_edges()` mirror operation).
+Given a particular edge set (identified by `edge_set_name` name), this operation
+reduces edge features at the specific incident node of each edge (as indicated
+by `node_tag`). For example, setting `node_tag=tfgnn.TARGET` and
+`reduce_type="sum"` computes the sum over the incoming edge features at each
+node, while `reduce_type="sum|mean"` would compute the concatenation of their
+sum and mean along the innermost axis, in this order.
+
+For the converse operation of broadcasting from nodes to incident edges, see
+<a href="../tfgnn/broadcast_node_to_edges.md"><code>tfgnn.broadcast_node_to_edges()</code></a>.
+For a generalization beyond a single edge set, see
+<a href="../tfgnn/pool.md"><code>tfgnn.pool()</code></a>.
 
 The feature to fetch edge values from is provided either by name (using
 `feature_name`) and found in the graph tensor itself, or provided explicitly
@@ -79,9 +83,8 @@ identified by its tag in the edge set.
 `reduce_type`<a id="reduce_type"></a>
 </td>
 <td>
-A pooling operation name, like 'sum', 'mean' or 'max'. For the
-list of supported values use `get_registered_reduce_operation_names()`.
-You may use `register_reduce_operation()` to register new ops.
+A pooling operation name like `"sum"` or `"mean"`, or a
+`|`-separated combination of these; see <a href="../tfgnn/pool.md"><code>tfgnn.pool()</code></a>.
 </td>
 </tr><tr>
 <td>

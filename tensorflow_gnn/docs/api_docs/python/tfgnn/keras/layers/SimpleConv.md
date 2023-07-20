@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/convolutions.py#L26-L144">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/convolutions.py#L26-L146">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -25,7 +25,7 @@ Inherits From:
     *,
     combine_type: str = &#x27;concat&#x27;,
     receiver_tag: const.IncidentNodeTag = const.TARGET,
-    receiver_feature: const.FieldName = const.HIDDEN_STATE,
+    receiver_feature: Optional[const.FieldName] = const.HIDDEN_STATE,
     sender_node_feature: Optional[const.FieldName] = const.HIDDEN_STATE,
     sender_edge_feature: Optional[const.FieldName] = None,
     **kwargs
@@ -78,7 +78,9 @@ combined input features (see combine_type).
 </td>
 <td>
 Specifies how to pool the messages to receivers. Defaults to
-"sum", can be any name from tfgnn.get_registered_reduce_operation_names().
+`"sum"`, can be any reduce_type understood by `tfgnn.pool()`, including
+concatenations like `"sum|max"` (but mind the increased dimension of the
+result and the growing number of model weights in the next-state layer).
 </td>
 </tr><tr>
 <td>
@@ -245,7 +247,7 @@ If `False`, all calls to convolve() will get `sender_node_input=None`.
 
 <h3 id="convolve"><code>convolve</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/convolutions.py#L120-L144">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/convolutions.py#L122-L146">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">

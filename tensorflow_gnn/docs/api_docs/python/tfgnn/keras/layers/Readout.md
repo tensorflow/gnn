@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L26-L155">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L38-L175">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -18,22 +18,22 @@ Reads a feature out of a GraphTensor.
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.keras.layers.Readout(
     *,
-    edge_set_name: Optional[gt.EdgeSetName] = None,
-    node_set_name: Optional[gt.NodeSetName] = None,
+    edge_set_name: Optional[EdgeSetName] = None,
+    node_set_name: Optional[NodeSetName] = None,
     from_context: bool = False,
-    feature_name: Optional[gt.FieldName] = None,
+    feature_name: Optional[FieldName] = None,
     **kwargs
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
-The Readout layer is a convenience wrapper for accessing a feature from
-one of the edge_sets, node_sets, or the context of a GraphTensor, intended
-for use in places such as tf.keras.Sequential that require a Keras layer
-and do not allow for direct subscripting of the GraphTensor.
+The `Readout` layer is a convenience wrapper for indexing into a
+<a href="../../../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a> and
+retrieving a feature tensor from one of its edge sets, node sets, or the
+context. It is intended for use in places such as `tf.keras.Sequential` that
+require a Keras Layer and do not allow subscrpting syntax like
+`graph_tensor.node_sets["user"]["name"]`.
 
 A location in the graph is selected by setting exactly one of the keyword
 arguments `edge_set_name=...`, `node_set_name=...` or `from_context=True`.
@@ -52,6 +52,16 @@ readout = tfgnn.keras.layers.Readout(feature_name="value")
 value = readout(graph_tensor, edge_set_name="edges")
 assert value == graph_tensor.edge_sets["edge"]["value"]
 ```
+
+Besides this direct readout of a full feature tensor, the library also supports
+readout that gathers feature values only from the nodes (or edges) that matter
+for a particular task, see
+<a href="../../../tfgnn/keras/layers/StructuredReadout.md"><code>tfgnn.keras.layers.StructuredReadout</code></a>.
+See also
+<a href="../../../tfgnn/keras/layers/AddReadoutFromFirstNode.md"><code>tfgnn.keras.layers.AddReadoutFromFirstNode</code></a>
+for adding the necessary readout structure to handle the legacy cases that were
+previously handled by
+<a href="../../../tfgnn/keras/layers/ReadoutFirstNode.md"><code>tfgnn.keras.layers.ReadoutFirstNode</code></a>.
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">

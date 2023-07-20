@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L513-L629">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L806-L919">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -17,17 +17,15 @@ Pools a GraphTensor feature.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.keras.layers.Pool(
-    tag: Optional[const.IncidentNodeOrContextTag] = None,
+    tag: Optional[IncidentNodeOrContextTag] = None,
     reduce_type: Optional[str] = None,
     *,
-    edge_set_name: Optional[gt.EdgeSetName] = None,
-    node_set_name: Optional[gt.NodeSetName] = None,
-    feature_name: Optional[gt.FieldName] = None,
+    edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName, None] = None,
+    node_set_name: Union[Sequence[NodeSetName], NodeSetName, None] = None,
+    feature_name: Optional[FieldName] = None,
     **kwargs
 )
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
 
@@ -36,32 +34,34 @@ result of pooling some feature.
 
 There are two kinds of pooling that this layer can be used for:
 
-  * From an edge set to a node set. This is selected by specifying the
-    origin as `edge_set_name=...` and the receiver with tag `tgnn.SOURCE`
-    or <a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a>; the corresponding node set name is implied.
-    The result is a tensor shaped like a node feature in which each node
-    has the aggregated feature values from the edges of the edge set that
-    have it as their SOURCE or TARGET, resp.; that is, the outgoing or
-    incoming edges of the node.
-  * From a node set or edge set to the context. This is selected by specifying
-    the origin as either a `node_set_name=...` or an `edge_set_name=...` and
-    the receiver with tag <a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>. The result is a tensor shaped
-    like a context feature in which each graph component has the aggregated
-    feature values from those nodes/edges in the selected node or edge set
-    that belong to the component.
-    (For more on components, see GraphTensor.merge_batch_to_components().)
+*   From an edge set (or multiple edge sets) to a single node set. This is
+    selected by specifying the sender as `edge_set_name=...` and the receiver
+    with tag `tgnn.SOURCE` or
+    <a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a>; the
+    corresponding node set name is implied. (In case of multiple edge sets, it
+    must be the same for all.) The result is a tensor shaped like a node feature
+    in which each node has the aggregated feature values from the edges of the
+    edge set(s) that have it as their `SOURCE` or `TARGET`, resp.; that is, the
+    outgoing or incoming edges of the node.
+*   From one (or more) node sets or one (or more) edge sets to the context. This
+    is selected by specifying the sender as either `node_set_name=...` or
+    `edge_set_name=...` and the receiver with tag
+    <a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>. The
+    result is a tensor shaped like a context feature in which the entry for each
+    graph component has the aggregated feature values from its nodes/edges in
+    the selected node or edge set(s). (For more on components, see
+    <a href="../../../tfgnn/GraphTensor.md#merge_batch_to_components"><code>tfgnn.GraphTensor.merge_batch_to_components()</code></a>.)
 
-Feature values are aggregated into a single value by a reduction function
-from <a href="../../../tfgnn/get_registered_reduce_operation_names.md"><code>tfgnn.get_registered_reduce_operation_names()</code></a>, see also
-<a href="../../../tfgnn/register_reduce_operation.md"><code>tfgnn.register_reduce_operation()</code></a>. The pre-configured choices include
-"sum", "mean", "max" and "min".
+Feature values are aggregated into a single value by a reduction function like
+`"sum"` or `"mean|max_no_inf"` as described for `tfgnn.pool()`; see there for
+more details.
 
-Both the initialization of and the call to this layer accept arguments for
-the receiver tag, the node/edge_set_name, the reduce_type and the
-feature_name. The call arguments take effect for that call only and can
-supply missing values, but they are not allowed to contradict initialization
-arguments.
-The feature name can be left unset to select tfgnn.HIDDEN_STATE.
+Both the initialization of and the call to this layer accept arguments for the
+receiver `tag`, the `node_set_name`/`edge_set_name`, the `reduce_type` and the
+`feature_name`. The call arguments take effect for that call only and can supply
+missing values, but they are not allowed to contradict initialization arguments.
+The feature name can be left unset to select
+<a href="../../../tfgnn.md#HIDDEN_STATE"><code>tfgnn.HIDDEN_STATE</code></a>.
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -73,7 +73,7 @@ The feature name can be left unset to select tfgnn.HIDDEN_STATE.
 `tag`<a id="tag"></a>
 </td>
 <td>
-Can be set to one of tfgnn.SOURCE, tfgnn.TARGET or tfgnn.CONTEXT
+Can be set to one of <a href="../../../tfgnn.md#SOURCE"><code>tfgnn.SOURCE</code></a>, <a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a> or <a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>
 to select the receiver.
 </td>
 </tr><tr>
@@ -81,8 +81,7 @@ to select the receiver.
 `reduce_type`<a id="reduce_type"></a>
 </td>
 <td>
-Can be set to any name from
-tfgnn.get_registered_reduce_operation_names().
+Can be set to any `reduce_type` understood by <a href="../../../tfgnn/pool.md"><code>tfgnn.pool()</code></a>.
 </td>
 </tr><tr>
 <td>
@@ -90,15 +89,17 @@ tfgnn.get_registered_reduce_operation_names().
 </td>
 <td>
 If set, the feature will be pooled from this edge set
-to the given receiver `tag`. Mutually exclusive with node_set_name.
+(or this sequence of edge sets) to the receiver given by `tag`.
+Mutually exclusive with `node_set_name`.
 </td>
 </tr><tr>
 <td>
 `node_set_name`<a id="node_set_name"></a>
 </td>
 <td>
-If set, the feature will be pooled from this node set.
-The `tag` must be CONTEXT. Mutually exclusive with edge_set_name.
+If set, the feature will be pooled from this node set
+(or sequence of node sets). The receiver must be selected as
+`tag=tfgnn.CONTEXT`. Mutually exclusive with `edge_set_name`.
 </td>
 </tr><tr>
 <td>
@@ -106,7 +107,7 @@ The `tag` must be CONTEXT. Mutually exclusive with edge_set_name.
 </td>
 <td>
 The name of the feature to read. If unset (also in call),
-the default state feature will be read.
+the <a href="../../../tfgnn.md#HIDDEN_STATE"><code>tfgnn.HIDDEN_STATE</code></a> feature will be read.
 </td>
 </tr>
 </table>
@@ -121,7 +122,7 @@ the default state feature will be read.
 `graph`<a id="graph"></a>
 </td>
 <td>
-The scalar GraphTensor to read from.
+The scalar <a href="../../../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a> to read from.
 </td>
 </tr><tr>
 <td>
@@ -147,7 +148,7 @@ edge_set_name, node_set_name: Same meaning as for init. One of them must
 </td>
 <td>
 Same meaning as for init. If passed to both, the value must
-be the same. If passed to neither, tfgnn.HIDDEN_STATE is used.
+be the same. If passed to neither, <a href="../../../tfgnn.md#HIDDEN_STATE"><code>tfgnn.HIDDEN_STATE</code></a> is used.
 </td>
 </tr>
 </table>

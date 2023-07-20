@@ -21,6 +21,10 @@ The tfgnn.keras.layers package.
 
 ## Classes
 
+[`class AddReadoutFromFirstNode`](../../tfgnn/keras/layers/AddReadoutFromFirstNode.md):
+Adds readout node set equivalent to
+<a href="../../tfgnn/keras/layers/ReadoutFirstNode.md"><code>tfgnn.keras.layers.ReadoutFirstNode</code></a>.
+
 [`class AddSelfLoops`](../../tfgnn/keras/layers/AddSelfLoops.md): Adds
 self-loops to scalar graphs.
 
@@ -55,7 +59,11 @@ feature values for entire edges, nodes or components.
 
 [`class Readout`](../../tfgnn/keras/layers/Readout.md): Reads a feature out of a GraphTensor.
 
-[`class ReadoutFirstNode`](../../tfgnn/keras/layers/ReadoutFirstNode.md): Reads a feature from the first node of each graph conponent.
+[`class ReadoutFirstNode`](../../tfgnn/keras/layers/ReadoutFirstNode.md): Reads
+a feature from the first node of each graph component.
+
+[`class ReadoutNamedIntoFeature`](../../tfgnn/keras/layers/ReadoutNamedIntoFeature.md):
+Reads out a feature value from select nodes (or edges) in a graph.
 
 [`class ResidualNextState`](../../tfgnn/keras/layers/ResidualNextState.md): Updates a state with a residual block.
 
@@ -64,3 +72,9 @@ layer that applies a passed-in message_fn.
 
 [`class SingleInputNextState`](../../tfgnn/keras/layers/SingleInputNextState.md):
 Replaces a state from a single input.
+
+[`class StructuredReadout`](../../tfgnn/keras/layers/StructuredReadout.md):
+Reads out a feature value from select nodes (or edges) in a graph.
+
+[`class StructuredReadoutIntoFeature`](../../tfgnn/keras/layers/ReadoutNamedIntoFeature.md):
+Reads out a feature value from select nodes (or edges) in a graph.

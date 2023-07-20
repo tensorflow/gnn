@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L534-L617">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L548-L631">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -127,7 +127,7 @@ The total number of items.
 
 <h3 id="from_fields"><code>from_fields</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L557-L602">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L571-L616">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -142,26 +142,22 @@ Constructs a new instance from edge set fields.
 
 #### Example 1:
 
-
-
 ```python
 tfgnn.EdgeSet.from_fields(
     sizes=tf.constant([3]),
     adjacency=tfgnn.Adjacency.from_indices(
-         source=("paper", [1, 2, 2]),
-         target=("paper", [0, 0, 1])))
+        source=("paper", [1, 2, 2]),
+        target=("paper", [0, 0, 1])))
 ```
 
 #### Example 2:
 
-
-
 ```python
- tfgnn.EdgeSet.from_fields(
-     sizes=tf.constant([4]),
-     adjacency=tfgnn.Adjacency.from_indices(
-         source=("paper", [1, 1, 1, 2]),
-         target=("author", [0, 1, 1, 3])))
+tfgnn.EdgeSet.from_fields(
+    sizes=tf.constant([4]),
+    adjacency=tfgnn.Adjacency.from_indices(
+        source=("paper", [1, 1, 1, 2]),
+        target=("author", [0, 1, 1, 3])))
 ```
 
 <!-- Tabular view -->
@@ -215,7 +211,7 @@ An `EdgeSet` composite tensor.
 
 <h3 id="get_features_dict"><code>get_features_dict</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L158-L160">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L156-L158">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -227,7 +223,7 @@ Returns features copy as a dictionary.
 
 <h3 id="replace_features"><code>replace_features</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L405-L411">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L419-L425">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -241,7 +237,7 @@ Returns a new instance with a new set of features.
 
 <h3 id="set_shape"><code>set_shape</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L304-L310">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L300-L306">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -255,7 +251,7 @@ Enforce the common prefix shape on all the contained features.
 
 <h3 id="__getitem__"><code>__getitem__</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L55-L57">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L53-L55">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">

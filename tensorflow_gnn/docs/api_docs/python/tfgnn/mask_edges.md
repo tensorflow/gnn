@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L632-L745">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L234-L347">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -17,11 +17,11 @@ Creates a GraphTensor after applying edge_mask over the specified edge-set.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.mask_edges(
-    graph: <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>,
+    graph: GraphTensor,
     edge_set_name: gt.EdgeSetName,
     boolean_edge_mask: tf.Tensor,
     masked_info_edge_set_name: Optional[gt.EdgeSetName] = None
-) -> <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>
+) -> GraphTensor
 </code></pre>
 
 <!-- Placeholder for "Used in" -->

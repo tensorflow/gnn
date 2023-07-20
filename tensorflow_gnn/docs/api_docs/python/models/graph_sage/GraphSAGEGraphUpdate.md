@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L476-L589">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L475-L588">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -32,7 +32,7 @@ Returns a GraphSAGE GraphUpdater layer for nodes in node_set_names.
     feature_name: str = tfgnn.HIDDEN_STATE,
     name: str = &#x27;graph_sage&#x27;,
     **kwargs
-)
+) -> tf.keras.layers.Layer
 </code></pre>
 
 <!-- Placeholder for "Used in" -->
@@ -78,11 +78,11 @@ results at the specified endpoint of the edges.
 `node_set_names`<a id="node_set_names"></a>
 </td>
 <td>
-A set (or convertible container) of node_set_names for which
-the GraphSAGE graph update happens over each of their incident edges,
-where node_set_name is configured as the receiver_tag end.
-If unset, defaults to all node sets that receive from at least one edge
-set.
+By default, this layer updates all node sets that receive
+from at least one edge set. Optionally, this argument can specify a subset
+of those node sets. It is not allowed to include node sets that do not
+receive messages from any edge set. It is also not allowed to include
+auxiliary node sets.
 </td>
 </tr><tr>
 <td>

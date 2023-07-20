@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L427-L510">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L715-L803">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -17,43 +17,47 @@ Broadcasts a GraphTensor feature.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.keras.layers.Broadcast(
-    tag: Optional[const.IncidentNodeOrContextTag] = None,
+    tag: Optional[IncidentNodeOrContextTag] = None,
     *,
-    edge_set_name: Optional[gt.EdgeSetName] = None,
-    node_set_name: Optional[gt.NodeSetName] = None,
-    feature_name: Optional[gt.FieldName] = None,
+    edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName, None] = None,
+    node_set_name: Union[Sequence[NodeSetName], NodeSetName, None] = None,
+    feature_name: Optional[FieldName] = None,
     **kwargs
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
-This layer accepts a complete GraphTensor and returns a tensor with the
-broadcast feature value.
+This layer accepts a complete GraphTensor and returns a tensor (or tensors) with
+the broadcast feature value.
 
 There are two kinds of broadcast that this layer can be used for:
 
-  * From a node set to an edge set. This is selected by specifying
-    the origin by tag `tgnn.SOURCE` or <a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a> and the receiver
-    as `edge_set_name=...`; the node set name is implied.
-    The result is a tensor shaped like an edge feature in which each edge
-    has a copy of the feature that is present at its SOURCE or TARGET node.
-    From a node's point of view, SOURCE means broadcast to outgoing edges,
-    and TARGET means broadcast to incoming edges.
-  * From the context to a node set or edge set. This is selected by
-    specifying the origin by tag <a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a> and the receiver as either
-    a `node_set_name=...` or an `edge_set_name=...`.
-    The result is a tensor shaped like a node/edge feature in which each
-    node/edge has a copy of the context feature in its graph component.
-    (For more on components, see GraphTensor.merge_batch_to_components().)
+*   From a node set to an edge set (or multiple edge sets). This is selected by
+    specifying the receiver edge set(s) as `edge_set_name=...` and the sender by
+    tag `tgnn.SOURCE` or
+    <a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a> relative to
+    the edge set(s). The node set name is implied. (In case of multiple edge
+    sets, it must agree between all of them.) The result is a tensor (or list of
+    tensors) shaped like an edge feature in which each edge has a copy of the
+    feature that is present at its `SOURCE` or `TARGET` node. From a node's
+    point of view, `SOURCE` means broadcast to outgoing edges, and `TARGET`
+    means broadcast to incoming edges.
+*   From the context to one (or more) node sets or one (or more) edge sets. This
+    is selected by specifying the receiver(s) as either `node_set_name=...` or
+    `edge_set_name=...` and the sender by tag
+    <a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>. The
+    result is a tensor (or list of tensors) shaped like a node/edge feature in
+    which each node/edge has a copy of the context feature from the graph
+    component it belongs to. (For more on components, see
+    <a href="../../../tfgnn/GraphTensor.md#merge_batch_to_components"><code>tfgnn.GraphTensor.merge_batch_to_components()</code></a>.)
 
-Both the initialization of and the call to this layer accept arguments to
-set the tag, node/edge_set_name, and the feature_name. The call
-arguments take effect for that call only and can supply missing values,
-but they are not allowed to contradict initialization arguments.
-The feature name can be left unset to select tfgnn.HIDDEN_STATE.
+Both the initialization of and the call to this layer accept arguments to set
+the `tag`, `node_set_name`/`edge_set_name`, and the `feature_name`. The call
+arguments take effect for that call only and can supply missing values, but they
+are not allowed to contradict initialization arguments. The feature name can be
+left unset to select
+<a href="../../../tfgnn.md#HIDDEN_STATE"><code>tfgnn.HIDDEN_STATE</code></a>.
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -65,7 +69,8 @@ The feature name can be left unset to select tfgnn.HIDDEN_STATE.
 `tag`<a id="tag"></a>
 </td>
 <td>
-Can be set to one of tfgnn.SOURCE, tfgnn.TARGET or tfgnn.CONTEXT.
+Can be set to one of <a href="../../../tfgnn.md#SOURCE"><code>tfgnn.SOURCE</code></a>, <a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a> or <a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>
+to select the sender from which feature values are broadcast.
 </td>
 </tr><tr>
 <td>
@@ -73,15 +78,17 @@ Can be set to one of tfgnn.SOURCE, tfgnn.TARGET or tfgnn.CONTEXT.
 </td>
 <td>
 If set, the feature will be broadcast to this edge set
-from the given origin. Mutually exclusive with node_set_name.
+(or this sequence of edge sets) from the sender given by `tag`.
+Mutually exclusive with `node_set_name`.
 </td>
 </tr><tr>
 <td>
 `node_set_name`<a id="node_set_name"></a>
 </td>
 <td>
-If set, the feature will be broadcast to this node set.
-Origin must be CONTEXT. Mutually exclusive with edge_set_name.
+If set, the feature will be broadcast to this node set
+(or sequence of node sets). The sender must be selected as
+`tag=tfgn.CONTEXT`. Mutually exclusive with `edge_set_name`.
 </td>
 </tr><tr>
 <td>
@@ -89,7 +96,7 @@ Origin must be CONTEXT. Mutually exclusive with edge_set_name.
 </td>
 <td>
 The name of the feature to read. If unset (also in call),
-the default state feature will be read.
+the <a href="../../../tfgnn.md#HIDDEN_STATE"><code>tfgnn.HIDDEN_STATE</code></a> feature will be read.
 </td>
 </tr>
 </table>
@@ -104,7 +111,7 @@ the default state feature will be read.
 `graph`<a id="graph"></a>
 </td>
 <td>
-The scalar GraphTensor to read from.
+The scalar <a href="../../../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a> to read from.
 </td>
 </tr><tr>
 <td>
@@ -122,18 +129,20 @@ edge_set_name, node_set_name: Same meaning as for init. One of them must
 </td>
 <td>
 Same meaning as for init. If passed to both, the value must
-be the same. If passed to neither, tfgnn.HIDDEN_STATE is used.
+be the same. If passed to neither, <a href="../../../tfgnn.md#HIDDEN_STATE"><code>tfgnn.HIDDEN_STATE</code></a> is used.
 </td>
 </tr>
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
-A tensor with the feature value broadcast to the target.
+A tensor (or list of tensors) with the feature values broadcast to the
+requested receivers.
 </td>
 </tr>
 

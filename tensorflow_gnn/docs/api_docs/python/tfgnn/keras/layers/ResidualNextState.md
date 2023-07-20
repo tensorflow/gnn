@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/next_state.py#L145-L238">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/next_state.py#L145-L251">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -20,12 +20,10 @@ Updates a state with a residual block.
     residual_block: tf.keras.layers.Layer,
     *,
     activation: Any = None,
-    skip_connection_feature_name: const.FieldName = const.HIDDEN_STATE,
+    skip_connection_feature_name: Optional[const.FieldName] = None,
     **kwargs
 )
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
 
@@ -71,8 +69,9 @@ or vice versa.
 <td>
 Controls which input from the updated graph
 piece is added back after the residual block. If the input from the
-updated graph piece is a single tensor, that one is used. If it is
-a dict, this key is used; defaults to <a href="../../../tfgnn.md#HIDDEN_STATE"><code>tfgnn.HIDDEN_STATE</code></a>.
+updated graph piece is a single tensor, that tensor is used, and this arg
+must not be set. If the input is a dict, this key is used; if unset, it
+defaults to <a href="../../../tfgnn.md#HIDDEN_STATE"><code>tfgnn.HIDDEN_STATE</code></a>.
 </td>
 </tr>
 </table>

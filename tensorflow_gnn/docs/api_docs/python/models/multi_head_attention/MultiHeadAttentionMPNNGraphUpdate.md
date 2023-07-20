@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L683-L776">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L684-L781">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -30,7 +30,7 @@ Returns a GraphUpdate layer for message passing with MultiHeadAttention pooling.
     attention_activation: Optional[Union[str, Callable[..., Any]]] = None,
     conv_activation: Union[str, Callable[..., Any]] = &#x27;relu&#x27;,
     activation: Union[str, Callable[..., Any]] = &#x27;relu&#x27;,
-    kernel_initializer: Union[None, str, tf.keras.initializers.Initializer] = &#x27;glorot_uniform&#x27;
+    kernel_initializer: Any = &#x27;glorot_uniform&#x27;
 ) -> tf.keras.layers.Layer
 </code></pre>
 
@@ -128,7 +128,7 @@ The dropout rate applied to the resulting node states.
 The nonlinearity used on the transformed inputs before
 multiplying with the trained weights of the attention layer. This can be
 specified as a Keras layer, a tf.keras.activations.* function, or a string
-understood by tf.keras.layers.Activation(). Defaults to None.
+understood by `tf.keras.layers.Activation`. Defaults to None.
 </td>
 </tr><tr>
 <td>
@@ -151,8 +151,10 @@ graph update.
 `kernel_initializer`<a id="kernel_initializer"></a>
 </td>
 <td>
-Can be set to a `kerner_initializer` as understood by
-`tf.keras.layers.Dense` etc.
+Can be set to a `kernel_initializer` as understood
+by `tf.keras.layers.Dense` etc.
+An `Initializer` object gets cloned before use to ensure a fresh seed,
+if not set explicitly. For more, see `tfgnn.keras.clone_initializer()`.
 </td>
 </tr>
 </table>

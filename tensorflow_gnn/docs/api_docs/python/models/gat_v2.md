@@ -37,3 +37,9 @@ GraphUpdate layer with a Graph Attention Network V2 (GATv2).
 
 [`GATv2MPNNGraphUpdate(...)`](./gat_v2/GATv2MPNNGraphUpdate.md): Returns a
 GraphUpdate layer for message passing with GATv2 pooling.
+
+[`graph_update_from_config_dict(...)`](./gat_v2/graph_update_from_config_dict.md):
+Returns a GATv2MPNNGraphUpdate initialized from `cfg`.
+
+[`graph_update_get_config_dict(...)`](./gat_v2/graph_update_get_config_dict.md):
+Returns ConfigDict for graph_update_from_config_dict() with defaults.

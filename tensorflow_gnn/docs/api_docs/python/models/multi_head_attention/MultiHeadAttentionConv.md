@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L24-L558">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L24-L562">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -26,10 +26,11 @@ Transformer-style (dot-product) multi-head attention on GNNs.
     sender_edge_feature: Optional[tfgnn.FieldName] = None,
     use_bias: bool = True,
     edge_dropout: float = 0.0,
+    inputs_dropout: float = 0.0,
     attention_activation: Optional[Union[str, Callable[..., Any]]] = None,
     activation: Union[str, Callable[..., Any]] = &#x27;relu&#x27;,
-    kernel_initializer: Union[None, str, tf.keras.initializers.Initializer] = None,
-    kernel_regularizer: Union[None, str, tf.keras.regularizers.Regularizer] = None,
+    kernel_initializer: Any = None,
+    kernel_regularizer: Any = None,
     transform_keys: bool = True,
     score_scaling: Literal['none', 'rsqrt_dim', 'trainable_sigmoid'] = &#x27;rsqrt_dim&#x27;,
     transform_values_after_pooling: bool = False,
@@ -174,7 +175,7 @@ is derived from this input.)
 <td>
 Can be set to override `tfgnn.HIDDEN_STATE`
 for use as the input feature from sender nodes to attention.
-IMPORANT: Must be set to `None` for use with `receiver_tag=tfgnn.CONTEXT`
+IMPORTANT: Must be set to `None` for use with `receiver_tag=tfgnn.CONTEXT`
 on an edge set, or for pooling from edges without sender node states.
 </td>
 </tr><tr>
@@ -207,6 +208,14 @@ is dropped out.)
 </td>
 </tr><tr>
 <td>
+`inputs_dropout`<a id="inputs_dropout"></a>
+</td>
+<td>
+Dropout rate for random dropout on the inputs to this
+convolution layer, i.e. the receiver, sender node, and sender edge inputs.
+</td>
+</tr><tr>
+<td>
 `attention_activation`<a id="attention_activation"></a>
 </td>
 <td>
@@ -214,7 +223,7 @@ The nonlinearity used on the transformed inputs
 (query, and keys if `transform_keys` is `True`) before computing the
 attention scores. This can be specified as a Keras layer, a
 tf.keras.activations.* function, or a string understood by
-tf.keras.layers.Activation(). Defaults to None.
+`tf.keras.layers.Activation`. Defaults to None.
 </td>
 </tr><tr>
 <td>
@@ -230,15 +239,17 @@ specified in the same ways as attention_activation.
 </td>
 <td>
 Can be set to a `kernel_initializer` as understood
-by tf.keras.layers.Dense etc.
+by `tf.keras.layers.Dense` etc.
+An `Initializer` object gets cloned before use to ensure a fresh seed,
+if not set explicitly. For more, see `tfgnn.keras.clone_initializer()`.
 </td>
 </tr><tr>
 <td>
 `kernel_regularizer`<a id="kernel_regularizer"></a>
 </td>
 <td>
-Can be set to a `kernel_regularizer` as understood
-by tf.keras.layers.Dense etc.
+Can be set to a `kernel_regularized` as understood
+by `tf.keras.layers.Dense` etc.
 </td>
 </tr><tr>
 <td>
@@ -276,8 +287,6 @@ Setting this option pools inputs with attention coefficients, then applies
 the transformation. This is mathematically equivalent but can be faster
 or slower to compute, depending on the platform and the dataset.
 IMPORTANT: Toggling this option breaks checkpoint compatibility.
-IMPORTANT: Setting this option requires TensorFlow 2.10 or greater,
-because it uses `tf.keras.layers.EinsumDense`.
 </td>
 </tr>
 </table>
@@ -373,7 +382,7 @@ If `False`, all calls to convolve() will get `sender_node_input=None`.
 
 <h3 id="convolve"><code>convolve</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L354-L530">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L350-L534">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">

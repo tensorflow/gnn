@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L1116-L1170">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L554-L617">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -17,19 +17,27 @@ Randomly reorders nodes of given node sets, within each graph component.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.shuffle_nodes(
-    graph_tensor: <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>,
+    graph_tensor: GraphTensor,
     *,
     node_sets: Optional[Collection[gt.NodeSetName]] = None,
     seed: Optional[int] = None
-) -> <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>
+) -> GraphTensor
 </code></pre>
 
 <!-- Placeholder for "Used in" -->
 
 The order of edges does not change; only their adjacency is modified to match
 the new order of shuffled nodes. The order of graph components (as created by
-`merge_graph_to_components()`) does not change, nodes are shuffled separatelty
+`merge_graph_to_components()`) does not change, nodes are shuffled separately
 within each component.
+
+Auxiliary node sets are not shuffled, unless they are explicitly included in
+`node_sets`. Not shuffling is the correct behavior for the auxiliary node sets
+used by
+<a href="../tfgnn/structured_readout.md"><code>tfgnn.structured_readout()</code></a>.
+
+NOTE(b/277938756): This operation is not available in TFLite (last checked for
+TF 2.12).
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -56,7 +64,7 @@ all node sets are shuffled.  Should not overlap with `shuffle_indices`.
 `seed`<a id="seed"></a>
 </td>
 <td>
-A seed for random uniform shuffle.
+Optionally, a fixed seed for random uniform shuffle.
 </td>
 </tr>
 </table>

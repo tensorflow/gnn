@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/normalization_ops.py#L26-L91">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/normalization_ops.py#L36-L108">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -20,14 +20,12 @@ Computes softmax over a many-to-one relationship in a GraphTensor.
     graph_tensor: <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>,
     per_tag: <a href="../tfgnn/IncidentNodeOrContextTag.md"><code>tfgnn.IncidentNodeOrContextTag</code></a>,
     *,
-    edge_set_name: Optional[const.EdgeSetName] = None,
-    node_set_name: Optional[const.NodeSetName] = None,
-    feature_value: Optional[gt.Field] = None,
-    feature_name: Optional[gt.FieldName] = None
-) -> <a href="../tfgnn/Field.md"><code>tfgnn.Field</code></a>
+    edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName, None] = None,
+    node_set_name: Union[Sequence[NodeSetName], NodeSetName, None] = None,
+    feature_value: Union[Sequence[Field], Field, None] = None,
+    feature_name: Optional[FieldName] = None
+) -> Union[Sequence[Field], Field]
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
 
@@ -66,8 +64,9 @@ common incident node.
 `edge_set_name`<a id="edge_set_name"></a>
 </td>
 <td>
-The name of the edge set on which values are normalized
-Exactly one of edge_set_name and node_set_name must be set.
+The name of the edge set on which values are normalized,
+or a non-empty sequence of such names. Unless `from_tag=tfgnn.CONTEXT`,
+all named edge sets must have the same incident node set at the given tag.
 </td>
 </tr><tr>
 <td>
@@ -75,49 +74,42 @@ Exactly one of edge_set_name and node_set_name must be set.
 </td>
 <td>
 The name of the node set on which values are normalized,
-allowed only if per_tag is <a href="../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>. See also edge_set_name.
+or a non-empty sequence of such names. Can only be passed together with
+`from_tag=tfgnn.CONTEXT`. Exactly one of edge_set_name or node_set_name
+must be set.
 </td>
 </tr><tr>
 <td>
 `feature_value`<a id="feature_value"></a>
 </td>
 <td>
-A ragged or dense tensor with the value; cf. feature_name.
+A tensor or list of tensors, parallel to the node_set_names
+or edge_set_names, to supply the input values of softmax. Each tensor
+has shape `[num_items, *feature_shape]`, where `num_items` is the number
+of edges in the given edge set or nodes in the given node set, and
+`*feature_shape` is the same across all inputs.
 </td>
 </tr><tr>
 <td>
 `feature_name`<a id="feature_name"></a>
 </td>
 <td>
-The name of the feature to be used as input value.
-Exactly one of feature_value or feature_name must be set.
+The name of a feature stored on each graph piece from which
+pooling is done, for use instead of an explicity passed feature_value.
+Exactly one of feature_name or feature_value must be set.
 </td>
 </tr>
 </table>
 
 <!-- Tabular view -->
- <table class="responsive fixed orange">
-<colgroup><col width="214px"><col></colgroup>
-<tr><th colspan="2"><h2 class="add-link">Raises</h2></th></tr>
 
-<tr>
-<td>
-`ValueError`<a id="ValueError"></a>
-</td>
-<td>
-if `graph_tensor` does not contain an edge set or node set
-of the given name.
-</td>
-</tr>
-</table>
-
-<!-- Tabular view -->
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
-The softmaxed values. The dimensions do not change from the input.
+A tensor or a list of tensors with the softmaxed values. The dimensions of
+the tensors and the length of the list do not change from the input.
 </td>
 </tr>
 

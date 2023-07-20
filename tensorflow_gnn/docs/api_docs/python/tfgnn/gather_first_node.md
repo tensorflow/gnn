@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L579-L629">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L181-L231">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -17,15 +17,13 @@ Gathers feature value from the first node of each graph component.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.gather_first_node(
-    graph_tensor: <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>,
+    graph_tensor: GraphTensor,
     node_set_name: NodeSetName,
     *,
     feature_value: Optional[Field] = None,
     feature_name: Optional[FieldName] = None
-) -> <a href="../tfgnn/Field.md"><code>tfgnn.Field</code></a>
+) -> Field
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
 

@@ -28,7 +28,6 @@ dropout (or "component dropout", which is rarely useful) on Tensors shaped like
 features of a **scalar** GraphTensor.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
@@ -51,7 +50,6 @@ The random seed, forwarded `tf.keras.layers.Dropout`.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call args</h2></th></tr>
@@ -69,7 +67,6 @@ GraphTensor. Across calls, all inputs must have the same known rank.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call returns</h2></th></tr>

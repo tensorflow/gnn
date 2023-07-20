@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L682-L1189">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L696-L1204">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -54,21 +54,19 @@ multiple components for use in GNN model).
 
 #### Example 1:
 
-
-
 ```python
 # A homogeneous scalar graph tensor with 1 graph component, 10 nodes and 3
 # edges. Edges connect nodes 0 and 3, 5 and 7, 9 and 1. There are no features.
 tfgnn.GraphTensor.from_pieces(
     node_sets = {
-      'node': tfgnn.NodeSet.from_fields(sizes=[10], features={})},
+        'node': tfgnn.NodeSet.from_fields(sizes=[10], features={})},
     edge_sets = {
-      'edge': tfgnn.EdgeSet.from_fields(
-         sizes=[3],
-         features={},
-         adjacency=tfgnn.Adjacency.from_indices(
-           source=('node', [0, 5, 9]),
-           target=('node', [3, 7, 1])))})
+        'edge': tfgnn.EdgeSet.from_fields(
+            sizes=[3],
+            features={},
+            adjacency=tfgnn.Adjacency.from_indices(
+                source=('node', [0, 5, 9]),
+                target=('node', [3, 7, 1])))})
 ```
 
 All graph pieces provide a mapping interface to access their features by name
@@ -91,8 +89,6 @@ In particular this rule implies that if a feature has `tf.Tensor` type its
 
 #### Example 2:
 
-
-
 ```python
 # A scalar graph tensor with edges between authors, papers and their venues
 # (journals or conferences). Each venue belongs to one graph component. The
@@ -108,7 +104,7 @@ venues = tfgnn.GraphTensor.from_pieces(
         'paper': tfgnn.NodeSet.from_fields(
             sizes=[3, 1], features={'year': [2018, 2017, 2017, 2022]})},
     edge_sets={
-        'is_writen': tfgnn.EdgeSet.from_fields(
+        'is_written': tfgnn.EdgeSet.from_fields(
             sizes=[4, 2],
             features={},
             adjacency=tfgnn.Adjacency.from_indices(
@@ -123,14 +119,13 @@ component (so the `.sizes` has all 1s as its values).
 
 #### Example 3:
 
-
-
 ```python
 # The year of publication of the first article in each venue from the
 # previous example.
 papers = venues.node_sets['paper']
-years_by_venue = tf.RaggedTensor.from_row_lengths(papers['year'],
-                                                  papers.sizes)
+years_by_venue = tf.RaggedTensor.from_row_lengths(
+    papers['year'], papers.sizes
+)
 first_paper_year = tf.reduce_min(years_by_venue, -1)  # [2017, 2022]
 ```
 
@@ -236,7 +231,7 @@ The total number of graph components.
 
 <h3 id="from_pieces"><code>from_pieces</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L822-L854">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L837-L869">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -253,7 +248,7 @@ Constructs a new `GraphTensor` from context, node sets and edge sets.
 
 <h3 id="merge_batch_to_components"><code>merge_batch_to_components</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L856-L941">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L871-L956">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -334,14 +329,14 @@ A scalar (rank 0) graph tensor.
 
 <h3 id="remove_features"><code>remove_features</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1084-L1175">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1099-L1190">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>remove_features(
-    context: Optional[Sequence[NodeSetName]] = None,
-    node_sets: Optional[Mapping[NodeSetName, Sequence[NodeSetName]]] = None,
-    edge_sets: Optional[Mapping[NodeSetName, Sequence[EdgeSetName]]] = None
+    context: Optional[Sequence[FieldName]] = None,
+    node_sets: Optional[Mapping[NodeSetName, Sequence[FieldName]]] = None,
+    edge_sets: Optional[Mapping[NodeSetName, Sequence[FieldName]]] = None
 ) -> 'GraphTensor'
 </code></pre>
 
@@ -447,7 +442,7 @@ input graph tensor.
 
 <h3 id="replace_features"><code>replace_features</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L983-L1082">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L998-L1097">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -576,7 +571,7 @@ tensor.
 
 <h3 id="set_shape"><code>set_shape</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L304-L310">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L300-L306">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">

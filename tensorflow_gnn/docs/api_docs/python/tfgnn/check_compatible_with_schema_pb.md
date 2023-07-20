@@ -35,7 +35,6 @@ The `graph` is compatible with the `schema` if
     <a href="../tfgnn/Adjacency.md"><code>tfgnn.Adjacency</code></a>.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -58,7 +57,6 @@ The graph schema.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Raises</h2></th></tr>

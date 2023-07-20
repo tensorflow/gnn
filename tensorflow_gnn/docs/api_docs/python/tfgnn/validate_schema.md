@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_validation.py#L48-L70">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_validation.py#L45-L77">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -17,11 +17,10 @@ Validates the correctness of a graph schema instance.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.validate_schema(
-    schema: <a href="../tfgnn/GraphSchema.md"><code>tfgnn.GraphSchema</code></a>
+    schema: <a href="../tfgnn/GraphSchema.md"><code>tfgnn.GraphSchema</code></a>,
+    readout_node_sets: Optional[Sequence[const.NodeSetName]] = None
 ) -> List[Exception]
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
 
@@ -41,6 +40,16 @@ shapes are fully-defined, ensures set name references are found, etc.
 </td>
 <td>
 An instance of the graph schema.
+</td>
+</tr><tr>
+<td>
+`readout_node_sets`<a id="readout_node_sets"></a>
+</td>
+<td>
+By default, this function checks the "_readout" node set,
+if present, if it meets the requirements of <a href="../tfgnn/structured_readout.md"><code>tfgnn.structured_readout()</code></a>.
+That's sufficient for most cases. Optionally, you can pass a list of
+`readout_node_set` names to (a) require their presence and (b) check them.
 </td>
 </tr>
 </table>

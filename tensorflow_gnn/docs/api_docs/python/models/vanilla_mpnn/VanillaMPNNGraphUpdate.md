@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/vanilla_mpnn/layers.py#L22-L111">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/vanilla_mpnn/layers.py#L22-L115">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -26,7 +26,7 @@ Returns a GraphUpdate layer for a Vanilla MPNN.
     reduce_type: str = &#x27;sum&#x27;,
     l2_regularization: float = 0.0,
     dropout_rate: float = 0.0,
-    kernel_initializer: Union[None, str, tf.keras.initializers.Initializer] = &#x27;glorot_uniform&#x27;,
+    kernel_initializer: Any = &#x27;glorot_uniform&#x27;,
     use_layer_normalization: bool = False
 ) -> tf.keras.layers.Layer
 </code></pre>
@@ -72,8 +72,7 @@ The dimension of output hidden states for each node.
 `message_dim`<a id="message_dim"></a>
 </td>
 <td>
-The dimension of messages (attention values) computed on
-each edge.  Must be divisible by `num_heads`.
+The dimension of messages computed on each edge.
 </td>
 </tr><tr>
 <td>
@@ -105,9 +104,10 @@ this input.
 `reduce_type`<a id="reduce_type"></a>
 </td>
 <td>
-How to pool the messages from edges to receiver nodes.
-Can be any name from `tfgnn.get_registered_reduce_operation_names()`,
-defaults to "sum".
+How to pool the messages from edges to receiver nodes; defaults
+to `"sum"`. Can be any reduce_type understood by `tfgnn.pool()`, including
+concatenations like `"sum|max"` (but mind the increased dimension of the
+result and the growing number of model weights in the next-state layer).
 </td>
 </tr><tr>
 <td>
@@ -130,8 +130,10 @@ new node state.
 `kernel_initializer`<a id="kernel_initializer"></a>
 </td>
 <td>
-Can be set to a `kerner_initializer` as understood
+Can be set to a `kernel_initializer` as understood
 by `tf.keras.layers.Dense` etc.
+An `Initializer` object gets cloned before use to ensure a fresh seed,
+if not set explicitly. For more, see `tfgnn.keras.clone_initializer()`.
 </td>
 </tr><tr>
 <td>

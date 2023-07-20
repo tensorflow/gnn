@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/builders.py#L29-L142">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/builders.py#L29-L218">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -20,7 +20,9 @@ Factory of layers that do convolutions on a graph.
     convolutions_factory: Callable[..., graph_update_lib.EdgesToNodePoolingLayer],
     nodes_next_state_factory: Callable[[const.NodeSetName], next_state_lib.NextStateForNodeSet],
     *,
-    receiver_tag: Optional[const.IncidentNodeTag] = None
+    receiver_tag: Optional[const.IncidentNodeTag] = None,
+    node_set_update_factory: Optional[Callable[..., graph_update_lib.NodeSetUpdateLayer]] = None,
+    graph_update_factory: Optional[Callable[..., tf.keras.layers.Layer]] = None
 )
 </code></pre>
 
@@ -58,6 +60,20 @@ model = tf.keras.models.Sequential([
 ])
 ```
 
+Advanced users can pass additional callbacks to further customize the creation
+of node set updates and the complete graph updates. The default values of those
+callbacks are equivalent to
+
+```python
+def node_set_update_factory(node_set_name, edge_set_inputs, next_state):
+  del node_set_name  # Unused by default.
+  return tfgnn.keras.layers.NodeSetUpdate(edge_set_inputs, next_state)
+
+def graph_update_factory(deferred_init_callback, name):
+  return tfgnn.keras.layers.GraphUpdate(
+      deferred_init_callback=deferred_init_callback, name=name)
+```
+
 <!-- Tabular view -->
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
@@ -93,6 +109,25 @@ incident node of each edge receives the convolution result.
 DEPRECATED: This used to be optional and effectively default to TARGET.
 New code is expected to set it in any case.
 </td>
+</tr><tr>
+<td>
+`node_set_update_factory`<a id="node_set_update_factory"></a>
+</td>
+<td>
+If set, called as
+`node_set_update_factory(node_set_name, edge_set_inputs, next_state)`
+to return the node set update for the given `node_set_name`. The
+remaining arguments are as expected by <a href="../../tfgnn/keras/layers/NodeSetUpdate.md"><code>tfgnn.keras.layers.NodeSetUpdate</code></a>.
+</td>
+</tr><tr>
+<td>
+`graph_update_factory`<a id="graph_update_factory"></a>
+</td>
+<td>
+If set, called as
+`graph_update_factory(deferred_init_callback, name)` to return the graph
+update. The arguments are as expected by <a href="../../tfgnn/keras/layers/GraphUpdate.md"><code>tfgnn.keras.layers.GraphUpdate</code></a>.
+</td>
 </tr>
 </table>
 
@@ -100,21 +135,23 @@ New code is expected to set it in any case.
 
 <h3 id="Convolve"><code>Convolve</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/builders.py#L91-L142">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/builders.py#L126-L218">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>Convolve(
-    node_sets: Optional[Collection[const.NodeSetName]] = None
+    node_sets: Optional[Collection[const.NodeSetName]] = None,
+    name: Optional[str] = None
 ) -> tf.keras.layers.Layer
 </code></pre>
 
 Constructs GraphUpdate layer for the set of receiver node sets.
 
 This method contructs NodeSetUpdate layers from convolutions and next state
-factories (specified during the class construction) for the given receiver
-node sets. The resulting node set update layers are combined and returned
-as one GraphUpdate layer.
+factories (specified during the class construction) for the given receiver node
+sets. The resulting node set update layers are combined and returned as one
+GraphUpdate layer. Auxiliary node sets (e.g., as needed for
+`tfgnn.keras.layers.NamedReadout`) are ignored.
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -127,9 +164,17 @@ as one GraphUpdate layer.
 </td>
 <td>
 By default, the result updates all node sets that receive from
-at least one edge set. Passing a set of node set names here (or a
-Collection convertible to a set) overrides this (possibly including
-node sets that receive from zero edge sets).
+at least one edge set. Optionally, this argument can specify a subset
+of those node sets. It is not allowed to include node sets that do not
+receive messages from any edge set. It is also not allowed to include
+auxiliary node sets.
+</td>
+</tr><tr>
+<td>
+`name`
+</td>
+<td>
+Optionally, a name for the returned GraphUpate layer.
 </td>
 </tr>
 </table>

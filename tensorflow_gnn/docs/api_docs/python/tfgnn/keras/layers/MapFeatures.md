@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/map_features.py#L26-L260">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/map_features.py#L27-L316">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -17,11 +17,15 @@ Transforms features on a GraphTensor by user-defined callbacks.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.keras.layers.MapFeatures(
-    context_fn=None, node_sets_fn=None, edge_sets_fn=None, **kwargs
+    context_fn=None,
+    node_sets_fn=None,
+    edge_sets_fn=None,
+    *,
+    allowed_aux_node_sets_pattern: Optional[str] = None,
+    allowed_aux_edge_sets_pattern: Optional[str] = None,
+    **kwargs
 )
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
 
@@ -30,6 +34,11 @@ NodeSets, or the Context) by applying Keras Models to them. Those Models
 are built by user-supplied callbacks that receive a KerasTensor for the
 graph piece as input and return a dict of output features computed with
 the Keras functional API, see https://tensorflow.org/guide/keras/functional.
+
+Auxiliary graph pieces (e.g., for
+<a href="../../../tfgnn/keras/layers/StructuredReadout.md"><code>tfgnn.keras.layers.StructuredReadout</code></a>)
+are skipped, unless explicitly requested via `allowed_aux_node_sets_pattern` or
+`allowed_aux_edge_sets_pattern`.
 
 #### Examples:
 
@@ -62,11 +71,14 @@ graph = tfgnn.keras.layers.MapFeatures(node_sets_fn=node_sets_fn)(graph)
 ```
 
 ```python
-# Doubles all feature values, with one callback used for all graph pieces.
+# Doubles all feature values, with one callback used for all graph pieces,
+# including auxiliary ones.
 def fn(inputs, **unused_kwargs):
   return {k: tf.add(v, v) for k, v in inputs.features.items()}
 graph = tfgnn.keras.layers.MapFeatures(
-    context_fn=fn, node_sets_fn=fn, edge_sets_fn=fn)(graph)
+    context_fn=fn, node_sets_fn=fn, edge_sets_fn=fn,
+    allowed_aux_node_sets_pattern=r".*", allowed_aux_edge_sets_pattern=r".*"
+)(graph)
 ```
 
 When this layer is called on a GraphTensor, it transforms the feature map
@@ -75,14 +87,17 @@ The very first call to this layer triggers building the models. Subsequent
 calls to this layer do not use the callbacks again, but check that their
 input does not have more graph pieces or features than seen by the callbacks:
 
-  * It is an error to call with a node set or edge set that was not present
-    in the first call. (After the first call, it is too late to initialize
-    another model for it and find out what the callback would have done.)
-  * It is an error to call with a set of feature names of some graph piece
-    that has changed since the first call, except for those graph pieces for
-    which the callback was `None` or returned `None` to request passthrough.
-    (Without this check, the model for the graph piece would silently drop
-    new features, even though the callback might have handled them.)
+*   It is an error to call with a node set or edge set that was not present in
+    the first call. (After the first call, it is too late to initialize another
+    model for it and find out what the callback would have done.) An exception
+    is made for auxiliary node sets and edge sets: If they would have been
+    ignored in the first call anyways, they may be present in later calls and
+    get ignored there.
+*   It is an error to call with a set of feature names of some graph piece that
+    has changed since the first call, except for those graph pieces for which
+    the callback was `None` or returned `None` to request passthrough. (Without
+    this check, the model for the graph piece would silently drop new features,
+    even though the callback might have handled them.)
 
 More details on the callbacks:
 
@@ -126,6 +141,13 @@ graph_piece.total_size`to construct outputs of the right shape, but
 not`graph_piece.spec.total_size`, which breaks the dependency chain of
 KerasTensors.
 
+Weight sharing between the transformation of different graph pieces is possible
+by sharing the Keras objects between the respective callback invocations.
+
+WARNING: Weight sharing fails in `tf.keras.models.load_model()` with an error
+message on weights missing from the checkpoint. (Most users don't need to
+re-load their models this way.)
+
 <!-- Tabular view -->
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
@@ -161,6 +183,24 @@ features. It will be called for every edge sets as
 `edge_sets_fn(g.edge_sets[edge_set_name], edge_set_name=edge_set_name)`.
 Leaving this at the default `None` is equivalent to returning `None`
 for every edge set.
+</td>
+</tr><tr>
+<td>
+`allowed_aux_node_sets_pattern`<a id="allowed_aux_node_sets_pattern"></a>
+</td>
+<td>
+If set, `node_sets_fn` is also invoked for
+those auxiliary node sets that match this pattern, according to Python's
+`re.fullmatch(pattern, node_set_name)`.
+</td>
+</tr><tr>
+<td>
+`allowed_aux_edge_sets_pattern`<a id="allowed_aux_edge_sets_pattern"></a>
+</td>
+<td>
+If set, `edge_sets_fn` is also invoked for
+those auxiliary edge sets that match this pattern, according to Python's
+`re.fullmatch(pattern, edge_set_name)`.
 </td>
 </tr>
 </table>

@@ -27,3 +27,7 @@ The tfgnn.keras package.
 
 [`class ConvGNNBuilder`](../tfgnn/keras/ConvGNNBuilder.md): Factory of layers that do convolutions on a graph.
 
+## Functions
+
+[`clone_initializer(...)`](../tfgnn/keras/clone_initializer.md): Clones an
+initializer to ensure a new default seed.

@@ -6,7 +6,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_random.py#L146-L239">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_random.py#L144-L241">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -29,6 +29,11 @@ Generate a graph tensor from a schema, with random features.
 
 <!-- Placeholder for "Used in" -->
 
+NOTE: This function does not (yet?) support the generation of the auxiliary node
+set for
+<a href="../tfgnn/structured_readout.md"><code>tfgnn.structured_readout()</code></a>.
+It should not be included in the `spec`, and if needed, should be added
+separately in a later step.
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
