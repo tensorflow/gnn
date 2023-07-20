@@ -13,17 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 """Link Prediction tasks."""
-from __future__ import annotations
 
 import abc
-from typing import Optional, Tuple
+from typing import Callable, Optional, Sequence, Tuple
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.runner import interfaces
-
-Losses = interfaces.Losses
-Metrics = interfaces.Metrics
 
 
 def _validate_readout_for_link_prediction(
@@ -156,12 +152,12 @@ class _LinkPrediction(interfaces.Task):
 
     return scores
 
-  def losses(self) -> Losses:
+  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     """Binary cross-entropy."""
-    return tf.keras.losses.BinaryCrossentropy(from_logits=True)
+    return (tf.keras.losses.BinaryCrossentropy(from_logits=True),)
 
-  def metrics(self) -> Metrics:
-    return tf.keras.metrics.BinaryAccuracy()
+  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+    return (tf.keras.metrics.BinaryAccuracy(),)
 
 
 class DotProductLinkPrediction(_LinkPrediction):

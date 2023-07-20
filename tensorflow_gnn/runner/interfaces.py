@@ -18,7 +18,7 @@ from __future__ import annotations
 import abc
 import dataclasses
 import sys
-from typing import Callable, Mapping, Optional, Sequence, TypeVar, Union
+from typing import Callable, Optional, Sequence, TypeVar, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -33,18 +33,11 @@ else:
 # pylint:enable=g-import-not-at-top
 
 T = TypeVar("T")
-OneOrMappingOf = Union[T, Mapping[str, T]]
 OneOrSequenceOf = Union[T, Sequence[T]]
 
 Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
 SizeConstraints = tfgnn.SizeConstraints
-
-Loss = Callable[[tf.Tensor, tf.Tensor], tf.Tensor]
-Metric = Callable[[tf.Tensor, tf.Tensor], tf.Tensor]
-Predictions = OneOrMappingOf[Field]
-Losses = OneOrMappingOf[Loss]
-Metrics = OneOrMappingOf[Union[Metric, Sequence[Metric]]]
 
 
 @dataclasses.dataclass
@@ -140,11 +133,6 @@ class Task(abc.ABC):
      `tf.Tensor` that accept (`y_true`, `y_pred`) where `y_true` is produced
      by some dataset and `y_pred` is the model's prediction from (2).
 
-  `Task` can emit multiple outputs in `predict`: in that case we require that
-  (a) it is a dictionary, (b) outputs of `losses` and `metrics` are also
-  dictionaries with matching keys, and (c) there is exactly one loss per key.
-  This is done to prevent accidental dropping of losses (see b/291874188).
-
   No constraints are made on the `predict` method; e.g.: it may append a head
   with learnable weights or it may perform tensor computations only. (The entire
   `Task` coordinates what that means with respect to dataset—via `preprocess`—,
@@ -158,8 +146,8 @@ class Task(abc.ABC):
 
   @abc.abstractmethod
   def preprocess(
-      self, inputs: GraphTensor
-  ) -> tuple[OneOrSequenceOf[GraphTensor], Predictions]:
+      self,
+      inputs: GraphTensor) -> tuple[OneOrSequenceOf[GraphTensor], Field]:
     """Preprocesses a scalar (after `merge_batch_to_components`) `GraphTensor`.
 
     This function uses the Keras functional API to define non-trainable
@@ -168,7 +156,7 @@ class Task(abc.ABC):
     It has two responsibilities:
 
      1. Splitting the training label out of the input for training. It must be
-        returned as a separate tensor (possibly nested).
+        returned as a separate tensor.
      2. Optionally, transforming input features. Some advanced modeling
         techniques require running the same base GNN on multiple different
         transformations, so this function may return a single `GraphTensor`
@@ -179,19 +167,17 @@ class Task(abc.ABC):
       inputs: A symbolic Keras `GraphTensor` for processing.
 
     Returns:
-      A tuple of processed `GraphTensor`(s) and a (possibly nest of) `Field` to
-      be used as labels.
+      A tuple of processed `GraphTensor`(s) and a `Field` to be used as labels.
     """
     raise NotImplementedError()
 
   @abc.abstractmethod
-  def predict(self, *args: GraphTensor) -> Predictions:
+  def predict(self, *args: GraphTensor) -> Field:
     """Produces prediction outputs for the learning objective.
 
     Overall model composition* makes use of the Keras Functional API
     (https://www.tensorflow.org/guide/keras/functional) to map symbolic Keras
-    `GraphTensor` inputs to symbolic Keras `Field` outputs. Outputs must match
-    the nesting structure of labels from `preprocess`.
+    `GraphTensor` inputs to symbolic Keras `Field` outputs.
 
     *) `outputs = predict(GNN(inputs))` where `inputs` are those `GraphTensor`
        returned by `preprocess(...)`, `GNN` is the base GNN, `predict` is this
@@ -209,12 +195,12 @@ class Task(abc.ABC):
     raise NotImplementedError()
 
   @abc.abstractmethod
-  def losses(self) -> Losses:
+  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     """Returns arbitrary task specific losses."""
     raise NotImplementedError()
 
   @abc.abstractmethod
-  def metrics(self) -> Metrics:
+  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     """Returns arbitrary task specific metrics."""
     raise NotImplementedError()
 

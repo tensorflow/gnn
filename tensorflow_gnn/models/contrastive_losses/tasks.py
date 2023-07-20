@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 """Contrastive loss tasks."""
-
 from __future__ import annotations
 
 import abc
@@ -27,13 +26,9 @@ from tensorflow_gnn import runner
 from tensorflow_gnn.models.contrastive_losses import layers
 from tensorflow_gnn.models.contrastive_losses import losses
 from tensorflow_gnn.models.contrastive_losses import metrics
-from tensorflow_gnn.runner import interfaces
-
 
 Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
-Metrics = interfaces.Metrics
-Losses = interfaces.Losses
 
 
 class _ConstrastiveLossTask(runner.Task, abc.ABC):
@@ -133,7 +128,7 @@ class _ConstrastiveLossTask(runner.Task, abc.ABC):
     """Returns the layer contrasting clean outputs with the correupted ones."""
     raise NotImplementedError()
 
-  def metrics(self) -> Metrics:
+  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     return tuple()
 
 
@@ -151,10 +146,10 @@ class DeepGraphInfomaxTask(_ConstrastiveLossTask):
     y = tf.tile(((1, 0),), (inputs.num_components, 1))
     return x, y
 
-  def losses(self) -> Losses:
-    return tf.keras.losses.BinaryCrossentropy(from_logits=True)
+  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+    return (tf.keras.losses.BinaryCrossentropy(from_logits=True),)
 
-  def metrics(self) -> Metrics:
+  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     return (
         tf.keras.metrics.BinaryCrossentropy(from_logits=True),
         tf.keras.metrics.BinaryAccuracy(),
@@ -198,7 +193,7 @@ class BarlowTwinsTask(_ConstrastiveLossTask):
     y = tf.zeros((inputs.num_components, 0), dtype=tf.int32)
     return x, y
 
-  def losses(self) -> Losses:
+  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     def loss_fn(_, x):
       return losses.barlow_twins_loss(
           *tf.unstack(x, axis=1),
@@ -206,9 +201,9 @@ class BarlowTwinsTask(_ConstrastiveLossTask):
           normalize_batch=self._normalize_batch,
       )
 
-    return loss_fn
+    return (loss_fn,)
 
-  def metrics(self) -> Metrics:
+  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     return (
         _unstack_y_pred(metrics.self_clustering),
         _unstack_y_pred(metrics.numerical_rank),
@@ -242,7 +237,7 @@ class VicRegTask(_ConstrastiveLossTask):
     y = tf.zeros((inputs.num_components, 0), dtype=tf.int32)
     return x, y
 
-  def losses(self) -> Losses:
+  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     def loss_fn(_, x):
       return losses.vicreg_loss(
           *tf.unstack(x, axis=1),
@@ -251,9 +246,9 @@ class VicRegTask(_ConstrastiveLossTask):
           cov_weight=self._cov_weight,
       )
 
-    return loss_fn
+    return (loss_fn,)
 
-  def metrics(self) -> Metrics:
+  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
     return (
         _unstack_y_pred(metrics.self_clustering),
         _unstack_y_pred(metrics.numerical_rank),

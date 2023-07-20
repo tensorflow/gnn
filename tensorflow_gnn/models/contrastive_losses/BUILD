@@ -98,7 +98,6 @@ pytype_strict_library(
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
         "//tensorflow_gnn/runner",
-        "//tensorflow_gnn/runner:interfaces",
     ],
 )
 
