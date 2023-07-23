@@ -3,7 +3,8 @@
 ## <p align="center">**ICML'23 Tutorial**</p>
 ### <p align="center">Sunday, July 23th</p>
 <p align="center">3:00 p.m. - 4:00 p.m. HST</p>
-<h3 align="center"> <a href=https://icml.cc/Expo/Conferences/2023/talk%20panel/25682>🎥 ICML Schedule Link 🎥</a></h3>
+<h3 align="center"> <a href=https://icml.cc/Expo/Conferences/2023/talk%20panel/25682>ICML Schedule Link</a></h3>
+<h4 align="center"> <a href="https://youtube.com/live/e6WHg1l7AMs">🎥 Live Stream 🎥</a></h4>
 
 ### Motivation
 
@@ -42,6 +43,7 @@ following resources:
 -   The in-depth notebook
     [*OGBN-MAG end-to-end with TF-GNN*](https://github.com/tensorflow/gnn/blob/main/examples/notebooks/ogbn_mag_e2e.ipynb)
     offers a deep dive on building heterogeneous graph models using TF-GNN.
+-   [Presentation Slides](https://drive.google.com/file/d/1zn6qIPnwFktYUsTbjRQVkO5n0TmlewMR/view?usp=drivesdk)
 
 If you're interested in other work done by the
 [Graph Mining team](https://research.google/teams/graph-mining/) at Google, we
