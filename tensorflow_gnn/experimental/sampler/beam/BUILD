@@ -1,3 +1,4 @@
+load("//third_party/bazel_rules/rules_python/python:py_binary.bzl", "py_binary")
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_contrib_test", "pytype_strict_library")
 
 licenses(["notice"])
