@@ -269,7 +269,7 @@ class SubgraphPipelineTest(tf.test.TestCase, parameterized.TestCase):
     # Make sure 'unicorn' appears in node set but without edges.
     bool_mask = graph1.node_sets['animal']['#id'] == b'unicorn'
     self.assertAllEqual(tf.reduce_sum(tf.cast(bool_mask, tf.int32)), 1)
-    unicorn_index = tf.argmax(bool_mask)
+    unicorn_index = tf.argmax(bool_mask, output_type=tf.int32)
     self.assertNotIn(unicorn_index, graph1.edge_sets['eats'].adjacency.source)
 
   def test_sampling_pipeline(self):

@@ -33,11 +33,14 @@ NODE_ID_NAME = '#id'
 
 Features = interfaces.Features
 FeaturesSpec = interfaces.FeaturesSpec
-GraphPieces = collections.namedtuple('GraphPieces', [
-    'context',    # : Features
-    'node_sets',  # : Mapping[tfgnn.NodeSetName,Union[Features, List[Features]]]
-    'edge_sets'   # : Mapping[str, Union[Features, List[Features]]
-])
+GraphPieces = collections.namedtuple(
+    'GraphPieces',
+    [
+        'context',  # : Features
+        'node_sets',  # : Mapping[NodeSetName, Union[Features, List[Features]]]
+        'edge_sets',  # : Mapping[str, Union[Features, List[Features]]
+    ],
+)
 
 
 class CompositeLayer(tf.keras.layers.Layer, metaclass=abc.ABCMeta):
@@ -251,7 +254,8 @@ class _InMemKeyToBytesAccessor(
   @classmethod
   def from_config(cls, config):
     config['default_value'] = base64.b64decode(
-        config['default_value'].encode('utf-8'))
+        config['default_value'].encode('utf-8')
+    )
     return cls(**config)
 
   def call(self, keys: tf.RaggedTensor) -> tf.RaggedTensor:
@@ -302,7 +306,6 @@ class InMemStringKeyToBytesAccessor(_InMemKeyToBytesAccessor):
 @tf.keras.utils.register_keras_serializable(package='GNN')
 class InMemIntegerKeyToBytesAccessor(_InMemKeyToBytesAccessor):
   """Lookup serialized values by their `int32` or `int64` keys from memory.
-
 
   In case of missing values layer allows to either return fixed default value or
   raise `tf.errors.InvalidArgumentError` in runtime.
@@ -891,9 +894,8 @@ def build_graph_tensor(
     node_sets: Optional[
         Mapping[tfgnn.NodeSetName, Union[Features, List[Features]]]
     ] = None,
-    edge_sets: Optional[
-        Mapping[str, Union[Features, List[Features]]]
-    ] = None,
+    edge_sets: Optional[Mapping[str, Union[Features, List[Features]]]] = None,
+    indices_dtype: tf.DType = tf.int32,
     validate: bool = True,
     remove_parallel_edges: bool = True,
 ) -> tfgnn.GraphTensor:
@@ -903,6 +905,9 @@ def build_graph_tensor(
 
   NOTE: edge sets could reference node sets that are missing in the `node_sets`.
   In this case latent nodes sets are added to the result graph tensor.
+
+  NOTE: all ragged row partitions of the input features must have the same
+  `dtype` (not necessary the same as `indices_dtype`).
 
   Args:
     context: A graph context features as a mapping from feature name to dense or
@@ -922,6 +927,8 @@ def build_graph_tensor(
       must be compatible. Features dict must include the `tfgnn.SOURCE_NAME` and
       `tfgnn.TARGET_NAME` with source and target node ids correspondingly. All
       features must have shapes `[batch_size, (num_edges), ...]`.
+    indices_dtype: The dtype of graph piece sizes and adjacency indices, of the
+      result GraphTensor.
     validate: If True, runs potentially expensive runtime consitency checks,
       like that node sets have unique ids.
     remove_parallel_edges: if True, deduplicates parallel (duplicate) edges
@@ -986,10 +993,15 @@ def build_graph_tensor(
         })
   """
   layer = GraphTensorBuilder(
-      remove_parallel_edges=remove_parallel_edges, validate=validate
+      indices_dtype=indices_dtype,
+      remove_parallel_edges=remove_parallel_edges,
+      validate=validate,
   )
-  layer_input = GraphPieces(context=context or {}, node_sets=node_sets or {},
-                            edge_sets=edge_sets or {})
+  layer_input = GraphPieces(
+      context=context or {},
+      node_sets=node_sets or {},
+      edge_sets=edge_sets or {},
+  )
   return layer(layer_input)
 
 
@@ -1027,16 +1039,19 @@ class GraphTensorBuilder(tf.keras.layers.Layer):
   def __init__(
       self,
       *,
+      indices_dtype: tf.dtypes.DType = tf.int32,
       remove_parallel_edges: bool = True,
       validate: bool = True,
-      **kwargs
+      **kwargs,
   ):
     super().__init__(**kwargs)
+    self._indices_dtype = indices_dtype
     self._remove_parallel_edges = remove_parallel_edges
     self._validate = validate
 
   def get_config(self):
     return dict(
+        indices_dtype=self._indices_dtype,
         remove_parallel_edges=self._remove_parallel_edges,
         validate=self._validate,
         **super().get_config(),
@@ -1046,26 +1061,39 @@ class GraphTensorBuilder(tf.keras.layers.Layer):
     # When saving `tf.keras.Model`, the loaded model passes a tuple.
     # Convert to namedtuple.
     inputs = GraphPieces(*inputs)
-    context: Features = inputs.context
-    node_sets: Mapping[tfgnn.NodeSetName,
-                       Union[Features, List[Features]]] = inputs.node_sets
-    edge_sets: Mapping[str,
-                       Union[Features, List[Features]]] = inputs.edge_sets
+
+    context = _convert_features(inputs.context)
+    node_sets = {
+        k: _convert_features_or_list_of_features(f)
+        for k, f in inputs.node_sets.items()
+    }
+    edge_sets = {
+        k: _convert_features_or_list_of_features(f)
+        for k, f in inputs.edge_sets.items()
+    }
+
+    _ = _resolve_row_splits_dtype(
+        {'context': context, 'node_sets': node_sets, 'edge_sets': edge_sets}
+    )
 
     def join(pieces: Union[Features, List[Features]]) -> Features:
       if isinstance(pieces, List):
         return concat_features(pieces)
       return pieces
 
-    context_ = tfgnn.Context.from_fields(features=context, shape=[None])
+    if context:
+      context_ = tfgnn.Context.from_fields(
+          features=context, shape=[None], indices_dtype=self._indices_dtype
+      )
+    else:
+      context_ = None
+
     node_sets_ = {}
     edge_sets_ = {}
 
     latent_node_sets = collections.defaultdict(list)
     for key, features in edge_sets.items():
-      source_node_set, _, target_node_set = (
-          _parse_edge_set_definition(key)
-      )
+      source_node_set, _, target_node_set = _parse_edge_set_definition(key)
 
       features = features if isinstance(features, list) else [features]
       if source_node_set not in node_sets:
@@ -1101,7 +1129,9 @@ class GraphTensorBuilder(tf.keras.layers.Layer):
                 )
             )
           with tf.control_dependencies(check_ops):
-            sizes_ = tf.expand_dims(fvalue.row_lengths(), -1)
+            sizes_ = tf.cast(
+                tf.expand_dims(fvalue.row_lengths(), -1), self._indices_dtype
+            )
           nodes_ids[node_set_name] = fvalue
         features_[fname] = fvalue
       if sizes_ is None:
@@ -1132,8 +1162,12 @@ class GraphTensorBuilder(tf.keras.layers.Layer):
       sizes_ = None
       for fname, fvalue in join(features).items():
         if fname in (tfgnn.SOURCE_NAME, tfgnn.TARGET_NAME):
-          sizes_ = tf.expand_dims(fvalue.row_lengths(), -1)
-          indices_[fname] = key_to_index_fn.pop(fname)(fvalue)
+          sizes_ = tf.cast(
+              tf.expand_dims(fvalue.row_lengths(), -1), self._indices_dtype
+          )
+          indices_[fname] = tf.cast(
+              key_to_index_fn.pop(fname)(fvalue), self._indices_dtype
+          )
         else:
           features_[fname] = fvalue
 
@@ -1150,11 +1184,13 @@ class GraphTensorBuilder(tf.keras.layers.Layer):
               target=(target_node_set, target),
           ),
       )
+
     result = tfgnn.GraphTensor.from_pieces(
         context=context_, node_sets=node_sets_, edge_sets=edge_sets_
     )
     if self._remove_parallel_edges:
       result = _remove_parallel_edges(result)
+
     return result
 
 
@@ -1435,13 +1471,13 @@ def _get_unique_parallel_edges_indices(
     # the total number of graphs of the original input `graph_tensor`.
     num_graphs = tf.size(sizes, out_type=tf.int64)
     # 0-base indices of edges within original graphs
-    original_edges_idx = tf.ragged.range(sizes).values
+    original_edges_idx = tf.ragged.range(flat_edge_set.sizes).values
     # assignes to each edge its graph index within the original graph tensor.
     original_graph_idx = tf.repeat(tf.range(num_graphs), sizes)
     # TODO(b/285269757): replace with `graph_tensor.row_splits_dtype`
     row_splits_dtype = graph_tensor.edge_sets[
         edge_set_name
-    ].adjacency.source.dtype
+    ].adjacency.source.row_splits.dtype
     result[edge_set_name] = tf.RaggedTensor.from_value_rowids(
         map_to_unique_edge(original_edges_idx),
         map_to_unique_edge(original_graph_idx),
@@ -1563,6 +1599,7 @@ def _check_same_input_struct(name: str, expected, actual) -> None:
         f'Layer {name} is called with different argument types:'
         f' expected {expected.dtype}, actual {actual.dtype}'
     )
+
   tf.nest.map_structure(check_types, expected, actual)
 
 
@@ -1588,3 +1625,64 @@ def _row_lengths_to_row_splits(row_lengths: tf.Tensor) -> tf.Tensor:
       ],
       axis=-1,
   )
+
+
+def _resolve_row_splits_dtype(
+    nest,
+    *,
+    path: str = '',
+) -> Optional[tf.dtypes.DType]:
+  """Checks that all row splits have the same dtype and returns it."""
+  if isinstance(nest, tf.Tensor):
+    return None
+
+  if isinstance(nest, tf.RaggedTensor):
+    return nest.row_splits.dtype
+
+  result = {}
+  path_prefix = f'{path}/' if path else ''
+  if isinstance(nest, Mapping):
+    for key, value in nest.items():
+      result[key] = _resolve_row_splits_dtype(value, path=f'{path_prefix}{key}')
+  elif isinstance(nest, List):
+    for key, value in enumerate(nest):
+      result[key] = _resolve_row_splits_dtype(value, path=f'{path_prefix}{key}')
+  else:
+    raise ValueError(f'Unsupported value type: {type(nest).__name__}')
+
+  result = sorted((k, v) for k, v in result.items() if v is not None)
+  if not result:
+    return None
+
+  for (ka, ta), (kb, tb) in zip(result[:-1], result[1:]):
+    if tb != ta:
+      context = f' of {path}' if path else ''
+      raise ValueError(
+          f'Type of ragged row splits of inputs do not match: {ta.name} !='
+          f' {tb.name} for {ka} and {kb}{context}. Consider casting all ragged'
+          ' row partitions to the same int32 or int64 dtype using'
+          ' `RaggedTensor.with_row_splits_dtype(...)`'
+      )
+
+  return result[0][1]
+
+
+def _convert_features_or_list_of_features(
+    inputs: Union[Features, List[Features]]
+) -> Union[Features, List[Features]]:
+  if isinstance(inputs, List):
+    return [_convert_features(f) for f in inputs]
+
+  if isinstance(inputs, Mapping):
+    return _convert_features(inputs)
+
+  raise ValueError(f'Features must be a dict or list of dicts, got {inputs}.')
+
+
+def _convert_features(features: Features) -> Features:
+  def fn(f) -> tfgnn.Field:
+    if tfgnn.is_ragged_tensor(f):
+      return f
+    return tf.convert_to_tensor(f)
+
+  return tf.nest.map_structure(fn, features)

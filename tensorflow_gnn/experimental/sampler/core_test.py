@@ -307,8 +307,8 @@ class CompositeLayerTest(tf.test.TestCase):
 
   def testRaisesOnArgumentKeyChange(self):
     layer = AplusB()
-    a = tf.convert_to_tensor([[1.]])
-    b = tf.convert_to_tensor([[2.]])
+    a = tf.convert_to_tensor([[1.0]])
+    b = tf.convert_to_tensor([[2.0]])
     o = layer(dict(a=a, b=b))
     self.assertEqual(o.shape, [1, 32])
     with self.assertRaisesRegex(ValueError, 'called with different arguments'):
@@ -1070,7 +1070,7 @@ class GraphTensorBuilderTest(tf.test.TestCase, parameterized.TestCase):
                 },
             ],
         },
-        remove_parallel_edges=remove_parallel_edges
+        remove_parallel_edges=remove_parallel_edges,
     )
     self.assertAllEqual(graph.node_sets['A'].sizes, [[2], [1]])
     self.assertAllEqual(graph.node_sets['A']['#id'], rt([['a', 'b'], ['c']]))
@@ -1104,7 +1104,7 @@ class GraphTensorBuilderTest(tf.test.TestCase, parameterized.TestCase):
                 'f.s': rt([[1, 2, 3], [1, 2]]),
             },
         },
-        remove_parallel_edges=False
+        remove_parallel_edges=False,
     )
     self.assertAllEqual(graph.node_sets['A'].sizes, [[2], [1]])
     self.assertAllEqual(graph.node_sets['A']['#id'], rt([['a', 'b'], ['c']]))
@@ -1200,6 +1200,180 @@ class GraphTensorBuilderTest(tf.test.TestCase, parameterized.TestCase):
         graph.edge_sets['B->A'].adjacency.target, rt([[0], [1], [0]])
     )
 
+  @parameterized.product(
+      indices_dtype=[tf.int32, tf.int64], row_splits_dtype=[tf.int32, tf.int64]
+  )
+  def testIndicesDType(
+      self, indices_dtype: tf.DType, row_splits_dtype: tf.DType
+  ):
+    graph = core.build_graph_tensor(
+        edge_sets={
+            'A,A->B,B': {
+                '#source': rt(
+                    [['a', 'b', 'b']],
+                    row_splits_dtype=row_splits_dtype,
+                ),
+                '#target': rt(
+                    [[0, 0, 1]],
+                    dtype=tf.int64,
+                    row_splits_dtype=row_splits_dtype,
+                ),
+            },
+        },
+        indices_dtype=indices_dtype,
+    )
+
+    self.assertAllEqual(graph.indices_dtype, indices_dtype)
+    self.assertAllEqual(graph.context.indices_dtype, indices_dtype)
+    self.assertAllEqual(graph.context.sizes.dtype, indices_dtype)
+
+    self.assertAllEqual(graph.node_sets['A'].indices_dtype, indices_dtype)
+    self.assertAllEqual(graph.node_sets['A'].sizes.dtype, indices_dtype)
+    self.assertAllEqual(graph.node_sets['B'].indices_dtype, indices_dtype)
+    self.assertAllEqual(graph.node_sets['B'].sizes.dtype, indices_dtype)
+    self.assertAllEqual(graph.edge_sets['A->B'].indices_dtype, indices_dtype)
+    self.assertAllEqual(graph.edge_sets['A->B'].sizes.dtype, indices_dtype)
+
+    source = graph.edge_sets['A->B'].adjacency.source
+    target = graph.edge_sets['A->B'].adjacency.target
+    self.assertAllEqual(source.dtype, indices_dtype)
+    self.assertAllEqual(source.row_splits.dtype, row_splits_dtype)
+    self.assertAllEqual(target.dtype, indices_dtype)
+    self.assertAllEqual(target.row_splits.dtype, row_splits_dtype)
+
+  def testRaisesOnIncompatibleEdgeSetsRowSplits(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Type of ragged row splits of inputs do not match: int64 != int32 for'
+        ' #target and f of edge_sets/A,A->A,A',
+    ):
+      core.build_graph_tensor(
+          edge_sets={
+              'A,A->A,A': {
+                  '#source': rt([[1]], row_splits_dtype=tf.int64),
+                  '#target': rt([[0]], row_splits_dtype=tf.int64),
+                  'f': rt([[1.0]], row_splits_dtype=tf.int32),
+              },
+          },
+          indices_dtype=tf.int64,
+      )
+    with self.assertRaisesRegex(
+        ValueError,
+        'Type of ragged row splits of inputs do not match: int32 != int64 for'
+        ' author and cites of edge_sets',
+    ):
+      core.build_graph_tensor(
+          edge_sets={
+              'cites': {
+                  '#source': rt([[1]], row_splits_dtype=tf.int64),
+                  '#target': rt([[0]], row_splits_dtype=tf.int64),
+              },
+              'author': {
+                  '#source': rt([[1], [1]], row_splits_dtype=tf.int32),
+                  '#target': rt([[0], [2]], row_splits_dtype=tf.int32),
+              },
+          },
+          indices_dtype=tf.int64,
+      )
+
+  def testRaisesOnIncompatibleNodeSetsRowSplits(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Type of ragged row splits of inputs do not match: int32 != int64 for'
+        ' a and b of node_sets/foo.',
+    ):
+      core.build_graph_tensor(
+          node_sets={
+              'foo': {
+                  '#id': rt([[1]], row_splits_dtype=tf.int32),
+                  'a': rt([[1.0]], row_splits_dtype=tf.int32),
+                  'b': rt([['x']], row_splits_dtype=tf.int64),
+              },
+              'bar': {
+                  '#id': rt([[1]], row_splits_dtype=tf.int32),
+              },
+          },
+          indices_dtype=tf.int32,
+      )
+
+    with self.assertRaisesRegex(
+        ValueError,
+        'Type of ragged row splits of inputs do not match: int64 != int32 for'
+        ' bar and foo of node_sets.',
+    ):
+      core.build_graph_tensor(
+          node_sets={
+              'foo': {
+                  '#id': rt([[1]], row_splits_dtype=tf.int32),
+              },
+              'bar': {
+                  '#id': rt([[1]], row_splits_dtype=tf.int64),
+              },
+          },
+          indices_dtype=tf.int32,
+      )
+
+  def testRaisesOnIncompatibleContextRowSplits(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Type of ragged row splits of inputs do not match: int32 != int64 for'
+        ' x and y of context.',
+    ):
+      core.build_graph_tensor(
+          context={
+              'x': rt([[1.0]], row_splits_dtype=tf.int32),
+              'y': rt([['y']], row_splits_dtype=tf.int64),
+              'z': rt([['z']], row_splits_dtype=tf.int64),
+          },
+      )
+
+  @parameterized.parameters([True, False])
+  def testRaisesOnIncompatibleEntitiesRowSplits(
+      self, remove_parallel_edges: bool
+  ):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Type of ragged row splits of inputs do not match: int64 != int32 for'
+        ' context and node_sets.',
+    ):
+      core.build_graph_tensor(
+          context={
+              'x': rt([[1.0]], row_splits_dtype=tf.int64),
+          },
+          node_sets={
+              'foo': {
+                  '#id': rt([[1]], row_splits_dtype=tf.int32),
+              },
+              'bar': {
+                  '#id': rt([[1]], row_splits_dtype=tf.int32),
+              },
+          },
+          remove_parallel_edges=remove_parallel_edges,
+      )
+
+    with self.assertRaisesRegex(
+        ValueError,
+        'Type of ragged row splits of inputs do not match: int32 != int64 for'
+        ' edge_sets and node_sets.',
+    ):
+      core.build_graph_tensor(
+          context={
+              'x': rt([[1.0]], row_splits_dtype=tf.int32),
+          },
+          node_sets={
+              'foo': {
+                  '#id': rt([[1]], row_splits_dtype=tf.int64),
+              },
+          },
+          edge_sets={
+              'foo->foo': {
+                  '#source': rt([[0]], row_splits_dtype=tf.int32),
+                  '#target': rt([[0]], row_splits_dtype=tf.int32),
+              },
+          },
+          remove_parallel_edges=remove_parallel_edges,
+      )
+
 
 class ParallelEdgesRemovalTest(tf.test.TestCase, parameterized.TestCase):
 
@@ -1291,12 +1465,10 @@ class ParallelEdgesRemovalTest(tf.test.TestCase, parameterized.TestCase):
             'A,A->A,A': {
                 '#source': rt(
                     [[1], [3] * 5, [], [5] * 10, [7] * 15 + [9] * 10],
-                    dtype=indices_dtype,
                     row_splits_dtype=row_splits_dtype,
                 ),
                 '#target': rt(
                     [[2], [4] * 5, [], [5] * 10, [8] * 15 + [9] * 10],
-                    dtype=indices_dtype,
                     row_splits_dtype=row_splits_dtype,
                 ),
                 'f': rt(
@@ -1306,11 +1478,17 @@ class ParallelEdgesRemovalTest(tf.test.TestCase, parameterized.TestCase):
             },
         },
         remove_parallel_edges=True,
+        indices_dtype=indices_dtype,
     )
+
+    self.assertAllEqual(graph.indices_dtype, indices_dtype)
+
     source = graph.edge_sets['A->A'].adjacency.source
     target = graph.edge_sets['A->A'].adjacency.target
     self.assertAllEqual(source, rt([[0], [0], [], [0], [0, 1]]))
+    self.assertAllEqual(source.dtype, indices_dtype)
     self.assertAllEqual(source.row_splits.dtype, row_splits_dtype)
+    self.assertAllEqual(target.dtype, indices_dtype)
     self.assertAllEqual(target, rt([[1], [1], [], [0], [2, 1]]))
     self.assertAllEqual(target.row_splits.dtype, row_splits_dtype)
 
