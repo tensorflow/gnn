@@ -1627,6 +1627,7 @@ def _row_lengths_to_row_splits(row_lengths: tf.Tensor) -> tf.Tensor:
   )
 
 
+@tf.autograph.experimental.do_not_convert
 def _resolve_row_splits_dtype(
     nest,
     *,
@@ -1641,10 +1642,10 @@ def _resolve_row_splits_dtype(
 
   result = {}
   path_prefix = f'{path}/' if path else ''
-  if isinstance(nest, Mapping):
+  if isinstance(nest, collections.abc.Mapping):
     for key, value in nest.items():
       result[key] = _resolve_row_splits_dtype(value, path=f'{path_prefix}{key}')
-  elif isinstance(nest, List):
+  elif isinstance(nest, collections.abc.Sequence):
     for key, value in enumerate(nest):
       result[key] = _resolve_row_splits_dtype(value, path=f'{path_prefix}{key}')
   else:
