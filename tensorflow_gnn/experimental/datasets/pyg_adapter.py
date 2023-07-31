@@ -116,7 +116,7 @@ def _build_graph_tensor_homogenous(
   }
   node_sets = {
       tfgnn.NODES: tfgnn.NodeSet.from_fields(
-          sizes=tf.ragged.constant(graph_data['list_num_nodes'], ragged_rank=1),
+          sizes=tf.constant(graph_data['list_num_nodes']),
           features=node_features,
       )
   }
@@ -128,7 +128,7 @@ def _build_graph_tensor_homogenous(
   edge_sets = {
       tfgnn.EDGES: tfgnn.EdgeSet.from_fields(
           features=edge_features,
-          sizes=tf.ragged.constant(graph_data['list_num_edges'], ragged_rank=1),
+          sizes=tf.constant(graph_data['list_num_edges']),
           adjacency=tfgnn.Adjacency.from_indices(
               source=(
                   tfgnn.NODES,
@@ -144,7 +144,7 @@ def _build_graph_tensor_homogenous(
 
   # building context set
   context_features = {
-      k: tf.ragged.constant(v, ragged_rank=1)
+      k: tf.constant(v)
       for k, v in context_features.items()
   }
   graph_context_set = tfgnn.Context.from_fields(features=context_features)
