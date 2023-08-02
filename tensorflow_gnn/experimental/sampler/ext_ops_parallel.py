@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Implements `ext_ops.py` using parallel map (as `tf.map_fn`)."""
-
+from __future__ import annotations
 from typing import Optional, Tuple
 
 import tensorflow as tf
@@ -44,6 +44,43 @@ def ragged_choice(
           dtype=row_splits.dtype,
           ragged_rank=0,
           row_splits_dtype=row_splits.dtype,
+      ),
+  )
+  if global_indices:
+    result += tf.expand_dims(row_starts, axis=-1)
+  return result
+
+
+def ragged_top_k(
+    num_samples: tf.Tensor,
+    weights: tf.RaggedTensor,
+    *,
+    global_indices: bool,
+) -> tf.RaggedTensor:
+  """Implements `ext_ops.py:ragged_top_k()`."""
+
+  def fn(values: tuple[tf.Tensor, tf.Tensor]) -> tf.Tensor:
+    num_samples, weights = values
+    res = tf.math.top_k(
+        weights, k=tf.cast(num_samples, dtype=tf.int32)
+    )
+    # TODO: b/294224429 - Remove this cast and use index_type when we stop
+    # supporting tf < 2.13
+    return tf.cast(res.indices, dtype=num_samples.dtype)
+
+  indices_dtype = num_samples.dtype
+  row_splits = tf.cast(weights.row_splits, dtype=indices_dtype)
+  row_starts, row_limits = row_splits[:-1], row_splits[1:]
+  row_lengths = row_limits - row_starts
+  num_samples = tf.math.minimum(num_samples, row_lengths)
+  result = tf.map_fn(
+      fn,
+      (num_samples, weights),
+      fn_output_signature=tf.RaggedTensorSpec(
+          [None],
+          dtype=indices_dtype,
+          ragged_rank=0,
+          row_splits_dtype=weights.row_splits.dtype,
       ),
   )
   if global_indices:

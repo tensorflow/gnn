@@ -97,6 +97,79 @@ class ParallelRaggedChoiceTest(RaggedChoiceTest):
 # copybara:uncomment_end
 
 
+class ParallelRaggedTopKTest(ExtOpsTestBase, parameterized.TestCase):
+  IMPLEMENTATION = 'parallel'
+
+  def testGlobalIndices(self):
+    choice = ops.ragged_top_k(
+        [1, 1, 2], [[0.0], [1.0, 2.0], [0.0, 0.7, 0.5]], global_indices=True
+    )
+    self.assertSetEqual(set(choice[0, :].numpy()), set([0]))
+    self.assertSetEqual(set(choice[1, :].numpy()), set([2]))
+    self.assertSetEqual(set(choice[2, :].numpy()), set([4, 5]))
+
+  def testLocalIndices(self):
+    choice = ops.ragged_top_k(
+        [1, 1, 2], [[0.0], [1.0, 2.0], [0.0, 0.7, 0.5]], global_indices=False
+    )
+    self.assertSetEqual(set(choice[0, :].numpy()), set([0]))
+    self.assertSetEqual(set(choice[1, :].numpy()), set([1]))
+    self.assertSetEqual(set(choice[2, :].numpy()), set([1, 2]))
+
+  def testNumSampleCappingGlobal(self):
+    choice = ops.ragged_top_k(
+        [3, 3, 3], [[0.0], [1.0, 2.0], [0.0, 0.7, 0.5]], global_indices=True
+    )
+    self.assertSetEqual(set(choice[0, :].numpy()), set([0]))
+    self.assertSetEqual(set(choice[1, :].numpy()), set([1, 2]))
+    self.assertSetEqual(set(choice[2, :].numpy()), set([3, 4, 5]))
+
+  def testNumSampleCappingLocal(self):
+    choice = ops.ragged_top_k(
+        [3, 3, 3], [[0.0], [1.0, 2.0], [0.0, 0.7, 0.5]], global_indices=False
+    )
+    self.assertSetEqual(set(choice[0, :].numpy()), set([0]))
+    self.assertSetEqual(set(choice[1, :].numpy()), set([0, 1]))
+    self.assertSetEqual(set(choice[2, :].numpy()), set([0, 1, 2]))
+
+  def testZeroSamples(self):
+    choice = ops.ragged_top_k(
+        [0, 0, 2], [[0.0], [1.0, 2.0], [0.0, 0.7, 0.5]], global_indices=True
+    )
+    self.assertSetEqual(set(choice[0, :].numpy()), set([]))
+    self.assertSetEqual(set(choice[1, :].numpy()), set([]))
+    self.assertSetEqual(set(choice[2, :].numpy()), set([4, 5]))
+
+  def testEmptyRows(self):
+    choice = ops.ragged_top_k(
+        [1, 1, 0], [[0.0], [], []], global_indices=False
+    )
+    self.assertSetEqual(set(choice[0, :].numpy()), set([0]))
+    self.assertSetEqual(set(choice[1, :].numpy()), set([]))
+    self.assertSetEqual(set(choice[2, :].numpy()), set([]))
+
+  @parameterized.parameters(
+      (tf.int32, tf.int64),
+      (tf.int64, tf.int64),
+      (tf.int64, tf.int32),
+      (tf.int32, tf.int32),
+  )
+  def testDtype(self, index_dtype, row_splits_dtype):
+    weights = tf.ragged.constant(
+        [[0.0], [1.0, 2.0], [0.0, 0.7, 0.5]], row_splits_dtype=row_splits_dtype)
+    num_samples = tf.constant([1, 1, 1], dtype=index_dtype)
+    choice_global = ops.ragged_top_k(
+        num_samples, weights, global_indices=True
+    )
+    self.assertEqual(choice_global.dtype, index_dtype)
+    self.assertEqual(choice_global.row_splits.dtype, row_splits_dtype)
+    choice_local = ops.ragged_top_k(
+        num_samples, weights, global_indices=False
+    )
+    self.assertEqual(choice_local.dtype, index_dtype)
+    self.assertEqual(choice_local.row_splits.dtype, row_splits_dtype)
+
+
 class RaggedUniqueTest(ExtOpsTestBase, parameterized.TestCase):
 
   @parameterized.parameters(

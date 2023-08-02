@@ -87,6 +87,49 @@ def ragged_choice(
   )
 
 
+def ragged_top_k(
+    num_samples: tf.Tensor,
+    weights: tf.RaggedTensor,
+    *,
+    global_indices: bool = False,
+) -> tf.RaggedTensor:
+  """Returns indices of the top `num_samples` elements from each ragged row.
+
+  Example:
+
+    ```python
+    ragged_top_k([1, 2], [[0, 1], [0, 2, 5]], global_indices=True)
+    # [[1], [4, 3]]
+    ragged_top_k([1, 2], [[0, 1], [0, 2, 5]], global_indices=False)
+    # [[1], [2, 1]]
+    ```
+
+  Args:
+    num_samples: The maximum number of samples to draw from each row without
+      replacement. An integer tensor broadcastable to `[nrows]` (so a scalar or
+      a 1D `[nrows]` tensor),
+    weights: Ragged weights tensor. Should be a 2-d RaggedTensor with shape
+      [nrows, (num_edges)].
+    global_indices: If True, the returned indices are defined for flat values
+      ignoring the ragged row splits. If False, the returned indices are defined
+      independently for each ragged row.
+
+  Returns:
+    A ragged tensor of the same type as `row_splits` containing indices of
+    the top-weighted elements in each row (row-based or global, depending on the
+    `global_indices` argument).
+  """
+  num_samples = tf.convert_to_tensor(num_samples)
+  weights = _convert_to_ragged_tensor(weights)
+  if not (weights.dtype.is_floating or weights.dtype.is_integer):
+    raise ValueError(f'weights.dtype must be numeric, but was {weights.dtype}')
+
+  # TODO: b/294034958 - Implement a vectorized version of this function.
+  return _IMPLEMENTATIONS['parallel'].ragged_top_k(
+      num_samples, weights, global_indices=global_indices
+  )
+
+
 def ragged_unique(ragged: tf.RaggedTensor) -> tf.RaggedTensor:
   """Returns unique values for each ragged row preserving order.
 
