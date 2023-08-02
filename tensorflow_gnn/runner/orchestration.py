@@ -52,6 +52,10 @@ Trainer = interfaces.Trainer
 RunResult = interfaces.RunResult
 
 _BASE_MODEL_TAG = "UNDERSCORE_TFGNN_RUNNER_BASE_MODEL"
+_FLOATING_ORDERING = sorted(
+    (tf.float64, tf.float32, tf.float16, tf.bfloat16),
+    key=operator.attrgetter("max"),
+)
 _TPU_DEFAULT_STEPS_PER_EXECUTION = 100
 
 
@@ -278,6 +282,15 @@ _map_over_dataset = functools.partial(
     tf.data.Dataset.map,
     deterministic=False,
     num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+
+def _maybe_to_floatx(tensor: Field) -> Field:
+  dtype = tensor.dtype
+  floatx = tf.dtypes.as_dtype(tf.keras.backend.floatx())
+  if dtype.is_floating:
+    if _FLOATING_ORDERING.index(dtype) < _FLOATING_ORDERING.index(floatx):
+      return tf.cast(tensor, floatx)
+  return tensor
 
 
 def _per_replica_batch_size(global_batch_size: int, num_replicas: int) -> int:
@@ -517,6 +530,9 @@ def run(*,
       }
     else:
       outputs = task.predict(*[outputs[i] for i in tf.nest.flatten(oimap)])
+
+    # Maybe cast to the default float type for final outputs.
+    outputs = tf.nest.map_structure(_maybe_to_floatx, outputs)
 
     model = tf.keras.Model(inputs, outputs)
 

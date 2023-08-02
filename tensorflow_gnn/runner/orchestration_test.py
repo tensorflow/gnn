@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for orchestration."""
 import os
-from typing import Callable, Sequence, Tuple, Union
+from typing import Callable, Optional, Sequence, Tuple, Union
 
 from absl.testing import parameterized
 import tensorflow as tf
@@ -176,10 +176,16 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
           testcase_name="SerializedGraphTensors",
           ds_provider=DatasetProvider(random_serialized_graph_tensor()),
       ),
+      dict(
+          testcase_name="MixedPrecision",
+          ds_provider=DatasetProvider(random_serialized_graph_tensor()),
+          trainer_options=keras_fit.KerasTrainerOptions(policy="mixed_float16"),
+      ),
   ])
   def test_run(
       self,
-      ds_provider: orchestration.DatasetProvider):
+      ds_provider: orchestration.DatasetProvider,
+      trainer_options: Optional[keras_fit.KerasTrainerOptions] = None):
     task = classification.RootNodeMulticlassClassification(
         "nodes",
         num_classes=len(_CLASSES),
@@ -190,7 +196,8 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
         strategy=tf.distribute.get_strategy(),
         model_dir=model_dir,
         steps_per_epoch=1,
-        restore_best_weights=False)
+        restore_best_weights=False,
+        options=trainer_options)
 
     run_result = orchestration.run(
         train_ds_provider=ds_provider,
