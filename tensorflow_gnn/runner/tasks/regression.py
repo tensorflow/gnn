@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Callable, Optional, Sequence, Tuple
+from typing import Callable, Optional, Tuple
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -71,7 +71,7 @@ class _Regression(interfaces.Task):
   def gather_activations(self, inputs: GraphTensor) -> Field:
     raise NotImplementedError()
 
-  def predict(self, inputs: tfgnn.GraphTensor) -> tf.Tensor:
+  def predict(self, inputs: tfgnn.GraphTensor) -> interfaces.Predictions:
     """Apply a linear head for regression.
 
     Args:
@@ -97,10 +97,10 @@ class _Regression(interfaces.Task):
     return x, y
 
   @abc.abstractmethod
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+  def losses(self) -> interfaces.Losses:
     raise NotImplementedError()
 
-  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+  def metrics(self) -> interfaces.Metrics:
     """Regression metrics."""
     return (tf.keras.metrics.MeanSquaredError(),
             tf.keras.metrics.MeanAbsoluteError(),
@@ -153,29 +153,29 @@ class _RootNodeRegression(_Regression):
 class _MeanAbsoluteErrorLossMixIn:
   """Mean absolute error task."""
 
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return (tf.keras.losses.MeanAbsoluteError(),)
+  def losses(self) -> interfaces.Losses:
+    return tf.keras.losses.MeanAbsoluteError()
 
 
 class _MeanAbsolutePercentageErrorLossMixIn:
   """Mean absolute percentage error task."""
 
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return (tf.keras.losses.MeanAbsolutePercentageError(),)
+  def losses(self) -> interfaces.Losses:
+    return tf.keras.losses.MeanAbsolutePercentageError()
 
 
 class _MeanSquaredErrorLossMixIn:
   """Mean squared error task."""
 
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return (tf.keras.losses.MeanSquaredError(),)
+  def losses(self) -> interfaces.Losses:
+    return tf.keras.losses.MeanSquaredError()
 
 
 class _MeanSquaredLogarithmicErrorLossMixIn:
   """Mean squared logarithmic error task."""
 
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return (tf.keras.losses.MeanSquaredLogarithmicError(),)
+  def losses(self) -> interfaces.Losses:
+    return tf.keras.losses.MeanSquaredLogarithmicError()
 
 
 class MeanSquaredLogScaledError(tf.keras.losses.Loss):
@@ -239,12 +239,13 @@ class _MeanSquaredLogScaledErrorLossMixIn:
     self._reduction = reduction
     self._name = name
 
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return (MeanSquaredLogScaledError(
+  def losses(self) -> interfaces.Losses:
+    return MeanSquaredLogScaledError(
         self._reduction,
         self._name,
         alpha_loss_param=self._alpha_loss_param,
-        epsilon_loss_param=self._epsilon_loss_param),)
+        epsilon_loss_param=self._epsilon_loss_param,
+    )
 
 
 def _mean_absolute_logarithmic_error(y_true, y_pred):
@@ -276,8 +277,8 @@ class _MeanAbsoluteLogarithmicErrorLossMixIn:
     self._reduction = reduction
     self._name = name
 
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return (MeanAbsoluteLogarithmicErrorLoss(self._reduction, self._name),)
+  def losses(self) -> interfaces.Losses:
+    return MeanAbsoluteLogarithmicErrorLoss(self._reduction, self._name)
 
 
 class RootNodeMeanAbsoluteLogarithmicError(
@@ -285,7 +286,7 @@ class RootNodeMeanAbsoluteLogarithmicError(
 ):
   """Root node mean absolute logarithmic error task."""
 
-  def predict(self, inputs: tfgnn.GraphTensor) -> tf.Tensor:
+  def predict(self, inputs: tfgnn.GraphTensor) -> interfaces.Predictions:
     """Apply a head with ReLU for nonnegative regression.
 
     Args:

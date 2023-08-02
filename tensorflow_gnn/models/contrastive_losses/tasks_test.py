@@ -266,11 +266,10 @@ class BarlowTwinsTaskTest(tf.test.TestCase):
     inputs, fake_y = task.preprocess(graph_tensor())
     model = gnn_static(inputs[0].spec)
     y_pred = task.predict(*[model(i) for i in inputs])
-    losses = [loss_fn(fake_y, y_pred) for loss_fn in task.losses()]
+    loss = task.losses()(fake_y, y_pred)
 
-    self.assertLen(losses, 1)
     # Loss matrix is 2D identity, hence both loss terms are 1.
-    self.assertEqual(losses[0], 2.0)
+    self.assertEqual(loss, 2.0)
 
 
 class VicRegTaskTest(tf.test.TestCase):
@@ -305,11 +304,9 @@ class VicRegTaskTest(tf.test.TestCase):
     inputs, fake_y = task.preprocess(graph_tensor())
     model = gnn_static(inputs[0].spec)
     y_pred = task.predict(*[model(i) for i in inputs])
-    losses = [loss_fn(fake_y, y_pred) for loss_fn in task.losses()]
-
-    self.assertLen(losses, 1)
+    loss = task.losses()(fake_y, y_pred)
     # Loss should be 2 * 25 (default `sim_weight`) = 50.
-    self.assertEqual(losses[0], 50.0)
+    self.assertEqual(loss, 50.0)
 
 
 if __name__ == "__main__":

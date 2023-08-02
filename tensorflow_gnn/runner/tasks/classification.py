@@ -135,7 +135,7 @@ class _Classification(interfaces.Task):
   def gather_activations(self, inputs: GraphTensor) -> Field:
     raise NotImplementedError()
 
-  def predict(self, inputs: tfgnn.GraphTensor) -> Field:
+  def predict(self, inputs: tfgnn.GraphTensor) -> interfaces.Predictions:
     """Apply a linear head for classification.
 
     Args:
@@ -161,11 +161,11 @@ class _Classification(interfaces.Task):
     return x, y
 
   @abc.abstractmethod
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+  def losses(self) -> interfaces.Losses:
     raise NotImplementedError()
 
   @abc.abstractmethod
-  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+  def metrics(self) -> interfaces.Metrics:
     raise NotImplementedError()
 
 
@@ -175,10 +175,10 @@ class _BinaryClassification(_Classification):
   def __init__(self, units: int = 1, **kwargs):
     super().__init__(units, **kwargs)
 
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return (tf.keras.losses.BinaryCrossentropy(from_logits=True),)
+  def losses(self) -> interfaces.Losses:
+    return tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
-  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+  def metrics(self) -> interfaces.Metrics:
     return (FromLogitsPrecision(from_logits=True),
             FromLogitsRecall(from_logits=True),
             tf.keras.metrics.AUC(from_logits=True, name="auc_roc"),
@@ -208,11 +208,11 @@ class _MulticlassClassification(_Classification):
       self._class_names = class_names
     self._per_class_statistics = per_class_statistics
 
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+  def losses(self) -> interfaces.Losses:
     """Sparse categorical crossentropy loss."""
-    return (tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),)
+    return tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
-  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+  def metrics(self) -> interfaces.Metrics:
     """Sparse categorical metrics."""
     metric_objs = [
         tf.keras.metrics.SparseCategoricalAccuracy(),

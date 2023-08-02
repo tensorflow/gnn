@@ -47,6 +47,14 @@ Trainer = interfaces.Trainer
 Task = interfaces.Task
 RunResult = interfaces.RunResult
 
+# Types (callables)
+Loss = interfaces.Loss
+Metric = interfaces.Metric
+# Types (outputs)
+Predictions = interfaces.Predictions
+Losses = interfaces.Losses
+Metrics = interfaces.Metrics
+
 # Label fns
 ContextLabelFn = label_fns.ContextLabelFn
 RootNodeLabelFn = label_fns.RootNodeLabelFn

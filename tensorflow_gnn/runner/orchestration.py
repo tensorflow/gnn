@@ -51,6 +51,12 @@ Task = interfaces.Task
 Trainer = interfaces.Trainer
 RunResult = interfaces.RunResult
 
+Loss = interfaces.Loss
+Metric = interfaces.Metric
+Predictions = interfaces.Predictions
+Losses = interfaces.Losses
+Metrics = interfaces.Metrics
+
 _BASE_MODEL_TAG = "UNDERSCORE_TFGNN_RUNNER_BASE_MODEL"
 _FLOATING_ORDERING = sorted(
     (tf.float64, tf.float32, tf.float16, tf.bfloat16),
@@ -314,6 +320,47 @@ def _without_aux_graph_piece_features() -> tf.keras.layers.Layer:
       name="without_aux_graph_piece_features")
 
 
+def _check_prediction_rules(p: Predictions, l: Losses, m: Metrics) -> None:
+  """Checks predictions to conform with model losses and metrics.
+
+  Args:
+    p: Model predictions.
+    l: Model losses.
+    m: Model metrics
+
+  Raises:
+    ValueError: For unsupported prediction type.
+  """
+  # Single task, multiple outputs OR multi-task.
+  if isinstance(p, Mapping):
+    if not isinstance(p, Mapping):
+      raise ValueError(f"A mapping of predictions was expected (got {type(p)})")
+    if not isinstance(l, Mapping):
+      raise ValueError(f"A mapping of losses was expected (got {type(l)})")
+    if not isinstance(m, Mapping):
+      raise ValueError(f"A mapping of metrics was expected (got {type(m)})")
+    if not p.keys() == l.keys() == m.keys():
+      raise ValueError(
+          f"Expected matching keys (got {p.keys()}, {l.keys()} and {m.keys()})"
+      )
+    for k in p.keys():
+      _check_prediction_rules(p[k], l[k], m[k])
+  else:
+    # Single-task, one output.
+    if not tfgnn.is_dense_tensor(p) and not tfgnn.is_ragged_tensor(p):
+      raise ValueError(f"Expected a Tensor or Mapping (got {type(p)})")
+    # We only allow 1 loss to be present.
+    if not isinstance(l, Callable):
+      raise ValueError(
+          f"We only expect a single loss per output (got {type(l)})"
+      )
+    # But more than one metric.
+    if not isinstance(m, Sequence) and not isinstance(m, Callable):
+      raise ValueError(
+          f"We only allow a single metric or a sequence of them (got {type(m)})"
+      )
+
+
 def run(*,
         train_ds_provider: DatasetProvider,
         model_fn: Callable[[GraphTensorSpec], tf.keras.Model],
@@ -538,6 +585,8 @@ def run(*,
 
     losses = tf.nest.map_structure(operator.methodcaller("losses"), task)
     metrics = tf.nest.map_structure(operator.methodcaller("metrics"), task)
+
+    _check_prediction_rules(outputs, losses, metrics)
 
     if train_padding is None:
       model.compile(

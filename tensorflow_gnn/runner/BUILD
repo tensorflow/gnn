@@ -38,6 +38,7 @@ pytype_strict_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//third_party/py/typing_extensions",
     ],
 )
 

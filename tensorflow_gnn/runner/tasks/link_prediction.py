@@ -13,9 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """Link Prediction tasks."""
-
 import abc
-from typing import Callable, Optional, Sequence, Tuple
+from typing import Optional, Tuple
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -142,7 +141,7 @@ class _LinkPrediction(interfaces.Task):
         node_set_name=self._readout_node_set_name)(gt)
     return x, y
 
-  def predict(self, graph: tfgnn.GraphTensor) -> tfgnn.Field:
+  def predict(self, graph: tfgnn.GraphTensor) -> interfaces.Predictions:
     tfgnn.check_scalar_graph_tensor(graph, name='LinkPrediction')
     src_features = tfgnn.keras.layers.StructuredReadout(
         key='source', feature_name=self._node_feature_name)(graph)
@@ -152,12 +151,12 @@ class _LinkPrediction(interfaces.Task):
 
     return scores
 
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
+  def losses(self) -> interfaces.Losses:
     """Binary cross-entropy."""
-    return (tf.keras.losses.BinaryCrossentropy(from_logits=True),)
+    return tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
-  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return (tf.keras.metrics.BinaryAccuracy(),)
+  def metrics(self) -> interfaces.Metrics:
+    return tf.keras.metrics.BinaryAccuracy()
 
 
 class DotProductLinkPrediction(_LinkPrediction):

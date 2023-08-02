@@ -13,8 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for orchestration."""
+from __future__ import annotations
+
 import os
-from typing import Callable, Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 from absl.testing import parameterized
 import tensorflow as tf
@@ -62,6 +64,9 @@ _SCHEMA = """
     }
   }
 """
+
+Losses = interfaces.Losses
+Metrics = interfaces.Metrics
 
 
 def gt_spec() -> tfgnn.GraphTensorSpec:
@@ -118,6 +123,106 @@ class DatasetProvider(interfaces.DatasetProvider):
     return self._ds
 
 
+class LossChecker(tf.keras.losses.Loss):
+  """A loss that checks its value against an expectation. Always returns 0."""
+
+  def __init__(self, *, expected: float, name="loss_checker"):
+    super().__init__(name=name)
+    self._expected = expected
+
+  def call(self, y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
+    tf.assert_equal(
+        y_true,
+        self._expected,
+        "Unexpected y_true input to the loss!",
+    )
+    tf.assert_equal(
+        y_pred,
+        self._expected,
+        "Unexpected y_pred input to the loss!",
+    )
+    return 0 * tf.keras.losses.mean_squared_error(y_true, y_pred)
+
+
+class MetricChecker(tf.keras.metrics.Metric):
+  """A metric that checks its value against an expectation. Always returns 0."""
+
+  def __init__(
+      self,
+      *,
+      expected: float,
+      name="metric_checker",
+  ):
+    super().__init__(name=name)
+    self._expected = expected
+
+  def update_state(self, y_true: tf.Tensor, y_pred: tf.Tensor, **_) -> None:
+    tf.assert_equal(
+        y_true,
+        self._expected,
+        "Unexpected y_true input to the metric!",
+    )
+    tf.assert_equal(
+        y_pred,
+        self._expected,
+        "Unexpected y_pred input to the metric!",
+    )
+
+  def result(self) -> tf.Tensor:
+    return tf.constant(0, dtype=tf.float32)
+
+
+class MultioutputSentinelTask(interfaces.Task):
+  """A `Task` for checking the consistency of application of the losses."""
+
+  def __init__(self, n_outputs: int = 2):
+    self._n_outputs = n_outputs
+
+  def preprocess(
+      self, gt: tfgnn.GraphTensor
+  ) -> Tuple[Sequence[tfgnn.GraphTensor], tfgnn.Field]:
+    x = gt
+    y = tfgnn.keras.layers.Readout(
+        feature_name="values", node_set_name="_readout"
+    )(gt)
+    return x, {
+        # Let's trick Keras into thinking we still have something here.
+        f"output_{i}": tf.constant(i, dtype=tf.float32) + 0 * y
+        for i in range(self._n_outputs)
+    }
+
+  def predict(self, *gts: tfgnn.GraphTensor) -> tfgnn.Field:
+    readout = tfgnn.keras.layers.ReadoutFirstNode(
+        node_set_name="nodes", feature_name=tfgnn.HIDDEN_STATE
+    )
+    return {
+        # Let's trick Keras into thinking we still have something here.
+        f"output_{i}": tf.constant(i, dtype=tf.float32) + 0 * tf.add_n(
+            [readout(gt) for gt in gts]
+        )
+        for i in range(self._n_outputs)
+    }
+
+  def losses(self) -> Losses:
+    return {
+        f"output_{i}": LossChecker(expected=tf.constant(i, dtype=tf.float32))
+        for i in range(self._n_outputs)
+    }
+
+  def metrics(self) -> Metrics:
+    all_metrics = {}
+    for i in range(self._n_outputs):
+      if i == 0:
+        # Multiple metrics per output for the first case.
+        all_metrics[f"output_{i}"] = [
+            MetricChecker(expected=float(i), name=f"metric_checker_{j}")
+            for j in range(2)
+        ]
+      else:
+        all_metrics[f"output_{i}"] = MetricChecker(expected=float(i))
+    return all_metrics
+
+
 class SentinelTask(interfaces.Task):
   """Sentinel `Task`.
 
@@ -135,19 +240,22 @@ class SentinelTask(interfaces.Task):
   application. (As asserted in `test_multi_task`.)
   """
 
-  def __init__(self, head_weights: Sequence[float]):
+  def __init__(
+      self,
+      head_weights: Sequence[float],
+      output_structure: Optional[dict[str, None]] = None,
+  ):
     self._head_weights = head_weights
+    self._output_structure = output_structure
 
   def preprocess(
       self,
-      # TODO(b/274672364): make this tuple[...] in Python 3.9 style
-      # when we drop py38 support.
-      gt: tfgnn.GraphTensor) -> Tuple[Sequence[tfgnn.GraphTensor], tfgnn.Field]:
+      gt: tfgnn.GraphTensor) -> tuple[Sequence[tfgnn.GraphTensor], tfgnn.Field]:
     x = [gt, *[product(gt, i + 2) for i in range(len(self._head_weights) - 1)]]
     y = tfgnn.keras.layers.Readout(
         feature_name="values",
         node_set_name="_readout")(gt)
-    return x, y
+    return x, tf.nest.map_structure(lambda _: y, self._output_structure)
 
   def predict(self, *gts: tfgnn.GraphTensor) -> tfgnn.Field:
     readout = tfgnn.keras.layers.ReadoutFirstNode(
@@ -156,13 +264,17 @@ class SentinelTask(interfaces.Task):
     logits = [
         readout(gt) * weight for gt, weight in zip(gts, self._head_weights)
     ]
-    return tf.add_n(logits)
+    return tf.nest.map_structure(
+        lambda _: tf.add_n(logits), self._output_structure
+    )
 
-  def losses(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return (tf.keras.losses.MeanSquaredError(),)
+  def losses(self) -> Losses:
+    return tf.nest.map_structure(
+        lambda _: tf.keras.losses.MeanSquaredError(), self._output_structure
+    )
 
-  def metrics(self) -> Sequence[Callable[[tf.Tensor, tf.Tensor], tf.Tensor]]:
-    return tuple()
+  def metrics(self) -> Metrics:
+    return tf.nest.map_structure(lambda _: (), self._output_structure)
 
 
 class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
@@ -246,13 +358,17 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
     tasks = {
         # One unmutated and one mutated `Task.preprocess(...)` output (both
         # used by `Task.predict(...)`).
-        "s1": SentinelTask((1., 1.)),
+        "s1": SentinelTask((1.0, 1.0)),
         # One unmutated and one mutated `Task.preprocess(...)` output (only the
         # second mutated output is used by `Task.predict(...)`).
-        "s2": SentinelTask((0., 1.)),
+        "s2": SentinelTask((0.0, 1.0)),
         # One unmutated `Task.preprocess(...)` output (used by
         # `Task.predict(...)`).
-        "s3": SentinelTask((1.,)),
+        "s3": SentinelTask((1.0,)),
+        # `Task` with multiple outputs.
+        "s4": SentinelTask(
+            (1.0,), output_structure={"output_1": None, "output_2": None}
+        ),
     }
     model_dir = self.create_tempdir()
     trainer = keras_fit.KerasTrainer(
@@ -279,8 +395,14 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
     # Two preprocessing outputs are deduplicated: there are a total of 3 unique
     # preprocessing outputs only...
     self.assertLen(xs, 3)
-    # and labels match the structure of `tasks`.
-    tf.nest.assert_same_structure(ys, tasks)
+    # and labels match the output structure of the tasks.
+    expected_structure = {
+        "s1": None,
+        "s2": None,
+        "s3": None,
+        "s4": {"output_1": None, "output_2": None},
+    }
+    tf.nest.assert_same_structure(ys, expected_structure)
 
     actual = run_result.trained_model(xs)
 
@@ -296,6 +418,44 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
     # second input).
     xs, _ = run_result.preprocess_model(serialize(product(gt, .5)))
     self.assertAllClose(actual["s3"], run_result.trained_model(xs)["s2"])
+
+    # `actual["s4"]` outputs the same thing as `actual["s3"]`.
+    self.assertAllClose(actual["s3"], actual["s4"]["output_1"])
+    self.assertAllClose(actual["s3"], actual["s4"]["output_2"])
+
+  def test_multioutput(self):
+    gt = with_readout(random_graph_tensor())
+    task = MultioutputSentinelTask()
+    model_dir = self.create_tempdir()
+    trainer = keras_fit.KerasTrainer(
+        strategy=tf.distribute.get_strategy(),
+        model_dir=model_dir,
+        steps_per_epoch=1,
+        restore_best_weights=False,
+    )
+
+    run_result = orchestration.run(
+        train_ds_provider=DatasetProvider(gt),
+        model_fn=lambda _: model_fn(),
+        optimizer_fn=tf.keras.optimizers.Adam,
+        epochs=1,
+        trainer=trainer,
+        task=task,
+        gtspec=gt.spec,
+        global_batch_size=2,
+    )
+
+    def serialize(inputs):
+      return tf.constant((tfgnn.write_example(inputs).SerializeToString(),))
+
+    xs, ys = run_result.preprocess_model(serialize(gt))
+    actual = run_result.trained_model(xs)
+    self.assertIsInstance(ys, dict)
+    self.assertIsInstance(actual, dict)
+    self.assertEqual(set(ys.keys()), set(actual.keys()))
+
+    # Check the exported model loads.
+    _ = tf.saved_model.load(os.path.join(model_dir, "export"))
 
   def test_make_preprocessing_model(self):
     task_processorx = lambda gt: ((gt, product(gt, 2)), gt.context["classes"])
