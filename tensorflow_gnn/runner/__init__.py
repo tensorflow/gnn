@@ -88,7 +88,7 @@ TPUStrategy = strategies.TPUStrategy
 # Tasks (Classification)
 RootNodeBinaryClassification = classification.RootNodeBinaryClassification
 RootNodeMulticlassClassification = classification.RootNodeMulticlassClassification
-GraphBinaryClassification = classification.GraphMulticlassClassification
+GraphBinaryClassification = classification.GraphBinaryClassification
 GraphMulticlassClassification = classification.GraphMulticlassClassification
 # Tasks (Link Prediction)
 DotProductLinkPrediction = link_prediction.DotProductLinkPrediction
