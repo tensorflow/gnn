@@ -104,17 +104,17 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
         },
         edge_sets={
             "ordinary_edges": gt.EdgeSet.from_fields(
-                sizes=tf.constant([]),
+                sizes=tf.constant([], dtype=tf.int32),
                 adjacency=adj.Adjacency.from_indices(
                     ("ordinary_nodes", tf.constant([0])),
                     ("ordinary_nodes", tf.constant([0])))),
             "_extra_edges": gt.EdgeSet.from_fields(
-                sizes=tf.constant([]),
+                sizes=tf.constant([], dtype=tf.int32),
                 adjacency=adj.Adjacency.from_indices(
                     ("_extra_nodes", tf.constant([0])),
                     ("_extra_nodes", tf.constant([0])))),
             "_readout:train/seed": gt.EdgeSet.from_fields(
-                sizes=tf.constant([]),
+                sizes=tf.constant([], dtype=tf.int32),
                 adjacency=adj.Adjacency.from_indices(
                     ("ordinary_nodes", tf.constant([0])),
                     ("_readout:train", tf.constant([0])))),

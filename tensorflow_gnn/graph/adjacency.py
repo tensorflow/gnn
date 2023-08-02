@@ -128,11 +128,23 @@ class HyperAdjacency(gp.GraphPieceBase):
         _node_tag_to_index_key(tag): name for tag, (name, _) in indices.items()
     }
     indicative_index_tensor = _get_indicative_index(data)
+
+    indices_dtype = _max_index_dtype(data)
+    row_splits_dtype = gp.get_max_row_splits_dtype(data)
+    if const.allow_indices_auto_casting:
+      data = cls._data_with_indices_dtype(data, indices_dtype)
+      data = cls._data_with_row_splits_dtype(data, row_splits_dtype)
+    else:
+      # TODO(b/285269757): add checks for consistent indices.
+      raise NotImplementedError
+
     return cls._from_data(
         data,
         shape=indicative_index_tensor.shape[:-1],
-        indices_dtype=indicative_index_tensor.dtype,
-        metadata=metadata)
+        indices_dtype=indices_dtype,
+        row_splits_dtype=row_splits_dtype,
+        metadata=metadata,
+    )
 
   def __getitem__(self, node_set_tag: IncidentNodeTag) -> Field:
     """Returns an index tensor for the given node set tag."""
@@ -150,6 +162,12 @@ class HyperAdjacency(gp.GraphPieceBase):
         (self.node_set_name(_index_key_to_node_tag(key)), index)
         for key, index in self._data.items()
     }
+
+  @classmethod
+  def _data_with_indices_dtype(
+      cls, data: gp.Data, dtype: tf.dtypes.DType
+  ) -> gp.Data:
+    return tf.nest.map_structure(lambda index: tf.cast(index, dtype), data)
 
   def _merge_batch_to_components(
       self, num_edges_per_example: Field,
@@ -218,11 +236,25 @@ class HyperAdjacencySpec(gp.GraphPieceSpecBase):
         _node_tag_to_index_key(tag): name
         for tag, name in incident_node_sets.items()
     }
+
+    indices_dtype = _max_index_dtype(data_spec)
+    row_splits_dtype = gp.get_max_row_splits_dtype(data_spec)
+    if const.allow_indices_auto_casting:
+      data_spec = cls._data_spec_with_indices_dtype(data_spec, indices_dtype)
+      data_spec = cls._data_spec_with_row_splits_dtype(
+          data_spec, row_splits_dtype
+      )
+    else:
+      # TODO(b/285269757): add checks for consistent indices.
+      raise NotImplementedError
+
     return cls._from_data_spec(
         data_spec,
         shape=index_spec.shape[:-1],
-        indices_dtype=index_spec.dtype,
-        metadata=metadata)
+        indices_dtype=indices_dtype,
+        row_splits_dtype=row_splits_dtype,
+        metadata=metadata,
+    )
 
   @property
   def value_type(self):
@@ -283,6 +315,15 @@ class HyperAdjacencySpec(gp.GraphPieceSpecBase):
     return self.from_incident_node_sets(
         incident_node_sets,
         index_spec=utils.with_undefined_outer_dimension(index_spec))
+
+  @classmethod
+  def _data_spec_with_indices_dtype(
+      cls, data_spec: gp.DataSpec, dtype: tf.dtypes.DType
+  ) -> gp.DataSpec:
+    return tf.nest.map_structure(
+        lambda spec: gp.set_field_spec_dtype(spec, dtype),
+        data_spec,
+    )
 
 
 class Adjacency(HyperAdjacency):
@@ -571,3 +612,9 @@ def _get_indicative_index(
       result, (tf.Tensor, tf.RaggedTensor, tf.TensorSpec, tf.RaggedTensorSpec))
   assert result.shape.rank >= 1
   return result
+
+
+def _max_index_dtype(nest) -> tf.dtypes.DType:
+  dtypes = [index.dtype for index in tf.nest.flatten(nest)]
+  assert all(dtype in (tf.int32, tf.int64) for dtype in dtypes)
+  return tf.int64 if tf.int64 in dtypes else tf.int32

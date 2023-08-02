@@ -105,7 +105,7 @@ class TestWriteExample(tf.test.TestCase, parameterized.TestCase):
                    if tf.TensorShape(shape).is_fully_defined()
                    else tf.RaggedTensorSpec(shape, dtype))
     spec = create_tensor(tensor_spec)
-    rgraph = gr.random_graph_tensor(spec, row_splits_dtype=tf.int64)
+    rgraph = gr.random_graph_tensor(spec)
     example = ge.write_example(rgraph)
     serialized = tf.constant(example.SerializeToString())
     pgraph = io.parse_single_example(spec, serialized, validate=True)
