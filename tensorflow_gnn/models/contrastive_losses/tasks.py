@@ -26,6 +26,7 @@ from tensorflow_gnn import runner
 from tensorflow_gnn.models.contrastive_losses import layers
 from tensorflow_gnn.models.contrastive_losses import losses
 from tensorflow_gnn.models.contrastive_losses import metrics
+from tensorflow_gnn.models.contrastive_losses import utils
 
 Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
@@ -254,3 +255,99 @@ class VicRegTask(_ConstrastiveLossTask):
         _unstack_y_pred(metrics.numerical_rank),
         _unstack_y_pred(metrics.pseudo_condition_number),
     )
+
+
+class TripletLossTask(_ConstrastiveLossTask):
+  """The triplet loss task."""
+
+  def __init__(
+      self,
+      *args,
+      margin: float = 1.0,
+      **kwargs):
+    super().__init__(*args, **kwargs)
+    self._margin = margin
+    self._unstack_graph_tensor_at_index = utils.SliceNodeSetFeatures()
+
+  def make_contrastive_layer(self) -> tf.keras.layers.Layer:
+    return layers.TripletEmbeddingSquaredDistances()
+
+  def _unstack_graph_tensor(
+      self, inputs: GraphTensor
+  ) -> tuple[GraphTensor, GraphTensor]:
+    anchor = self._unstack_graph_tensor_at_index(inputs, 0)
+    positive_sample = self._unstack_graph_tensor_at_index(inputs, 1)
+    return (anchor, positive_sample)
+
+  def preprocess(
+      self, inputs: GraphTensor
+  ) -> tuple[Sequence[GraphTensor], tfgnn.Field]:
+    """Creates unused pseudo-labels.
+
+    The input tensor should have the anchor and positive sample stacked along
+    the first dimension for each feature within each node set. The corruptor is
+    applied on the positive sample.
+
+    Args:
+      inputs: The anchor and positive sample stack along the first axis.
+    Returns:
+      Sequence of three graph tensors (anchor, positive_sample,
+      corrupted_sample) and unused pseudo-labels.
+    """
+    anchor, positive_sample = self._unstack_graph_tensor(inputs)
+    x = (anchor, positive_sample, self._corruptor(positive_sample))
+    y = tf.zeros((inputs.num_components, 0), dtype=tf.int32)
+    return x, y
+
+  def predict(self, *args: tfgnn.GraphTensor) -> runner.Predictions:
+    """Apply a readout head for use with triplet contrastive loss.
+
+    Args:
+      *args: A tuple of (anchor, positive_sample, negative_sample)
+      `tfgnn.GraphTensor`s.
+
+    Returns:
+      The positive and negative distance embeddings for triplet loss as produced
+      by the implementing subclass.
+    """
+    anchor, positive_sample, negative_sample = args
+
+    if not tfgnn.is_graph_tensor(anchor):
+      raise ValueError(f"Expected a `GraphTensor` input (got {anchor})")
+    if not tfgnn.is_graph_tensor(positive_sample):
+      raise ValueError(
+          f"Expected a `GraphTensor` input (got {positive_sample})")
+    if not tfgnn.is_graph_tensor(negative_sample):
+      raise ValueError(
+          f"Expected a `GraphTensor` input (got {negative_sample})")
+    if isinstance(tf.distribute.get_strategy(), tf.distribute.TPUStrategy):
+      raise AssertionError(
+          "Contrastive learning tasks do not support TPU (see b/269648832)."
+      )
+
+    # Clean representations.
+    x_positive = tf.keras.layers.Layer(name=self._representations_layer_name)(
+        self._readout(positive_sample)
+    )
+    x_anchor = self._readout(anchor)
+    # Corrupted representations.
+    x_corrupted = self._readout(negative_sample)
+    if self._projector:
+      x_positive = self._projector(x_positive)
+      x_anchor = self._projector(x_anchor)
+      x_corrupted = self._projector(x_corrupted)
+    outputs = tf.stack((x_anchor, x_positive, x_corrupted), axis=1)
+    return self.make_contrastive_layer()(outputs)
+
+  def losses(self) -> runner.Losses:
+    def loss_fn(_, x):
+      positive_distance, negative_distance = tf.unstack(x, axis=1)
+      return losses.triplet_loss(
+          positive_distance,
+          negative_distance,
+          margin=self._margin,
+      )
+    return loss_fn
+
+  def metrics(self) -> runner.Metrics:
+    return (metrics.TripletLossMetrics(),)

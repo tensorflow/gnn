@@ -191,3 +191,41 @@ def coherence_from_singular_vectors(u: tf.Tensor) -> tf.Tensor:
   return tf.square(maximum_norm) * tf.cast(
       tf.divide(n_examples, dimensions), tf.float32
   )
+
+
+@tf.keras.utils.register_keras_serializable()
+class TripletLossMetrics(tf.keras.metrics.Metric):
+  """Triplet loss metrics."""
+
+  def __init__(self, name="triplet_loss_metrics", **kwargs):
+    super().__init__(name=name, **kwargs)
+    self.positive_distance_metric = tf.keras.metrics.Mean(
+        name="positive_distance_metric")
+    self.negative_distance_metric = tf.keras.metrics.Mean(
+        name="negative_distance_metric")
+    self.triplet_distance_metric = tf.keras.metrics.Mean(
+        name="triplet_distance_metric")
+
+  def update_state(self, y_true, y_pred, sample_weight=None):
+    del sample_weight
+    y_pred = tf.ensure_shape(y_pred, (None, 2))
+    positive_distance, negative_distance = tf.unstack(
+        y_pred, axis=1
+    )
+    self.positive_distance_metric.update_state(positive_distance)
+    self.negative_distance_metric.update_state(negative_distance)
+    self.triplet_distance_metric.update_state(
+        positive_distance - negative_distance
+    )
+
+  def result(self):
+    return {
+        "positive_distance": self.positive_distance_metric.result(),
+        "negative_distance": self.negative_distance_metric.result(),
+        "triplet_distance": self.triplet_distance_metric.result(),
+    }
+
+  def reset_state(self):
+    self.positive_distance_metric.reset_states()
+    self.negative_distance_metric.reset_states()
+    self.triplet_distance_metric.reset_states()

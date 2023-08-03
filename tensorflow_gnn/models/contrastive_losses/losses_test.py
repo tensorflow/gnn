@@ -149,5 +149,29 @@ class VicRegLossTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(loss_value, 2)
 
 
+class TripletLossTest(tf.test.TestCase, parameterized.TestCase):
+
+  def test_loss_value(self):
+    """Verifies outputs in simple cases."""
+    positive_distance = tf.convert_to_tensor([1.0, 2.0, 1.8, 1.0])
+    negative_distance = tf.convert_to_tensor([2.0, 1.0, 2.0, 1.0])
+    margin = 0.5
+
+    loss_value = losses.triplet_loss(
+        positive_distance, negative_distance, margin
+    )
+    self.assertEqual(loss_value, 2.3)
+
+  def test_zero_loss_value(self):
+    """Verifies outputs in cases where `loss + margin < 0`."""
+    positive_distance = tf.convert_to_tensor([1.0, 2.0])
+    negative_distance = tf.convert_to_tensor([2.0, 4.0])
+    margin = 0.5
+
+    loss_value = losses.triplet_loss(
+        positive_distance, negative_distance, margin
+    )
+    self.assertEqual(loss_value, 0.0)
+
 if __name__ == "__main__":
   tf.test.main()

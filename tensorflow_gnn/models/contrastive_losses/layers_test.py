@@ -404,5 +404,18 @@ class LayersTest(tf.test.TestCase, parameterized.TestCase):
     # Clean and corrupted logits (i.e., shape (1, 2)).
     self.assertEqual(logits.shape, (1, 2))
 
+  def test_triplet_embedding(self):
+    """Verifies output logits shape and squared distance values."""
+    x_anchor = tf.constant([[1, 2, 3]], dtype=tf.float32)
+    x_positive = tf.constant([[1.5, 2.5, 3.5]], dtype=tf.float32)
+    x_corrupted = tf.constant([[2, 3, 4]], dtype=tf.float32)
+    embedding_distances = layers.TripletEmbeddingSquaredDistances()(
+        tf.stack((x_anchor, x_positive, x_corrupted), axis=1)
+    )
+
+    # Concatenated positive and negative distance (i.e., shape (1, 2)).
+    self.assertEqual(embedding_distances.shape, (1, 2))
+    self.assertAllClose(embedding_distances, tf.constant([[0.25, 1]]))
+
 if __name__ == "__main__":
   tf.test.main()

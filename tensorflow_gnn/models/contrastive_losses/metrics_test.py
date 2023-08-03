@@ -149,6 +149,15 @@ class MetricsTest(tf.test.TestCase, parameterized.TestCase):
     actual = metric_fn(inputs)
     self.assertAllClose(actual, expected)
 
+  def test_triplet_metrics(self):
+    y_pred = tf.convert_to_tensor([[1.0, 2.0], [0.5, 3.0]])
+    metric_obj = metrics.TripletLossMetrics()
+    metric_obj.update_state(None, y_pred)
+    actual = metric_obj.result()
+    self.assertAllClose(actual["positive_distance"], 0.75)
+    self.assertAllClose(actual["negative_distance"], 2.5)
+    self.assertAllClose(actual["triplet_distance"], -1.75)
+
 
 if __name__ == "__main__":
   tf.test.main()

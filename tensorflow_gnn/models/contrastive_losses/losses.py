@@ -177,3 +177,11 @@ def barlow_twins_loss(
   loss_diagonal_sum = tf.linalg.trace(loss_matrix)
   loss_sum = tf.reduce_sum(loss_matrix)
   return (1.0 - lambda_) * loss_diagonal_sum + lambda_ * loss_sum
+
+
+# Implementation inspired from https://arxiv.org/pdf/1503.03832.pdf
+def triplet_loss(positive_distance: tf.Tensor, negative_distance: tf.Tensor,
+                 margin: float = 1.0) -> tf.Tensor:
+  loss = positive_distance - negative_distance
+  loss = tf.maximum(loss + margin, tf.zeros_like(loss))
+  return tf.reduce_sum(loss)

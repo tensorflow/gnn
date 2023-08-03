@@ -53,6 +53,32 @@ def graph_tensor() -> tfgnn.GraphTensor:
   )
 
 
+@functools.lru_cache(None)
+def stacked_graph_tensor() -> tfgnn.GraphTensor:
+  return tfgnn.GraphTensor.from_pieces(
+      node_sets={
+          "node": tfgnn.NodeSet.from_fields(
+              sizes=[2],
+              features={
+                  tfgnn.HIDDEN_STATE: tf.constant(
+                      [[[1.0, 1.0, 0.0, 0.0], [1.0, 1.0, 0.0, 0.0]],
+                       [[0.0, 0.0, 1.0, 1.0], [0.0, 0.0, 1.0, 1.0]]]
+                  )
+              },
+          ),
+      },
+      edge_sets={
+          "edge": tfgnn.EdgeSet.from_fields(
+              sizes=[2],
+              adjacency=tfgnn.Adjacency.from_indices(
+                  source=("node", [0, 1]),
+                  target=("node", [1, 0]),
+              ),
+          )
+      },
+  )
+
+
 def gnn_real(type_spec: tf.TypeSpec) -> tf.keras.Model:
   """Builds a Graph Neural Network that does some actual transformations."""
   inputs = tf.keras.Input(type_spec=type_spec)
@@ -307,6 +333,103 @@ class VicRegTaskTest(tf.test.TestCase):
     loss = task.losses()(fake_y, y_pred)
     # Loss should be 2 * 25 (default `sim_weight`) = 50.
     self.assertEqual(loss, 50.0)
+
+
+def bad_parameters_inputs_triplet() -> Sequence[dict[str, Any]]:
+  output = [
+      dict(
+          testcase_name="NoGraphTensorInputRightTripletLoss",
+          inputs=(graph_tensor(), graph_tensor(), tf.constant(range(8))),
+          expected_error=r"Expected a `GraphTensor` input \(got .*\)",
+      ),
+      dict(
+          testcase_name="NoGraphTensorInputLeftTripletLoss",
+          inputs=(tf.constant(range(8)), graph_tensor(), graph_tensor()),
+          expected_error=r"Expected a `GraphTensor` input \(got .*\)",
+      ),
+      dict(
+          testcase_name="NoGraphTensorInputMiddleTripletLoss",
+          inputs=(graph_tensor(), tf.constant(range(8)), graph_tensor()),
+          expected_error=r"Expected a `GraphTensor` input \(got .*\)",
+      ),
+  ]
+  return output
+
+
+class TripletTaskTests(tf.test.TestCase, parameterized.TestCase):
+  task = tasks.TripletLossTask("node", seed=8191)
+
+  @parameterized.named_parameters(bad_parameters_inputs_triplet())
+  def test_bad_parameters(
+      self,
+      inputs: Sequence[Any],
+      expected_error: str):
+    with self.assertRaisesRegex(ValueError, expected_error):
+      _ = self.task.predict(*inputs)
+
+  def test_output_shape(self):
+    inputs, _ = self.task.preprocess(stacked_graph_tensor())
+    # (anchor, positive, corrupted)
+    self.assertLen(inputs, 3)
+
+    outputs = self.task.predict(*inputs)
+
+    # Clean and corrupted logits (i.e., shape (1, 2)).
+    self.assertEqual(outputs.shape, (1, 2))
+
+  def test_pseudolabels(self):
+    # See `test_preprocess` for tests of the first part of `preprocess` fn.
+    _, pseudolabels = self.task.preprocess(stacked_graph_tensor())
+    self.assertAllEqual(pseudolabels, ((),))
+
+  def test_fit(self):
+    ds = tf.data.Dataset.from_tensors(stacked_graph_tensor()).repeat()
+    ds = ds.map(self.task.preprocess).take(5)
+
+    gts, _ = next(iter(ds))
+    inputs = [tf.keras.Input(type_spec=gt.spec) for gt in gts]
+    # All specs are the same (asserted in `test_preprocess`).
+    model = gnn_real(inputs[0].spec)
+    outputs = self.task.predict(*[model(i) for i in inputs])
+
+    predicted = tf.keras.Model(inputs, outputs)
+    predicted.compile(loss=self.task.losses(), metrics=self.task.metrics())
+
+    before = predicted.evaluate(ds)
+    predicted.fit(ds)
+
+    self.assertLess(predicted.evaluate(ds), before)
+
+  def test_preprocess(self):
+    # See `test_pseudolabels` for tests of the second part of `preprocess` fn.
+    gt = graph_tensor()
+    gts, _ = self.task.preprocess(gt)
+
+    # Three `gts` with the same spec are returned .
+    self.assertLen(gts, 3)
+    self.assertEqual(gts[0].spec, gts[1].spec)
+
+  def test_predict(self):
+    gts, _ = self.task.preprocess(stacked_graph_tensor())
+    inputs = [tf.keras.Input(type_spec=gt.spec) for gt in gts]
+    # All specs are the same (asserted in `test_preprocess`).
+    model = gnn_real(inputs[0].spec)
+    outputs = self.task.predict(*[model(i) for i in inputs])
+
+    predicted = tf.keras.Model(inputs, outputs)
+
+    # Recover the clean representations.
+    layers = [l for l in predicted.layers if "clean_representations" == l.name]
+    self.assertLen(layers, 1)
+    submodule = tf.keras.Model(predicted.input, layers[0].output)
+
+    # Clean representations: root node readout.
+    expected = tfgnn.keras.layers.ReadoutFirstNode(
+        node_set_name="node", feature_name=tfgnn.HIDDEN_STATE
+    )(model(graph_tensor()))
+    self.assertShapeEqual(
+        submodule((graph_tensor(), graph_tensor(), graph_tensor())), expected
+    )
 
 
 if __name__ == "__main__":

@@ -325,3 +325,32 @@ class DeepGraphInfomaxLogits(tf.keras.layers.Layer):
         x_corrupted, self._bilinear(summary), transpose_b=True
     )
     return tf.keras.layers.Concatenate()((logits_clean, logits_corrupted))
+
+
+@tf.keras.utils.register_keras_serializable(package=_PACKAGE)
+class TripletEmbeddingSquaredDistances(tf.keras.layers.Layer):
+  """Computes embeddings distance between positive and negative pairs."""
+
+  def call(self, inputs: tf.Tensor) -> tf.Tensor:
+    """Computes distance between (anchor, positive) and (anchor, corrupted).
+
+    Args:
+      inputs: A stacked tensor with anchor, positive sample and corrupted
+        (negative) sample stacked like `[batch, 3, representation dim]`.
+
+    Returns:
+      Concatenated (positive_distance, negative_distance) tensor of shape
+      `[batch_size, 2]`.
+    """
+    inputs = tf.ensure_shape(inputs, (None, 3, None))
+    x_anchor, x_positive, x_corrupted = tf.unstack(inputs, axis=1)
+
+    # Distance of embeddings. Each distance has shape `[batch_size, 1]`
+    positive_distance = tf.reduce_mean(
+        tf.square(x_positive - x_anchor), axis=1, keepdims=True
+    )
+    negative_distance = tf.reduce_mean(
+        tf.square(x_corrupted - x_anchor), axis=1, keepdims=True
+    )
+
+    return tf.keras.layers.Concatenate()((positive_distance, negative_distance))

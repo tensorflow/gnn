@@ -28,9 +28,11 @@ CorruptionSpec = layers.CorruptionSpec
 DeepGraphInfomaxLogits = layers.DeepGraphInfomaxLogits
 DropoutFeatures = layers.DropoutFeatures
 ShuffleFeaturesGlobally = layers.ShuffleFeaturesGlobally
+TripletEmbeddingSquaredDistances = layers.TripletEmbeddingSquaredDistances
 
 BarlowTwinsTask = tasks.BarlowTwinsTask
 DeepGraphInfomaxTask = tasks.DeepGraphInfomaxTask
+TripletLossTask = tasks.TripletLossTask
 VicRegTask = tasks.VicRegTask
 
 del layers
