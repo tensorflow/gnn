@@ -25,7 +25,7 @@ working with graph structured data in TensorFlow.
 
 ### Schedule
 
-| Time (EST)  | Speaker            | Style    | Topic  |
+| Time (PST)  | Speaker            | Style    | Topic  |
 | ----------: |:---------------:   | :-----:  | :----- |
 | 9:00 AM       | Bryan Perozzi      | slides   | **Introduction:** Welcome and overview of team's work |
 | 9:07 PM     | Sami Abu-El-Haija  | slides   | **Background:** Recap of Graph Neural Networks (GNNs), problems they solve, and a brief intro to TF-GNN  |
@@ -41,7 +41,7 @@ working with graph structured data in TensorFlow.
 ### Tutorial Material
 
 1.  Hands-on Tutorial Links
-  1.  Tutorial 1: [TF-GNN in a Nutshel](https://github.com/tensorflow/gnn/blob/main/examples/tutorials/kdd_2023/code_tutorial_1.ipynb)
+  1.  Tutorial 1: [TF-GNN in a Nutshell](https://github.com/tensorflow/gnn/blob/main/examples/tutorials/kdd_2023/code_tutorial_1.ipynb)
   2.  Tutorial 2: [Graph Tensor Programming](https://github.com/tensorflow/gnn/blob/main/examples/tutorials/kdd_2023/code_tutorial_2.ipynb)
   3.  Tutorial 3: [In-memory Datasets](https://github.com/tensorflow/gnn/blob/main/examples/tutorials/kdd_2023/code_tutorial_datasets.ipynb)
 
@@ -68,6 +68,5 @@ have two 'background' workshops with recorded video that cover our work:
 ### Contact us
 
 If you have any questions about using TF-GNN, please feel free to drop a
-question on the [github repo](https://github.com/tensorflow/gnn/), or email us
-directly at `tensorflow-gnn AT googlegroups DOT com`.
+question on the [github repo](https://github.com/tensorflow/gnn/).
 
