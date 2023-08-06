@@ -39,8 +39,9 @@ working with graph structured data in TensorFlow.
 
 
 ### Tutorial Material
+1. Slides: [Slides for the KDD'23 Tutorial](https://drive.google.com/file/d/1-vTfbfhTsq3-AR_IL3JmawP3n6QWElVT/view?usp=drivesdk)
 
-1.  Hands-on Tutorial Links
+2.  Hands-on Tutorial Links
   1.  Tutorial 1: [TF-GNN in a Nutshell](https://github.com/tensorflow/gnn/blob/main/examples/tutorials/kdd_2023/code_tutorial_1.ipynb)
   2.  Tutorial 2: [Graph Tensor Programming](https://github.com/tensorflow/gnn/blob/main/examples/tutorials/kdd_2023/code_tutorial_2.ipynb)
   3.  Tutorial 3: [In-memory Datasets](https://github.com/tensorflow/gnn/blob/main/examples/tutorials/kdd_2023/code_tutorial_datasets.ipynb)
