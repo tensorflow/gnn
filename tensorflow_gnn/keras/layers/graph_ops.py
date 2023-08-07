@@ -914,6 +914,6 @@ class Pool(BroadcastPoolBase):
         reduce_type=reduce_type, feature_name=feature_name)
 
   @property
-  def reduce_type(self) -> str:
+  def reduce_type(self) -> Optional[str]:
     """Returns the reduce_type argument to init, or None if unset."""
     return self._reduce_type

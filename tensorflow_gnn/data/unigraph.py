@@ -833,15 +833,19 @@ def read_schema(schema_file: str) -> tfgnn.GraphSchema:
 _BQ_CLIENT_SINGLETON = None
 
 
-def _get_bq_singleton_client():
-  """Returns singleton instance of `bq_storage.BigQueryReadClient`."""
+def _get_bq_storage():
   if bq_storage is None:
     raise ImportError("Could not `import google.cloud.bigquery_storage_v1`. "
                       "To use BigQuery, make sure it is available and/or "
                       "linked into your binary.")
+  return bq_storage
+
+
+def _get_bq_singleton_client():
+  """Returns singleton instance of `bq_storage.BigQueryReadClient`."""
   global _BQ_CLIENT_SINGLETON
   if _BQ_CLIENT_SINGLETON is None:
-    _BQ_CLIENT_SINGLETON = bq_storage.BigQueryReadClient()
+    _BQ_CLIENT_SINGLETON = _get_bq_storage().BigQueryReadClient()
   return _BQ_CLIENT_SINGLETON
 
 
@@ -953,12 +957,19 @@ class DictStreams:
 
     session = client.create_read_session(
         parent="projects/" + table_spec.project,
-        read_session=bq_storage.types.ReadSession(
-            data_format=bq_storage.types.DataFormat.ARROW,
+        read_session=_get_bq_storage().types.ReadSession(
+            data_format=_get_bq_storage().types.DataFormat.ARROW,
             table="/".join((
-                "projects", table_spec.project, "datasets", table_spec.dataset,
-                "tables", table_spec.table))),
-        max_stream_count=10)
+                "projects",
+                table_spec.project,
+                "datasets",
+                table_spec.dataset,
+                "tables",
+                table_spec.table,
+            )),
+        ),
+        max_stream_count=10,
+    )
 
     row_iterators = [client.read_rows(stream.name).rows(session)
                      for stream in session.streams]
