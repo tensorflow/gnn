@@ -24,7 +24,21 @@ from torch_geometric import datasets as tg_datasets
 
 class PygAdapterTest(parameterized.TestCase):
 
-  def assertNumOfGraphs(self, num_graphs, graph_tensor):
+  def assertSingleGraph(self, graph_tensor):
+    node_sets = graph_tensor.node_sets
+    edge_sets = graph_tensor.edge_sets
+    for node_type in node_sets.keys():
+      self.assertEqual(
+          node_sets[node_type].sizes.shape.as_list(),
+          [1],
+      )
+    for edge_type in edge_sets.keys():
+      self.assertEqual(
+          edge_sets[edge_type].sizes.shape.as_list(),
+          [1],
+      )
+
+  def assertMultiGraph(self, num_graphs, graph_tensor):
     node_sets = graph_tensor.node_sets
     edge_sets = graph_tensor.edge_sets
     for node_type in node_sets.keys():
@@ -72,7 +86,7 @@ class PygAdapterHomogenousTest(PygAdapterTest):
         pre_transform=None,
     )
     graph_synthetic = pyg_adapter.build_graph_tensor_pyg(dataset_synthetic)
-    self.assertNumOfGraphs(24, graph_synthetic)
+    self.assertMultiGraph(24, graph_synthetic)
     self.assertEqual(
         graph_synthetic.node_sets[tfgnn.NODES].features['x'].shape[2],
         8,
@@ -82,6 +96,7 @@ class PygAdapterHomogenousTest(PygAdapterTest):
         6,
     )
     self.assertEmpty(graph_synthetic.context.features)
+    self.assertEqual(graph_synthetic.merge_batch_to_components().rank, 0)
 
   def test_synthetic_graph_classification_without_node_attrs(self):
     """Tests the conversion of a synthetic dataset into a graph tensor.
@@ -105,7 +120,7 @@ class PygAdapterHomogenousTest(PygAdapterTest):
         pre_transform=None,
     )
     graph_synthetic = pyg_adapter.build_graph_tensor_pyg(dataset_synthetic)
-    self.assertNumOfGraphs(3, graph_synthetic)
+    self.assertMultiGraph(3, graph_synthetic)
     self.assertEmpty(graph_synthetic.node_sets[tfgnn.NODES].features)
     self.assertEqual(
         graph_synthetic.edge_sets[tfgnn.EDGES].features['edge_attr'].shape[2],
@@ -114,6 +129,7 @@ class PygAdapterHomogenousTest(PygAdapterTest):
     self.assertEqual(
         graph_synthetic.context.features['y'].shape.as_list(), [3, 1]
     )
+    self.assertEqual(graph_synthetic.merge_batch_to_components().rank, 0)
 
   def test_synthetic_graph_classification_with_edge_attrs(self):
     """Tests the conversion of a synthetic dataset into a graph tensor.
@@ -137,7 +153,7 @@ class PygAdapterHomogenousTest(PygAdapterTest):
         pre_transform=None,
     )
     graph_synthetic = pyg_adapter.build_graph_tensor_pyg(dataset_synthetic)
-    self.assertNumOfGraphs(18, graph_synthetic)
+    self.assertMultiGraph(18, graph_synthetic)
     self.assertEqual(
         graph_synthetic.node_sets[tfgnn.NODES].features['x'].shape[2], 4
     )
@@ -148,6 +164,7 @@ class PygAdapterHomogenousTest(PygAdapterTest):
     self.assertEqual(
         graph_synthetic.context.features['y'].shape.as_list(), [18, 1]
     )
+    self.assertEqual(graph_synthetic.merge_batch_to_components().rank, 0)
 
   def test_karateclub_dataset(self):
     """Tests the conversion of the karate club dataset into a graph tensor.
@@ -158,33 +175,167 @@ class PygAdapterHomogenousTest(PygAdapterTest):
     """
     dataset_karate_club = tg_datasets.KarateClub()
     graph_karateclub = pyg_adapter.build_graph_tensor_pyg(dataset_karate_club)
-    self.assertNumOfGraphs(1, graph_karateclub)
+    self.assertSingleGraph(graph_karateclub)
     node_features = graph_karateclub.node_sets[tfgnn.NODES].features
-    for node_feature in node_features.keys():
-      self.assertEqual(node_features[node_feature][0].shape[0], 34)
     self.assertEqual(
-        node_features['x'][0].shape.as_list(),
+        node_features['x'].shape.as_list(),
         [34, 34],
     )
     self.assertEqual(
-        node_features['y'][0].shape.as_list(),
+        node_features['y'].shape.as_list(),
         [34],
     )
     self.assertEqual(
-        node_features['train_mask'][0].shape.as_list(),
+        node_features['train_mask'].shape.as_list(),
         [34],
     )
     adjacency = graph_karateclub.edge_sets[tfgnn.EDGES].adjacency
     self.assertEqual(
-        adjacency.source[0].shape[0],
+        adjacency.source.shape[0],
         156,
     )
     self.assertEqual(
-        adjacency.target[0].shape[0],
+        adjacency.target.shape[0],
         156,
     )
     self.assertEmpty(graph_karateclub.edge_sets[tfgnn.EDGES].features)
     self.assertEmpty(graph_karateclub.context.features)
+    self.assertEqual(graph_karateclub.merge_batch_to_components().rank, 0)
+
+
+class PygAdapterHeterogeneousTest(PygAdapterTest):
+
+  def test_synthetic_with_edge_attrs(self):
+    """Tests the conversion of a synthetic heterogeneous dataset into a graph tensor.
+
+    This synthetic dataset is a heterogeneous multi-graph dataset comprising:
+    -10 graphs
+    -with 3 node types
+    -with 2 edge types with edge attrs of dimention 11
+    -node classification task
+    """
+    dataset_synthetic = tg_datasets.FakeHeteroDataset(
+        num_graphs=10,
+        num_node_types=3,
+        num_edge_types=2,
+        avg_num_nodes=10,
+        avg_degree=5,
+        avg_num_channels=3,
+        edge_dim=11,
+        num_classes=10,
+        task='node',
+    )
+    graph_synthetic = pyg_adapter.build_graph_tensor_pyg(dataset_synthetic)
+    self.assertMultiGraph(10, graph_synthetic)
+    self.assertLen(graph_synthetic.node_sets, 3)
+    self.assertLen(graph_synthetic.edge_sets, 2)
+    for edge_type in graph_synthetic.edge_sets.keys():
+      self.assertEqual(
+          graph_synthetic.edge_sets[edge_type]
+          .features['edge_attr']
+          .shape.as_list(),
+          [10, None, 11],
+      )
+    self.assertEmpty(graph_synthetic.context.features)
+    self.assertEqual(graph_synthetic.merge_batch_to_components().rank, 0)
+
+  def test_synthetic_with_no_edge_no_node_attrs(self):
+    """Tests the conversion of a synthetic heterogeneous dataset into a graph tensor.
+
+    This synthetic dataset is a heterogeneous single-graph dataset comprising:
+    -1 graph
+    -with 1 node type with no node_attrs
+    -with 1 edge type with no edge_attrs
+    -graph classification task
+    """
+    dataset_synthetic = tg_datasets.FakeHeteroDataset(
+        num_graphs=1,
+        num_node_types=1,
+        num_edge_types=1,
+        avg_num_nodes=10,
+        avg_degree=5,
+        avg_num_channels=0,
+        edge_dim=0,
+        num_classes=10,
+        task='graph',
+    )
+    graph_synthetic = pyg_adapter.build_graph_tensor_pyg(dataset_synthetic)
+    self.assertSingleGraph(graph_synthetic)
+    self.assertLen(graph_synthetic.node_sets, 1)
+    self.assertLen(graph_synthetic.edge_sets, 1)
+    for edge_type in graph_synthetic.edge_sets.keys():
+      self.assertEmpty(graph_synthetic.edge_sets[edge_type].features)
+    for node_type in graph_synthetic.node_sets.keys():
+      self.assertNotIn('x', graph_synthetic.node_sets[node_type].features)
+    self.assertEqual(
+        graph_synthetic.context.features['y'].shape.as_list()[0], 1
+    )
+    self.assertEqual(graph_synthetic.merge_batch_to_components().rank, 0)
+
+  def test_synthetic_with_no_edge_node_attrs(self):
+    """Tests the conversion of a synthetic heterogeneous dataset into a graph tensor.
+
+    This synthetic dataset is a heterogeneous single-graph dataset comprising:
+    -1 graph
+    -with 3 node types
+    -with 2 edge types with no edge_attrs
+    """
+    dataset_synthetic = tg_datasets.FakeHeteroDataset(
+        num_graphs=1,
+        num_node_types=3,
+        num_edge_types=2,
+        avg_num_nodes=10,
+        avg_degree=5,
+        avg_num_channels=3,
+        edge_dim=0,
+        num_classes=10,
+        task='node',
+    )
+    graph_synthetic = pyg_adapter.build_graph_tensor_pyg(dataset_synthetic)
+    self.assertSingleGraph(graph_synthetic)
+    self.assertLen(graph_synthetic.node_sets, 3)
+    self.assertLen(graph_synthetic.edge_sets, 2)
+    for edge_type in graph_synthetic.edge_sets.keys():
+      self.assertEmpty(graph_synthetic.edge_sets[edge_type].features)
+    self.assertEmpty(graph_synthetic.context.features)
+    self.assertEqual(graph_synthetic.merge_batch_to_components().rank, 0)
+
+  def test_synthetic_graph_classification(self):
+    """Tests the conversion of a synthetic heterogeneous dataset into a graph tensor.
+
+    This synthetic dataset is a heterogeneous multi-graph dataset comprising:
+    -3 graphs
+    -with 4 node types
+    -with 5 edge types with edge attrs of dimension 4
+    -graph classification task
+    """
+    dataset_synthetic = tg_datasets.FakeHeteroDataset(
+        num_graphs=3,
+        num_node_types=4,
+        num_edge_types=5,
+        avg_num_nodes=10,
+        avg_degree=5,
+        avg_num_channels=3,
+        edge_dim=4,
+        num_classes=10,
+        task='graph',
+    )
+    graph_synthetic = pyg_adapter.build_graph_tensor_pyg(dataset_synthetic)
+    self.assertMultiGraph(3, graph_synthetic)
+    self.assertLen(graph_synthetic.node_sets, 4)
+    self.assertLen(graph_synthetic.edge_sets, 5)
+    for edge_type in graph_synthetic.edge_sets.keys():
+      self.assertEqual(
+          graph_synthetic.edge_sets[edge_type]
+          .features['edge_attr']
+          .shape.as_list(),
+          [3, None, 4],
+      )
+    self.assertIn('y', graph_synthetic.context.features)
+    self.assertEqual(
+        graph_synthetic.context.features['y'].shape.as_list(), [3, 1]
+    )
+    self.assertEqual(graph_synthetic.merge_batch_to_components().rank, 0)
 
 
 if __name__ == '__main__':
