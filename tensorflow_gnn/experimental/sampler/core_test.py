@@ -842,6 +842,132 @@ class UniformEdgesSamplerTest(tf.test.TestCase, parameterized.TestCase):
     check_results(restored_model)
 
 
+class TopKEdgesSamplerTest(tf.test.TestCase, parameterized.TestCase):
+
+  def _get_test_data(
+      self, edge_target_feature_name: str, table_name: Optional[str] = None
+  ):
+    table = core.InMemStringKeyToBytesAccessor(
+        keys_to_values={
+            'a': pbtext.Merge(
+                r"""
+                features {
+                  feature {
+                      key: "%s"
+                      value { bytes_list {value: ['b', 'c']} }
+                  }
+                  feature {
+                      key: "weights"
+                      value { float_list {value: [2., 3.]} }
+                  }
+                }""" % edge_target_feature_name,
+                tf.train.Example(),
+            ).SerializeToString(),
+            'b': pbtext.Merge(
+                r"""
+                features {
+                  feature {
+                      key: "%s"
+                      value { bytes_list {value: ['a']} }
+                  }
+                  feature {
+                      key: "weights"
+                      value { float_list {value: [1.]} }
+                  }
+                }""" % edge_target_feature_name,
+                tf.train.Example(),
+            ).SerializeToString(),
+            'c': pbtext.Merge(
+                r"""
+                features {
+                  feature {
+                      key: "%s"
+                      value { bytes_list {value: ['b', 'c']} }
+                  }
+                  feature {
+                      key: "weights"
+                      value { float_list {value: [2., 2.]} }
+                  }
+                }""" % edge_target_feature_name,
+                tf.train.Example(),
+            ).SerializeToString(),
+        },
+        name=table_name,
+    )
+    return core.KeyToTfExampleAccessor(
+        table,
+        features_spec={
+            edge_target_feature_name: tf.TensorSpec([None], tf.string),
+            'weights': tf.TensorSpec([None], tf.float32),
+        },
+    )
+
+  def testSampling1(self):
+    layer = core.TopKEdgesSampler(
+        self._get_test_data('#target'),
+        sample_size=1,
+        edge_target_feature_name='#target',
+        weight_feature_name='weights',
+    )
+    result = layer(rt([['a'] * 5]))
+    self.assertSetEqual(set(result.keys()), {'#source', '#target', 'weights'})
+    self.assertAllEqual(result['weights'], rt([[3.0] * 5]))
+    self.assertAllEqual(result['#source'], rt([['a'] * 5]))
+    self.assertAllEqual(result['#target'], rt([['c'] * 5]))
+
+  def testSamplingSizeGreaterThanEdges(self):
+    layer = core.TopKEdgesSampler(
+        self._get_test_data('#target'),
+        sample_size=3,
+        edge_target_feature_name='#target',
+        weight_feature_name='weights',
+    )
+    result = layer(rt([['a'] * 5]))
+    self.assertSetEqual(set(result.keys()), {'#source', '#target', 'weights'})
+    self.assertAllEqual(result['weights'], rt([[3.0, 2.0] * 5]))
+    self.assertAllEqual(result['#source'], rt([['a', 'a'] * 5]))
+    self.assertAllEqual(result['#target'], rt([['c', 'b'] * 5]))
+
+  def testSamplingNoEdges(self):
+    layer = core.TopKEdgesSampler(
+        self._get_test_data('#target'),
+        sample_size=1,
+        edge_target_feature_name='#target',
+        weight_feature_name='weights',
+    )
+    result = layer(rt([['xxx'] * 5]))
+    self.assertSetEqual(set(result.keys()), {'#source', '#target', 'weights'})
+    self.assertAllEqual(result['weights'], rt([[] * 5]))
+    self.assertAllEqual(result['#source'], rt([[] * 5]))
+    self.assertAllEqual(result['#target'], rt([[] * 5]))
+
+  def testSamplingMixedEdges(self):
+    layer = core.TopKEdgesSampler(
+        self._get_test_data('#target'),
+        sample_size=1,
+        edge_target_feature_name='#target',
+        weight_feature_name='weights',
+    )
+    result = layer(rt([['a', 'xxx', 'b']]))
+    self.assertSetEqual(set(result.keys()), {'#source', '#target', 'weights'})
+    self.assertAllEqual(result['weights'], rt([[3.0, 1.0]]))
+    self.assertAllEqual(result['#source'], rt([['a', 'b']]))
+    self.assertAllEqual(result['#target'], rt([['c', 'a']]))
+
+  def testSamplingEqualWeights(self):
+    layer = core.TopKEdgesSampler(
+        self._get_test_data('#target'),
+        sample_size=1,
+        edge_target_feature_name='#target',
+        weight_feature_name='weights',
+    )
+    result = layer(rt([['c'] * 5]))
+    self.assertSetEqual(set(result.keys()), {'#source', '#target', 'weights'})
+    self.assertAllEqual(result['weights'], rt([[2.0] * 5]))
+    self.assertAllEqual(result['#source'], rt([['c'] * 5]))
+    self.assertAllEqual(result['#target'], rt([['b'] * 5]))
+
+
 class InMemUniformEdgesSamplerTest(tf.test.TestCase, parameterized.TestCase):
 
   def _get_sampling_layer(

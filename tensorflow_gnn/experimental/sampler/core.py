@@ -1379,6 +1379,174 @@ class _UniformEdgesSelector(tf.keras.layers.Layer):
     )
 
 
+@tf.keras.utils.register_keras_serializable(package='GNN')
+class TopKEdgesSampler(CompositeLayer, interfaces.OutgoingEdgesSampler):
+  """Samples the top `sample_size` weighted edges from adjacency lists.
+
+  Example: For each input papers samples up to 2 cited papers.
+
+  ```python
+    cited_papers = tfgnn.KeyToTfExampleAccessor(
+      serialized_cited_papers,
+      features_spec={
+          '#target': tf.TensorSpec([None], tf.string),
+          'weight': tf.TensorSpec([None], tf.float32),
+      },
+    )
+    edge_sampler = tfgnn.TopKEdgesSampler(cited_papers, sample_size=1)
+    cites = edge_sampler(tf.ragged.constant([['paper1', 'paper2'], ['paper1']]))
+    # Let's say the original graph has edges
+    # 1->3, 1->4, 1->5 with weights [0.3, 0.4, 0.5] respectively
+    # and 2->1 with weight 0.1
+    # #   edges:       1->5      2->1        1->5
+    # {
+    #   '#source': [['paper1', 'paper2'], ['paper1',]]
+    #   '#target': [['paper5', 'paper1'], ['paper5',]]
+    #   'weight':  [[  0.5,      0.1   ], [  0.5, ]]
+    # }
+  ```
+
+  Call returns:
+      `Features` containing the subset of all edges whose source nodes are in
+      `source_node_ids`. All returned features have shape `[batch_size,
+      (num_edges), ...]`. Result must include two special features
+      "#source" and "#target" of rank 2 containing, correspondigly, source node
+      ids and target node ids of the sampled edges.
+  """
+
+  def __init__(
+      self,
+      outgoing_edges_accessor: interfaces.KeyToFeaturesAccessor,
+      *,
+      sample_size: int,
+      edge_target_feature_name: str = tfgnn.TARGET_NAME,
+      weight_feature_name: str = 'weight',
+      **kwargs,
+  ):
+    """Constructor.
+
+    Args:
+      outgoing_edges_accessor: The Keras layer that for each source node returns
+        all its outgoing edges as a `Features` dictionary. Features must include
+        `edge_target_feature_name` feature with target node ids of the edges
+        allong with other edge features. All returned features must have a shape
+        `[batch_size, (num_source_nodes), (num_outgoing_edges), *feature_dims]`.
+      sample_size: The maximum number of edges to sample for each source node.
+      edge_target_feature_name: The name of the feature returned by the
+        `outgoing_edges_accessor` containing target node ids of the edges.
+      weight_feature_name: The name of the feature returned by the
+        `outgoing_edge_accessor` with the weights of the edges.
+      **kwargs: Other arguments for the base class.
+    """
+    super().__init__(**kwargs)
+    self._outgoing_edges_accessor = cast(
+        tf.keras.layers.Layer, outgoing_edges_accessor
+    )
+    self._sample_size = sample_size
+    self._edge_target_feature_name = edge_target_feature_name
+    self._weight_feature_name = weight_feature_name
+    self._sampler = _TopKEdgesSelector(
+        sample_size=sample_size,
+        edge_target_feature_name=edge_target_feature_name,
+        weight_feature_name=weight_feature_name,
+    )
+
+  @property
+  def sample_size(self) -> int:
+    return self._sample_size
+
+  @property
+  def resource_name(self) -> tfgnn.EdgeSetName:
+    return self._outgoing_edges_accessor.resource_name
+
+  def get_config(self):
+    return dict(
+        outgoing_edges_accessor=self._outgoing_edges_accessor,
+        weight_feature_name=self._weight_feature_name,
+        sample_size=self._sample_size,
+        edge_target_feature_name=self._edge_target_feature_name,
+        **super().get_config(),
+    )
+
+  def symbolic_call(self, source_node_ids):
+    outgoing_edges = self._outgoing_edges_accessor(source_node_ids)
+    if self._edge_target_feature_name not in outgoing_edges:
+      raise ValueError(
+          f'Expected {self._edge_target_feature_name} feature '
+          'with target node ids of outgoing edges.'
+      )
+    if self._weight_feature_name not in outgoing_edges:
+      raise ValueError(
+          f'Expected {self._weight_feature_name} feature '
+          'with weights of outgoing edges.'
+      )
+
+    return self._sampler([source_node_ids, outgoing_edges])
+
+  def call(self, source_node_ids: tf.RaggedTensor) -> Features:
+    return super().call(source_node_ids)
+
+
+@tf.keras.utils.register_keras_serializable(package='GNN')
+class _TopKEdgesSelector(tf.keras.layers.Layer):
+  """Selects the top K edges by weight from outgoing edges tensor.
+
+  Call arguments:
+    inputs: a tuple `(source_node_ids, outgoing_edges)` where:
+      `source_node_ids`, a `tf.RaggedTensor` shaped `[batch_size,
+      (num_source_nodes)]`, with the source ids; `outgoing_edges`: a `Features`
+      object, with one feature named after `edge_target_feature_name` holding
+      the target node ids, and another feature named after `weight_feature_name`
+      ,and shaped `[batch_size, (num_source_nodes), (num_outgoing_edges)]`.
+      It can hold also other features shaped  `[batch_size,
+      (num_source_nodes), (num_outgoing_edges),
+      *feature_dim]`. The `batch_size` and `num_source_nodes` must match in
+      `source_node_ids` and `outgoing_edges`.
+
+  Call returns:
+    Sampled edges as `Features` with two special features: "#source" and
+    "#target" shaped `[batch_size, (num_source_nodes), (num_sampled_edges)]`,
+    plus extra edge features (including `weight_feature_name`) shaped
+    `[batch_size, (num_source_nodes), (num_sampled_edges), *feature_dims]`. 
+    The ragged dimension `(num_sampled_edges)` indexes sampled edges for each 
+    source node and has row lengths less or equal to `sample_size`. 
+    Notice that the original edge name `edge_target_feature_name` in  
+    `outgoing_edges` is renamed to "#target" in the result.
+  """
+
+  def __init__(
+      self,
+      *,
+      sample_size: int,
+      edge_target_feature_name: str = tfgnn.TARGET_NAME,
+      weight_feature_name: str = 'weight',
+      seed: Optional[int] = None,
+      **kwargs,
+  ):
+    super().__init__(**kwargs)
+    self._sample_size = sample_size
+    self._edge_target_feature_name = edge_target_feature_name
+    self._weight_feature_name = weight_feature_name
+
+  def get_config(self):
+    return dict(
+        sample_size=self._sample_size,
+        edge_target_feature_name=self._edge_target_feature_name,
+        weight_feature_name=self._weight_feature_name,
+        **super().get_config(),
+    )
+
+  def call(self, inputs):
+    source_node_ids, outgoing_edges = inputs
+    return _top_k_edges(
+        source_node_ids,
+        outgoing_edges,
+        self._edge_target_feature_name,
+        self._weight_feature_name,
+        self._sample_size,
+    )
+
+
 def _remove_parallel_edges(
     graph_tensor: tfgnn.GraphTensor,
 ) -> tfgnn.GraphTensor:
@@ -1535,6 +1703,58 @@ def _sample_edges_without_replacement(
   sampling_indices = ext_ops.ragged_choice(
       num_samples, row_splits, global_indices=True, seed=seed
   )
+
+  return _sample_with_indices(
+      sampling_indices,
+      source_node_ids,
+      outgoing_edges,
+      edge_target_feature_name,
+  )
+
+
+def _top_k_edges(
+    source_node_ids: tf.RaggedTensor,
+    outgoing_edges: Features,
+    edge_target_feature_name: str,
+    weight_feature_name: str,
+    sample_size: int,
+) -> Features:
+  """Samples up to the top `sample_size` edges for each source node ID."""
+  target_node_ids = outgoing_edges[edge_target_feature_name]
+  weights = outgoing_edges[weight_feature_name]
+  assert target_node_ids.ragged_rank == 2
+  assert weights.ragged_rank == 2
+
+  # Assign indices of source nodes (keys) to extracted target nodes.
+  num_samples = tf.constant(sample_size, dtype=weights.row_splits.dtype)
+  sampling_indices = ext_ops.ragged_top_k(
+      num_samples, weights.values, global_indices=True
+  )
+
+  return _sample_with_indices(
+      sampling_indices,
+      source_node_ids,
+      outgoing_edges,
+      edge_target_feature_name,
+  )
+
+
+def _sample_with_indices(
+    sampling_indices: tf.RaggedTensor,
+    source_node_ids: tf.RaggedTensor,
+    outgoing_edges: Features,
+    edge_target_feature_name: str) -> Features:
+  """Samples all edge features given a set of indices with which to sample.
+
+  Args:
+    sampling_indices:
+    source_node_ids:
+    outgoing_edges:
+    edge_target_feature_name:
+
+  Returns:
+    Sampled outgoing edges features
+  """
 
   def sample(feature: tf.RaggedTensor) -> tf.RaggedTensor:
     edge_feature = feature.values
