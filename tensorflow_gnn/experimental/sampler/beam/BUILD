@@ -1,3 +1,4 @@
+# Placeholder: load py_binary
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_contrib_test", "pytype_strict_library")
 
 licenses(["notice"])
