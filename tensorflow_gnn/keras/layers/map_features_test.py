@@ -525,6 +525,7 @@ def _make_batched_test_graph(all_node_sizes, *, add_ragged_ids=False):
   return ds.get_single_element()
 
 
+# TODO(b/297180246): Test mixed precision initialization of `MakeEmptyFeature`.
 class MakeEmptyFeatureTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(

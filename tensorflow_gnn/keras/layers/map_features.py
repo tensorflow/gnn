@@ -390,7 +390,7 @@ class MakeEmptyFeature(tf.keras.layers.Layer):
 
   def call(self, graph_piece: Union[gt.EdgeSet, gt.NodeSet, gt.Context]):
     def _make_empty_state(size):
-      return tf.zeros([size, 0], dtype=self.dtype)
+      return tf.zeros([size, 0], dtype=self.compute_dtype)
 
     # graph_rank = 0 occurs inside a model after .merge_batch_to_components(),
     # and .total_size attempts to to provide a constant shape for TPU like so:
