@@ -1659,6 +1659,216 @@ class LineGraphTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(expected, obtained)
 
 
+class PoolNeighborsToNodeTest(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.named_parameters([
+      ('scalar', 'sum', as_tensor([1.0, 3.0]), as_tensor([1.0 + 3.0, 1.0])),
+      (
+          'vector',
+          'mean',
+          as_tensor([[5.0], [1.0]]),
+          as_tensor([[(5.0 + 1.0) / 2.0], [5.0]]),
+      ),
+      (
+          'ragged',
+          'sum',
+          as_ragged([[5.0, 3.0], [1.0, 5.0]]),
+          as_ragged([[1.0 + 5.0, 5.0 + 3.0], [5.0, 3.0]]),
+      ),
+  ])
+  def testHomogeneous(self, reduce_type, source, expected):
+    graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            'nodes': gt.NodeSet.from_fields(
+                features={
+                    'f_in': source,
+                },
+                sizes=as_tensor([2]),
+            ),
+        },
+        edge_sets={
+            'edges': gt.EdgeSet.from_fields(
+                sizes=as_tensor([3]),
+                adjacency=adj.Adjacency.from_indices(
+                    ('nodes', as_tensor([0, 0, 1])),
+                    ('nodes', as_tensor([1, 0, 0])),
+                ),
+            ),
+        },
+    )
+    result = ops.pool_neighbors_to_node(
+        graph,
+        'edges',
+        const.TARGET,
+        reduce_type=reduce_type,
+        feature_name='f_in',
+    )
+    self.assertAllEqual(result, expected)
+
+    updated_gt = ops.pool_neighbors_to_node_feature(
+        graph,
+        'edges',
+        feature_name='f_in',
+        to_feature_name='f_out',
+        to_tag=const.TARGET,
+        reduce_type=reduce_type,
+    )
+    self.assertAllEqual(updated_gt.node_sets['nodes']['f_in'], source)
+    self.assertAllEqual(updated_gt.node_sets['nodes']['f_out'], expected)
+
+  @parameterized.named_parameters([
+      ('scalar', as_tensor([1.0, 3.0]), as_tensor([1.0 + 3.0])),
+      (
+          'vector',
+          as_tensor([[5.0], [1.0]]),
+          as_tensor([[5.0 + 1.0]]),
+      ),
+  ])
+  def testHeterogeneous(self, source, expected):
+    graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            'a': gt.NodeSet.from_fields(
+                features={
+                    'fa': source,
+                },
+                sizes=as_tensor([2]),
+            ),
+            'b': gt.NodeSet.from_fields(
+                sizes=as_tensor([1]),
+            ),
+        },
+        edge_sets={
+            'b->a': gt.EdgeSet.from_fields(
+                sizes=as_tensor([2]),
+                adjacency=adj.Adjacency.from_indices(
+                    ('b', as_tensor([0, 0])),
+                    ('a', as_tensor([1, 0])),
+                ),
+            ),
+        },
+    )
+    updated_gt = ops.pool_neighbors_to_node_feature(
+        graph,
+        'b->a',
+        reduce_type='sum',
+        feature_name='fa',
+        to_feature_name='fb',
+        to_tag=const.SOURCE,
+    )
+    self.assertAllEqual(updated_gt.node_sets['a']['fa'], source)
+    self.assertAllEqual(updated_gt.node_sets['b']['fb'], expected)
+
+  def testMultiEdgeSet(self):
+    graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            'a': gt.NodeSet.from_fields(
+                features={
+                    'feat': as_tensor([1.0, 3.0, 4.0]),
+                },
+                sizes=as_tensor([3]),
+            ),
+            'b': gt.NodeSet.from_fields(
+                sizes=as_tensor([2]),
+            ),
+        },
+        edge_sets={
+            'a->b:1': gt.EdgeSet.from_fields(
+                sizes=as_tensor([2]),
+                adjacency=adj.Adjacency.from_indices(
+                    ('a', as_tensor([0, 1])),
+                    ('b', as_tensor([0, 0])),
+                ),
+            ),
+            'a->b:2': gt.EdgeSet.from_fields(
+                sizes=as_tensor([1]),
+                adjacency=adj.Adjacency.from_indices(
+                    ('a', as_tensor([2])),
+                    ('b', as_tensor([1])),
+                ),
+            ),
+        },
+    )
+    updated_gt = ops.pool_neighbors_to_node_feature(
+        graph,
+        ['a->b:1', 'a->b:2'],
+        to_tag=const.TARGET,
+        reduce_type='sum',
+        feature_name='feat',
+    )
+    self.assertAllEqual(updated_gt.node_sets['a']['feat'], [1.0, 3.0, 4.0])
+    self.assertAllEqual(updated_gt.node_sets['b']['feat'], [1.0 + 3.0, 4.0])
+
+  def testRaisesOnInvalidEdgeSet(self):
+    graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            'a': gt.NodeSet.from_fields(
+                features={
+                    'feat': as_tensor([1.0, 3.0]),
+                },
+                sizes=as_tensor([2]),
+            ),
+            'b': gt.NodeSet.from_fields(
+                sizes=as_tensor([2]),
+            ),
+        },
+        edge_sets={
+            'a->a': gt.EdgeSet.from_fields(
+                sizes=as_tensor([2]),
+                adjacency=adj.Adjacency.from_indices(
+                    ('a', as_tensor([0, 1])),
+                    ('a', as_tensor([1, 0])),
+                ),
+            ),
+            'b->a': gt.EdgeSet.from_fields(
+                sizes=as_tensor([2]),
+                adjacency=adj.Adjacency.from_indices(
+                    ('b', as_tensor([1, 0])),
+                    ('a', as_tensor([0, 1])),
+                ),
+            ),
+        },
+    )
+    with self.assertRaisesRegex(
+        ValueError, r"edges have the same from_tag=0 node set, got \['a', 'b'\]"
+    ):
+      ops.pool_neighbors_to_node_feature(
+          graph,
+          ['a->a', 'b->a'],
+          to_tag=const.TARGET,
+          reduce_type='sum',
+          feature_name='feat',
+      )
+
+  def testHypergraphs(self):
+    graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            'node': gt.NodeSet.from_fields(
+                features={
+                    'feat': as_tensor([1.0, 2.0, 3.0]),
+                },
+                sizes=as_tensor([3]),
+            ),
+        },
+        edge_sets={
+            'edge': gt.EdgeSet.from_fields(
+                sizes=as_tensor([2]),
+                adjacency=adj.HyperAdjacency.from_indices({
+                    0: ('node', as_tensor([0, 1, 1, 2, 2, 2])),
+                }),
+            ),
+        },
+    )
+    updated_gt = ops.pool_neighbors_to_node_feature(
+        graph,
+        'edge',
+        to_tag=0,
+        from_tag=0,
+        reduce_type='sum',
+        feature_name='feat',
+    )
+    self.assertAllEqual(updated_gt.node_sets['node']['feat'], [1.0, 4.0, 9.0])
+
+
 # TODO(b/274779989): Replace this layer with a more standard representation
 # of GraphTensor as a dict of plain Tensors.
 class _MakeGraphTensor(tf.keras.layers.Layer):

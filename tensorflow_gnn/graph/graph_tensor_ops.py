@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import functools
-from typing import Any, Callable, Collection, List, Mapping, Optional
+from typing import Any, Callable, Collection, List, Mapping, Optional, Sequence, Union
 
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
@@ -1130,3 +1130,142 @@ def convert_to_line_graph(
     )
 
   return line_graph_tensor
+
+
+# This function depends on both broadcast_ops and pool_ops, so it is defined
+# here, alongside other higher-level ops.
+def pool_neighbors_to_node(
+    graph_tensor: GraphTensor,
+    edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName],
+    to_tag: IncidentNodeTag,
+    *,
+    reduce_type: str,
+    from_tag: Optional[IncidentNodeTag] = None,
+    feature_value: Optional[Field] = None,
+    feature_name: Optional[FieldName] = None,
+) -> Field:
+  """Aggregates (pools) neighbor node values along one or more edge sets.
+
+  This is a helper function that first broadcasts feature values from the nodes
+  at the `from_tag` endpoints (the "neighbors") of each given edge set and then
+  pools those values at the `to_tag` endpoints (the "nodes").
+
+  Args:
+    graph_tensor: A scalar GraphTensor.
+    edge_set_name: The name of the edge set through which values are pooled, or
+      a non-empty sequence of such names. It is required that all edge sets
+      connect the same `from_tag` and `to_tag` node sets.
+    to_tag: The incident node of each edge at which values are aggregated,
+      identified by its tag in the edge set.
+    reduce_type: A pooling operation name like `"sum"` or `"mean"`, or a
+      `|`-separated combination of these; see `tfgnn.pool()`.
+    from_tag: The incident node of each edge from which values are aggregated.
+      Required for hypergraphs. For ordinary graphs, defaults to the opposite of
+      `to_tag`.
+    feature_value: A ragged or dense neighbor feature value. Has a shape
+      `[num_sender_nodes, *feature_shape]`, where `num_sender_nodes` is the
+      number of sender nodes and `feature_shape` is the shape of the feature
+      value for each sender node.
+    feature_name: An neighbors feature name.
+
+  Returns:
+    The sender nodes values pooled to each receiver node. Has a shape
+    `[num_receiver_nodes, *feature_shape]`, where `num_receiver_nodes` is the
+    number of receiver nodes and `feature_shape` is not affected.
+  """
+  if from_tag is None:
+    from_tag = tag_utils.reverse_tag(to_tag)
+
+  for tag_name, tag in [('from_tag', from_tag), ('to_tag', to_tag)]:
+    node_sets = _get_incident_node_sets(graph_tensor, edge_set_name, tag)
+    if len(node_sets) != 1:
+      raise ValueError(
+          f'Expected that {list(edge_set_name)} edges have the same'
+          f' {tag_name}={tag} node set, got {node_sets}'
+      )
+
+  edge_value = broadcast_ops.broadcast_v2(
+      graph_tensor,
+      from_tag=from_tag,
+      edge_set_name=edge_set_name,
+      feature_value=feature_value,
+      feature_name=feature_name,
+  )
+  return pool_ops.pool_v2(
+      graph_tensor,
+      to_tag=to_tag,
+      edge_set_name=edge_set_name,
+      reduce_type=reduce_type,
+      feature_value=edge_value,
+  )
+
+
+def pool_neighbors_to_node_feature(
+    graph_tensor: GraphTensor,
+    edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName],
+    to_tag: IncidentNodeTag,
+    *,
+    reduce_type: str,
+    feature_name: const.FieldName,
+    to_feature_name: Optional[const.FieldName] = None,
+    from_tag: Optional[IncidentNodeTag] = None,
+) -> gt.GraphTensor:
+  """Aggregates (pools) sender node feature to receiver nodes feature.
+
+  Similar to the `pool_neighbors_to_node` but results in the graph tensor with
+  updated receiver feature.
+
+  Args:
+    graph_tensor: A scalar GraphTensor.
+    edge_set_name: The name of the edge set through which values are pooled, or
+      a non-empty sequence of such names. It is required that all edge sets
+      connect the same `from_tag` and `to_tag` node sets.
+    to_tag: The incident node of each edge at which values are aggregated,
+      identified by its tag in the edge set.
+    reduce_type: A pooling operation name like `"sum"` or `"mean"`, or a
+      `|`-separated combination of these; see `tfgnn.pool()`.
+    feature_name: An neighbors feature name to pool values from.
+    to_feature_name: A receiver feature name to write pooled values to. Defaults
+      to the feature_name.
+    from_tag: The incident node of each edge from which values are aggregated.
+      Optional for regular graphs, required for hypergraphs.
+
+  Returns:
+    Copy of the input graph tensor with updated `receiver_feature_name` for the
+    receiver node set.
+  """
+  if to_feature_name is None:
+    to_feature_name = feature_name
+
+  receiver_value = pool_neighbors_to_node(
+      graph_tensor,
+      edge_set_name,
+      to_tag=to_tag,
+      reduce_type=reduce_type,
+      from_tag=from_tag,
+      feature_name=feature_name,
+  )
+  receiver_names = _get_incident_node_sets(graph_tensor, edge_set_name, to_tag)
+  assert len(receiver_names) == 1
+  receiver_node_set_name = receiver_names[0]
+
+  features = graph_tensor.node_sets[receiver_node_set_name].get_features_dict()
+  features[to_feature_name] = receiver_value
+  return graph_tensor.replace_features(
+      node_sets={receiver_node_set_name: features}
+  )
+
+
+def _get_incident_node_sets(
+    graph_tensor: GraphTensor,
+    edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName],
+    tag: IncidentNodeTag,
+) -> List[NodeSetName]:
+  return list(
+      sorted(
+          set(
+              graph_tensor.edge_sets[name].adjacency.node_set_name(tag)
+              for name in tf.nest.flatten(edge_set_name)
+          )
+      )
+  )

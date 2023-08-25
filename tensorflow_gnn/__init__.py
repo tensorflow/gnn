@@ -157,6 +157,8 @@ pool_edges_to_node = pool_ops.pool_edges_to_node
 pool_nodes_to_context = pool_ops.pool_nodes_to_context
 pool_edges_to_context = pool_ops.pool_edges_to_context
 pool = pool_ops.pool_v2
+pool_neighbors_to_node = graph_tensor_ops.pool_neighbors_to_node
+pool_neighbors_to_node_feature = graph_tensor_ops.pool_neighbors_to_node_feature
 get_registered_reduce_operation_names = pool_ops.get_registered_reduce_operation_names
 
 # Misc operations.
