@@ -14,7 +14,7 @@
 # ==============================================================================
 """Functions to read from unigraph format into that accepted by sampler_v2."""
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import apache_beam as beam
 import numpy as np
@@ -80,11 +80,13 @@ def _create_node_features(
 def _create_edge(
     source_id: bytes,
     target_id: bytes,
-    example: tf.train.Example) -> Tuple[bytes, bytes]:
-  for key in example.features.feature.keys():
-    if key not in ('#source', '#target'):
-      raise NotImplementedError('Edge features are not currently supported')
-  return source_id, target_id
+    example: tf.train.Example) -> Tuple[bytes, Tuple[bytes, Optional[bytes]]]:
+  if set(example.features.feature.keys()) == set(['#source', '#target']):
+    return (source_id, (target_id, None))
+  else:
+    example.features.feature.pop('#source')
+    example.features.feature.pop('#target')
+    return (source_id, (target_id, example.SerializeToString()))
 
 
 class ReadAndConvertUnigraph(beam.PTransform):

@@ -18,14 +18,18 @@ from typing import Dict, Iterable, Iterator, List, Optional, Tuple, cast
 
 import apache_beam as beam
 from apache_beam import typehints as beam_typehints
+from apache_beam.coders import typecoders
 import numpy as np
+import tensorflow as tf
 from tensorflow_gnn.experimental.sampler import eval_dag_pb2 as pb
 from tensorflow_gnn.experimental.sampler.beam import executor_lib
 from tensorflow_gnn.experimental.sampler.beam import utils
 
+
 PCollection = beam.pvalue.PCollection
 SourceId = executor_lib.SourceId
 TargetId = executor_lib.TargetId
+EdgeData = executor_lib.EdgeData
 ExampleId = executor_lib.ExampleId
 Value = executor_lib.Value
 Values = executor_lib.Values
@@ -44,14 +48,23 @@ class _UniformEdgesSamplerBase(beam.PTransform):
           'Invalid input signature for `UniformEdgesSampler` layer:'
           f' expected single ragged tensor value, got {layer.inputs}.'
       )
-    if len(layer.outputs) != 2 or not all(
+    if len(layer.outputs) < 2 or not all(
         output.HasField('ragged_tensor') for output in layer.outputs
     ):
       raise ValueError(
           'Invalid output signature for `UniformEdgesSampler` layer: expected'
-          f' the pair of source and target ragged tensors, got {layer.outputs}.'
+          ' at least a pair of source and target ragged tensors,'
+          f' got {layer.outputs}.'
       )
     self._layer = layer
+    for index, output in enumerate(self._layer.outputs):
+      if len(output.ragged_tensor.shape.dim) != 2:
+        raise ValueError(
+            f'Shape {output.ragged_tensor.shape.dim} for output {index} of'
+            ' UniformEdgesSampler is currently unsupported (b/297411286).'
+            f' Expected feature {index} to be a scalar with the same dimensions'
+            ' as source and target'
+        )
     config = pb.EdgeSamplingConfig()
     layer.config.Unpack(config)
     if config.sample_size <= 0:
@@ -176,8 +189,102 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
             index,
         )
 
-  @beam_typehints.with_input_types(Tuple[SourceId, Iterable[TargetId]])
-  @beam_typehints.with_output_types(Tuple[Tuple[SourceId, int], np.ndarray])
+  @beam_typehints.with_input_types(Tuple[SourceId, EdgeData])
+  @beam_typehints.with_output_types(Tuple[SourceId, bytes])
+  class MakeFeatureTuples(beam.DoFn):
+    """Makes and serializes feature tuples from serialized features.
+    
+    When the input contains a serialized tf.train.Example, this stage will
+    deserialize it, build a tuple out of its feature values and discard the
+    feature names, and serialize that tuple with a beam Coder. This should save
+    a significant amount of intermediate disk space and memory.
+    """
+
+    def __init__(self, layer: pb.Layer):
+      self._layer = layer
+
+    def setup(self):
+      self._coder = _get_feature_coder(self._layer)
+      self._np_types = [
+          utils.get_np_dtype(output.ragged_tensor.dtype)
+          for output in self._layer.outputs
+      ]
+      if np.issubdtype(self._np_types[1], np.integer):
+        self._featureless_target_typehint = int
+      else:
+        self._featureless_target_typehint = bytes
+
+    def process(
+        self, inputs: Tuple[SourceId, EdgeData]
+    ) -> Iterator[Tuple[SourceId, bytes]]:
+      source_id, edge_data = inputs
+      target_id, serialized_feature = edge_data
+      if serialized_feature is not None:
+        example = tf.train.Example.FromString(serialized_feature)
+        # TODO: b/297185857 - Add the expected feature names to pb.Layer
+        # We should also add the edge_target_feature_name.
+        feature_names = list(sorted(example.features.feature.keys()))
+        feature_values = []
+        # TODO: b/297411286 - Enable non-scalar edge features to be encoded as
+        # np.ndarrays.
+        for idx, feature_name in enumerate(feature_names):
+          if self._np_types[idx] == np.dtype(np.object_):
+            if not (
+                feature_name in example.features.feature
+                and isinstance(
+                    example.features.feature[feature_name].bytes_list.value[0],
+                    bytes,
+                )
+            ):
+              raise ValueError(
+                  f'Feature {feature_name} does not exist or is not a bytes'
+                  ' feature.'
+              )
+            feature_values.append(
+                example.features.feature[feature_name].bytes_list.value[0]
+            )
+          elif np.issubdtype(self._np_types[idx], np.floating):
+            if not (
+                feature_name in example.features.feature
+                and isinstance(
+                    example.features.feature[feature_name].float_list.value[0],
+                    float,
+                )
+            ):
+              raise ValueError(
+                  f'Feature {feature_name} does not exist or is not a float'
+                  ' feature.'
+              )
+            feature_values.append(
+                example.features.feature[feature_name].float_list.value[0]
+            )
+          elif np.issubdtype(self._np_types[idx], np.integer):
+            if not (
+                feature_name in example.features.feature
+                and isinstance(
+                    example.features.feature[feature_name].int64_list.value[0],
+                    int,
+                )
+            ):
+              raise ValueError(
+                  f'Feature {feature_name} does not exist or is not an int'
+                  ' feature.'
+              )
+            feature_values.append(
+                example.features.feature[feature_name].int64_list.value[0]
+            )
+        feature_tuple = tuple(feature_values)
+        yield (source_id, self._coder.encode(feature_tuple))
+      else:
+        featureless_target_encoder = typecoders.registry.get_coder(
+            self._featureless_target_typehint
+        )
+        yield (source_id, featureless_target_encoder.encode(target_id))
+
+  @beam_typehints.with_input_types(Tuple[SourceId, Iterable[bytes]])
+  @beam_typehints.with_output_types(
+      Tuple[Tuple[SourceId, int], np.ndarray]
+  )
   class CreateValues(beam.DoFn):
     """Splits edges grouped by their source node ids into equally sized buckets.
 
@@ -191,45 +298,50 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
       self._layer = layer
 
     def setup(self):
-      target_dtypes = utils.get_ragged_np_types(
-          self._layer.outputs[1].ragged_tensor
-      )
-      self._dtype = target_dtypes[0]
+      self._dtype = np.dtype(np.object_)
 
     def process(
-        self, inputs: Tuple[SourceId, Iterable[TargetId]]
-    ) -> Iterator[Tuple[Tuple[SourceId, int], np.ndarray]]:
-      source_id, target_ids = inputs
+        self, inputs: Tuple[SourceId, Iterable[bytes]]
+    ) -> Iterator[
+        Tuple[Tuple[SourceId, int], np.ndarray]
+    ]:
+      source_id, edge_data = inputs
       buffer = []
       bucket_id = 0
       num_edges = 0
-      for target_id in target_ids:
-        buffer.append(target_id)
+      for serialized_feature in edge_data:
+        buffer.append(serialized_feature)
         num_edges += 1
         while len(buffer) >= UniformEdgesSampler.EDGE_BUCKET_SIZE:
           yield (
               (source_id, bucket_id),
-              self._make_bucket(buffer[: UniformEdgesSampler.EDGE_BUCKET_SIZE]),
+              self._make_bucket(
+                  buffer[: UniformEdgesSampler.EDGE_BUCKET_SIZE], self._dtype
+              ),
           )
           buffer = buffer[UniformEdgesSampler.EDGE_BUCKET_SIZE :]
-          bucket_id += 1
 
       if buffer:
-        yield (source_id, bucket_id), self._make_bucket(buffer)
+        yield (source_id, bucket_id), self._make_bucket(buffer, self._dtype)
         bucket_id += 1
 
-    def _make_bucket(self, edges: List[TargetId]) -> np.ndarray:
+    def _make_bucket(
+        self, edges: List[TargetId], dtype: np.dtype
+    ) -> np.ndarray:
       assert len(edges) <= UniformEdgesSampler.EDGE_BUCKET_SIZE
-      return np.array(edges, dtype=self._dtype)
+      return np.array(edges, dtype=dtype)
 
   @beam_typehints.with_input_types(
       Tuple[
           Tuple[SourceId, int],
-          Tuple[Tuple[int, ExampleId, int], Optional[np.ndarray]],
+          Tuple[
+              Tuple[int, ExampleId, int],
+              Optional[np.ndarray],
+          ],
       ]
   )
   @beam_typehints.with_output_types(
-      Tuple[ExampleId, Tuple[int, SourceId, Optional[TargetId]]]
+      Tuple[ExampleId, Tuple[int, SourceId, Optional[bytes]]]
   )
   class SampleFromBuckets(beam.DoFn):
     """Samples edges from the edge buckets.
@@ -254,28 +366,42 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
         self,
         inputs: Tuple[
             Tuple[SourceId, int],
-            Tuple[Tuple[int, ExampleId, int], Optional[np.ndarray]],
+            Tuple[
+                Tuple[int, ExampleId, int],
+                Optional[np.ndarray],
+            ],
         ],
-    ) -> Iterator[Tuple[ExampleId, Tuple[int, SourceId, Optional[TargetId]]]]:
+    ) -> Iterator[Tuple[ExampleId, Tuple[int, SourceId, Optional[bytes]]]]:
       (source_id, _), values = inputs
-      (num_samples, example_id, index), target_ids = values
+      (num_samples, example_id, index), edge_data = values
 
-      if target_ids is None:
+      if edge_data is None:
         yield (example_id, (index, source_id, None))
         return
 
-      if num_samples == len(target_ids):
-        sampled_target_ids = target_ids
+      serialized_features = edge_data
+
+      if num_samples == len(serialized_features):
+        sampled_serialized_features = edge_data
       else:
-        assert num_samples < len(target_ids), source_id
-        sampled_target_ids = self._rng.choice(
-            target_ids, size=num_samples, replace=False
+        assert num_samples < len(serialized_features), source_id
+        indices = np.arange(len(serialized_features))
+        sampled_indices = self._rng.choice(
+            indices, size=num_samples, replace=False
         )
-      for target_id in sampled_target_ids:
-        yield (example_id, (index, source_id, target_id))
+        sampled_serialized_features = (
+            serialized_features[sampled_indices]
+            if serialized_features is not None
+            else None
+        )
+      for serialized_features in sampled_serialized_features:
+        yield (
+            example_id,
+            (index, source_id, serialized_features),
+        )
 
   @beam_typehints.with_input_types(
-      Tuple[ExampleId, Iterable[Tuple[int, SourceId, Optional[TargetId]]]]
+      Tuple[ExampleId, Iterable[Tuple[int, SourceId, Optional[bytes]]]]
   )
   @beam_typehints.with_output_types(Tuple[ExampleId, Values])
   class AggregateResults(beam.DoFn):
@@ -298,25 +424,65 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
       self._target_dtypes = utils.get_ragged_np_types(
           self._layer.outputs[1].ragged_tensor
       )
+      self._features_dtypes = [
+          utils.get_ragged_np_types(output.ragged_tensor)
+          for output in self._layer.outputs
+      ]
+      self._coder = _get_feature_coder(self._layer)
+      if np.issubdtype(self._features_dtypes[1][0], np.integer):
+        self._featureless_target_typehint = int
+      else:
+        self._featureless_target_typehint = bytes
+
+    def _make_features(self, features: List[bytes]) -> Values:
+      examples = [self._coder.decode(f) for f in features]
+      extra_features = []
+      for idx, feature_dtype in enumerate(self._features_dtypes):
+        ragged_row_length = np.array([len(examples)], dtype=feature_dtype[1])
+        if feature_dtype[0] == np.dtype(np.object_):
+          extra_features.append([
+              np.array([ex[idx] for ex in examples], dtype=feature_dtype[0]),
+              ragged_row_length,
+          ])
+        elif np.issubdtype(feature_dtype[0], np.floating):
+          extra_features.append([
+              np.array([ex[idx] for ex in examples], dtype=feature_dtype[0]),
+              ragged_row_length,
+          ])
+        elif np.issubdtype(feature_dtype[0], np.integer):
+          extra_features.append([
+              np.array([ex[idx] for ex in examples], dtype=feature_dtype[0]),
+              ragged_row_length,
+          ])
+      return extra_features
 
     def process(
         self,
         inputs: Tuple[
-            ExampleId, Iterable[Tuple[int, SourceId, Optional[TargetId]]]
+            ExampleId, Iterable[Tuple[int, SourceId, bytes]]
         ],
     ) -> Iterator[Tuple[ExampleId, Values]]:
       example_id, values_iter = inputs
-      values = [(i, s, t) for i, s, t in values_iter if t is not None]
+      values = [(i, s, e) for i, s, e in values_iter if e is not None]
       values = sorted(values, key=lambda kv: kv[0])
-      sources = [
-          np.array([s for _, s, _ in values], dtype=self._source_dtypes[0]),
-          np.array([len(values)], dtype=self._source_dtypes[1]),
-      ]
-      targets = [
-          np.array([t for _, _, t in values], dtype=self._target_dtypes[0]),
-          np.array([len(values)], dtype=self._target_dtypes[1]),
-      ]
-      yield (example_id, [sources, targets])
+      serialized_features = [t for _, _, t in values if t is not None]
+      if len(self._layer.outputs) > 2:
+        features = self._make_features(serialized_features)
+        yield (example_id, features)
+      else:
+        sources = [
+            np.array([s for _, s, _ in values], dtype=self._source_dtypes[0]),
+            np.array([len(values)], dtype=self._source_dtypes[1]),
+        ]
+        coder = typecoders.registry.get_coder(self._featureless_target_typehint)
+        targets = [
+            np.array(
+                [coder.decode(t) for _, _, t in values],
+                dtype=self._target_dtypes[0],
+            ),
+            np.array([len(values)], dtype=self._target_dtypes[1]),
+        ]
+        yield (example_id, [sources, targets])
 
   @beam_typehints.with_input_types(ExampleId)
   @beam_typehints.with_output_types(Tuple[ExampleId, Values])
@@ -327,21 +493,17 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
       self._layer = layer
 
     def setup(self):
-      source_dtypes = utils.get_ragged_np_types(
-          self._layer.outputs[0].ragged_tensor
-      )
-      target_dtypes = utils.get_ragged_np_types(
-          self._layer.outputs[1].ragged_tensor
-      )
-      sources = [
-          np.array([], dtype=source_dtypes[0]),
-          np.array([0], dtype=source_dtypes[1]),
+      features_dtypes = [
+          utils.get_ragged_np_types(output.ragged_tensor)
+          for output in self._layer.outputs
       ]
-      targets = [
-          np.array([], dtype=target_dtypes[0]),
-          np.array([0], dtype=target_dtypes[1]),
-      ]
-      self._empty_value = [sources, targets]
+      features = []
+      for dtypes in features_dtypes:
+        features.append([
+            np.array([], dtype=dtypes[0]),
+            np.array([0], dtype=dtypes[1]),
+        ])
+      self._empty_value = features
 
     def process(
         self,
@@ -367,6 +529,7 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
     )
     value_buckets = (
         edges
+        | 'MakeFeatureTuples' >> beam.ParDo(self.MakeFeatureTuples(self._layer))
         | 'GroupEdges' >> beam.GroupByKey()
         | 'Values' >> beam.ParDo(self.CreateValues(self._layer))
     )
@@ -385,6 +548,26 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
         self.CreateEmptyResults(self._layer)
     )
     return [sampling_results, empty_results] | 'Flatten' >> beam.Flatten()
+
+
+def _get_feature_coder(layer: pb.Layer) -> beam.coders.Coder:
+  """Returns beam feature coder for layer."""
+  output_types = []
+  np_types = [
+      utils.get_np_dtype(output.ragged_tensor.dtype)
+      for output in layer.outputs
+  ]
+  for i, np_type in enumerate(np_types):
+    if np.issubdtype(np_type, np.floating):
+      output_types.append(float)
+    elif np.issubdtype(np_type, np.integer):
+      output_types.append(int)
+    elif np_type == np.dtype(np.object_):
+      output_types.append(bytes)
+    else:
+      raise ValueError(f'Unsupported dtype: {np_type} for output {i}')
+  output_typehint = beam.typehints.Tuple[tuple(output_types)]
+  return typecoders.registry.get_coder(output_typehint)
 
 
 def _uniform_edge_sampler(

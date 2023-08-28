@@ -62,11 +62,16 @@ PValues = PCollection[Tuple[ExampleId, Values]]
 
 SourceId = TypeVar('SourceId', int, bytes)
 TargetId = TypeVar('TargetId', int, bytes)
+# This is used as the input to the edges sampler layers, and consists of
+# the target ID and an optional serialized tf.Example
+# If the serialized tf.Example is None, that means the edge has no features
+# beyond source and target and the tf.Example doesn't have to be parsed again.
+EdgeData = Tuple[TargetId, Optional[bytes]]
 
 # Collection of unique keys to serialized values.
 PKeyToBytes = PCollection[Tuple[SourceId, bytes]]
 # Collection of edges as source/target node pairs.
-PEdges = PCollection[Tuple[SourceId, TargetId]]
+PEdges = PCollection[Tuple[SourceId, EdgeData]]
 # Supported external data sources types.
 PFeed = Union[PKeyToBytes, PEdges]
 

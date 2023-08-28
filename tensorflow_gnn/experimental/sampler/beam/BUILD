@@ -80,6 +80,7 @@ pytype_strict_library(
         "//third_party/py/apache_beam",
         "//third_party/py/apache_beam/utils",
         "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
         "//tensorflow_gnn/experimental/sampler:eval_dag_py_proto",
     ],
 )

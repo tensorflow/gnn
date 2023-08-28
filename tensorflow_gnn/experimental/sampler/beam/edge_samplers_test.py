@@ -54,7 +54,7 @@ class ExecutorTestBase(tf.test.TestCase):
 class EdgeSamplersTest(ExecutorTestBase):
 
   def test_sampling(self):
-    edges = {1: 2, 2: 3}
+    edges = {1: (2, None), 2: (3, None)}
     feats = {
         1: text_format.Merge(
             r"""
@@ -221,7 +221,7 @@ class EdgeSamplersTest(ExecutorTestBase):
       )
 
   def test_sampling_stats(self):
-    edges = [(b'a', b'b'), (b'a', b'c'), (b'a', b'd')]
+    edges = [(b'a', (b'b', None)), (b'a', (b'c', None)), (b'a', (b'd', None))]
     edges_layer = sampler.UniformEdgesSampler(
         sampler.KeyToTfExampleAccessor(
             sampler.InMemStringKeyToBytesAccessor(
@@ -257,7 +257,7 @@ class EdgeSamplersTest(ExecutorTestBase):
       key, values = inputs
       self.assertEqual(key, b's1')
       values = values.features.feature
-      self.assertAllEqual(values['#source'].bytes_list.value, [b'a'] * 20_000)
+      self.assertAllEqual([b'a'] * 20_000, values['#source'].bytes_list.value)
       targets = np.array(values['#target'].bytes_list.value, np.object_)
       self.assertLen(targets, 20_000)
       self.assertTrue(np.all(targets[0::2] != targets[1::2]))
@@ -276,7 +276,7 @@ class EdgeSamplersTest(ExecutorTestBase):
       ) | beam.Map(_asert_stats)
 
   def test_missing_values(self):
-    edges = [(1, 2), (1, 3), (2, 3)]
+    edges = [(1, (2, None)), (1, (3, None)), (2, (3, None))]
     edges_layer = sampler.UniformEdgesSampler(
         sampler.KeyToTfExampleAccessor(
             sampler.InMemStringKeyToBytesAccessor(
@@ -376,6 +376,140 @@ class EdgeSamplersTest(ExecutorTestBase):
               self.sampling_results_equal,
           ),
       )
+
+  def test_edge_features(self):
+    edges = [
+        (
+            b'a',
+            (
+                b'b',
+                text_format.Merge(
+                    r"""
+                features {
+                  feature {
+                      key: "#fweights"
+                      value { float_list {value: [0.8]} }
+                  }
+                  feature {
+                      key: "#source"
+                      value { bytes_list {value: ["a"]}}
+                  }
+                  feature {
+                      key: "#target"
+                      value { bytes_list {value: ["b"]}}
+                  }
+                }""",
+                    tf.train.Example(),
+                ).SerializeToString(),
+            ),
+        ),
+        (
+            b'a',
+            (
+                b'c',
+                text_format.Merge(
+                    r"""
+                features {
+                  feature {
+                      key: "#fweights"
+                      value { float_list {value: [1.5]} }
+                  }
+                  feature {
+                      key: "#source"
+                      value { bytes_list {value: ["a"]}}
+                  }
+                  feature {
+                      key: "#target"
+                      value { bytes_list {value: ["c"]}}
+                  }
+                }""",
+                    tf.train.Example(),
+                ).SerializeToString(),
+            ),
+        ),
+        (
+            b'a',
+            (
+                b'd',
+                text_format.Merge(
+                    r"""
+                features {
+                  feature {
+                      key: "#fweights"
+                      value { float_list {value: [3.0]} }
+                  }
+                  feature {
+                      key: "#source"
+                      value { bytes_list {value: ["a"]}}
+                  }
+                  feature {
+                      key: "#target"
+                      value { bytes_list {value: ["d"]}}
+                  }
+                }""",
+                    tf.train.Example(),
+                ).SerializeToString(),
+            ),
+        ),
+    ]
+    edges_layer = sampler.UniformEdgesSampler(
+        sampler.KeyToTfExampleAccessor(
+            sampler.InMemStringKeyToBytesAccessor(
+                keys_to_values={b'?': b''}, name='edges'
+            ),
+            features_spec={
+                '#target': tf.TensorSpec([None], tf.string),
+                '#fweights': tf.TensorSpec([None], tf.float32),
+            },
+        ),
+        sample_size=2,
+        name='edges_sampler',
+    )
+    seeds = tf.keras.Input(
+        type_spec=tf.RaggedTensorSpec(
+            [None, None], dtype=tf.string, ragged_rank=1
+        ),
+        name='seeds',
+    )
+    model = tf.keras.Model(inputs=seeds, outputs=edges_layer(seeds))
+    program, artifacts = sampler.create_program(model)
+    temp_dir = self.create_tempdir().full_path
+    for name, model in artifacts.models.items():
+      sampler.save_model(model, os.path.join(temp_dir, name))
+
+    seeds = {
+        b's1': [[
+            np.array([b'a'] * 10_000, np.object_),
+            np.array([10_000], np.int64),
+        ]],
+    }
+
+    def _assert_stats(inputs: Tuple[bytes, tf.train.Example]):
+      key, values = inputs
+      self.assertEqual(key, b's1')
+      values = values.features.feature
+      self.assertAllEqual(values['#source'].bytes_list.value, [b'a'] * 20_000)
+      targets = np.array(values['#target'].bytes_list.value, np.object_)
+      self.assertLen(targets, 20_000)
+      self.assertTrue(np.all(targets[0::2] != targets[1::2]))
+      target_values, counts = np.unique(targets, return_counts=True)
+      self.assertAllEqual(target_values, [b'b', b'c', b'd'])
+      self.assertTrue(np.all(counts > [1_000, 1_000, 1_000]))
+      weights = np.array(values['#fweights'].float_list.value, np.float32)
+      self.assertAllClose(
+          np.unique(weights, return_counts=False),
+          [0.8, 1.5, 3.0],
+          rtol=1e-5, atol=1e-5)
+
+    with beam.Pipeline() as root:
+      seeds = root | 'seeds' >> beam.Create(seeds)
+      edges = root | 'edges' >> beam.Create(edges)
+      _ = executor_lib.execute(
+          program,
+          {'seeds': seeds},
+          feeds={'edges_sampler': edges},
+          artifacts_path=temp_dir,
+      ) | beam.Map(_assert_stats)
 
 
 if __name__ == '__main__':
