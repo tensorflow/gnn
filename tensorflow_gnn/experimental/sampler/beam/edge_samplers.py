@@ -320,6 +320,7 @@ class UniformEdgesSampler(_UniformEdgesSamplerBase):
               ),
           )
           buffer = buffer[UniformEdgesSampler.EDGE_BUCKET_SIZE :]
+          bucket_id += 1
 
       if buffer:
         yield (source_id, bucket_id), self._make_bucket(buffer, self._dtype)
