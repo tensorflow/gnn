@@ -17,15 +17,16 @@ from __future__ import annotations
 
 import dataclasses
 import functools
-from typing import Callable, List, Mapping, Optional, Union
+from typing import Callable, Generic, List, Mapping, Optional, TypeVar, Union
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
 _PACKAGE = "GNN>models>contrastive_losses"
 _WILDCARD = "*"
+T = TypeVar("T")
 
-FieldCorruptionSpec = Mapping[tfgnn.FieldName, float]
+FieldCorruptionSpec = Mapping[tfgnn.FieldName, T]
 NodeCorruptionSpec = Mapping[tfgnn.SetName, FieldCorruptionSpec]
 EdgeCorruptionSpec = Mapping[tfgnn.SetName, FieldCorruptionSpec]
 ContextCorruptionSpec = FieldCorruptionSpec
@@ -33,7 +34,7 @@ ContextCorruptionSpec = FieldCorruptionSpec
 
 # TODO(tsitsulin,dzelle): revisit * pattern after cl/515352301 is in.
 @dataclasses.dataclass
-class CorruptionSpec:
+class CorruptionSpec(Generic[T]):
   """Class for defining corruption specification.
 
   This has three fields for specifying the corruption behavior of node-, edge-,
@@ -45,7 +46,7 @@ class CorruptionSpec:
   Some example usages:
 
   Want: corrupt everything with parameter 1.0.
-  Solution: either set defalut_rate to 1.0 or set all corruption specs to
+  Solution: either set default to 1.0 or set all corruption specs to
     `{"*": 1.}`.
 
   Want: corrupt all context features with parameter 1.0 except for "feat", which
@@ -63,15 +64,15 @@ class CorruptionSpec:
       default_factory=dict
   )
 
-  def with_default_rate(self, default_rate: float):
-    node_set_corruption = {_WILDCARD: {_WILDCARD: default_rate}}
-    edge_set_corruption = {_WILDCARD: {_WILDCARD: default_rate}}
-    context_corruption = {_WILDCARD: default_rate}
+  def with_default(self, default: T):
+    node_set_corruption = {_WILDCARD: {_WILDCARD: default}}
+    edge_set_corruption = {_WILDCARD: {_WILDCARD: default}}
+    context_corruption = {_WILDCARD: default}
 
     for k, v in self.node_set_corruption.items():
-      node_set_corruption[k] = {_WILDCARD: default_rate, **v}
+      node_set_corruption[k] = {_WILDCARD: default, **v}
     for k, v in self.edge_set_corruption.items():
-      edge_set_corruption[k] = {_WILDCARD: default_rate, **v}
+      edge_set_corruption[k] = {_WILDCARD: default, **v}
     context_corruption.update(self.context_corruption)
 
     return CorruptionSpec(
@@ -81,15 +82,15 @@ class CorruptionSpec:
     )
 
 
-class _Corruptor(tfgnn.keras.layers.MapFeatures):
+class _Corruptor(tfgnn.keras.layers.MapFeatures, Generic[T]):
   """Base class for graph corruptor."""
 
   def __init__(
       self,
-      corruption_spec: Optional[CorruptionSpec] = None,
+      corruption_spec: Optional[CorruptionSpec[T]] = None,
       *,
-      corruption_fn: Callable[[tfgnn.Field, float], tfgnn.Field],
-      default_rate: Optional[float] = None,
+      corruption_fn: Callable[[tfgnn.Field, T], tfgnn.Field],
+      default: Optional[T] = None,
       **kwargs,
   ):
     """Captures arguments for `call`.
@@ -97,19 +98,19 @@ class _Corruptor(tfgnn.keras.layers.MapFeatures):
     Args:
       corruption_spec: A spec for corruption application.
       corruption_fn: Corruption function.
-      default_rate: Global application rate of the corruptor. This is only used
+      default: Global application default of the corruptor. This is only used
         when `corruption_spec` is None.
       **kwargs: Additional keyword arguments.
     """
-    if corruption_spec is None and default_rate is None:
+    if corruption_spec is None and default is None:
       raise ValueError(
-          "At least one of `corruption_spec` or `default_rate` must be set."
+          "At least one of `corruption_spec` or `default` must be set."
       )
     if corruption_spec is None:
       corruption_spec = CorruptionSpec()
-    if default_rate is not None:
-      corruption_spec = corruption_spec.with_default_rate(default_rate)
-    self._default_rate = default_rate
+    if default is not None:
+      corruption_spec = corruption_spec.with_default(default)
+    self._default = default
     self._corruption_fn = corruption_fn
     self._node_corruption_spec = corruption_spec.node_set_corruption
     self._edge_corruption_spec = corruption_spec.edge_set_corruption
@@ -136,7 +137,7 @@ class _Corruptor(tfgnn.keras.layers.MapFeatures):
 
   def get_config(self):
     return dict(
-        default_rate=self._default_rate,
+        default=self._default,
         corruption_fn=self._corruption_fn,
         node_corruption_spec=self._node_corruption_spec,
         edge_corruption_spec=self._edge_corruption_spec,
@@ -165,25 +166,25 @@ def _seed_wrapper(
 
 
 @tf.keras.utils.register_keras_serializable(package=_PACKAGE)
-class ShuffleFeaturesGlobally(_Corruptor):
+class ShuffleFeaturesGlobally(_Corruptor[float]):
   """A corruptor that shuffles features."""
 
   def __init__(self, *args, seed: Optional[float] = None, **kwargs):
     self._seed = seed
     seeded_fn = _seed_wrapper(_shuffle_tensor, seed=seed)
-    super().__init__(*args, corruption_fn=seeded_fn, default_rate=1.0, **kwargs)
+    super().__init__(*args, corruption_fn=seeded_fn, default=1.0, **kwargs)
 
   def get_config(self):
     return dict(seed=self._seed, **super().get_config())
 
 
 @tf.keras.utils.register_keras_serializable(package=_PACKAGE)
-class DropoutFeatures(_Corruptor):
+class DropoutFeatures(_Corruptor[float]):
 
   def __init__(self, *args, seed: Optional[float] = None, **kwargs):
     self._seed = seed
     seeded_fn = _seed_wrapper(tf.nn.dropout, seed=seed)
-    super().__init__(*args, corruption_fn=seeded_fn, default_rate=0.0, **kwargs)
+    super().__init__(*args, corruption_fn=seeded_fn, default=0.0, **kwargs)
 
   def get_config(self):
     return dict(seed=self._seed, **super().get_config())
@@ -266,7 +267,7 @@ def _shuffle_tensor(
 
 def _corrupt_features(
     features: tfgnn.Fields,
-    corruption_fn: Callable[[tfgnn.Field, float], tfgnn.Field],
+    corruption_fn: Callable[[tfgnn.Field, T], tfgnn.Field],
     corruption_spec: FieldCorruptionSpec,
 ):
   """Corrupts all features given a corruption function and corruption spec.
@@ -276,7 +277,7 @@ def _corrupt_features(
 
   Args:
     features: A mapping from feature name to tensor to corrupt.
-    corruption_fn: A function that corrupts a tensor given a corruption rate.
+    corruption_fn: A function that corrupts a tensor given a corruption value.
     corruption_spec: Corruption specification.
 
   Returns:
@@ -284,10 +285,8 @@ def _corrupt_features(
   """
   output = {}
   for feature_name, feature_value in features.items():
-    rate = corruption_spec.get(feature_name, corruption_spec[_WILDCARD])
-    output[feature_name] = (
-        feature_value if not rate else corruption_fn(feature_value, rate)
-    )
+    value = corruption_spec.get(feature_name, corruption_spec[_WILDCARD])
+    output[feature_name] = corruption_fn(feature_value, value)
   return output
 
 

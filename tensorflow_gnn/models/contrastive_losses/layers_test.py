@@ -238,7 +238,7 @@ class LayersTest(tf.test.TestCase, parameterized.TestCase):
       },
       {
           "corruptor": layers.ShuffleFeaturesGlobally(
-              corruption_spec=layers.CorruptionSpec().with_default_rate(1.0),
+              corruption_spec=layers.CorruptionSpec().with_default(1.0),
               seed=8191,
           ),
           "context": tfgnn.Context.from_fields(
