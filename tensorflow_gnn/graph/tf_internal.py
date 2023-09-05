@@ -31,16 +31,20 @@ try:
   from tensorflow.python.framework import type_spec_registry
 except ImportError:
   type_spec_registry = None  # Not available before TF 2.12.
+
 try:
-  from keras.engine import keras_tensor
+  # OSS
+  import keras  # pytype: disable=import-error
+  if hasattr(keras, 'src'):  # As of TF/Keras 2.13.
+    from keras.src.engine import keras_tensor  # pytype: disable=import-error
+    from keras.src.layers import core as core_layers  # pytype: disable=import-error
+  else:
+    from keras.engine import keras_tensor  # pytype: disable=import-error
+    from keras.layers import core as core_layers  # pytype: disable=import-error
 except ImportError:
-  # Path as seen in pip packages as of TF/Keras 2.13.
-  from keras.src.engine import keras_tensor  # pytype: disable=import-error
-try:
-  from keras.layers import core as core_layers
-except ImportError:
-  # Path as seen in pip packages as of TF/Keras 2.13.
-  from keras.src.layers import core as core_layers  # pytype: disable=import-error
+  # Internal
+  keras_tensor = tf._keras_internal.engine.keras_tensor  # pylint: disable=protected-access
+  core_layers = tf._keras_internal.layers.core  # pylint: disable=protected-access
 
 CompositeTensor = composite_tensor.CompositeTensor
 BatchableTypeSpec = type_spec.BatchableTypeSpec
