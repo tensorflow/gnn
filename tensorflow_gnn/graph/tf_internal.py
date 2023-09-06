@@ -52,6 +52,14 @@ type_spec_register = (
     type_spec_registry.register if type_spec_registry is not None
     else type_spec.register)
 
+type_spec_get_name = (
+    type_spec_registry.get_name if type_spec_registry is not None
+    else type_spec.get_name)
+
+type_spec_lookup = (
+    type_spec_registry.lookup if type_spec_registry is not None
+    else type_spec.lookup)
+
 try:
   # These types are semi-public as of TF/Keras 2.13.
   # Whenever possible, get them the official way.
@@ -65,7 +73,8 @@ register_keras_tensor_specialization = (
     keras_tensor.register_keras_tensor_specialization)
 delegate_property = core_layers._delegate_property  # pylint: disable=protected-access
 delegate_method = core_layers._delegate_method  # pylint: disable=protected-access
-# TFClassMethodDispatcher = core_layers.TFClassMethodDispatcher
+
+OpDispatcher = tf.__internal__.dispatch.OpDispatcher
 
 # Delete imports, in their order above.
 del composite_tensor

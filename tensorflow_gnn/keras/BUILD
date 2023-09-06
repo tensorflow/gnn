@@ -41,6 +41,7 @@ pytype_strict_library(
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:adjacency",
         "//tensorflow_gnn/graph:graph_constants",
+        "//tensorflow_gnn/graph:graph_piece",
         "//tensorflow_gnn/graph:graph_tensor",
         "//tensorflow_gnn/graph:tf_internal",
     ],
@@ -53,6 +54,7 @@ tf_py_test(
     deps = [
         ":keras_tensors",
         "//:expect_absl_installed",
+        "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:adjacency",
         "//tensorflow_gnn/graph:broadcast_ops",

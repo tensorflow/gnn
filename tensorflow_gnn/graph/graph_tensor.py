@@ -300,9 +300,11 @@ class Context(_GraphPieceWithFeatures):
   the number of graph components in a graph (could be ragged).
   """
 
+  # TODO(b/210004712): Replace `*_` by more Pythonic `*`.
   @classmethod
+  @tf.__internal__.dispatch.add_dispatch_support
   def from_fields(cls,
-                  *,
+                  *_,
                   features: Optional[Fields] = None,
                   sizes: Optional[Field] = None,
                   shape: Optional[ShapeLike] = None,
@@ -338,6 +340,8 @@ class Context(_GraphPieceWithFeatures):
       A `Context` composite tensor.
 
     """
+    if _:
+      raise TypeError('Positional arguments are not supported:', _)
 
     if indices_dtype is not None:
       gp.check_indices_dtype(indices_dtype)
@@ -449,8 +453,8 @@ class ContextSpec(_GraphPieceWithFeaturesSpec):
 
     return cls._from_feature_and_size_specs(features_spec, sizes_spec)
 
-  @property
-  def value_type(self):
+  @staticmethod
+  def _value_type():
     return Context
 
   def relax(self, *, num_components: bool = False) -> 'ContextSpec':
@@ -513,9 +517,11 @@ class NodeSet(_NodeOrEdgeSet):
   the `.sizes` tensor which defines the number of nodes in each graph component.
   """
 
+  # TODO(b/210004712): Replace `*_` by more Pythonic `*`.
   @classmethod
+  @tf.__internal__.dispatch.add_dispatch_support
   def from_fields(cls,
-                  *,
+                  *_,
                   features: Optional[Fields] = None,
                   sizes: Field) -> 'NodeSet':
     """Constructs a new instance from node set fields.
@@ -548,6 +554,9 @@ class NodeSet(_NodeOrEdgeSet):
     Returns:
       A `NodeSet` composite tensor.
     """
+    if _:
+      raise TypeError('Positional arguments are not supported:', _)
+
     if features is None:
       features = {}
     return cls._from_features_and_sizes(features=features, sizes=sizes)
@@ -578,8 +587,8 @@ class NodeSetSpec(_NodeOrEdgeSetSpec):
     return cls._from_feature_and_size_specs(
         features_spec=features_spec, sizes_spec=sizes_spec)
 
-  @property
-  def value_type(self):
+  @staticmethod
+  def _value_type():
     return NodeSet
 
   def relax(self,
@@ -632,9 +641,11 @@ class EdgeSet(_NodeOrEdgeSet):
 
   _DATAKEY_ADJACENCY = 'adjacency'  # An Adjacency GraphPiece.
 
+  # TODO(b/210004712): Replace `*_` by more Pythonic `*`.
   @classmethod
+  @tf.__internal__.dispatch.add_dispatch_support
   def from_fields(cls,
-                  *,
+                  *_,
                   features: Optional[Fields] = None,
                   sizes: Field,
                   adjacency: Adjacency) -> 'EdgeSet':
@@ -674,6 +685,9 @@ class EdgeSet(_NodeOrEdgeSet):
     Returns:
       An `EdgeSet` composite tensor.
     """
+    if _:
+      raise TypeError('Positional arguments are not supported:', _)
+
     if features is None:
       features = {}
     return cls._from_features_and_sizes(
@@ -715,8 +729,8 @@ class EdgeSetSpec(_NodeOrEdgeSetSpec):
         sizes_spec=sizes_spec,
         **{EdgeSet._DATAKEY_ADJACENCY: adjacency_spec})
 
-  @property
-  def value_type(self):
+  @staticmethod
+  def _value_type():
     return EdgeSet
 
   @property
@@ -927,6 +941,7 @@ class GraphTensor(gp.GraphPieceBase):
   _DATAKEY_EDGE_SETS = 'edge_sets'  # A Mapping[EdgeSetName, EdgeSet].
 
   @classmethod
+  @tf.__internal__.dispatch.add_dispatch_support
   def from_pieces(
       cls,
       context: Optional[Context] = None,
@@ -936,6 +951,24 @@ class GraphTensor(gp.GraphPieceBase):
     """Constructs a new `GraphTensor` from context, node sets and edge sets."""
     node_sets = _ifnone(node_sets, dict()).copy()
     edge_sets = _ifnone(edge_sets, dict()).copy()
+
+    if context and not isinstance(context, Context):
+      raise ValueError(
+          'Context has to be instance of tfgnn.Context, got'
+          f' {type(context).__name__}'
+      )
+    for name, node_set in node_sets.items():
+      if not isinstance(node_set, NodeSet):
+        raise ValueError(
+            f'Node set {name} has to be instance of tfgnn.NodeSet, got'
+            f' {type(node_set).__name__}'
+        )
+    for name, edge_set in edge_sets.items():
+      if not isinstance(edge_set, EdgeSet):
+        raise ValueError(
+            f'Edge set {name} has to be instance of tfgnn.EdgeSet, got'
+            f' {type(edge_set).__name__}'
+        )
 
     if not node_sets and not edge_sets:
       # Special case: no nodes or edges.
@@ -1373,8 +1406,8 @@ class GraphTensorSpec(gp.GraphPieceSpecBase):
         row_splits_dtype=row_splits_dtype,
     )
 
-  @property
-  def value_type(self):
+  @staticmethod
+  def _value_type():
     return GraphTensor
 
   @property

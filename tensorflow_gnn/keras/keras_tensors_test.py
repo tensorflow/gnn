@@ -19,6 +19,8 @@ import os
 from typing import Mapping
 
 from absl.testing import parameterized
+import numpy as np
+
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import broadcast_ops
@@ -38,6 +40,225 @@ class _TestBase(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(actual.keys(), expected.keys())
     for key in actual.keys():
       self.assertAllEqual(actual[key], expected[key], msg=f'feature={key}')
+
+
+class ClassMethodsTest(_TestBase):
+
+  @parameterized.named_parameters([
+      ('scalar', as_tensor([1])),
+      ('vector', as_tensor([[1], [2], [3]])),
+      ('ragged', as_ragged([[1, 2], [3]])),
+  ])
+  def testContext(self, test_feature):
+    test_feature_spec = tf.type_spec_from_value(test_feature)
+    feature = tf.keras.Input(type_spec=test_feature_spec)
+    context = gt.Context.from_fields(features={'feat': feature})
+    self.assertIsInstance(context, kt.ContextKerasTensor)
+    self.assertEqual(context.features['feat'].type_spec, test_feature_spec)
+    model = tf.keras.Model(feature, context)
+
+    self.assertAllEqual(model(test_feature)['feat'], test_feature)
+
+    # test symbolic call
+    context = model(feature)
+    self.assertIsInstance(context, kt.ContextKerasTensor)
+    self.assertEqual(context.features['feat'].type_spec, test_feature_spec)
+
+  @parameterized.product(
+      indices_dtype=[tf.int32, tf.int64],
+      shape=[tf.TensorShape([]), tf.TensorShape([2]), [], [2]],
+  )
+  def testWithNonTensorArguments(
+      self, indices_dtype: tf.DType, shape: tf.TensorShape
+  ):
+    feature = tf.keras.Input(type_spec=tf.TensorSpec([2, 2]))
+    context = gt.Context.from_fields(
+        features={'feat': feature}, indices_dtype=indices_dtype, shape=shape
+    )
+    self.assertIsInstance(context, kt.ContextKerasTensor)
+    self.assertEqual(context.shape, tf.TensorShape(shape))
+    self.assertEqual(context.indices_dtype, indices_dtype)
+
+  @parameterized.named_parameters([
+      ('scalar', as_tensor([3]), as_tensor([1, 2, 3])),
+      ('ragged', as_tensor([2]), as_ragged([[1], [], [1, 2, 3]])),
+  ])
+  def testNodeSet(self, test_sizes, test_feature):
+    test_sizes_spec = tf.type_spec_from_value(test_sizes)
+    test_feature_spec = tf.type_spec_from_value(test_feature)
+    sizes = tf.keras.Input(type_spec=test_sizes_spec)
+    feature = tf.keras.Input(type_spec=test_feature_spec)
+
+    node_set = gt.NodeSet.from_fields(features={'feat': feature}, sizes=sizes)
+    self.assertIsInstance(node_set, kt.NodeSetKerasTensor)
+    self.assertEqual(node_set.features['feat'].type_spec, feature.type_spec)
+    self.assertEqual(node_set.sizes.type_spec, sizes.type_spec)
+
+    model = tf.keras.Model([sizes, feature], node_set)
+    result = model([test_sizes, test_feature])
+    self.assertAllEqual(result.sizes, test_sizes)
+    self.assertAllEqual(result['feat'], test_feature)
+
+    result = model([test_sizes, test_feature])
+    self.assertAllEqual(result.sizes, test_sizes)
+    self.assertAllEqual(result['feat'], test_feature)
+
+    # test symbolic call
+    node_set = model([sizes, feature])
+    self.assertIsInstance(node_set, kt.NodeSetKerasTensor)
+    self.assertEqual(node_set.sizes.type_spec, sizes.type_spec)
+    self.assertEqual(node_set.features['feat'].type_spec, feature.type_spec)
+
+  @parameterized.named_parameters([
+      ('list', [2]),
+      ('np.array', np.array([3])),
+      ('tf.constant', tf.constant([1, 2])),
+  ])
+  def testConstantInput(self, sizes):
+    feature = tf.keras.Input(type_spec=tf.TensorSpec([None]))
+    node_set = gt.NodeSet.from_fields(features={'feat': feature}, sizes=sizes)
+    self.assertIsInstance(node_set, kt.NodeSetKerasTensor)
+    self.assertEqual(node_set.features['feat'].type_spec, feature.type_spec)
+    self.assertEqual(node_set.sizes.type_spec, tf.type_spec_from_value(sizes))
+
+  def testAdjacency(self):
+    index = tf.keras.Input(type_spec=tf.TensorSpec([None], dtype=tf.int64))
+    self.assertIsInstance(
+        adj.HyperAdjacency.from_indices({
+            0: ('a', index),
+            1: ('b', index),
+            2: ('c', index),
+        }),
+        kt.HyperAdjacencyKerasTensor,
+    )
+    self.assertIsInstance(
+        adj.Adjacency.from_indices(
+            ('a', index),
+            ('b', index),
+        ),
+        kt.AdjacencyKerasTensor,
+    )
+
+  def testEdgeSet(self):
+    source = tf.keras.Input(type_spec=tf.TensorSpec([None], dtype=tf.int32))
+    target = tf.keras.Input(type_spec=tf.TensorSpec([None], dtype=tf.int32))
+
+    adjacency = adj.Adjacency.from_indices(('a', source), ('b', target))
+    self.assertIsInstance(adjacency, kt.AdjacencyKerasTensor)
+    edge_set = gt.EdgeSet.from_fields(
+        sizes=tf.expand_dims(tf.shape(source)[0], axis=-1),
+        adjacency=adjacency,
+    )
+    self.assertIsInstance(edge_set, kt.EdgeSetKerasTensor)
+    self.assertEqual(edge_set.indices_dtype, tf.int32)
+    model = tf.keras.Model([source, target], edge_set)
+
+    result = model([as_tensor([1]), as_tensor([1])])
+    self.assertAllEqual(result.sizes, [1])
+
+    result = model([as_tensor([0, 1, 2]), as_tensor([0, 0, 0])])
+    self.assertAllEqual(result.sizes, [3])
+
+  def testGraphTensor(self):
+    source = tf.keras.Input(type_spec=tf.TensorSpec([None], dtype=tf.int64))
+    target = tf.keras.Input(type_spec=tf.TensorSpec([None], dtype=tf.int64))
+    num_nodes = tf.keras.Input(type_spec=tf.TensorSpec([], dtype=tf.int64))
+
+    edge_set = gt.EdgeSet.from_fields(
+        sizes=[tf.shape(source)[0]],
+        adjacency=adj.Adjacency.from_indices(
+            ('node', source), ('node', target)
+        ),
+    )
+
+    node_set = gt.NodeSet.from_fields(
+        sizes=[num_nodes],
+    )
+    graph = gt.GraphTensor.from_pieces(
+        node_sets={'node': node_set}, edge_sets={'edge': edge_set}
+    )
+
+    self.assertIsInstance(graph, kt.GraphKerasTensor)
+
+    model = tf.keras.Model([source, target, num_nodes], graph)
+    graph = model([as_tensor([0, 1]), as_tensor([0, 0]), as_tensor(2)])
+    self.assertAllEqual(graph.node_sets['node'].sizes, [2])
+    adjacency = graph.edge_sets['edge'].adjacency
+    self.assertAllEqual(adjacency.source, [0, 1])
+    self.assertAllEqual(adjacency.target, [0, 0])
+
+  def _get_test_model(self):
+    source = tf.keras.Input(type_spec=tf.TensorSpec([None], dtype=tf.int64))
+    target = tf.keras.Input(type_spec=tf.TensorSpec([None], dtype=tf.int64))
+    num_nodes = tf.keras.Input(type_spec=tf.TensorSpec([], dtype=tf.int64))
+
+    edge_set = gt.EdgeSet.from_fields(
+        sizes=[tf.shape(source)[0]],
+        adjacency=adj.Adjacency.from_indices(
+            ('node', source), ('node', target)
+        ),
+    )
+
+    node_set = gt.NodeSet.from_fields(
+        sizes=[num_nodes],
+    )
+    graph = gt.GraphTensor.from_pieces(
+        node_sets={'node': node_set}, edge_sets={'edge': edge_set}
+    )
+
+    self.assertIsInstance(graph, kt.GraphKerasTensor)
+
+    return tf.keras.Model([source, target, num_nodes], graph)
+
+  @parameterized.parameters(
+      dict(save_format='tf', include_optimizer=False, save_traces=False),
+      dict(save_format='tf', include_optimizer=True, save_traces=True),
+      dict(save_format='keras_v3'),
+  )
+  def testKerasModelSaving(self, save_format, **save_args):
+
+    def _save_and_load(model: tf.keras.Model) -> tf.keras.Model:
+      ext = '.keras' if save_format == 'keras_v3' else ''
+      path = os.path.join(self.get_temp_dir(), f'model.{ext}')
+      model.save(path, save_format=save_format, **save_args)
+      return tf.keras.models.load_model(path)
+
+    # TODO(b/276291104): Remove when TF 2.13+ is required by all of TFGNN
+    if any(tf.__version__.startswith(f'2.{v}') for v in [10, 11, 12]):
+      self.skipTest(
+          f'Skipping test for Keras V3 format for TF {tf.__version__} < 2.13'
+      )
+
+    model = self._get_test_model()
+    model = _save_and_load(model)
+    graph = model([as_tensor([0, 1]), as_tensor([0, 0]), as_tensor(2)])
+    self.assertAllEqual(graph.node_sets['node'].sizes, [2])
+    adjacency = graph.edge_sets['edge'].adjacency
+    self.assertAllEqual(adjacency.source, [0, 1])
+    self.assertAllEqual(adjacency.target, [0, 0])
+
+  @parameterized.parameters([True, False])
+  def testSavingForInference(self, use_saved_model: bool):
+    def _save_and_load(model: tf.keras.Model) -> tf.keras.Model:
+      path = os.path.join(self.get_temp_dir(), 'model')
+      if use_saved_model:
+        tf.saved_model.save(model, path)
+      else:
+        model.save(path, include_optimizer=False, save_traces=True)
+      return tf.saved_model.load(path)
+
+    model = self._get_test_model()
+    outputs = tf.reduce_sum(
+        model.output.node_sets['node'].sizes
+    ) + tf.reduce_sum(model.output.edge_sets['edge'].sizes)
+    inference_model = tf.keras.Model(inputs=model.inputs, outputs=outputs)
+    restored_model = _save_and_load(inference_model)
+    total_sizes = restored_model([
+        as_tensor([0, 1], tf.int64),
+        as_tensor([0, 0], tf.int64),
+        as_tensor(2, tf.int64),
+    ])
+    self.assertAllEqual(total_sizes, 2 + 2)
 
 
 class FunctionalModelTest(_TestBase):

@@ -70,8 +70,8 @@ class TestPiece(gp.GraphPieceBase):
 class TestPieceSpec(gp.GraphPieceSpecBase):
   """Graph piece specification."""
 
-  @property
-  def value_type(self):
+  @staticmethod
+  def _value_type():
     return TestPiece
 
   @property

@@ -508,6 +508,20 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
     self._metadata = metadata
     self._data_spec = data_spec
 
+  @property
+  def value_type(self):
+    return self._value_type()
+
+  @staticmethod
+  @abc.abstractmethod
+  def _value_type():
+    # NOTE: we require that each graph piece type spec matches unique graph
+    # piece type and vice versa. This is more restrictive compared to the
+    # Extension Types API, where the same composite tensor type could match
+    # multiple specs (e.g. tf.TensorSpec and tf.RaggedTensorSpec with ragged
+    # rank 0 both correspond to tf.Tensor).
+    raise NotImplementedError('`_value_type` is not implemented')
+
   @classmethod
   def _from_data_spec(
       cls,
@@ -743,6 +757,7 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
 
     batched_data_spec = tf.nest.map_structure(batch_fn, self._data_spec)
     shape = tf.TensorShape([batch_size]).concatenate(self._shape)
+    # pytype: disable=not-instantiable
     return self.__class__(
         batched_data_spec,
         shape,
@@ -767,6 +782,7 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
     unbatched_data_spec = tf.nest.map_structure(unbatch_fn, self._data_spec)
 
     shape = self._shape[1:]
+    # pytype: disable=not-instantiable
     return self.__class__(
         unbatched_data_spec,
         shape,

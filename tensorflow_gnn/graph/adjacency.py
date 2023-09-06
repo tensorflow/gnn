@@ -108,7 +108,17 @@ class HyperAdjacency(gp.GraphPieceBase):
     """
     if _:
       raise TypeError('Positional arguments are not supported:', _)
+    return cls._from_indices(indices, validate=validate)
 
+  @classmethod
+  def _from_indices(cls, indices: Indices, validate: bool) -> 'HyperAdjacency':
+    """Implements `from_indices` without TF dispatching."""
+
+    # NOTE: all derived classes that want to call `super().from_indices` *must*
+    # call `super()._from_indices` instead. Because `from_indices` is
+    # dispatched, the dispatch system assumes that its `cls`  argument is always
+    # `HyperAdjacency` which is not what is expected by the caller. See
+    # keras/keras_tensor.py for details.
     indices = {
         key: (name, gp.convert_to_tensor_or_ragged(index))
         for key, (name, index) in indices.items()
@@ -256,8 +266,8 @@ class HyperAdjacencySpec(gp.GraphPieceSpecBase):
         metadata=metadata,
     )
 
-  @property
-  def value_type(self):
+  @staticmethod
+  def _value_type():
     return HyperAdjacency
 
   def __getitem__(self, node_set_tag: IncidentNodeTag) -> FieldSpec:
@@ -388,7 +398,9 @@ class Adjacency(HyperAdjacency):
     """
     if _:
       raise TypeError('Positional arguments are not supported:', _)
-    return super().from_indices({const.SOURCE: source, const.TARGET: target})
+    return super()._from_indices(
+        {const.SOURCE: source, const.TARGET: target}, validate=validate
+    )
 
   @property
   def source(self) -> Field:
@@ -451,8 +463,8 @@ class AdjacencySpec(HyperAdjacencySpec):
         {const.SOURCE: source_node_set,
          const.TARGET: target_node_set}, index_spec)
 
-  @property
-  def value_type(self):
+  @staticmethod
+  def _value_type():
     return Adjacency
 
   @property
