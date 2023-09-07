@@ -16,12 +16,15 @@
 //
 //
 // The `SamplingSpec` message specifies a sampling configuration. It is composed
-// of a `SeedOp` operation and various `SamplingOp` operations. Operations must
-// have unique names.
+// of either a `SeedOp` operation or `SymmetricLinkSeedOp` and various
+// `SamplingOp` operations. Operations must have unique names.
 //
-// Subgraph sampling is rooted on seed nodes described by `seed_op` (a
-// `SeedOp` message), and uses graph edges filtered by `sampling_ops`
-// (`SamplingOp` messages).
+// For `SeedOp`s, Subgraph sampling is rooted on seed nodes described by
+// `seed_op` (a `SeedOp` message), and uses graph edges filtered by
+// `sampling_ops` (`SamplingOp` messages).
+// For `SymmetricLinkSeedOp`s, subgraph sampling is rooted on a pair of seed
+// nodes in a single node set specified in the graph schema. The graph edges are
+// filtered by `sampling_ops` with `SamplingOp` messages.
 //
 // Each `SamplingOp` message specifies one hop of sampling. They can be
 // composed arbitrarily within constraints implied by the graph schema and the
@@ -129,7 +132,10 @@ package tensorflow_gnn.sampler;
 message SamplingSpec {
   // The seed nodes specification. Note that actual seed IDs must be passed in
   // elsewhere, e.g. as a flag to the binary.
-  optional SeedOp seed_op = 1;
+  oneof seed_type {
+    SeedOp seed_op = 1;
+    SymmetricLinkSeedOp symmetric_link_seed_op = 5;
+  }
 
   // List of connected sampling operations.
   repeated SamplingOp sampling_ops = 2;
@@ -152,6 +158,19 @@ message SeedOp {
   //   Hash hash = 4;
   // }
   reserved 3 to 4;
+}
+
+// Specifies that sampling will start with pairs of nodes in a single node set
+// S. Using this op as an input results in the two nodes of the pair,
+// so subsequent sampling ops continue sampling symmetrically from both.
+// The actual pairs of nodes in S are passed separately from the spec.
+// Using this op requires a GraphSchema that identifies the node set S as
+// follows: The schema contains the auxiliary node set "_readout" and two
+// auxiliary edge sets "_readout/source" and "_readout/target" that connect
+// the node sets S and "_readout".
+message SymmetricLinkSeedOp {
+  // Reference name for this operation, must be unique.
+  optional string op_name = 1;
 }
 
 // Defines how to sample graph edges for a set of source nodes. The sampling
