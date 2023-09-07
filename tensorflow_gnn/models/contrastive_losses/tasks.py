@@ -78,8 +78,8 @@ class _ConstrastiveLossTask(runner.Task, abc.ABC):
         representations_layer_name or "clean_representations"
     )
     self._readout = tfgnn.keras.layers.ReadoutFirstNode(
-        node_set_name=node_set_name,
-        feature_name=feature_name)
+        node_set_name=node_set_name, feature_name=feature_name
+    )
     if corruptor is None:
       self._corruptor = layers.ShuffleFeaturesGlobally(seed=seed)
     else:
@@ -140,8 +140,8 @@ class DeepGraphInfomaxTask(_ConstrastiveLossTask):
     return layers.DeepGraphInfomaxLogits()
 
   def preprocess(
-      self,
-      inputs: GraphTensor) -> tuple[Sequence[GraphTensor], Field]:
+      self, inputs: GraphTensor
+  ) -> tuple[Sequence[GraphTensor], Field]:
     """Creates labels--i.e., (positive, negative)--for Deep Graph Infomax."""
     x = (inputs, self._corruptor(inputs))
     y = tf.tile(((1, 0),), (inputs.num_components, 1))
@@ -178,7 +178,8 @@ class BarlowTwinsTask(_ConstrastiveLossTask):
       *args,
       lambda_: Optional[Union[tf.Tensor, float]] = None,
       normalize_batch: bool = True,
-      **kwargs):
+      **kwargs,
+  ):
     super().__init__(*args, **kwargs)
     self._lambda = lambda_
     self._normalize_batch = normalize_batch
@@ -187,8 +188,8 @@ class BarlowTwinsTask(_ConstrastiveLossTask):
     return tf.keras.layers.Layer()
 
   def preprocess(
-      self,
-      inputs: GraphTensor) -> tuple[Sequence[GraphTensor], Field]:
+      self, inputs: GraphTensor
+  ) -> tuple[Sequence[GraphTensor], Field]:
     """Creates unused pseudo-labels."""
     x = (inputs, self._corruptor(inputs))
     y = tf.zeros((inputs.num_components, 0), dtype=tf.int32)
@@ -205,11 +206,7 @@ class BarlowTwinsTask(_ConstrastiveLossTask):
     return loss_fn
 
   def metrics(self) -> runner.Metrics:
-    return (
-        _unstack_y_pred(metrics.self_clustering),
-        _unstack_y_pred(metrics.numerical_rank),
-        _unstack_y_pred(metrics.pseudo_condition_number),
-    )
+    return (metrics.AllSvdMetrics(),)
 
 
 class VicRegTask(_ConstrastiveLossTask):
@@ -218,10 +215,11 @@ class VicRegTask(_ConstrastiveLossTask):
   def __init__(
       self,
       *args,
-      sim_weight: Union[tf.Tensor, float] = 25.,
-      var_weight: Union[tf.Tensor, float] = 25.,
-      cov_weight: Union[tf.Tensor, float] = 1.,
-      **kwargs):
+      sim_weight: Union[tf.Tensor, float] = 25.0,
+      var_weight: Union[tf.Tensor, float] = 25.0,
+      cov_weight: Union[tf.Tensor, float] = 1.0,
+      **kwargs,
+  ):
     super().__init__(*args, **kwargs)
     self._sim_weight = sim_weight
     self._var_weight = var_weight
@@ -231,8 +229,8 @@ class VicRegTask(_ConstrastiveLossTask):
     return tf.keras.layers.Layer()
 
   def preprocess(
-      self,
-      inputs: GraphTensor) -> tuple[Sequence[GraphTensor], Field]:
+      self, inputs: GraphTensor
+  ) -> tuple[Sequence[GraphTensor], Field]:
     """Creates unused pseudo-labels."""
     x = (inputs, self._corruptor(inputs))
     y = tf.zeros((inputs.num_components, 0), dtype=tf.int32)
@@ -250,21 +248,13 @@ class VicRegTask(_ConstrastiveLossTask):
     return loss_fn
 
   def metrics(self) -> runner.Metrics:
-    return (
-        _unstack_y_pred(metrics.self_clustering),
-        _unstack_y_pred(metrics.numerical_rank),
-        _unstack_y_pred(metrics.pseudo_condition_number),
-    )
+    return (metrics.AllSvdMetrics(),)
 
 
 class TripletLossTask(_ConstrastiveLossTask):
   """The triplet loss task."""
 
-  def __init__(
-      self,
-      *args,
-      margin: float = 1.0,
-      **kwargs):
+  def __init__(self, *args, margin: float = 1.0, **kwargs):
     super().__init__(*args, **kwargs)
     self._margin = margin
     self._unstack_graph_tensor_at_index = utils.SliceNodeSetFeatures()
@@ -290,6 +280,7 @@ class TripletLossTask(_ConstrastiveLossTask):
 
     Args:
       inputs: The anchor and positive sample stack along the first axis.
+
     Returns:
       Sequence of three graph tensors (anchor, positive_sample,
       corrupted_sample) and unused pseudo-labels.
@@ -304,7 +295,7 @@ class TripletLossTask(_ConstrastiveLossTask):
 
     Args:
       *args: A tuple of (anchor, positive_sample, negative_sample)
-      `tfgnn.GraphTensor`s.
+        `tfgnn.GraphTensor`s.
 
     Returns:
       The positive and negative distance embeddings for triplet loss as produced
@@ -316,10 +307,12 @@ class TripletLossTask(_ConstrastiveLossTask):
       raise ValueError(f"Expected a `GraphTensor` input (got {anchor})")
     if not tfgnn.is_graph_tensor(positive_sample):
       raise ValueError(
-          f"Expected a `GraphTensor` input (got {positive_sample})")
+          f"Expected a `GraphTensor` input (got {positive_sample})"
+      )
     if not tfgnn.is_graph_tensor(negative_sample):
       raise ValueError(
-          f"Expected a `GraphTensor` input (got {negative_sample})")
+          f"Expected a `GraphTensor` input (got {negative_sample})"
+      )
     if isinstance(tf.distribute.get_strategy(), tf.distribute.TPUStrategy):
       raise AssertionError(
           "Contrastive learning tasks do not support TPU (see b/269648832)."
@@ -347,6 +340,7 @@ class TripletLossTask(_ConstrastiveLossTask):
           negative_distance,
           margin=self._margin,
       )
+
     return loss_fn
 
   def metrics(self) -> runner.Metrics:

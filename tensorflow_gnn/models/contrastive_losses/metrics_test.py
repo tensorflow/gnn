@@ -158,6 +158,15 @@ class MetricsTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(actual["negative_distance"], 2.5)
     self.assertAllClose(actual["triplet_distance"], -1.75)
 
+  def test_svd_metrics(self):
+    tensor = tf.ones((2, 2, 2))
+    metric_object = metrics.AllSvdMetrics()
+    metric_object.update_state(None, tensor)
+    result = metric_object.result()
+    self.assertAllClose(result["pseudo_condition_number"], 0)
+    self.assertAllClose(result["numerical_rank"], 1)
+    self.assertAllClose(result["rankme"], 1)
+
 
 if __name__ == "__main__":
   tf.test.main()

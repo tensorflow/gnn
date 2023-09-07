@@ -15,12 +15,15 @@
 """Metrics for unsupervised embedding evaluation."""
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Optional, Protocol
+
 import tensorflow as tf
 
 
 @tf.function
 def self_clustering(
-    representations: tf.Tensor, *, subtract_mean: bool = False
+    representations: tf.Tensor, *, subtract_mean: bool = False, **_
 ) -> tf.Tensor:
   """Self-clustering metric implementation.
 
@@ -31,6 +34,7 @@ def self_clustering(
   single point, and it is approximately 0 if representations are distributed
   randomly on the sphere. In theory, it can achieve negative values if the
   points are maximally equiangular, although this is very rare in practice.
+  Refer to https://arxiv.org/abs/2305.16562 for more details.
 
   Args:
     representations: Input representations.
@@ -59,7 +63,10 @@ def self_clustering(
 
 @tf.function
 def pseudo_condition_number(
-    representations: tf.Tensor, *, subtract_mean: bool = True
+    representations: tf.Tensor,
+    *,
+    sigma: Optional[tf.Tensor] = None,
+    u: Optional[tf.Tensor] = None,
 ) -> tf.Tensor:
   """Pseudo-condition number metric implementation.
 
@@ -67,21 +74,28 @@ def pseudo_condition_number(
 
   Args:
     representations: Input representations. We expect rank 2 input.
-    subtract_mean: Whether to subtract the mean from representations.
+    sigma: An optional tensor with singular values of representations. If not
+      present, computes SVD (singular values only) of representations.
+    u: Unused.
 
   Returns:
     Metric value as scalar `tf.Tensor`.
   """
+  del u
   if representations.shape.rank != 2:
     raise ValueError(f"Expected 2D tensor (got shape {representations.shape})")
-  if subtract_mean:
-    representations -= tf.reduce_mean(representations, axis=0)
-  sigma = tf.linalg.svd(representations, compute_uv=False)
+  if sigma is None:
+    sigma = tf.linalg.svd(representations, compute_uv=False)
   return tf.math.divide_no_nan(sigma[0], sigma[-1])
 
 
 @tf.function
-def numerical_rank(representations: tf.Tensor) -> tf.Tensor:
+def numerical_rank(
+    representations: tf.Tensor,
+    *,
+    sigma: Optional[tf.Tensor] = None,
+    u: Optional[tf.Tensor] = None,
+) -> tf.Tensor:
   """Numerical rank implementation.
 
   Computes a metric that estimates the numerical column rank of a matrix.
@@ -91,13 +105,18 @@ def numerical_rank(representations: tf.Tensor) -> tf.Tensor:
 
   Args:
     representations: Input representations. We expect rank 2 input.
+    sigma: An optional tensor with singular values of representations. If not
+      present, computes SVD (singular values only) of representations.
+    u: Unused.
 
   Returns:
     Metric value as scalar `tf.Tensor`.
   """
+  del u
   if representations.shape.rank != 2:
     raise ValueError(f"Expected 2D tensor (got shape {representations.shape})")
-  sigma = tf.linalg.svd(representations, compute_uv=False)
+  if sigma is None:
+    sigma = tf.linalg.svd(representations, compute_uv=False)
   trace = tf.reduce_sum(tf.math.square(representations))
   denominator = tf.math.square(sigma[0])
   return tf.math.divide_no_nan(trace, denominator)
@@ -107,7 +126,10 @@ def numerical_rank(representations: tf.Tensor) -> tf.Tensor:
 def rankme(
     representations: tf.Tensor,
     *,
+    sigma: Optional[tf.Tensor] = None,
+    u: Optional[tf.Tensor] = None,
     epsilon: float = 1e-12,
+    **_,
 ) -> tf.Tensor:
   """RankMe metric implementation.
 
@@ -116,14 +138,19 @@ def rankme(
 
   Args:
     representations: Input representations as rank-2 tensor.
+    sigma: An optional tensor with singular values of representations. If not
+      present, computes SVD (singular values only) of representations.
+    u: Unused.
     epsilon: Epsilon for numerican stability.
 
   Returns:
     Metric value as scalar `tf.Tensor`.
   """
+  del u
   if representations.shape.rank != 2:
     raise ValueError(f"Expected 2D tensor (got shape {representations.shape})")
-  sigma = tf.linalg.svd(representations, compute_uv=False)
+  if sigma is None:
+    sigma = tf.linalg.svd(representations, compute_uv=False)
   return rankme_from_singular_values(sigma, epsilon)
 
 
@@ -153,7 +180,12 @@ def rankme_from_singular_values(
 
 
 @tf.function
-def coherence(representations: tf.Tensor) -> tf.Tensor:
+def coherence(
+    representations: tf.Tensor,
+    *,
+    sigma: Optional[tf.Tensor] = None,
+    u: Optional[tf.Tensor] = None,
+) -> tf.Tensor:
   """Coherence metric implementation.
 
   Coherence measures how easy it is to construct a linear classifier on top of
@@ -162,13 +194,20 @@ def coherence(representations: tf.Tensor) -> tf.Tensor:
 
   Args:
     representations: Input representations, a rank-2 tensor.
+    sigma: Unused.
+    u: An optional tensor with left singular vectors of representations. If not
+      present, computes a SVD of representations.
 
   Returns:
     Metric value as scalar `tf.Tensor`.
   """
+  del sigma
   if representations.shape.rank != 2:
     raise ValueError(f"Expected 2D tensor (got shape {representations.shape})")
-  _, u, _ = tf.linalg.svd(representations, compute_uv=True, full_matrices=False)
+  if u is None:
+    _, u, _ = tf.linalg.svd(
+        representations, compute_uv=True, full_matrices=False
+    )
   return coherence_from_singular_vectors(u)
 
 
@@ -200,18 +239,19 @@ class TripletLossMetrics(tf.keras.metrics.Metric):
   def __init__(self, name="triplet_loss_metrics", **kwargs):
     super().__init__(name=name, **kwargs)
     self.positive_distance_metric = tf.keras.metrics.Mean(
-        name="positive_distance_metric")
+        name="positive_distance_metric"
+    )
     self.negative_distance_metric = tf.keras.metrics.Mean(
-        name="negative_distance_metric")
+        name="negative_distance_metric"
+    )
     self.triplet_distance_metric = tf.keras.metrics.Mean(
-        name="triplet_distance_metric")
+        name="triplet_distance_metric"
+    )
 
   def update_state(self, y_true, y_pred, sample_weight=None):
     del sample_weight
     y_pred = tf.ensure_shape(y_pred, (None, 2))
-    positive_distance, negative_distance = tf.unstack(
-        y_pred, axis=1
-    )
+    positive_distance, negative_distance = tf.unstack(y_pred, axis=1)
     self.positive_distance_metric.update_state(positive_distance)
     self.negative_distance_metric.update_state(negative_distance)
     self.triplet_distance_metric.update_state(
@@ -229,3 +269,72 @@ class TripletLossMetrics(tf.keras.metrics.Metric):
     self.positive_distance_metric.reset_states()
     self.negative_distance_metric.reset_states()
     self.triplet_distance_metric.reset_states()
+
+
+class _SvdProtocol(Protocol):
+
+  def __call__(
+      self,
+      representations: tf.Tensor,
+      *,
+      sigma: Optional[tf.Tensor] = None,
+      u: Optional[tf.Tensor] = None,
+  ) -> tf.Tensor:
+    ...
+
+
+class _SvdMetrics(tf.keras.metrics.Metric):
+  """Computes multiple metrics for representations using one SVD call.
+
+  Refer to https://arxiv.org/abs/2305.16562 for more details.
+  """
+
+  def __init__(
+      self,
+      fns: Mapping[str, _SvdProtocol],
+      name: str = "svd_metrics",
+  ):
+    """Constructs the `tf.keras.metrics.Metric` that reuses SVD decomposition.
+
+    Args:
+      fns: a mapping from a metric name to a `Callable` that accepts
+        representations as well as the result of their SVD decomposition.
+        Currently only singular values are passed.
+      name: Name for the metric class, used for Keras bookkeeping.
+    """
+    super().__init__(name=name)
+    self._fns = fns
+    self._metric_container = {
+        k: tf.keras.metrics.Mean(name=k) for k in fns.keys()
+    }
+
+  def reset_state(self) -> None:
+    for v in self._metric_container.values():
+      v.reset_state()
+
+  def update_state(self, _, y_pred: tf.Tensor, sample_weight=None) -> None:
+    # In our implementation of contrastive learning, y_pred is a tensor with
+    # clean and corrupted representations stacked in the first dimension.
+    representations_clean, _ = tf.unstack(y_pred, axis=1)
+    sigma, u, _ = tf.linalg.svd(
+        representations_clean, compute_uv=True, full_matrices=False
+    )
+    for k, v in self._metric_container.items():
+      v.update_state(self._fns[k](representations_clean, sigma=sigma, u=u))
+
+  def result(self) -> Mapping[str, tf.Tensor]:
+    return {k: v.result() for k, v in self._metric_container.items()}
+
+
+class AllSvdMetrics(_SvdMetrics):
+
+  def __init__(self, *args, **kwargs):
+    super().__init__(
+        *args,
+        fns={
+            "pseudo_condition_number": pseudo_condition_number,
+            "numerical_rank": numerical_rank,
+            "rankme": rankme,
+        },
+        **kwargs,
+    )

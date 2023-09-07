@@ -60,10 +60,10 @@ def stacked_graph_tensor() -> tfgnn.GraphTensor:
           "node": tfgnn.NodeSet.from_fields(
               sizes=[2],
               features={
-                  tfgnn.HIDDEN_STATE: tf.constant(
-                      [[[1.0, 1.0, 0.0, 0.0], [1.0, 1.0, 0.0, 0.0]],
-                       [[0.0, 0.0, 1.0, 1.0], [0.0, 0.0, 1.0, 1.0]]]
-                  )
+                  tfgnn.HIDDEN_STATE: tf.constant([
+                      [[1.0, 1.0, 0.0, 0.0], [1.0, 1.0, 0.0, 0.0]],
+                      [[0.0, 0.0, 1.0, 1.0], [0.0, 0.0, 1.0, 1.0]],
+                  ])
               },
           ),
       },
@@ -95,12 +95,14 @@ def gnn_real(type_spec: tf.TypeSpec) -> tf.keras.Model:
 def gnn_static(type_spec: tf.TypeSpec) -> tf.keras.Model:
   """Builds a static Graph Neural Network with known weights."""
   weights = [np.array([[0.0, 1.0], [0.0, 1.0], [-1.0, 0.0], [1.0, 0]])]
+
   def fn(node_set, *, node_set_name):
     del node_set_name
     dense = tf.keras.layers.Dense(2, use_bias=False, trainable=False)
     dense.build(node_set[tfgnn.HIDDEN_STATE].shape)
     dense.set_weights(weights)
     return dense(node_set[tfgnn.HIDDEN_STATE])
+
   inputs = tf.keras.Input(type_spec=type_spec)
   outputs = tfgnn.keras.layers.MapFeatures(node_sets_fn=fn)(inputs)
   return tf.keras.Model(inputs, outputs)
@@ -171,10 +173,8 @@ class ContrastiveTasksSharedTests(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(bad_parameters_inputs())
   def test_bad_parameters(
-      self,
-      inputs: Sequence[Any],
-      task: runner.Task,
-      expected_error: str):
+      self, inputs: Sequence[Any], task: runner.Task, expected_error: str
+  ):
     with self.assertRaisesRegex(ValueError, expected_error):
       _ = task.predict(*inputs)
 
@@ -231,16 +231,14 @@ class ContrastiveTasksSharedTests(tf.test.TestCase, parameterized.TestCase):
     predicted = tf.keras.Model(inputs, outputs)
 
     # Recover the clean representations.
-    layers = [
-        l for l in predicted.layers if "clean_representations" == l.name
-    ]
+    layers = [l for l in predicted.layers if "clean_representations" == l.name]
     self.assertLen(layers, 1)
     submodule = tf.keras.Model(predicted.input, layers[0].output)
 
     # Clean representations: root node readout.
     expected = tfgnn.keras.layers.ReadoutFirstNode(
-        node_set_name="node",
-        feature_name=tfgnn.HIDDEN_STATE)(model(graph_tensor()))
+        node_set_name="node", feature_name=tfgnn.HIDDEN_STATE
+    )(model(graph_tensor()))
     self.assertShapeEqual(submodule((graph_tensor(), graph_tensor())), expected)
 
 
@@ -276,14 +274,24 @@ class BarlowTwinsTaskTest(tf.test.TestCase):
     self.assertAllEqual(pseudolabels, ((),))
 
   def test_metrics(self):
+    # TODO(tsitsulin): Remove when TF 2.13+ is required by all of TFGNN
+    if int(tf.__version__.split(".")[1]) < 13:
+      self.skipTest("Dictionary metrics are unsupported in TF older than 2.13 "
+                    f"but got TF {tf.__version__}")
     # Clean and corrupted representations (shape (1, 4)) packed in one Tensor.
-    y_pred = [[[0., 0., 0., 0.], [0., 0., 0., 0.]]]
+    y_pred = [[[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]]
     _, fake_y = self.task.preprocess(graph_tensor())
 
-    self.assertLen(self.task.metrics(), 3)
+    self.assertLen(self.task.metrics(), 1)
 
     for metric_fn in self.task.metrics():
-      self.assertEqual(metric_fn(fake_y, y_pred).shape, ())
+      metric_value = metric_fn(fake_y, y_pred)
+      if isinstance(metric_value, dict):
+        # SVDMetrics returns a dictionary.
+        for metric_val in metric_value.values():
+          self.assertEqual(metric_val.shape, ())
+      else:
+        self.assertEqual(metric_value.shape, ())
 
   def test_loss_e2e(self):
     # A separate task here to not have a trivial case of the loss with BN.
@@ -314,14 +322,24 @@ class VicRegTaskTest(tf.test.TestCase):
     self.assertAllEqual(pseudolabels, ((),))
 
   def test_metrics(self):
+    # TODO(tsitsulin): Remove when TF 2.13+ is required by all of TFGNN
+    if int(tf.__version__.split(".")[1]) < 13:
+      self.skipTest("Dictionary metrics are unsupported in TF older than 2.13 "
+                    f"but got TF {tf.__version__}")
     # Clean and corrupted representations (shape (1, 4)) packed in one Tensor.
-    y_pred = [[[0., 0., 0., 0.], [0., 0., 0., 0.]]]
+    y_pred = [[[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]]
     _, fake_y = self.task.preprocess(graph_tensor())
 
-    self.assertLen(self.task.metrics(), 3)
+    self.assertLen(self.task.metrics(), 1)
 
     for metric_fn in self.task.metrics():
-      self.assertEqual(metric_fn(fake_y, y_pred).shape, ())
+      metric_value = metric_fn(fake_y, y_pred)
+      if isinstance(metric_value, dict):
+        # SVDMetrics returns a dictionary.
+        for metric_val in metric_value.values():
+          self.assertEqual(metric_val.shape, ())
+      else:
+        self.assertEqual(metric_value.shape, ())
 
   def test_loss_e2e(self):
     # A separate task here to have an analytic solution to the loss function.
@@ -360,10 +378,7 @@ class TripletTaskTests(tf.test.TestCase, parameterized.TestCase):
   task = tasks.TripletLossTask("node", seed=8191)
 
   @parameterized.named_parameters(bad_parameters_inputs_triplet())
-  def test_bad_parameters(
-      self,
-      inputs: Sequence[Any],
-      expected_error: str):
+  def test_bad_parameters(self, inputs: Sequence[Any], expected_error: str):
     with self.assertRaisesRegex(ValueError, expected_error):
       _ = self.task.predict(*inputs)
 
