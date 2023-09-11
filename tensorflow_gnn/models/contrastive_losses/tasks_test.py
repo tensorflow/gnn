@@ -113,10 +113,7 @@ def all_tasks() -> Mapping[str, runner.Task]:
       "DGI": tasks.DeepGraphInfomaxTask("node", seed=8191),
       "VicReg": tasks.VicRegTask("node", seed=8191),
       "BarlowTwins": tasks.BarlowTwinsTask("node", seed=8191),
-      "DGI_projected": tasks.DeepGraphInfomaxTask(
-          "node", projector_units=[2], seed=8191
-      ),
-      **all_tasks_with_projector_as_inner_dimension([2]),
+      **all_tasks_with_projector_as_inner_dimension([4]),
   }
 
 
@@ -124,6 +121,9 @@ def all_tasks_with_projector_as_inner_dimension(
     projector_units: Sequence[int],
 ) -> Mapping[str, runner.Task]:
   return {
+      "DGI_projected": tasks.DeepGraphInfomaxTask(
+          "node", projector_units=projector_units, seed=8191
+      ),
       "VicReg_projected": tasks.VicRegTask(
           "node", projector_units=projector_units, seed=8191
       ),
@@ -217,8 +217,19 @@ class ContrastiveTasksSharedTests(tf.test.TestCase, parameterized.TestCase):
   )
   def test_projector_shape(self, task: runner.Task):
     gts, _ = task.preprocess(graph_tensor())
-    output = task.predict(*gts)
-    self.assertEqual(output.shape, (1, 2, 7))
+    outputs = task.predict(*gts)
+    if isinstance(outputs, dict):
+      outputs = outputs["representations"]
+    self.assertEqual(outputs.shape, (1, 2, 7))
+
+  @parameterized.named_parameters(tasks_to_named_parameters(all_tasks()))
+  def test_output_shape(self, task: runner.Task):
+    inputs, _ = task.preprocess(graph_tensor())
+    outputs = task.predict(*inputs)
+    if isinstance(outputs, dict):
+      outputs = outputs["representations"]
+    # Clean and corrupted representations (shape (1, 4)) packed in one Tensor.
+    self.assertEqual(outputs.shape, (1, 2, 4))
 
   @parameterized.named_parameters(tasks_to_named_parameters(all_tasks()))
   def test_predict(self, task: runner.Task):
@@ -245,28 +256,24 @@ class ContrastiveTasksSharedTests(tf.test.TestCase, parameterized.TestCase):
 class DeepGraphInfomaxTaskTest(tf.test.TestCase):
   task = tasks.DeepGraphInfomaxTask("node", seed=8191)
 
-  def test_output_shape(self):
-    inputs, _ = self.task.preprocess(graph_tensor())
-    outputs = self.task.predict(*inputs)
-
-    # Clean and corrupted logits (i.e., shape (1, 2)).
-    self.assertEqual(outputs.shape, (1, 2))
-
   def test_pseudolabels(self):
     # See `test_preprocess` for tests of the first part of `preprocess` fn.
     _, pseudolabels = self.task.preprocess(graph_tensor())
-    self.assertAllEqual(pseudolabels, ((1.0, 0.0),))
+    self.assertAllEqual(pseudolabels["predictions"], ((0, 1),))
+    self.assertAllEqual(pseudolabels["representations"], ((),))
+
+  def test_output_dictionary(self):
+    # This tests an output of `make_contrastive_layer` before the `predict`.
+    layer_output = super(tasks.DeepGraphInfomaxTask, self.task).predict(
+        graph_tensor(), graph_tensor()
+    )
+    self.assertIsInstance(layer_output, Mapping)
+    for value in layer_output.values():
+      self.assertIsInstance(value, tf.Tensor)
 
 
 class BarlowTwinsTaskTest(tf.test.TestCase):
   task = tasks.BarlowTwinsTask("node", seed=8191)
-
-  def test_output_shape(self):
-    inputs, _ = self.task.preprocess(graph_tensor())
-    outputs = self.task.predict(*inputs)
-
-    # Clean and corrupted representations (shape (1, 4)) packed in one Tensor.
-    self.assertEqual(outputs.shape, (1, 2, 4))
 
   def test_pseudolabels(self):
     # See `test_preprocess` for tests of the first part of `preprocess` fn.
@@ -308,13 +315,6 @@ class BarlowTwinsTaskTest(tf.test.TestCase):
 
 class VicRegTaskTest(tf.test.TestCase):
   task = tasks.VicRegTask("node", seed=8191)
-
-  def test_output_shape(self):
-    inputs, _ = self.task.preprocess(graph_tensor())
-    outputs = self.task.predict(*inputs)
-
-    # Clean and corrupted representations (shape (1, 4)) packed in one Tensor.
-    self.assertEqual(outputs.shape, (1, 2, 4))
 
   def test_pseudolabels(self):
     # See `test_preprocess` for tests of the first part of `preprocess` fn.

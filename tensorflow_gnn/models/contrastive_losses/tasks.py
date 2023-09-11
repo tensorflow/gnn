@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import abc
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 import functools
 from typing import Optional, Union
 
@@ -133,28 +133,85 @@ class _ConstrastiveLossTask(runner.Task, abc.ABC):
     return tuple()
 
 
+class _DgiPassthrough(tf.keras.layers.Layer):
+  """Applies logits layer and returns both predictions and representations."""
+
+  def __init__(
+      self,
+      logits_layer: tf.keras.layers.Layer,
+      *args,
+      **kwargs,
+  ):
+    super().__init__(*args, **kwargs)
+    self._logits_layer = logits_layer
+
+  def call(self, inputs: tf.Tensor) -> runner.Predictions:
+    return {
+        "predictions": self._logits_layer(inputs),
+        "representations": inputs,
+    }
+
+
+# Gradients of this loss will be `None`, but that's not a problem as long as
+# other loss terms create gradients for all trainable variables.
+class _ZeroLoss(tf.keras.losses.Loss):
+
+  def call(
+      self,
+      y_true: tf.Tensor,
+      y_pred: tf.Tensor,
+      sample_weight: Optional[tf.Tensor] = None,
+  ) -> tf.Tensor:
+    # Keras Loss interface expects a tensor of shape `tf.shape(y_pred)[:-1]`
+    # with a correct data type.
+    return tf.zeros_like(y_pred[..., 0])
+
+
 class DeepGraphInfomaxTask(_ConstrastiveLossTask):
   """A Deep Graph Infomax (DGI) Task."""
 
+  def __init__(
+      self,
+      *args,
+      **kwargs,
+  ):
+    super().__init__(*args, **kwargs)
+    self._logits_layer = layers.DeepGraphInfomaxLogits()
+
   def make_contrastive_layer(self) -> tf.keras.layers.Layer:
-    return layers.DeepGraphInfomaxLogits()
+    return _DgiPassthrough(self._logits_layer)
+
+  def predict(self, *args: tfgnn.GraphTensor) -> runner.Predictions:
+    # Wrap the predictions to have dictionary names as Keras names for loss
+    # and metric reporting (e.g., in TensorBoard).
+    return {
+        k: tf.keras.layers.Layer(name=k)(v)
+        for k, v in super().predict(*args).items()
+    }
 
   def preprocess(
       self, inputs: GraphTensor
-  ) -> tuple[Sequence[GraphTensor], Field]:
+  ) -> tuple[Sequence[GraphTensor], Mapping[str, Field]]:
     """Creates labels--i.e., (positive, negative)--for Deep Graph Infomax."""
     x = (inputs, self._corruptor(inputs))
-    y = tf.tile(((1, 0),), (inputs.num_components, 1))
-    return x, y
+    y_dgi = tf.tile(tf.constant([[0, 1]]), (inputs.num_components, 1))
+    y_empty = tf.zeros((inputs.num_components, 0), dtype=tf.int32)
+    return x, {"predictions": y_dgi, "representations": y_empty}
 
   def losses(self) -> runner.Losses:
-    return tf.keras.losses.BinaryCrossentropy(from_logits=True)
+    return {
+        "predictions": tf.keras.losses.BinaryCrossentropy(from_logits=True),
+        "representations": _ZeroLoss(),
+    }
 
   def metrics(self) -> runner.Metrics:
-    return (
-        tf.keras.metrics.BinaryCrossentropy(from_logits=True),
-        tf.keras.metrics.BinaryAccuracy(),
-    )
+    return {
+        "predictions": (
+            tf.keras.metrics.BinaryCrossentropy(from_logits=True),
+            tf.keras.metrics.BinaryAccuracy(),
+        ),
+        "representations": (),
+    }
 
 
 def _unstack_y_pred(

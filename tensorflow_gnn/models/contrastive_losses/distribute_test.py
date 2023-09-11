@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for distribution strategies."""
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 import os
 from typing import Any
 
@@ -187,8 +187,15 @@ class DistributeTests(tf.test.TestCase, parameterized.TestCase):
 
     saved_model = tf.saved_model.load(os.path.join(model_dir, "export"))
 
+    def expected_output_length(task: runner.Task) -> int:
+      if isinstance(task, tasks.DeepGraphInfomaxTask):
+        return 2
+      if isinstance(task, Mapping):
+        return sum(expected_output_length(task) for task in task.values())
+      return 1
+
     results = saved_model.signatures["serving_default"](**kwargs)
-    self.assertLen(results, len(tf.nest.flatten(task)))  # One output per task.
+    self.assertLen(results, expected_output_length(task))
 
     # The above distribute test verifies *only* that the `Task` runs under many
     # distribution strategies. Verify here that run and export also produce
