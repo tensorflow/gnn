@@ -30,9 +30,13 @@ from tensorflow_gnn.experimental.sampler import eval_dag_pb2
 from tensorflow_gnn.experimental.sampler import interfaces
 
 try:
-  from keras.engine import input_layer  # pylint:disable=g-import-not-at-top # pytype: disable=import-error
-except ImportError:
-  from keras.src.engine import input_layer  # pylint:disable=g-import-not-at-top # pytype: disable=import-error
+  input_layer = tf._keras_internal.engine.input_layer  # pylint:disable=g-import-not-at-top # pytype: disable=import-error # pylint:disable=protected-access
+except AttributeError:
+  import keras  # pylint:disable=g-import-not-at-top # pytype: disable=import-error
+  if hasattr(keras, 'src'):
+    from keras.src.engine import input_layer  # pylint:disable=g-import-not-at-top # pytype: disable=import-error
+  else:
+    from keras.engine import input_layer  # pylint:disable=g-import-not-at-top # pytype: disable=import-error
 
 
 @dataclasses.dataclass
