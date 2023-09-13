@@ -34,6 +34,10 @@ class _FnEdgeSampler(interfaces.OutgoingEdgesSampler):
   def call(self, source_node_ids: tf.RaggedTensor) -> interfaces.Features:
     return self._fn(source_node_ids)
 
+  @property
+  def edge_set_name(self) -> tfgnn.EdgeSetName:
+    raise NotImplementedError()
+
 
 class StringIdsSampler:
   """Samples without replacement given string -> strings for each edge set."""

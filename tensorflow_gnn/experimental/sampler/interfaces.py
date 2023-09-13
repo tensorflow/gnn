@@ -55,6 +55,12 @@ class SamplingPrimitive(abc.ABC):
   pass
 
 
+class CompositeLayer(SamplingPrimitive):
+  """Base class for all layers composed from other layers."""
+
+  pass
+
+
 class AccessorBase(SamplingPrimitive):
   """Base class for any value accessor."""
 
@@ -167,6 +173,50 @@ class OutgoingEdgesSampler(SamplingPrimitive):
       "#source" and "#target" of rank 2 containing, correspondigly, source node
       ids and targert node ids of the sampled edges.
     """
+    raise NotImplementedError
+
+  @property
+  @abc.abstractmethod
+  def edge_set_name(self) -> str:
+    """The edge set name."""
+    raise NotImplementedError
+
+
+class UniformEdgesSampler(OutgoingEdgesSampler):
+  """Samples up to the `sample_size` outgoing edges uniformly at random."""
+
+  @property
+  @abc.abstractmethod
+  def sample_size(self) -> int:
+    """The maximum number of edges to sample."""
+    raise NotImplementedError
+
+  @property
+  @abc.abstractmethod
+  def edge_target_feature_name(self) -> str:
+    """The input feature name containing edge target node ids."""
+    raise NotImplementedError
+
+
+class TopKEdgesSampler(OutgoingEdgesSampler):
+  """Samples up to the `sample_size` top weighted outgoing edges."""
+
+  @property
+  @abc.abstractmethod
+  def sample_size(self) -> int:
+    """The maximum number of edges to sample."""
+    raise NotImplementedError
+
+  @property
+  @abc.abstractmethod
+  def edge_target_feature_name(self) -> str:
+    """The input feature name containing edge target node ids."""
+    raise NotImplementedError
+
+  @property
+  @abc.abstractmethod
+  def weight_feature_name(self) -> str:
+    """The input feature name containing edge weights."""
     raise NotImplementedError
 
 

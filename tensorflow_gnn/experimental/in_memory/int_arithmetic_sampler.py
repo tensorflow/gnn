@@ -510,6 +510,10 @@ class EdgeSampler(tf.keras.layers.Layer, interfaces.OutgoingEdgesSampler):
     self._sample_size = sample_size
     self._sampling_mode = sampling_mode
 
+  @property
+  def edge_set_name(self) -> str:
+    raise self._edge_set_name
+
   def call(self, source_node_ids: Union[tf.Tensor, tf.RaggedTensor]) -> Mapping[
       str, tf.RaggedTensor]:
     endpoint_spec = tf.RaggedTensorSpec(

@@ -971,7 +971,7 @@ class TopKEdgesSamplerTest(tf.test.TestCase, parameterized.TestCase):
 class InMemUniformEdgesSamplerTest(tf.test.TestCase, parameterized.TestCase):
 
   def _get_sampling_layer(
-      self, sample_size: int, *, seed: int, table_name: Optional[str] = None
+      self, sample_size: int, *, seed: int, edge_set_name: Optional[str] = None
   ):
     return core.InMemUniformEdgesSampler(
         num_source_nodes=3,
@@ -980,15 +980,15 @@ class InMemUniformEdgesSamplerTest(tf.test.TestCase, parameterized.TestCase):
         edge_features={'weights': [1.0, 2.0, 3.0]},
         seed=seed,
         sample_size=sample_size,
-        name=table_name,
+        name=edge_set_name,
     )
 
-  @parameterized.product(table_name=['cites', 'writes'], sample_size=[1, 8])
-  def testAttributes(self, table_name: str, sample_size: int):
+  @parameterized.product(edge_set_name=['cites', 'writes'], sample_size=[1, 8])
+  def testAttributes(self, edge_set_name: str, sample_size: int):
     layer = self._get_sampling_layer(
-        sample_size, seed=42, table_name=table_name
+        sample_size, seed=42, edge_set_name=edge_set_name
     )
-    self.assertEqual(layer.resource_name, table_name)
+    self.assertEqual(layer.edge_set_name, edge_set_name)
     self.assertEqual(layer.sample_size, sample_size)
 
   @parameterized.parameters(list(range(10)))
@@ -1081,7 +1081,7 @@ class InMemUniformEdgesSamplerTest(tf.test.TestCase, parameterized.TestCase):
     paper_author = core.InMemUniformEdgesSampler.from_graph_tensor(
         CITATION_GRAPH, 'is_written', sample_size=100, seed=42
     )
-    self.assertAllEqual(paper_author.resource_name, 'is_written')
+    self.assertAllEqual(paper_author.edge_set_name, 'is_written')
 
     def get_targets(edges):
       return set(edges['#target'].flat_values.numpy())

@@ -43,7 +43,9 @@ GraphPieces = collections.namedtuple(
 )
 
 
-class CompositeLayer(tf.keras.layers.Layer, metaclass=abc.ABCMeta):
+class CompositeLayer(
+    tf.keras.layers.Layer, interfaces.CompositeLayer, metaclass=abc.ABCMeta
+):
   r"""Base class for layers implemented on top of other sampling layers.
 
   This class must be used as a base class if a sampling layer has other sampling
@@ -517,7 +519,7 @@ class InMemIndexToFeaturesAccessor(
 
 
 @tf.keras.utils.register_keras_serializable(package='GNN')
-class UniformEdgesSampler(CompositeLayer, interfaces.OutgoingEdgesSampler):
+class UniformEdgesSampler(CompositeLayer, interfaces.UniformEdgesSampler):
   """Samples edges uniformly at random from adjacency lists without replacement.
 
   Example: For each input papers samples up to 2 cited papers.
@@ -590,7 +592,15 @@ class UniformEdgesSampler(CompositeLayer, interfaces.OutgoingEdgesSampler):
     return self._sample_size
 
   @property
-  def resource_name(self) -> tfgnn.EdgeSetName:
+  def edge_target_feature_name(self) -> str:
+    return self._edge_target_feature_name
+
+  @property
+  def edge_set_name(self) -> str:
+    return self.resource_name
+
+  @property
+  def resource_name(self) -> str:
     return self._outgoing_edges_accessor.resource_name
 
   def get_config(self):
@@ -617,7 +627,7 @@ class UniformEdgesSampler(CompositeLayer, interfaces.OutgoingEdgesSampler):
 
 
 class InMemUniformEdgesSampler(
-    tf.keras.layers.Layer, interfaces.OutgoingEdgesSampler
+    tf.keras.layers.Layer, interfaces.UniformEdgesSampler
 ):
   """Samples edges uniformly at random from in-memory edge features.
 
@@ -665,6 +675,7 @@ class InMemUniformEdgesSampler(
       edge_features: Optional[tfgnn.Fields] = None,
       *,
       sample_size: int,
+      edge_set_name: Optional[str] = None,
       seed: Optional[int] = None,
       **kwargs,
   ):
@@ -679,6 +690,7 @@ class InMemUniformEdgesSampler(
       edge_features: An optional dictionary of edge features. Each feature must
         have shape `[num_edges, **feature_dims]`.
       sample_size: The maximum number of edges to sample for each source node.
+      edge_set_name: The edge set name. Defaults to layer name.
       seed: A Python integer. Used to create a random seed for sampling.
       **kwargs: Other arguments for the base class.
     """
@@ -696,6 +708,7 @@ class InMemUniformEdgesSampler(
     }
 
     self._sample_size = sample_size
+    self._edge_set_name = edge_set_name or self.name
     self._seed = seed
 
     self._sort_index = tf.argsort(source)
@@ -714,8 +727,12 @@ class InMemUniformEdgesSampler(
     return self._sample_size
 
   @property
-  def resource_name(self) -> tfgnn.EdgeSetName:
-    return self.name
+  def edge_target_feature_name(self) -> str:
+    return tfgnn.TARGET_NAME
+
+  @property
+  def edge_set_name(self) -> tfgnn.EdgeSetName:
+    return self._edge_set_name
 
   @classmethod
   def from_graph_tensor(
@@ -764,6 +781,7 @@ class InMemUniformEdgesSampler(
         edge_features=edge_set.features,
         name=name,
         sample_size=sample_size,
+        edge_set_name=edge_set_name,
         seed=seed,
     )
 
@@ -1380,7 +1398,7 @@ class _UniformEdgesSelector(tf.keras.layers.Layer):
 
 
 @tf.keras.utils.register_keras_serializable(package='GNN')
-class TopKEdgesSampler(CompositeLayer, interfaces.OutgoingEdgesSampler):
+class TopKEdgesSampler(CompositeLayer, interfaces.TopKEdgesSampler):
   """Samples the top `sample_size` weighted edges from adjacency lists.
 
   Example: For each input papers samples up to 2 cited papers.
@@ -1454,6 +1472,18 @@ class TopKEdgesSampler(CompositeLayer, interfaces.OutgoingEdgesSampler):
   @property
   def sample_size(self) -> int:
     return self._sample_size
+
+  @property
+  def edge_target_feature_name(self) -> str:
+    return self._edge_target_feature_name
+
+  @property
+  def weight_feature_name(self) -> str:
+    return self._weight_feature_name
+
+  @property
+  def edge_set_name(self) -> tfgnn.EdgeSetName:
+    return self.resource_name
 
   @property
   def resource_name(self) -> tfgnn.EdgeSetName:

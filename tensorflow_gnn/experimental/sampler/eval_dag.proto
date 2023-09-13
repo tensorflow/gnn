@@ -169,4 +169,8 @@ message IOFeatures {
 message EdgeSamplingConfig {
   string edge_set_name = 1;
   int32 sample_size = 2;
+  // The input feature name containing edge weights.
+  string weight_feature_name = 3;
+  // The input feature name containing edge target node ids.
+  string edge_target_feature_name = 4;
 }

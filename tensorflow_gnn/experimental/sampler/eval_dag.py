@@ -25,7 +25,6 @@ import networkx as nx
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
-from tensorflow_gnn.experimental.sampler import core
 from tensorflow_gnn.experimental.sampler import eval_dag_pb2
 from tensorflow_gnn.experimental.sampler import interfaces
 
@@ -314,10 +313,10 @@ def _convert_stages_dag_to_eval_dag(
       )
 
       config = get_layer_config_pb(stage.get_single_node().layer)
-      if config:
+      if config is not None:
         layer_pb.config.Pack(config)
 
-      if isinstance(stage.get_single_node().layer, core.CompositeLayer):
+      if isinstance(stage.get_single_node().layer, interfaces.CompositeLayer):
         for arg_layer in tf.nest.flatten(
             stage.get_single_node().layer.wrapped_model.input
         ):
@@ -344,7 +343,7 @@ def _has_specialized_stage(node: Node) -> bool:
       (
           input_layer.InputLayer,
           interfaces.SamplingPrimitive,
-          core.CompositeLayer,
+          interfaces.CompositeLayer,
       ),
   )
 
@@ -699,7 +698,9 @@ def _flatten_to_dict(prefix, nested_struct):
         prefix, _flatten_graph_tensor_to_dict(nested_struct)
     )
 
-  if isinstance(nested_struct, Mapping):
+  # NOTE: TF nest relies on abc.Mapping rather than pytype Mapping.
+  # See https://www.tensorflow.org/api_docs/python/tf/nest
+  if isinstance(nested_struct, (collections.abc.Mapping, Mapping)):
     return _flatten_kv_to_dict(prefix, nested_struct.items())
   if isinstance(nested_struct, (List, Tuple)):
     return _flatten_kv_to_dict(prefix, enumerate(nested_struct))
@@ -748,32 +749,27 @@ def _flatten_graph_tensor_to_dict(graph: tfgnn.GraphTensor) -> tfgnn.Fields:
 
 
 @functools.singledispatch
-def get_layer_config_pb(layer: tf.keras.layers.Layer) -> Any:
-  raise NotImplementedError(
-      f'Config dispatching is not defined for {type(layer).__name__}'
+def get_layer_config_pb(layer: Any) -> Any:
+  del layer
+  return None
+
+
+@get_layer_config_pb.register(interfaces.UniformEdgesSampler)
+def _(layer: interfaces.UniformEdgesSampler):
+  return eval_dag_pb2.EdgeSamplingConfig(
+      edge_set_name=layer.edge_set_name,
+      sample_size=layer.sample_size,
+      edge_target_feature_name=layer.edge_target_feature_name,
   )
 
 
-@get_layer_config_pb.register(core.CompositeLayer)
-def _(layer: core.CompositeLayer):
-  # TODO(aferludin): add configs for composite layers to allow specialization.
-  return None
-
-
-@get_layer_config_pb.register(interfaces.KeyToBytesAccessor)
-def _(layer: interfaces.KeyToBytesAccessor):
-  return None
-
-
-@get_layer_config_pb.register(input_layer.InputLayer)
-def _(layer: input_layer.InputLayer):
-  return None
-
-
-@get_layer_config_pb.register(core.UniformEdgesSampler)
-def _(layer: core.UniformEdgesSampler):
+@get_layer_config_pb.register(interfaces.TopKEdgesSampler)
+def _(layer: interfaces.TopKEdgesSampler):
   return eval_dag_pb2.EdgeSamplingConfig(
-      edge_set_name=layer.resource_name, sample_size=layer.sample_size
+      edge_set_name=layer.edge_set_name,
+      sample_size=layer.sample_size,
+      edge_target_feature_name=layer.edge_target_feature_name,
+      weight_feature_name=layer.weight_feature_name,
   )
 
 
