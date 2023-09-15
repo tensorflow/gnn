@@ -40,6 +40,7 @@ from tensorflow_gnn.proto import graph_schema_pb2
 import tensorflow_gnn.sampler as sampler_lib
 
 from google.protobuf import text_format
+# Placeholder for Google-internal Beam runner
 
 
 _DIRECT_RUNNER = 'DirectRunner'
@@ -136,6 +137,7 @@ def _create_beam_runner(
     runner = beam.runners.DirectRunner()
   elif runner_name == _DATAFLOW_RUNNER:
     runner = beam.runners.DataflowRunner()
+# Placeholder for Google-internal runner option creation
   else:
     runner = None
   return runner
@@ -191,7 +193,7 @@ def define_flags():
   )
 
   runner_choices = [_DIRECT_RUNNER, _DATAFLOW_RUNNER]
-  runner_choices.append('flume')
+  # Placeholder for Google-internal Beam runner option
   flags.DEFINE_enum(
       'runner',
       None,
@@ -212,6 +214,7 @@ def app_main(argv) -> None:
   """
   FLAGS = flags.FLAGS  # pylint: disable=invalid-name
   pipeline_args = argv[1:]
+  # Placeholder for Google-internal Beam runner command
   graph_schema: tfgnn.GraphSchema = unigraph.read_schema(FLAGS.graph_schema)
 
   with tf.io.gfile.GFile(FLAGS.sampling_spec, 'r') as f:
