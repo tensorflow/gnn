@@ -271,6 +271,34 @@ class DeepGraphInfomaxTaskTest(tf.test.TestCase):
     for value in layer_output.values():
       self.assertIsInstance(value, tf.Tensor)
 
+  def test_metrics(self):
+    # TODO(b/294224429): Remove when TF 2.13+ is required by all of TF-GNN
+    if int(tf.__version__.split(".")[1]) < 13:
+      self.skipTest(
+          "Dictionary metrics are unsupported in TF older than 2.13 "
+          f"but got TF {tf.__version__}"
+      )
+    y_pred = {
+        "predictions": [[0.0, 0.0]],
+        "representations": [[[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]],
+    }
+    _, fake_y = self.task.preprocess(graph_tensor())
+
+    self.assertIsInstance(self.task.metrics(), Mapping)
+    self.assertEqual(fake_y.keys(), y_pred.keys())
+    self.assertEqual(fake_y.keys(), self.task.metrics().keys())
+
+    for metric_key, metric_fns in self.task.metrics().items():
+      self.assertIsInstance(metric_fns, Sequence)
+      for metric_fn in metric_fns:
+        metric_value = metric_fn(fake_y[metric_key], y_pred[metric_key])
+        if isinstance(metric_value, dict):
+          # SVDMetrics returns a dictionary.
+          for metric_val in metric_value.values():
+            self.assertEqual(metric_val.shape, ())
+        else:
+          self.assertEqual(metric_value.shape, ())
+
 
 class BarlowTwinsTaskTest(tf.test.TestCase):
   task = tasks.BarlowTwinsTask("node", seed=8191)
@@ -281,10 +309,12 @@ class BarlowTwinsTaskTest(tf.test.TestCase):
     self.assertAllEqual(pseudolabels, ((),))
 
   def test_metrics(self):
-    # TODO(tsitsulin): Remove when TF 2.13+ is required by all of TFGNN
+    # TODO(b/294224429): Remove when TF 2.13+ is required by all of TF-GNN
     if int(tf.__version__.split(".")[1]) < 13:
-      self.skipTest("Dictionary metrics are unsupported in TF older than 2.13 "
-                    f"but got TF {tf.__version__}")
+      self.skipTest(
+          "Dictionary metrics are unsupported in TF older than 2.13 "
+          f"but got TF {tf.__version__}"
+      )
     # Clean and corrupted representations (shape (1, 4)) packed in one Tensor.
     y_pred = [[[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]]
     _, fake_y = self.task.preprocess(graph_tensor())
@@ -322,7 +352,7 @@ class VicRegTaskTest(tf.test.TestCase):
     self.assertAllEqual(pseudolabels, ((),))
 
   def test_metrics(self):
-    # TODO(tsitsulin): Remove when TF 2.13+ is required by all of TFGNN
+    # TODO(b/294224429): Remove when TF 2.13+ is required by all of TF-GNN
     if int(tf.__version__.split(".")[1]) < 13:
       self.skipTest("Dictionary metrics are unsupported in TF older than 2.13 "
                     f"but got TF {tf.__version__}")

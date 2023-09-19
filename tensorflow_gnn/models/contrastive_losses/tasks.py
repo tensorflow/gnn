@@ -210,7 +210,7 @@ class DeepGraphInfomaxTask(_ConstrastiveLossTask):
             tf.keras.metrics.BinaryCrossentropy(from_logits=True),
             tf.keras.metrics.BinaryAccuracy(),
         ),
-        "representations": (),
+        "representations": (metrics.AllSvdMetrics(),),
     }
 
 
