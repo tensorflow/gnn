@@ -32,12 +32,16 @@ Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
 
 
-class _ConstrastiveLossTask(runner.Task, abc.ABC):
+class ContrastiveLossTask(runner.Task):
   """Base class for unsupervised contrastive representation learning tasks.
 
-  The default `predict` method implementation shuffles feature across batch
-  examples to create positive and negative activations. There are multiple ways
-  proposed in the literature to learn representations based on the activations.
+  The process is separated into preprocessing and contrastive parts, with the
+  focus on reusability of individual components. The `preprocess` produces
+  input GraphTensors to be used with the `predict` as well as labels for the
+  task. The default `predict` method implementation expects a pair of positive
+  and negative GraphTensors. There are multiple ways proposed in the literature
+  to learn representations based on the activations - we achieve that by using
+  custom losses.
 
   Any subclass must implement `make_contrastive_layer` method, which produces
   the final prediction outputs.
@@ -49,6 +53,7 @@ class _ConstrastiveLossTask(runner.Task, abc.ABC):
 
   Any model-specific preprocessing should be implemented in the `preprocess`.
   """
+  # TODO(tsitsulin): move `preprocess` here.
 
   def __init__(
       self,
@@ -167,7 +172,7 @@ class _ZeroLoss(tf.keras.losses.Loss):
     return tf.zeros_like(y_pred[..., 0])
 
 
-class DeepGraphInfomaxTask(_ConstrastiveLossTask):
+class DeepGraphInfomaxTask(ContrastiveLossTask):
   """A Deep Graph Infomax (DGI) Task."""
 
   def __init__(
@@ -227,7 +232,7 @@ def _unstack_y_pred(
   return wrapper_fn
 
 
-class BarlowTwinsTask(_ConstrastiveLossTask):
+class BarlowTwinsTask(ContrastiveLossTask):
   """A Barlow Twins (BT) Task."""
 
   def __init__(
@@ -266,7 +271,7 @@ class BarlowTwinsTask(_ConstrastiveLossTask):
     return (metrics.AllSvdMetrics(),)
 
 
-class VicRegTask(_ConstrastiveLossTask):
+class VicRegTask(ContrastiveLossTask):
   """A VICReg Task."""
 
   def __init__(
@@ -308,7 +313,7 @@ class VicRegTask(_ConstrastiveLossTask):
     return (metrics.AllSvdMetrics(),)
 
 
-class TripletLossTask(_ConstrastiveLossTask):
+class TripletLossTask(ContrastiveLossTask):
   """The triplet loss task."""
 
   def __init__(self, *args, margin: float = 1.0, **kwargs):

@@ -31,6 +31,7 @@ ShuffleFeaturesGlobally = layers.ShuffleFeaturesGlobally
 TripletEmbeddingSquaredDistances = layers.TripletEmbeddingSquaredDistances
 
 BarlowTwinsTask = tasks.BarlowTwinsTask
+ContrastiveLossTask = tasks.ContrastiveLossTask
 DeepGraphInfomaxTask = tasks.DeepGraphInfomaxTask
 TripletLossTask = tasks.TripletLossTask
 VicRegTask = tasks.VicRegTask
