@@ -113,20 +113,43 @@ def get_sampling_model(
       features_spec[name] = tf.TensorSpec(shape, dtype)
     accessor = sampler.KeyToTfExampleAccessor(
         sampler.InMemStringKeyToBytesAccessor(
-            keys_to_values={'b': b'b'},
-            name=f'nodes/{node_set_name}'),
+            keys_to_values={'b': b'b'}, name=f'nodes/{node_set_name}'
+        ),
         features_spec=features_spec,
     )
     return accessor
 
   counter = {}
-  return sampler.create_sampling_model_from_spec(
-      graph_schema,
-      sampling_spec,
-      edge_sampler_factory=functools.partial(
-          edge_sampler_factory, counter=counter),
-      node_features_accessor_factory=node_features_accessor_factory,
-  ), layer_name_to_edge_set
+  if sampling_spec.HasField('seed_op'):
+    if sampling_spec.HasField('symmetric_link_seed_op'):
+      raise ValueError(
+          'seed_op is already set, so symmetric_link_seed_op should not be set.'
+      )
+    return (
+        sampler.create_sampling_model_from_spec(
+            graph_schema,
+            sampling_spec,
+            edge_sampler_factory=functools.partial(
+                edge_sampler_factory, counter=counter
+            ),
+            node_features_accessor_factory=node_features_accessor_factory,
+        ),
+        layer_name_to_edge_set,
+    )
+  elif sampling_spec.HasField('symmetric_link_seed_op'):
+    return (
+        sampler.create_link_sampling_model_from_spec(
+            graph_schema,
+            sampling_spec,
+            edge_sampler_factory=functools.partial(
+                edge_sampler_factory, counter=counter
+            ),
+            node_features_accessor_factory=node_features_accessor_factory,
+        ),
+        layer_name_to_edge_set,
+    )
+  else:
+    raise ValueError('One of seed_op or symmetric_link_seed_op must be set.')
 
 
 def _create_beam_runner(
@@ -260,22 +283,28 @@ def app_main(argv) -> None:
         graph_schema, data_path
     )
     feeds = feeds_unique
-    feeds.update({
-        layer_name: feeds_unique[layers_mapping[layer_name]]
-        for layer_name in layers_mapping
-    })
-    if FLAGS.input_seeds:
+    feeds.update(
+        {
+            layer_name: feeds_unique[layers_mapping[layer_name]]
+            for layer_name in layers_mapping
+        }
+    )
+    if FLAGS.input_seeds and sampling_spec.HasField('symmetric_link_seed_op'):
+      inputs = root | 'ReadLinkSeeds' >> unigraph_utils.ReadLinkSeeds(
+          graph_schema, FLAGS.input_seeds
+      )
+    elif FLAGS.input_seeds and sampling_spec.HasField('seed_op'):
       seeds = unigraph_utils.read_seeds(root, FLAGS.input_seeds)
+      inputs = {
+          'Input': seeds,
+      }
     else:
       seeds = unigraph_utils.seeds_from_graph_dict(feeds, sampling_spec)
-    inputs = {
-        'Input': seeds,
-    }
+      inputs = {
+          'Input': seeds,
+      }
     examples = executor_lib.execute(
-        program_pb,
-        inputs,
-        feeds=feeds,
-        artifacts_path=artifacts_path
+        program_pb, inputs, feeds=feeds, artifacts_path=artifacts_path
     )
     # results are tuple: example_id to tf.Example with graph tensors.
     coder = beam.coders.ProtoCoder(tf.train.Example)

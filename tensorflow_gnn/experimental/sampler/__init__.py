@@ -31,6 +31,10 @@ create_sampling_model_from_spec = (
     subgraph_pipeline.create_sampling_model_from_spec
 )
 
+create_link_sampling_model_from_spec = (
+    subgraph_pipeline.create_link_sampling_model_from_spec
+)
+
 # Export.
 create_program = eval_dag.create_program
 save_model = eval_dag.save_model

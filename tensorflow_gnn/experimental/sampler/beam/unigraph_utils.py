@@ -14,6 +14,7 @@
 # ==============================================================================
 """Functions to read from unigraph format into that accepted by sampler_v2."""
 
+from __future__ import annotations
 from typing import Dict, List, Optional, Tuple
 
 import apache_beam as beam
@@ -22,9 +23,11 @@ import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn import sampler as sampler_lib
 from tensorflow_gnn.data import unigraph
+from tensorflow_gnn.experimental.sampler.beam import executor_lib
 
 
 PCollection = beam.pvalue.PCollection
+Values = executor_lib.Values
 
 
 def _create_seeds(node_id: bytes) -> Tuple[bytes, List[List[np.ndarray]]]:
@@ -51,6 +54,90 @@ def read_seeds(root: beam.Pipeline, data_path: str) -> PCollection:
       | 'SeedKeys' >> beam.Keys()
       | 'MakeSeeds' >> beam.Map(_create_seeds)
   )
+
+
+def _make_seed_feature(
+    example: tf.train.Example, feat_name: str
+) -> tuple[bytes, Values]:
+  """Formats a particular feature from a tf.train.Example into a seed format.
+
+  Args:
+    example: tf.train.Example with the seed features.
+    feat_name: The feature to extract in this call
+
+  Returns: 
+    bytes key and a list/np.array representation of a ragged tensor
+
+  Raises:
+    ValueError: on a malformed Example without the given feature present
+  """
+
+  seed_source = example.features.feature[tfgnn.SOURCE_NAME].bytes_list.value[0]
+  seed_target = example.features.feature[tfgnn.TARGET_NAME].bytes_list.value[0]
+  key = bytes(
+      f'S{seed_source.decode("utf-8")}:T{seed_target.decode("utf-8")}', 'utf-8'
+  )
+  if example.features.feature[feat_name].HasField('bytes_list'):
+    bytes_value = example.features.feature[feat_name].bytes_list.value
+    value = [[
+        np.array(bytes_value, dtype=np.object_),
+        np.array([1], dtype=np.int64),
+    ]]
+  elif example.features.feature[feat_name].HasField('float_list'):
+    float_value = example.features.feature[feat_name].float_list.value
+    value = [[
+        np.array(float_value, dtype=np.float32),
+        np.array([1], dtype=np.int64),
+    ]]
+  elif example.features.feature[feat_name].HasField('int64_list'):
+    int64_value = example.features.feature[feat_name].int64_list.value
+    value = [[
+        np.array(int64_value, dtype=np.float32),
+        np.array([1], dtype=np.int64),
+    ]]
+  else:
+    raise ValueError(f'Feature {feat_name} is not present in this example')
+  return (key, value)
+
+
+class ReadLinkSeeds(beam.PTransform):
+  """Reads seeds for link prediction into PCollections for each seed feature."""
+
+  def __init__(self, graph_schema: tfgnn.GraphSchema, data_path: str):
+    """Constructor for ReadLinkSeeds PTransform.
+
+    Args:
+      graph_schema: tfgnn.GraphSchema for the input graph.
+      data_path: A file path for the seed data in accepted file formats.
+    """
+    self._graph_schema = graph_schema
+    self._data_path = data_path
+    self._readout_feature_names = [
+        key
+        for key in graph_schema.node_sets['_readout'].features.keys()
+        if key not in [tfgnn.SOURCE_NAME, tfgnn.TARGET_NAME]
+    ]
+
+  def expand(self, rcoll: PCollection) -> Dict[str, PCollection]:
+    seed_table = rcoll | 'ReadSeedTable' >> unigraph.ReadTable(
+        self._data_path,
+        converters=unigraph.build_converter_from_schema(
+            self._graph_schema.node_sets['_readout'].features
+        ),
+    )
+    pcolls_out = {}
+    pcolls_out['SeedSource'] = seed_table | 'MakeSeedSource' >> beam.Map(
+        _make_seed_feature, tfgnn.SOURCE_NAME
+    )
+    pcolls_out['SeedTarget'] = seed_table | 'MakeSeedTarget' >> beam.Map(
+        _make_seed_feature, tfgnn.TARGET_NAME
+    )
+    for feature in self._readout_feature_names:
+      pcolls_out[f'Seed/{feature}'] = (
+          seed_table
+          | f'MakeSeed/{feature}' >> beam.Map(_make_seed_feature, feature)
+      )
+    return pcolls_out
 
 
 def seeds_from_graph_dict(

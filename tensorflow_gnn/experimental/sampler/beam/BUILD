@@ -135,6 +135,7 @@ pytype_strict_library(
     srcs = ["unigraph_utils.py"],
     srcs_version = "PY3ONLY",
     deps = [
+        ":executor_lib",
         "//third_party/py/apache_beam",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
@@ -190,7 +191,10 @@ py_binary(
 pytype_strict_contrib_test(
     name = "unigraph_utils_test",
     srcs = ["unigraph_utils_test.py"],
-    data = ["@tensorflow_gnn//testdata/heterogeneous"],
+    data = [
+        "@tensorflow_gnn//testdata/heterogeneous",
+        "@tensorflow_gnn//testdata/homogeneous",
+    ],
     python_version = "PY3",
     srcs_version = "PY3ONLY",
     deps = [

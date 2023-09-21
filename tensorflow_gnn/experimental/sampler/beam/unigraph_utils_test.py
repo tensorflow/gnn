@@ -1075,6 +1075,160 @@ class UnigraphUtilsEdgeFeaturesTest(tf.test.TestCase):
       root.run()
 
 
+class UnigraphUtilsLinkPredictionTest(tf.test.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    self.resource_dir = test_utils.get_resource_dir('testdata/homogeneous')
+    self.seed_path = test_utils.get_resource(
+        'testdata/homogeneous/tastelike.csv'
+    )
+
+  def test_read_link_seeds(self):
+    data_path = self.seed_path
+    graph_schema = tfgnn.GraphSchema()
+    graph_schema.node_sets['_readout'].features[
+        'weight'
+    ].dtype = tf.float32.as_datatype_enum
+    graph_schema.node_sets['_readout'].features[
+        '#source'
+    ].dtype = tf.string.as_datatype_enum
+    graph_schema.node_sets['_readout'].features[
+        '#target'
+    ].dtype = tf.string.as_datatype_enum
+    expected_source_seeds = [
+        (
+            bytes('Samanatsu:Tdaidai', 'utf-8'),
+            [[
+                np.array([b'amanatsu'], dtype=np.object_),
+                np.array([1], dtype=np.int64),
+            ]],
+        ),
+        (
+            bytes('Samanatsu:Tlumia', 'utf-8'),
+            [[
+                np.array([b'amanatsu'], dtype=np.object_),
+                np.array([1], dtype=np.int64),
+            ]],
+        ),
+        (
+            bytes('Skiyomi:Tkomikan', 'utf-8'),
+            [[
+                np.array([b'kiyomi'], dtype=np.object_),
+                np.array([1], dtype=np.int64),
+            ]],
+        ),
+        (
+            bytes('Smandora:Tkomikan', 'utf-8'),
+            [[
+                np.array([b'mandora'], dtype=np.object_),
+                np.array([1], dtype=np.int64),
+            ]],
+        ),
+        (
+            bytes('Smandora:Ttangelo', 'utf-8'),
+            [[
+                np.array([b'mandora'], dtype=np.object_),
+                np.array([1], dtype=np.int64),
+            ]],
+        ),
+    ]
+    expected_target_seeds = [
+        (
+            bytes('Samanatsu:Tdaidai', 'utf-8'),
+            [[
+                np.array([b'daidai'], dtype=np.object_),
+                np.array([1], dtype=np.int64),
+            ]],
+        ),
+        (
+            bytes('Samanatsu:Tlumia', 'utf-8'),
+            [[
+                np.array([b'lumia'], dtype=np.object_),
+                np.array([1], dtype=np.int64),
+            ]],
+        ),
+        (
+            bytes('Skiyomi:Tkomikan', 'utf-8'),
+            [[
+                np.array([b'komikan'], dtype=np.object_),
+                np.array([1], dtype=np.int64),
+            ]],
+        ),
+        (
+            bytes('Smandora:Tkomikan', 'utf-8'),
+            [[
+                np.array([b'komikan'], dtype=np.object_),
+                np.array([1], dtype=np.int64),
+            ]],
+        ),
+        (
+            bytes('Smandora:Ttangelo', 'utf-8'),
+            [[
+                np.array([b'tangelo'], dtype=np.object_),
+                np.array([1], dtype=np.int64),
+            ]],
+        ),
+    ]
+    expected_weight_seeds = [
+        (
+            bytes('Samanatsu:Tdaidai', 'utf-8'),
+            [[
+                np.array([0.1], dtype=np.float32),
+                np.array([1], dtype=np.int64),
+            ]],
+        ),
+        (
+            bytes('Samanatsu:Tlumia', 'utf-8'),
+            [[
+                np.array([0.2], dtype=np.float32),
+                np.array([1], dtype=np.int64),
+            ]],
+        ),
+        (
+            bytes('Skiyomi:Tkomikan', 'utf-8'),
+            [[
+                np.array([0.3], dtype=np.float32),
+                np.array([1], dtype=np.int64),
+            ]],
+        ),
+        (
+            bytes('Smandora:Tkomikan', 'utf-8'),
+            [[
+                np.array([0.4], dtype=np.float32),
+                np.array([1], dtype=np.int64),
+            ]],
+        ),
+        (
+            bytes('Smandora:Ttangelo', 'utf-8'),
+            [[
+                np.array([0.5], dtype=np.float32),
+                np.array([1], dtype=np.int64),
+            ]],
+        ),
+    ]
+    with test_pipeline.TestPipeline() as root:
+      link_seeds = root | 'ReadLinkSeeds' >> unigraph_utils.ReadLinkSeeds(
+          graph_schema, data_path
+      )
+      util.assert_that(
+          link_seeds['SeedSource'],
+          util.equal_to(expected_source_seeds),
+          label='assert_source_seeds',
+      )
+      util.assert_that(
+          link_seeds['SeedTarget'],
+          util.equal_to(expected_target_seeds),
+          label='assert_target_seeds',
+      )
+      util.assert_that(
+          link_seeds['Seed/weight'],
+          util.equal_to(expected_weight_seeds),
+          label='assert_weight_seeds',
+      )
+      root.run()
+
+
 # This function is needed because serialization to bytes in Python
 # is non-deterministic
 def _tf_example_from_bytes(s: bytes):
