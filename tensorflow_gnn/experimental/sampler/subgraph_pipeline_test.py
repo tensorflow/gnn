@@ -18,6 +18,7 @@ import functools
 from typing import Dict, List, Tuple, Callable, Optional
 
 from absl.testing import parameterized
+import numpy as np
 import tensorflow as tf
 
 import tensorflow_gnn as tfgnn
@@ -324,6 +325,94 @@ class SubgraphPipelineTest(tf.test.TestCase, parameterized.TestCase):
 
     for food, animal in zip(src_values.numpy(), tgt_values.numpy()):
       self.assertIn(food.decode(), eats_edges[animal.decode()])
+
+
+def _get_test_link_edges_sampler_schema_spec():
+  reviews_edges = {
+      'mike': ['alexa'],
+      'alexa': ['mike', 'sam'],
+      'arne': ['alexa', 'mike', 'sam'],
+      'sam': ['bob'],
+  }
+  sampler = StringIdsSampler({'reviews': reviews_edges})
+
+  graph_schema = tfgnn.GraphSchema()
+  graph_schema.node_sets['_readout'].features['label'].dtype = 1
+  graph_schema.edge_sets['reviews'].source = 'authors'
+  graph_schema.edge_sets['reviews'].target = 'authors'
+  graph_schema.edge_sets['_readout/source'].target = '_readout'
+  graph_schema.edge_sets['_readout/source'].source = 'authors'
+  graph_schema.edge_sets['_readout/target'].target = '_readout'
+  graph_schema.edge_sets['_readout/target'].source = 'authors'
+
+  sampling_spec = sampling_spec_pb2.SamplingSpec()
+  sampling_spec.symmetric_link_seed_op.op_name = 'seed'
+  sampling_spec.sampling_ops.add(
+      op_name='A', edge_set_name='reviews',
+      sample_size=2).input_op_names.append('seed')
+
+  return reviews_edges, sampler, graph_schema, sampling_spec
+
+
+class LinkSamplingPipelineTest(tf.test.TestCase, parameterized.TestCase):
+
+  # TODO: b/301427603 - Test this parametrically on int64 and int32 seeds.
+  def test_link_sampling_pipeline(self):
+    (_, sampler, graph_schema,
+     sampling_spec) = _get_test_link_edges_sampler_schema_spec()
+
+    source_seeds = tf.ragged.constant([['alexa'], ['sam'], ['sam']])
+    target_seeds = tf.ragged.constant([['mike'], ['mike'], ['arne']])
+    seed_labels = tf.ragged.constant([[0.0], [1.0], [1.0]], dtype=tf.float32)
+
+    inputs = {
+        tfgnn.SOURCE_NAME: source_seeds,
+        tfgnn.TARGET_NAME: target_seeds,
+        'label': seed_labels,
+    }
+    pipeline = subgraph_pipeline.LinkSamplingPipeline(
+        graph_schema, sampling_spec, sampler
+    )
+    graph_tensor = pipeline(inputs)
+    dummy_node_features = tf.ragged.constant(
+        [np.eye(3, 3), np.eye(4, 3), np.eye(4, 3)]
+    )
+    graph_tensor = graph_tensor.replace_features(
+        node_sets={'authors': {tfgnn.HIDDEN_STATE: dummy_node_features}}
+    )
+
+    self.assertAllEqual(
+        graph_tensor.node_sets['_readout'].sizes, [[1], [1], [1]]
+    )
+    self.assertAllEqual(
+        graph_tensor.edge_sets['reviews'].sizes, [[3], [2], [3]]
+    )
+    self.assertAllEqual(
+        graph_tensor.node_sets['authors'].sizes, [[3], [4], [4]]
+    )
+    self.assertAllEqual(
+        graph_tensor.node_sets['_readout'].features['label'],
+        [[0.0], [1.0], [1.0]],
+    )
+    merged_tensor = graph_tensor.merge_batch_to_components()
+    self.assertAllEqual(
+        merged_tensor.edge_sets['_readout/source'].adjacency.source, [0, 3, 7]
+    )
+    self.assertAllEqual(
+        tfgnn.structured_readout(
+            merged_tensor, 'source', feature_name=tfgnn.HIDDEN_STATE
+        ),
+        [[1.0, 0.0, 0.0]] * 3,
+    )
+    self.assertAllEqual(
+        tfgnn.structured_readout(
+            merged_tensor, 'target', feature_name=tfgnn.HIDDEN_STATE
+        ),
+        [[0.0, 1.0, 0.0]] * 3,
+    )
+    self.assertAllEqual(
+        merged_tensor.node_sets['_readout'].features['label'], [0.0, 1.0, 1.0]
+    )
 
 
 if __name__ == '__main__':
