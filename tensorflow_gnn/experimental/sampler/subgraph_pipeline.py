@@ -43,6 +43,7 @@ from typing import Callable, Mapping, Optional, Dict, Tuple
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.experimental.sampler import core
+from tensorflow_gnn.experimental.sampler import ext_ops
 from tensorflow_gnn.experimental.sampler import interfaces
 from tensorflow_gnn.sampler import sampling_spec_pb2
 
@@ -356,7 +357,9 @@ class LinkSamplingPipeline:
     )
 
   def __call__(self, inputs: dict[str, tf.RaggedTensor]) -> tfgnn.GraphTensor:
-    seed_nodes = tf.concat([inputs['#source'], inputs['#target']], axis=-1)
+    seed_nodes = tf.concat(
+        [inputs[tfgnn.SOURCE_NAME], inputs[tfgnn.TARGET_NAME]], axis=-1
+    )
     subgraph = self._sampling_pipeline(seed_nodes)
     return AddLinkReadoutStruct(
         readout_node_set=self._readout_node_set,
@@ -367,13 +370,15 @@ class LinkSamplingPipeline:
 class AddLinkReadoutStruct(tf.keras.layers.Layer):
   """Helper class for adding readout structure for the link prediction task.
 
-  It is assumed that link sampling is done using `SamplingPipeline` starting
-  from two seed nodes that belong to the same node set (`seed_node_set`). In the
-  current implementation those two seed become node 0 and node 1 in each sampled
-  subgraph. The readout structure is created by creating `_readout` node set and
-  adding single readout node to each graph with its features (passed as 2nd
-  tuple value in the call method). The seed nodes are connected to readout nodes
-  by adding auxiliary readout edges.
+  NOTE: that the link source and target nodes must belong to the same node set.
+  
+  The input graph tensor is assumed to be sampled by the `SamplingPipeline`
+  starting from the link source and target nodes.
+
+  To facilitate link prediction, the class adds `_readout` node set with one
+  readout node for each link. It accepts link features to copy over to their
+  corresponding readout nodes. The readout nodes are connected to link source
+  and target nodes using a pair of auxiliary readout edge sets.
 
   NOTE: following the TF-GNN implementation, we direct readout edges from
   seed nodes (source) to readout nodes (target).
@@ -402,18 +407,38 @@ class AddLinkReadoutStruct(tf.keras.layers.Layer):
     graph_tensor, readout_features = inputs
 
     seed_node_set = graph_tensor.node_sets[self._seed_node_set]
-    batch_size = tf.shape(seed_node_set.sizes)[0]
-    row_lengths = tf.ones([batch_size], dtype=graph_tensor.row_splits_dtype)
-    sizes = tf.ones([batch_size, 1], dtype=graph_tensor.indices_dtype)
 
-    def get_readout_index(value):
-      return tf.RaggedTensor.from_row_lengths(
-          tf.fill(
-              [batch_size],
-              tf.constant(value, dtype=graph_tensor.indices_dtype),
-          ),
-          row_lengths=row_lengths,
+    ids = seed_node_set[core.NODE_ID_NAME]
+    link_source_idx = tf.cast(
+        ext_ops.ragged_lookup(
+            readout_features[tfgnn.SOURCE_NAME], ids, global_indices=False
+        ),
+        graph_tensor.indices_dtype,
+    )
+    link_target_idx = tf.cast(
+        ext_ops.ragged_lookup(
+            readout_features[tfgnn.TARGET_NAME], ids, global_indices=False
+        ),
+        graph_tensor.indices_dtype,
+    )
+
+    with tf.control_dependencies(
+        [
+            tf.debugging.assert_equal(
+                link_source_idx.row_lengths(),
+                link_target_idx.row_lengths(),
+                message=(
+                    'The number of link source and target nodes must be the'
+                    ' same'
+                ),
+            )
+        ]
+    ):
+      num_seeds = tf.cast(
+          link_source_idx.row_lengths(), graph_tensor.indices_dtype
       )
+      readout_index = tf.ragged.range(num_seeds, dtype=num_seeds.dtype)
+      sizes = tf.expand_dims(num_seeds, axis=-1)
 
     readout_node_sets = {
         self._readout_node_set: tfgnn.NodeSet.from_fields(
@@ -424,15 +449,15 @@ class AddLinkReadoutStruct(tf.keras.layers.Layer):
         f'{self._readout_node_set}/source': tfgnn.EdgeSet.from_fields(
             sizes=sizes,
             adjacency=tfgnn.Adjacency.from_indices(
-                (self._seed_node_set, get_readout_index(0)),
-                (self._readout_node_set, get_readout_index(0)),
+                (self._seed_node_set, link_source_idx),
+                (self._readout_node_set, readout_index),
             ),
         ),
         f'{self._readout_node_set}/target': tfgnn.EdgeSet.from_fields(
             sizes=sizes,
             adjacency=tfgnn.Adjacency.from_indices(
-                (self._seed_node_set, get_readout_index(1)),
-                (self._readout_node_set, get_readout_index(0)),
+                (self._seed_node_set, link_target_idx),
+                (self._readout_node_set, readout_index),
             ),
         ),
     }

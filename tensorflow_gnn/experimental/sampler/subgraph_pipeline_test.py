@@ -333,6 +333,7 @@ def _get_test_link_edges_sampler_schema_spec():
       'alexa': ['mike', 'sam'],
       'arne': ['alexa', 'mike', 'sam'],
       'sam': ['bob'],
+      'bob': []
   }
   sampler = StringIdsSampler({'reviews': reviews_edges})
 
@@ -412,6 +413,73 @@ class LinkSamplingPipelineTest(tf.test.TestCase, parameterized.TestCase):
     )
     self.assertAllEqual(
         merged_tensor.node_sets['_readout'].features['label'], [0.0, 1.0, 1.0]
+    )
+
+  def test_seeds_with_no_edges(self):
+    (_, sampler, graph_schema,
+     sampling_spec) = _get_test_link_edges_sampler_schema_spec()
+
+    source_seeds = tf.ragged.constant([['bob'], ['sam'], ['sam'], ['bob']])
+    target_seeds = tf.ragged.constant([['sam'], ['bob'], ['sam'], ['bob']])
+    labels = tf.ragged.constant([[0.0], [1.0], [2.0], [3.0]], dtype=tf.float32)
+    inputs = {
+        tfgnn.SOURCE_NAME: source_seeds,
+        tfgnn.TARGET_NAME: target_seeds,
+        'label': labels,
+    }
+    pipeline = subgraph_pipeline.LinkSamplingPipeline(
+        graph_schema, sampling_spec, sampler
+    )
+    graph_tensor = pipeline(inputs)
+    self.assertAllEqual(
+        graph_tensor.node_sets['_readout'].sizes, [[1], [1], [1], [1]]
+    )
+    self.assertAllEqual(
+        graph_tensor.node_sets['_readout'].features['label'],
+        labels,
+    )
+    graph_tensor = graph_tensor.merge_batch_to_components()
+    self.assertAllEqual(
+        tfgnn.structured_readout(graph_tensor, 'source', feature_name='#id'),
+        source_seeds.values,
+    )
+    self.assertAllEqual(
+        tfgnn.structured_readout(graph_tensor, 'target', feature_name='#id'),
+        target_seeds.values,
+    )
+
+  def test_multiple_seeds(self):
+    (_, sampler, graph_schema, sampling_spec) = (
+        _get_test_link_edges_sampler_schema_spec()
+    )
+
+    source_seeds = tf.ragged.constant([['bob', 'sam'], ['arne', 'mike']])
+    target_seeds = tf.ragged.constant([['sam', 'bob'], ['mike', 'arne']])
+    labels = tf.ragged.constant([[0.0, 1.0], [2.0, 3.0]], dtype=tf.float32)
+    inputs = {
+        tfgnn.SOURCE_NAME: source_seeds,
+        tfgnn.TARGET_NAME: target_seeds,
+        'label': labels,
+    }
+    pipeline = subgraph_pipeline.LinkSamplingPipeline(
+        graph_schema, sampling_spec, sampler
+    )
+    graph_tensor = pipeline(inputs)
+    self.assertAllEqual(
+        graph_tensor.node_sets['_readout'].sizes, [[2], [2]]
+    )
+    self.assertAllEqual(
+        graph_tensor.node_sets['_readout'].features['label'],
+        labels,
+    )
+    graph_tensor = graph_tensor.merge_batch_to_components()
+    self.assertAllEqual(
+        tfgnn.structured_readout(graph_tensor, 'source', feature_name='#id'),
+        source_seeds.values,
+    )
+    self.assertAllEqual(
+        tfgnn.structured_readout(graph_tensor, 'target', feature_name='#id'),
+        target_seeds.values,
     )
 
 
