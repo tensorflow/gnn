@@ -82,7 +82,7 @@ class CorruptionSpec(Generic[T]):
     )
 
 
-class _Corruptor(tfgnn.keras.layers.MapFeatures, Generic[T]):
+class Corruptor(tfgnn.keras.layers.MapFeatures, Generic[T]):
   """Base class for graph corruptor."""
 
   def __init__(
@@ -166,7 +166,7 @@ def _seed_wrapper(
 
 
 @tf.keras.utils.register_keras_serializable(package=_PACKAGE)
-class ShuffleFeaturesGlobally(_Corruptor[float]):
+class ShuffleFeaturesGlobally(Corruptor[float]):
   """A corruptor that shuffles features."""
 
   def __init__(self, *args, seed: Optional[float] = None, **kwargs):
@@ -179,7 +179,7 @@ class ShuffleFeaturesGlobally(_Corruptor[float]):
 
 
 @tf.keras.utils.register_keras_serializable(package=_PACKAGE)
-class DropoutFeatures(_Corruptor[float]):
+class DropoutFeatures(Corruptor[float]):
 
   def __init__(self, *args, seed: Optional[float] = None, **kwargs):
     self._seed = seed

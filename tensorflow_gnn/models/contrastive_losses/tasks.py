@@ -60,7 +60,7 @@ class ContrastiveLossTask(runner.Task):
       *,
       feature_name: str = tfgnn.HIDDEN_STATE,
       representations_layer_name: Optional[str] = None,
-      corruptor: Optional[layers._Corruptor] = None,
+      corruptor: Optional[layers.Corruptor] = None,
       projector_units: Optional[Sequence[int]] = None,
       seed: Optional[int] = None,
   ):

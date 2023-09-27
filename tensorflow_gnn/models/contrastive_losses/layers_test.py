@@ -277,7 +277,7 @@ class LayersTest(tf.test.TestCase, parameterized.TestCase):
   ])
   def test_shuffle_features_globally(
       self,
-      corruptor: layers._Corruptor,
+      corruptor: layers.Corruptor,
       context: tfgnn.Context,
       node_set: tfgnn.NodeSet,
       edge_set: tfgnn.EdgeSet,
@@ -346,7 +346,7 @@ class LayersTest(tf.test.TestCase, parameterized.TestCase):
   ])
   def test_dropout_features(
       self,
-      corruptor: layers._Corruptor,
+      corruptor: layers.Corruptor,
       context: tfgnn.Context,
       node_set: tfgnn.NodeSet,
       edge_set: tfgnn.EdgeSet,
@@ -371,7 +371,7 @@ class LayersTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_throws_empty_spec_error(self):
     with self.assertRaisesRegex(ValueError, r"At least one of .*"):
-      _ = layers._Corruptor(corruption_fn=lambda: None)
+      _ = layers.Corruptor(corruption_fn=lambda: None)
 
   @parameterized.named_parameters([
       dict(

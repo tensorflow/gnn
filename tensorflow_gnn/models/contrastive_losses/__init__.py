@@ -25,6 +25,7 @@ from tensorflow_gnn.models.contrastive_losses import layers
 from tensorflow_gnn.models.contrastive_losses import tasks
 
 CorruptionSpec = layers.CorruptionSpec
+Corruptor = layers.Corruptor
 DeepGraphInfomaxLogits = layers.DeepGraphInfomaxLogits
 DropoutFeatures = layers.DropoutFeatures
 ShuffleFeaturesGlobally = layers.ShuffleFeaturesGlobally
