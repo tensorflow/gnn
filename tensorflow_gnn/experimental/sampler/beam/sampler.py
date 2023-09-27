@@ -320,15 +320,11 @@ def app_main(argv) -> None:
         program_pb, inputs, feeds=feeds, artifacts_path=artifacts_path
     )
     # results are tuple: example_id to tf.Example with graph tensors.
-    coder = beam.coders.ProtoCoder(tf.train.Example)
-    _ = (
-        examples
-        | 'DropExampleId' >> beam.Values()
-        | 'WriteToTFRecord'
-        >> beam.io.WriteToTFRecord(
-            os.path.join(output_dir, 'examples.tfrecord'), coder=coder
-        )
-    )
+    examples_writer = unigraph.WriteTable(FLAGS.output_samples)
+    if not examples_writer.key_value_format:
+      examples = examples | 'DropExampleId' >> beam.Values()
+    _ = examples | 'WriteExamples' >> examples_writer
+
     logging.info('Pipeline complete')
 
 

@@ -774,11 +774,16 @@ class WriteTable(beam.PTransform):
       except ValueError:
         self.file_format = "tfrecord"
 
+  @property
+  def key_value_format(self) -> bool:
+    return self.file_format == "sstable"
+
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
-    kwargs = get_sharded_pattern_args(self.file_pattern)
+    # TODO(b/302278337): unify naming conventions for all formats.
     if self.file_format == "tfrecord":
-      return (pcoll
-              | beam.io.tfrecordio.WriteToTFRecord(coder=self.coder, **kwargs))
+      return pcoll | beam.io.tfrecordio.WriteToTFRecord(
+          coder=self.coder, **get_sharded_pattern_args(self.file_pattern)
+      )
   # Placeholder for Google-internal file writes
     else:
       raise NotImplementedError(
