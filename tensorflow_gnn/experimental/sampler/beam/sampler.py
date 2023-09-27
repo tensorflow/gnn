@@ -105,12 +105,25 @@ def get_sampling_model(
   ) -> sampler.KeyToTfExampleAccessor:
     if not graph_schema.node_sets[node_set_name].features:
       return None
+
     node_features = graph_schema.node_sets[node_set_name].features
-    features_spec = {}
-    for name, feature in node_features.items():
-      shape = _get_shape(feature)
-      dtype = tf.dtypes.as_dtype(feature.dtype)
-      features_spec[name] = tf.TensorSpec(shape, dtype)
+    def get_tensor_spec(
+        name: str, feature: graph_schema_pb2.Feature
+    ) -> tf.TensorSpec:
+      try:
+        shape = _get_shape(feature)
+        dtype = tf.dtypes.as_dtype(feature.dtype)
+        return tf.TensorSpec(shape, dtype)
+      except Exception as e:
+        raise ValueError(
+            f'Invalid graph schema for {node_set_name} node set, feature {name}'
+        ) from e
+
+    features_spec = {
+        name: get_tensor_spec(name, feature)
+        for name, feature in node_features.items()
+    }
+
     accessor = sampler.KeyToTfExampleAccessor(
         sampler.InMemStringKeyToBytesAccessor(
             keys_to_values={'b': b'b'}, name=f'nodes/{node_set_name}'
