@@ -173,4 +173,7 @@ message EdgeSamplingConfig {
   string weight_feature_name = 3;
   // The input feature name containing edge target node ids.
   string edge_target_feature_name = 4;
+
+  // Names of all edge features, including target node ids and weights (if any).
+  IOFeatures edge_feature_names = 5;
 }

@@ -70,13 +70,28 @@ def create_program(
   running model individually on any partition of examples from the same batch.
 
   The model conversion happens by traversing its underlying Keras Functional
-  graph. Subsets of nodes from this graph are converted into EvalDAG stages.
+  graph (DAG). *Nodes* in this graph are keras layers called for input keras
+  tensors (*edges*). The results of those calls become input edges for the
+  downstream nodes. Each node corresponds to exactluy one Keras layer. But there
+  could be multiple nodes in the Keras DAG that reference the same layer:
+
+
+  ```python
+  my_layer = tf.keras.layers.Layer()
+  x1 = tf.keras.Input([])  # node 0: reference `Input` layer;
+  x1 = my_layer(x1)        # node 1, ingoing edge `x0`: reference `my_layer`;
+  x2 = my_layer(x1)        # node 2, ingoing edge `x1`: reference `my_layer`;
+  x3 = my_layer(x2)        # node 3, ingoing edge `x2`: reference `my_layer`.
+  ```
+
+
+  Subsets of nodes from this graph are converted into EvalDAG stages.
 
   The conversion rules are:
 
 
-    1. Node of input, output or sampling primive layer are always converted into
-      a single EvalDAG stage.
+    1. Keras graph node for input, output or sampling primive layer are always
+      onverted into a single EvalDAG stage.
     2. Nodes that are not 1. could be grouped into a single TFModel stage.
     3. Eval dags of `CompositeLayer` nodes are created from `wrapped_model` and
       stored in the `Layer.eval_dag` message field.
@@ -312,7 +327,9 @@ def _convert_stages_dag_to_eval_dag(
           stage.get_single_node().layer
       )
 
-      config = get_layer_config_pb(stage.get_single_node().layer)
+      node = stage.get_single_node()
+      config = get_layer_config_pb(node.layer, node)
+
       if config is not None:
         layer_pb.config.Pack(config)
 
@@ -749,32 +766,44 @@ def _flatten_graph_tensor_to_dict(graph: tfgnn.GraphTensor) -> tfgnn.Fields:
 
 
 @functools.singledispatch
-def get_layer_config_pb(layer: Any) -> Any:
+def get_layer_config_pb(layer: Any, layer_node: Node) -> Any:
   del layer
+  del layer_node
   return None
 
 
-@get_layer_config_pb.register(interfaces.UniformEdgesSampler)
-def _(layer: interfaces.UniformEdgesSampler):
+@get_layer_config_pb.register
+def _(layer: interfaces.UniformEdgesSampler, layer_node: Node):
   return eval_dag_pb2.EdgeSamplingConfig(
       edge_set_name=layer.edge_set_name,
       sample_size=layer.sample_size,
       edge_target_feature_name=layer.edge_target_feature_name,
+      edge_feature_names=_get_feature_names(
+          layer_node,
+          names_map={tfgnn.TARGET_NAME: layer.edge_target_feature_name},
+      ),
   )
 
 
-@get_layer_config_pb.register(interfaces.TopKEdgesSampler)
-def _(layer: interfaces.TopKEdgesSampler):
+@get_layer_config_pb.register
+def _(layer: interfaces.TopKEdgesSampler, layer_node: Node):
   return eval_dag_pb2.EdgeSamplingConfig(
       edge_set_name=layer.edge_set_name,
       sample_size=layer.sample_size,
       edge_target_feature_name=layer.edge_target_feature_name,
       weight_feature_name=layer.weight_feature_name,
+      edge_feature_names=_get_feature_names(
+          layer_node,
+          names_map={
+              tfgnn.TARGET_NAME: layer.edge_target_feature_name,
+              'weight': layer.weight_feature_name,
+          },
+      ),
   )
 
 
-@get_layer_config_pb.register(Sink)
-def _(layer: Sink):
+@get_layer_config_pb.register
+def _(layer: Sink, *_):
   if not layer.io_config:
     return None
   result = eval_dag_pb2.IOFeatures()
@@ -821,7 +850,7 @@ def _requires_io_adapter_layer(nested_struct) -> bool:
 
 def _create_io_config(feature: tfgnn.Fields) -> Mapping[str, int]:
   """Map feature names on thier indices in the flattened array."""
-  assert isinstance(feature, Mapping)
+  assert isinstance(feature, (collections.abc.Mapping, Mapping))
   indices = [i for i, _ in enumerate(tf.nest.flatten(feature))]
   return tf.nest.pack_sequence_as(feature, indices)
 
@@ -891,3 +920,14 @@ def _get_layer_pb_id_and_type(layer: tf.keras.layers.Layer) -> Tuple[str, str]:
     return layer.name, 'KeyToBytesAccessor'
 
   return layer.name, type(layer).__name__
+
+
+def _get_feature_names(
+    layer_node: Node, names_map: Mapping[str, str]
+) -> eval_dag_pb2.IOFeatures:
+  feature_names = []
+  assert isinstance(layer_node.outputs, (collections.abc.Mapping, Mapping))
+  for k, v in layer_node.outputs.items():
+    assert tfgnn.is_ragged_tensor(v) or tfgnn.is_dense_tensor(v), v
+    feature_names.append(names_map.get(k, k))
+  return eval_dag_pb2.IOFeatures(feature_names=sorted(feature_names))

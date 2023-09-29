@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+from typing import List
 from absl.testing import parameterized
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -24,7 +25,7 @@ from tensorflow_gnn.experimental.sampler import interfaces
 class EdgesSamplerTest(tf.test.TestCase, parameterized.TestCase):
 
   def _get_test_data(
-      self, *, edge_target_feature_name: str, weight_feature_name: str
+      self, *, edge_target_feature_name: str, extra_feature_names: List[str]
   ):
     table = core.InMemIntegerKeyToBytesAccessor(
         keys_to_values={
@@ -36,7 +37,10 @@ class EdgesSamplerTest(tf.test.TestCase, parameterized.TestCase):
         table,
         features_spec={
             edge_target_feature_name: tf.TensorSpec([None], tf.string),
-            weight_feature_name: tf.TensorSpec([None], tf.float32),
+            **{
+                k: tf.TensorSpec([None], tf.float32)
+                for k in extra_feature_names
+            },
         },
     )
 
@@ -66,12 +70,17 @@ class EdgesSamplerTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(
           config.edge_target_feature_name, edge_target_feature_name
       )
+      self.assertTrue(config.HasField('edge_feature_names'))
+      self.assertSetEqual(
+          set(config.edge_feature_names.feature_names),
+          {'weight', 'score', edge_target_feature_name, tfgnn.SOURCE_NAME},
+      )
 
     if impl == 'UniformEdgesSampler':
       layer = core.UniformEdgesSampler(
           self._get_test_data(
               edge_target_feature_name=edge_target_feature_name,
-              weight_feature_name='weight',
+              extra_feature_names=['weight', 'score'],
           ),
           sample_size=sample_size,
           edge_target_feature_name=edge_target_feature_name,
@@ -82,7 +91,7 @@ class EdgesSamplerTest(tf.test.TestCase, parameterized.TestCase):
           num_source_nodes=3,
           source=tf.constant([2, 0, 0], tf.int64),
           target=tf.constant([0, 1, 2], tf.int64),
-          edge_features={'weights': [1.0, 2.0, 3.0]},
+          edge_features={'weight': [0.1, 0.2, 0.3], 'score': [1.0, 2.0, 3.0]},
           sample_size=sample_size,
           name='uniform_edges_sampler',
           edge_set_name='edges',
@@ -91,7 +100,6 @@ class EdgesSamplerTest(tf.test.TestCase, parameterized.TestCase):
       raise NotImplementedError(impl)
 
     self.assertIsInstance(layer, interfaces.UniformEdgesSampler)
-    check_config(lib.get_layer_config_pb(layer))
 
     i = tf.keras.Input(
         type_spec=tf.RaggedTensorSpec(
@@ -136,11 +144,16 @@ class EdgesSamplerTest(tf.test.TestCase, parameterized.TestCase):
           config.edge_target_feature_name, edge_target_feature_name
       )
       self.assertEqual(config.weight_feature_name, weight_feature_name)
+      self.assertTrue(config.HasField('edge_feature_names'))
+      self.assertSetEqual(
+          set(config.edge_feature_names.feature_names),
+          {weight_feature_name, edge_target_feature_name, tfgnn.SOURCE_NAME},
+      )
 
     layer = core.TopKEdgesSampler(
         self._get_test_data(
             edge_target_feature_name=edge_target_feature_name,
-            weight_feature_name=weight_feature_name,
+            extra_feature_names=[weight_feature_name],
         ),
         sample_size=sample_size,
         edge_target_feature_name=edge_target_feature_name,
@@ -149,8 +162,6 @@ class EdgesSamplerTest(tf.test.TestCase, parameterized.TestCase):
     )
 
     self.assertIsInstance(layer, interfaces.TopKEdgesSampler)
-    check_config(lib.get_layer_config_pb(layer))
-
     i = tf.keras.Input(
         type_spec=tf.RaggedTensorSpec(
             [None, None], dtype=tf.int32, ragged_rank=1
