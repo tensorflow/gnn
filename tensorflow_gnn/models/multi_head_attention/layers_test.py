@@ -312,11 +312,16 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
 
       _ = conv(gt_input, edge_set_name="edges")  # Build weights.
       weights = {v.name: v for v in conv.trainable_weights}
-      if score_scaling == "trainable_sigmoid":
+      if score_scaling == "trainable_elup1":
         # Additional trainable weight for the score scaling.
         self.assertLen(weights, 7)
       else:
         self.assertLen(weights, 6)
+
+      # If we're using "trainable_elup1", set the initial value to a known
+      # constant.
+      if score_scaling == "trainable_elup1":
+        weights["multi_head_attention_conv/score_scaling:0"].assign([[-1.234]])
 
       weights["multi_head_attention_conv/query/kernel:0"].assign(
           # The node states times the query kernel should be:
@@ -384,7 +389,7 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     named_scalings = {
         "none": 1.0,
         "rsqrt_dim": 1.0 / math.sqrt(3.0),
-        "trainable_sigmoid": tf.keras.activations.sigmoid(-5.0),
+        "trainable_elup1": 1.0 + tf.keras.activations.elu(-1.234),
     }
 
     for scaling_name, scaling_factor in named_scalings.items():
@@ -1218,10 +1223,9 @@ class MultiHeadAttentionMPNNGraphUpdateTest(tf.test.TestCase,
 class MultiHeadAttentionMPNNTFLiteTest(tf.test.TestCase,
                                        parameterized.TestCase):
 
-  @parameterized.named_parameters(
-      ("Simplest", "none", False, False),
-      ("TransformedKeys", "rsqrt_dim", True, False),
-      ("AllOps", "trainable_sigmoid", True, True))
+  @parameterized.named_parameters(("Simplest", "none", False, False),
+                                  ("TransformedKeys", "rsqrt_dim", True, False),
+                                  ("AllOps", "trainable_elup1", True, True))
   def testBasic(
       self,
       score_scaling,

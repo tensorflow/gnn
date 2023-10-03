@@ -162,15 +162,17 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       only queries are transformed since the two transformations on queries and
       keys are equivalent to one. (The presence of transformations on values is
       independent of this arg.)
-    score_scaling: One of either `"none"`, `"rsqrt_dim"`, or
-      `"trainable_sigmoid"`. If set to `"rsqrt_dim"`, the attention scores are
+    score_scaling: One of either `"rsqrt_dim"` (default), `"trainable_elup1"`,
+      or `"none"`. If set to `"rsqrt_dim"`, the attention scores are
       divided by the square root of the dimension of keys (i.e.,
       `per_head_channels` if `transform_keys=True`, otherwise whatever the
-      dimension of combined sender inputs is). If set to `"trainable_sigmoid"`,
-      the scores are scaled with `sigmoid(x)`, where `x` is a trainable weight
-      of the model that is initialized to `-5.0`, which initially makes all the
-      attention weights equal and slowly ramps up as the other weights in the
-      layer converge. Defaults to `"rsqrt_dim"`.
+      dimension of combined sender inputs is). If set to `"trainable_elup1"`,
+      the scores are scaled with `elu(x) + 1`, where `elu` is the Exponential
+      Linear Unit (see `tf.keras.activations.elu`), and `x` is a per-head
+      trainable weight of the model that is initialized to `0.0`. Recall that 
+      `elu(x) + 1 == exp(x) if x<0 else x+1`, so the
+      initial scaling factor is `1.0`, decreases exponentially below 1.0, and
+      grows linearly above 1.0.
     transform_values_after_pooling: By default, each attention head applies
       the value transformation, then pools with attention coefficients.
       Setting this option pools inputs with attention coefficients, then applies
@@ -197,7 +199,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       kernel_regularizer: Any = None,
       transform_keys: bool = True,
       score_scaling: Literal["none", "rsqrt_dim",
-                             "trainable_sigmoid"] = "rsqrt_dim",
+                             "trainable_elup1"] = "rsqrt_dim",
       transform_values_after_pooling: bool = False,
       **kwargs):
     kwargs.setdefault("name", "multi_head_attention_conv")
@@ -314,7 +316,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
           kernel_regularizer=kernel_regularizer,
           name="value_pooled")
 
-    if self._score_scaling == "trainable_sigmoid":
+    if self._score_scaling == "trainable_elup1":
       self._score_scaling_weight = None
 
   def get_config(self):
@@ -453,16 +455,16 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     elif self._score_scaling == "rsqrt_dim":
       attention_coefficients *= tf.math.rsqrt(
           tf.cast(tf.shape(keys)[-1], tf.float32))
-    elif self._score_scaling == "trainable_sigmoid":
+    elif self._score_scaling == "trainable_elup1":
       if self._score_scaling_weight is None:
         self._score_scaling_weight = self.add_weight(
             name="score_scaling",
-            shape=[],
+            shape=[self._num_heads, 1],
             dtype=tf.float32,
-            initializer=tf.keras.initializers.Constant(-5.0),
+            initializer=tf.keras.initializers.Constant(0.0),
             trainable=True,
         )
-      attention_coefficients *= tf.keras.activations.sigmoid(
+      attention_coefficients *= 1.0 + tf.keras.activations.elu(
           self._score_scaling_weight)
     else:
       raise ValueError("Unknown value MultiHeadAttentionConv("
