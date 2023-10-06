@@ -14,15 +14,12 @@
 # ==============================================================================
 """Set of Beam utils."""
 import functools
-
-from typing import cast, Iterable, Iterator, List, Optional, Tuple, TypeVar, Union
+from typing import Iterable, Iterator, List, Optional, Tuple, TypeVar, Union, cast
 import apache_beam as beam
 from apache_beam import typehints
 from apache_beam.typehints import trivial_inference
-
 import numpy as np
 import tensorflow as tf
-
 from tensorflow_gnn.experimental.sampler import eval_dag_pb2 as pb
 
 PCollection = beam.pvalue.PCollection
@@ -30,6 +27,14 @@ PCollection = beam.pvalue.PCollection
 K = TypeVar('K')
 Q = TypeVar('Q')
 V = TypeVar('V')
+
+# Flattened components of tensor, ragged tensor or generic composite tensor. For
+# regular tensor `t` this is `[t.numpy()]`. For the ragged tensor `rt` this is
+# `[c.numpy() for c in [*rt.flat_values, *rt.nested_row_lengths()]]`. In generic
+# case of not-specialized composite tensor type `c`, this is
+# `[c.numpy() for c in tf.nest.flatten(c, expand_composites=True)]`.
+Value = List[np.ndarray]
+ShapeLike = Tuple[int, ...]
 
 
 class SafeLeftLookupJoin(beam.PTransform):
@@ -131,10 +136,19 @@ def get_ragged_np_types(spec: pb.RaggedTensorSpec) -> Tuple[np.dtype, ...]:
   return (get_np_dtype(spec.dtype), *splits_types)
 
 
-def get_outer_dim_size(values: List[List[np.ndarray]]) -> int:
-  """Returns outermost dimension for the batch of tensors."""
+def get_outer_dim_size(value: List[np.ndarray]) -> int:
+  """Returns outermost dimension size for potentially ragged value."""
+  if len(value) == 1:
+    return value[0].shape[0]
+  else:
+    # (flat_values, outermost_dim,..., innermost_dim)
+    return value[1].shape[0]
+
+
+def get_batch_size(values: List[List[np.ndarray]]) -> int:
+  """Returns batch size for the batch of tensors."""
   assert values
-  dims = [value[-1].shape[0] for value in values]
+  dims = [get_outer_dim_size(value) for value in values]
   if any(dims[0] != d for d in dims):
     raise ValueError(f'Values have different outer dimensions: {dims}')
   return dims[0]
@@ -153,3 +167,159 @@ def ragged_slice(
     b, e = np.sum(partition[:b]), np.sum(partition[:e])
   flat_value = value[0][b:e]
   return [flat_value, *partition_slices]
+
+
+def stack(values: List[Value]) -> Value:
+  """Stacks dense values along axis 0.
+
+  Args:
+    values: dense tensors with the same `rank` and compatible shapes.
+
+  Returns:
+    Stacking result as a dense tensor with the `rank + 1` rank.
+  """
+  if not values:
+    raise ValueError('values must not be empty')
+
+  batch = []
+  for value in values:
+    if len(value) != 1:
+      raise ValueError('Expected single value for dense tensor')
+
+    batch.append(value[0])
+
+  try:
+    return [np.stack(batch, axis=0)]
+  except ValueError as e:
+    raise ValueError(f'values are not compatible: {e}') from e
+
+
+def stack_ragged(values: List[Value], row_splits_dtype: np.dtype) -> Value:
+  """Stacks potentially ragged values along axis 0.
+
+  Args:
+    values: list of potentionally ragged tensors with the same `rank` and
+      compatible row partitions.
+    row_splits_dtype: dtype of row splits.
+
+  Returns:
+    Stacking result as a ragged tensor with rank + 1.
+  """
+  if not values:
+    raise ValueError('values must not be empty')
+
+  batches = []
+  sizes = []
+  for value in values:
+    sizes.append(get_outer_dim_size(value))
+    if not batches:
+      batches = [[p] for p in value]
+    else:
+      if len(batches) != len(value):
+        raise ValueError('values must have the same number of components')
+      for batch, component in zip(batches, value):
+        batch.append(component)
+
+  try:
+    flat_values = np.concatenate(batches[0], axis=0)
+    outer_partition = np.array(sizes, dtype=row_splits_dtype)
+    inner_partitions = [np.concatenate(v, axis=0) for v in batches[1:]]
+    return [flat_values, outer_partition, *inner_partitions]
+
+  except ValueError as e:
+    raise ValueError(f'values are not compatible: {e}') from e
+
+
+def parse_tf_example(
+    example: tf.train.Example, name: str, spec: pb.ValueSpec
+) -> Value:
+  """Parses values from TF example message by its name and spec.
+
+  For `tensor` the name is the name of feature with flat tensor values.
+
+  For `ragged_tensor` the name is the name of feature with ragged tensor flat
+  values. The nested row partitions are stored as `int64` features with
+  `{name}.d{index}` names, where `index` is a 1-based ragged partition index
+  counting from the outermost to the innermost dimensions.
+
+
+  For other cases, e.g. `flattened`, the `NotImplementedError` is raised.
+
+
+  Args:
+    example: tensorflow Example proto instance.
+    name: value name.
+    spec: value type spec.
+
+  Returns:
+    Value instance as a list of numpy array. For regular tensor `t` this is
+    `[t.numpy()]`. For the ragged tensor `rt` this is
+    `[c.numpy() for c in [*rt.flat_values, *rt.nested_row_lengths()]]`.
+  """
+  if spec.HasField('tensor'):
+    spec = spec.tensor
+    return [
+        _parse_tf_feature(
+            example,
+            name,
+            get_np_dtype(spec.dtype),
+            tuple(dim.size for dim in spec.shape.dim),
+        )
+    ]
+  elif spec.HasField('ragged_tensor'):
+    spec = spec.ragged_tensor
+    dtype = get_np_dtype(spec.dtype)
+    ragged_rank = spec.ragged_rank
+    row_splits_dtype = get_np_dtype(spec.row_splits_dtype)
+    shape = tuple(dim.size for dim in spec.shape.dim)
+
+    flat_value = _parse_tf_feature(example, name, dtype, shape[ragged_rank:])
+
+    nested_row_lengths = [
+        _parse_tf_feature(example, f'{name}.d{d}', row_splits_dtype, (-1,))
+        for d in range(1, ragged_rank + 1)
+        if shape[d] == -1
+    ]
+    return [flat_value, *nested_row_lengths]
+
+  else:
+    raise NotImplementedError(
+        f'Example parsing is not supported for {spec} of {name}'
+    )
+
+
+def _parse_tf_feature(
+    example: tf.train.Example,
+    fname: str,
+    dtype: np.dtype,
+    shape: ShapeLike,
+) -> np.ndarray:
+  """Extract single feature from TF Example."""
+  features = example.features.feature
+  if fname not in features:
+    raise ValueError(f'Expected feature "{fname}" is missing')
+
+  feature = features[fname]
+  if np.issubdtype(dtype, np.integer):
+    if not feature.HasField('int64_list'):
+      raise ValueError(f'Expected int64 feature for "{fname}"')
+    values = feature.int64_list.value
+  elif np.issubdtype(dtype, np.floating):
+    if not feature.HasField('float_list'):
+      raise ValueError(f'Expected float feature for "{fname}"')
+    values = feature.float_list.value
+  elif np.issubdtype(dtype, np.object_):
+    if not feature.HasField('bytes_list'):
+      raise ValueError(f'Expected bytes feature for "{fname}"')
+    values = feature.bytes_list.value
+  else:
+    raise ValueError(f'Unsupported dtype: {dtype}')
+
+  if -1 not in shape:
+    expected_num_elements = np.prod(shape, dtype=np.int32)
+    if len(values) != expected_num_elements:
+      raise ValueError(
+          f'shape={shape} requires {expected_num_elements} elements for'
+          f' "{fname}", actual {len(values)}'
+      )
+  return np.array(values, dtype=dtype).reshape(shape)

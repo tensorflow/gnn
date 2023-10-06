@@ -14,21 +14,37 @@
 # ==============================================================================
 """Tests for utils."""
 
-from typing import List
+from typing import List, Union
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import apache_beam as beam
 from apache_beam.testing import util
-
 import numpy as np
 import tensorflow as tf
-
+from tensorflow_gnn.experimental.sampler import eval_dag_pb2 as pb
 from tensorflow_gnn.experimental.sampler.beam import utils
+
+from google.protobuf import text_format
 
 PCollection = beam.PCollection
 
 rt = tf.ragged.constant
+dt = tf.convert_to_tensor
+
+
+def to_numpy(value: Union[tf.Tensor, tf.RaggedTensor]) -> utils.Value:
+  result = []
+  if isinstance(value, tf.Tensor):
+    result.append(value.numpy())
+  elif isinstance(value, tf.RaggedTensor):
+    result.append(value.flat_values.numpy())
+    for row_length, dim in zip(value.nested_row_lengths(), value.shape[1:]):
+      if dim is None:
+        result.append(row_length.numpy())
+  else:
+    raise ValueError("Unsupported type: %s" % type(value))
+  return result
 
 
 class TestSafeLookupJoin(parameterized.TestCase):
@@ -183,6 +199,277 @@ class RaggedSliceTest(tf.test.TestCase, parameterized.TestCase):
     expected = as_value(expected)
     actual = utils.ragged_slice(value, start, limit)
     tf.nest.map_structure(self.assertAllEqual, actual, expected)
+
+
+class StackingTest(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.named_parameters([
+      (
+          "dense",
+          [dt([], tf.int32), dt([1]), dt([2, 3]), dt([4, 5, 6])],
+          rt([[], [1], [2, 3], [4, 5, 6]], row_splits_dtype=tf.int32),
+      ),
+      (
+          "dense-rank-2",
+          [dt([[1.0, 2.0], [3.0, 4.0]]), dt([[5.0, 6.0], [7.0, 8.0]])],
+          rt(
+              [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
+              ragged_rank=1,
+          ),
+      ),
+      (
+          "ragged-rank-1",
+          [rt([[1, 2], [3]]), rt([[], []]), rt([[4, 5, 6]])],
+          rt([[[1, 2], [3]], [[], []], [[4, 5, 6]]]),
+      ),
+      (
+          "ragged-rank-2",
+          [rt([[[1], [2]], [[3]]]), rt([[[4, 5], [6]]])],
+          rt([[[[1], [2]], [[3]]], [[[4, 5], [6]]]]),
+      ),
+  ])
+  def test_stack_ragged(self, values, expected_result):
+    result = utils.stack_ragged(
+        tf.nest.map_structure(to_numpy, values),
+        utils.get_np_dtype(expected_result.row_splits.dtype),
+    )
+    tf.nest.map_structure(
+        self.assertAllEqual, result, to_numpy(expected_result)
+    )
+
+  @parameterized.named_parameters([
+      (
+          "single_value",
+          [dt(1)],
+          dt([1]),
+      ),
+      (
+          "scalar",
+          [dt(1), dt(2), dt(3)],
+          dt([1, 2, 3]),
+      ),
+      (
+          "vector",
+          [dt([1.0, 2.0]), dt([3.0, 4.0])],
+          dt([[1.0, 2.0], [3.0, 4.0]]),
+      ),
+      (
+          "matrix",
+          [dt([[b"a"]]), dt([[b"b"]])],
+          dt([[[b"a"]], [[b"b"]]]),
+      ),
+  ])
+  def test_stack_dense(self, values, expected_result):
+    result = utils.stack(
+        tf.nest.map_structure(to_numpy, values),
+    )
+    tf.nest.map_structure(
+        self.assertAllEqual, result, to_numpy(expected_result)
+    )
+
+
+class ParseTfExampleTest(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.named_parameters([
+      (
+          "scalar",
+          """
+          features {
+            feature { key: 'i' value { int64_list {  value: [42] } } }
+          }
+          """,
+          "i",
+          """
+          tensor { dtype: DT_INT32 }
+          """,
+          dt(42),
+      ),
+      (
+          "vector",
+          """
+          features {
+            feature { key: 'f' value { float_list {  value: [1., 2., 3.] } } }
+          }
+          """,
+          "f",
+          """
+          tensor {
+              dtype: DT_FLOAT
+              shape { dim { size: 3 } }
+          }
+          """,
+          dt([1.0, 2.0, 3.0]),
+      ),
+      (
+          "var-size",
+          """
+          features {
+            feature { key: 'f' value { float_list {  value: [1., 2.] } } }
+          }
+          """,
+          "f",
+          """
+          tensor {
+              dtype: DT_FLOAT
+              shape { dim { size: -1 } }
+          }
+          """,
+          dt([1.0, 2.0]),
+      ),
+      (
+          "matrix",
+          """
+          features {
+            feature { key: 'b' value { bytes_list {  value: ['a', 'b'] } } }
+            feature { key: 'f' value { float_list {  value: [1., 2., 3.] } } }
+          }
+          """,
+          "b",
+          """
+          tensor {
+              dtype: DT_STRING
+              shape { dim { size: 1 }  dim { size: 2 } }
+          }
+          """,
+          dt([[b"a", b"b"]]),
+      ),
+  ])
+  def test_dense(
+      self, example_pbtxt: str, name: str, spec_pbtxt: str, expected_result
+  ):
+    example = tf.train.Example()
+    text_format.Parse(example_pbtxt, example)
+    spec = pb.ValueSpec()
+    text_format.Parse(spec_pbtxt, spec)
+
+    result = utils.parse_tf_example(example, name, spec)
+    self.assertAllEqual(result, to_numpy(expected_result))
+
+  @parameterized.named_parameters([
+      (
+          "rank-1",
+          """
+          features {
+            feature {
+              key: 'i'
+              value {
+                int64_list {
+                  value: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+                }
+              }
+            }
+            feature { key: 'i.d1' value { int64_list {  value: [2, 1, 1] } } }
+          }
+          """,
+          "i",
+          """
+          ragged_tensor {
+              dtype: DT_INT32
+              shape { dim { size: -1 } dim { size: -1 } dim { size: 3 } }
+              ragged_rank: 1
+              row_splits_dtype: DT_INT32
+          }
+          """,
+          rt(
+              [[[1, 2, 3], [4, 5, 6]], [[7, 8, 9]], [[10, 11, 12]]],
+              ragged_rank=1,
+              row_splits_dtype=tf.int32,
+          ),
+      ),
+      (
+          "rank-2-uniform",
+          """
+          features {
+            feature {
+              key: 'i'
+              value { float_list {  value: [1., 2., 3., 4., 5., 6.] } }
+            }
+            feature {
+              key: 'i.d2'
+              value { int64_list {  value: [1, 2, 2, 1] } }
+            }
+          }
+          """,
+          "i",
+          """
+          ragged_tensor {
+              dtype: DT_FLOAT
+              shape { dim { size: 2 } dim { size: 2 } dim { size: -1 }}
+              ragged_rank: 2
+              row_splits_dtype: DT_INT64
+          }
+          """,
+          tf.RaggedTensor.from_uniform_row_length(
+              rt([[1.0], [2.0, 3.0], [4.0, 5.0], [6.0]], ragged_rank=1), 2
+          ),
+      ),
+  ])
+  def test_ragged(
+      self, example_pbtxt: str, name: str, spec_pbtxt: str, expected_result
+  ):
+    example = tf.train.Example()
+    text_format.Parse(example_pbtxt, example)
+    spec = pb.ValueSpec()
+    text_format.Parse(spec_pbtxt, spec)
+
+    result = utils.parse_tf_example(example, name, spec)
+    tf.nest.map_structure(
+        self.assertAllEqual, result, to_numpy(expected_result)
+    )
+
+  def test_raises_on_invalid_name(self):
+    example = tf.train.Example()
+    text_format.Parse(
+        """
+          features {
+            feature { key: 'foo' value { int64_list {  value: [42] } } }
+          }
+          """,
+        example,
+    )
+    spec = pb.ValueSpec()
+    text_format.Parse("tensor { dtype: DT_INT64 }", spec)
+
+    with self.assertRaisesRegex(
+        ValueError, 'Expected feature "bar" is missing'
+    ):
+      utils.parse_tf_example(example, "bar", spec)
+
+  def test_raises_on_invalid_type(self):
+    example = tf.train.Example()
+    text_format.Parse(
+        """
+          features {
+            feature { key: 'foo' value { int64_list {  value: [1, 2] } } }
+          }
+          """,
+        example,
+    )
+    spec = pb.ValueSpec()
+    text_format.Parse("tensor { dtype: DT_FLOAT }", spec)
+
+    with self.assertRaisesRegex(ValueError, 'Expected float feature for "foo"'):
+      utils.parse_tf_example(example, "foo", spec)
+
+  def test_raises_on_invalid_shape(self):
+    example = tf.train.Example()
+    text_format.Parse(
+        """
+          features {
+            feature { key: 'foo' value { float_list {  value: [1., 2.] } } }
+          }
+          """,
+        example,
+    )
+    spec = pb.ValueSpec()
+    text_format.Parse(
+        "tensor { dtype: DT_FLOAT shape { dim { size: 64 } } }", spec
+    )
+
+    with self.assertRaisesRegex(
+        ValueError, 'requires 64 elements for "foo", actual 2'
+    ):
+      utils.parse_tf_example(example, "foo", spec)
 
 
 if __name__ == "__main__":

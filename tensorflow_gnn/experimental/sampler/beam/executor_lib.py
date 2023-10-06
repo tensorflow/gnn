@@ -416,7 +416,7 @@ class TFExampleSink(beam.DoFn):
       self, inputs: Tuple[ExampleId, Values]
   ) -> Iterator[Tuple[ExampleId, tf.train.Example]]:
     example_id, values = inputs
-    batch_size = utils.get_outer_dim_size(values)
+    batch_size = utils.get_batch_size(values)
     if batch_size != 1:
       raise ValueError(
           f'Expected values of {example_id} to have batch size 1,'
@@ -606,7 +606,7 @@ class TFModelWithAutoBatch(TFModelBase):
           pieces.append(v)
 
     try:
-      outer_dim_size = utils.get_outer_dim_size(values)
+      outer_dim_size = utils.get_batch_size(values)
     except ValueError as e:
       raise ValueError(
           f'Values for {example_id} has inconsistent outer dimension sizes.'
