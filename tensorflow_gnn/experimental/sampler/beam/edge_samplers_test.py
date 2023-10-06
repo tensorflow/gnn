@@ -15,7 +15,9 @@
 """Tests for edge_samplers."""
 import os
 
-from typing import Tuple
+from typing import Any, Dict, List, Tuple
+
+from absl.testing import parameterized
 
 import apache_beam as beam
 from apache_beam.testing import util
@@ -51,10 +53,34 @@ class ExecutorTestBase(tf.test.TestCase):
     return True
 
 
-class EdgeSamplersTest(ExecutorTestBase):
+def _create_edges(edges: List[Dict[str, Any]]) -> List[tf.train.Example]:
+  result = []
+  for edge_values in edges:
+    features = {}
+    for name, values in edge_values.items():
+      if isinstance(values[0], int):
+        feat = tf.train.Feature(int64_list=tf.train.Int64List(value=values))
+      elif isinstance(values[0], float):
+        feat = tf.train.Feature(float_list=tf.train.FloatList(value=values))
+      elif isinstance(values[0], (str, bytes)):
+        feat = tf.train.Feature(bytes_list=tf.train.BytesList(value=values))
+      else:
+        raise ValueError(f'Unsupported type: {type(values)}')
+      features[name] = feat
+    result.append(
+        tf.train.Example(features=tf.train.Features(feature=features))
+    )
+  return result
+
+
+class EdgeSamplersTest(ExecutorTestBase, parameterized.TestCase):
 
   def test_sampling(self):
-    edges = {1: (2, None), 2: (3, None)}
+    edges = _create_edges([
+        {'#source': [1], 'neighbors': [2]},
+        {'#source': [2], 'neighbors': [3]},
+    ])
+
     feats = {
         1: text_format.Merge(
             r"""
@@ -221,7 +247,11 @@ class EdgeSamplersTest(ExecutorTestBase):
       )
 
   def test_sampling_stats(self):
-    edges = [(b'a', (b'b', None)), (b'a', (b'c', None)), (b'a', (b'd', None))]
+    edges = _create_edges([
+        {'#source': [b'a'], '#target': [b'b']},
+        {'#source': [b'a'], '#target': [b'c']},
+        {'#source': [b'a'], '#target': [b'd']},
+    ])
     edges_layer = sampler.UniformEdgesSampler(
         sampler.KeyToTfExampleAccessor(
             sampler.InMemStringKeyToBytesAccessor(
@@ -276,7 +306,11 @@ class EdgeSamplersTest(ExecutorTestBase):
       ) | beam.Map(_asert_stats)
 
   def test_missing_values(self):
-    edges = [(1, (2, None)), (1, (3, None)), (2, (3, None))]
+    edges = _create_edges([
+        {'#source': [1], '#target': [2]},
+        {'#source': [1], '#target': [3]},
+        {'#source': [2], '#target': [3]},
+    ])
     edges_layer = sampler.UniformEdgesSampler(
         sampler.KeyToTfExampleAccessor(
             sampler.InMemStringKeyToBytesAccessor(
@@ -377,81 +411,30 @@ class EdgeSamplersTest(ExecutorTestBase):
           ),
       )
 
-  def test_edge_features(self):
-    edges = [
-        (
-            b'a',
-            (
-                b'b',
-                text_format.Merge(
-                    r"""
-                features {
-                  feature {
-                      key: "#fweights"
-                      value { float_list {value: [0.8]} }
-                  }
-                  feature {
-                      key: "#source"
-                      value { bytes_list {value: ["a"]}}
-                  }
-                  feature {
-                      key: "#target"
-                      value { bytes_list {value: ["b"]}}
-                  }
-                }""",
-                    tf.train.Example(),
-                ).SerializeToString(),
-            ),
-        ),
-        (
-            b'a',
-            (
-                b'c',
-                text_format.Merge(
-                    r"""
-                features {
-                  feature {
-                      key: "#fweights"
-                      value { float_list {value: [1.5]} }
-                  }
-                  feature {
-                      key: "#source"
-                      value { bytes_list {value: ["a"]}}
-                  }
-                  feature {
-                      key: "#target"
-                      value { bytes_list {value: ["c"]}}
-                  }
-                }""",
-                    tf.train.Example(),
-                ).SerializeToString(),
-            ),
-        ),
-        (
-            b'a',
-            (
-                b'd',
-                text_format.Merge(
-                    r"""
-                features {
-                  feature {
-                      key: "#fweights"
-                      value { float_list {value: [3.0]} }
-                  }
-                  feature {
-                      key: "#source"
-                      value { bytes_list {value: ["a"]}}
-                  }
-                  feature {
-                      key: "#target"
-                      value { bytes_list {value: ["d"]}}
-                  }
-                }""",
-                    tf.train.Example(),
-                ).SerializeToString(),
-            ),
-        ),
-    ]
+  @parameterized.product(
+      feature_name=['#a', 'b', '#z'], shape=[[], [8], [3, 2]]
+  )
+  def test_edge_features(self, feature_name: str, shape: List[int]):
+    v1 = np.full(shape, 0.8)
+    v2 = np.full(shape, 1.5)
+    v3 = np.full(shape, 3.0)
+    edges = _create_edges([
+        {
+            '#source': [b'a'],
+            '#target': [b'b'],
+            feature_name: v1.reshape([-1]),
+        },
+        {
+            '#source': [b'a'],
+            '#target': [b'c'],
+            feature_name: v2.reshape([-1]),
+        },
+        {
+            '#source': [b'a'],
+            '#target': [b'd'],
+            feature_name: v3.reshape([-1]),
+        },
+    ])
     edges_layer = sampler.UniformEdgesSampler(
         sampler.KeyToTfExampleAccessor(
             sampler.InMemStringKeyToBytesAccessor(
@@ -459,7 +442,7 @@ class EdgeSamplersTest(ExecutorTestBase):
             ),
             features_spec={
                 '#target': tf.TensorSpec([None], tf.string),
-                '#fweights': tf.TensorSpec([None], tf.float32),
+                feature_name: tf.TensorSpec([None, *shape]),
             },
         ),
         sample_size=2,
@@ -495,11 +478,14 @@ class EdgeSamplersTest(ExecutorTestBase):
       target_values, counts = np.unique(targets, return_counts=True)
       self.assertAllEqual(target_values, [b'b', b'c', b'd'])
       self.assertTrue(np.all(counts > [1_000, 1_000, 1_000]))
-      weights = np.array(values['#fweights'].float_list.value, np.float32)
+      weights = np.array(values[feature_name].float_list.value, np.float32)
+      weights = weights.reshape([-1, *shape])
       self.assertAllClose(
-          np.unique(weights, return_counts=False),
-          [0.8, 1.5, 3.0],
-          rtol=1e-5, atol=1e-5)
+          np.unique(weights, return_counts=False, axis=0),
+          [v1, v2, v3],
+          rtol=1e-5,
+          atol=1e-5,
+      )
 
     with beam.Pipeline() as root:
       seeds = root | 'seeds' >> beam.Create(seeds)
@@ -510,6 +496,97 @@ class EdgeSamplersTest(ExecutorTestBase):
           feeds={'edges_sampler': edges},
           artifacts_path=temp_dir,
       ) | beam.Map(_assert_stats)
+
+  def test_ragged_features(self):
+    edges = _create_edges([
+        {'#source': [1], 'neighbors': [2], 'f': [10.0, 1.0], 'r': [1]},
+        {'#source': [2], 'neighbors': [3], 'f': [20.0, 2.0], 'r': [2, 3]},
+    ])
+    edges_layer = sampler.UniformEdgesSampler(
+        sampler.KeyToTfExampleAccessor(
+            sampler.InMemStringKeyToBytesAccessor(
+                keys_to_values={b'?': b''}, name='edges'
+            ),
+            features_spec={
+                'neighbors': tf.TensorSpec([None], tf.int64),
+                'f': tf.TensorSpec([None, 2], tf.float32),
+                'r': tf.RaggedTensorSpec(
+                    [None, None],
+                    tf.int64,
+                    ragged_rank=1,
+                    row_splits_dtype=tf.int64,
+                ),
+            },
+        ),
+        sample_size=2,
+        name='edges_sampler',
+        edge_target_feature_name='neighbors',
+    )
+    seeds = tf.keras.Input(
+        type_spec=tf.RaggedTensorSpec(
+            [None, None], dtype=tf.int64, ragged_rank=1
+        ),
+        name='seeds',
+    )
+    model = tf.keras.Model(inputs=seeds, outputs=edges_layer(seeds))
+    program, artifacts = sampler.create_program(model)
+
+    temp_dir = self.create_tempdir().full_path
+    for name, model in artifacts.models.items():
+      sampler.save_model(model, os.path.join(temp_dir, name))
+
+    seeds = {
+        b'x': [[
+            np.array([1, 2], np.int64),
+            np.array([2], np.int64),
+        ]],
+    }
+
+    with beam.Pipeline() as root:
+      seeds = root | 'seeds' >> beam.Create(seeds)
+      edges = root | 'edges' >> beam.Create(edges)
+      result = executor_lib.execute(
+          program,
+          {'seeds': seeds},
+          feeds={'edges_sampler': edges},
+          artifacts_path=temp_dir,
+      )
+      util.assert_that(
+          result,
+          util.equal_to(
+              [
+                  (
+                      b'x',
+                      """features {
+                          feature {
+                            key: "#source"
+                            value { int64_list { value: [1, 2] } }
+                          }
+                          feature {
+                            key: "#target"
+                            value { int64_list { value: [2, 3] } }
+                          }
+                          feature {
+                            key: "f"
+                            value {
+                                float_list { value: [10.0, 1.0, 20.0, 2.0] }
+                            }
+                          }
+                          feature {
+                            key: "r"
+                            value { int64_list { value: [1, 2, 3] } }
+                          }
+                          feature {
+                            key: "r.d1"
+                            value { int64_list { value: [1, 2] } }
+                          }
+                        }
+                        """,
+                  ),
+              ],
+              self.sampling_results_equal,
+          ),
+      )
 
 
 if __name__ == '__main__':

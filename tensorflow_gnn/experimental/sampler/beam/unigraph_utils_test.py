@@ -34,24 +34,58 @@ _CUSTOMER_IDS = b"""
 """.split()
 
 
+def _make_paid_with(
+    source: bytes, target: bytes, retries: int
+) -> tf.train.Example:
+  result = _make_edge(source, target)
+  result.features.feature['retries'].int64_list.value.append(retries)
+  return result
+
+
+def _make_edge(source: bytes, target: bytes) -> tf.train.Example:
+  return tf.train.Example(
+      features=tf.train.Features(
+          feature={
+              '#source': tf.train.Feature(
+                  bytes_list=tf.train.BytesList(value=[source])
+              ),
+              '#target': tf.train.Feature(
+                  bytes_list=tf.train.BytesList(value=[target])
+              ),
+          }
+      )
+  )
+
+
 class UnigraphUtilsTest(tf.test.TestCase):
 
   def setUp(self):
     super().setUp()
     self.resource_dir = test_utils.get_resource_dir('testdata/heterogeneous')
     self.seed_path = test_utils.get_resource(
-        'testdata/heterogeneous/customer.csv')
+        'testdata/heterogeneous/customer.csv'
+    )
     self.graph_schema_file = unigraph.find_schema_filename(self.resource_dir)
+
+  def _proto_equal(self, expected, actual) -> bool:
+    try:
+      self.assertProtoEquals(expected, actual)
+    except AssertionError:
+      return False
+    return True
 
   def test_read_seeds(self):
     data_path = self.seed_path
-    expected_seeds = [
-        (
-            bytes(f'S{id}', 'utf-8'),
-            [np.array([id], dtype=np.object_), np.array([1], dtype=np.int64)],
-        )
-        for id in _CUSTOMER_IDS
-    ]
+    expected_seeds = []
+    for customer_id in _CUSTOMER_IDS:
+      expected_seeds.append((
+          bytes(f'S{customer_id}', 'utf-8'),
+          [
+              np.array([customer_id], dtype=np.object_),
+              np.array([1], dtype=np.int64),
+          ],
+      ))
+
     with test_pipeline.TestPipeline() as root:
       seeds = unigraph_utils.read_seeds(root, data_path)
       util.assert_that(
@@ -501,41 +535,41 @@ class UnigraphUtilsTest(tf.test.TestCase):
               ),
           ],
           'edges/owns_card': [
-              (b'1876448', (b'16827485386298040', None)),
-              (b'1372437', (b'11470379189154620', None)),
-              (b'1368305', (b'11163838768727470', None)),
-              (b'1974494', (b'16011471358128450', None)),
-              (b'1257724', (b'18569067217418250', None)),
-              (b'1758057', (b'17396883707513070', None)),
-              (b'1531660', (b'14844931107602160', None)),
-              (b'1489311', (b'1238474857489384', None)),
-              (b'1407706', (b'11290312140467510', None)),
-              (b'196838', (b'17861046738135650', None)),
-              (b'1195675', (b'8878522895102384', None)),
-              (b'1659366', (b'13019350102369400', None)),
-              (b'1499004', (b'11470379189154620', None)),
-              (b'1344333', (b'16283233487191600', None)),
-              (b'1443888', (b'9991040399813057', None)),
-              (b'1108778', (b'14912408563871390', None)),
-              (b'175583', (b'11290312140467510', None)),
-              (b'1251872', (b'12948957000457930', None)),
-              (b'1493851', (b'3549061668422198', None)),
-              (b'1599418', (b'9991040399813057', None)),
-              (b'1768701', (b'18362223127059380', None)),
-              (b'1549489', (b'1238474857489384', None)),
-              (b'1879799', (b'18569067217418250', None)),
-              (b'125454', (b'18526138896540830', None)),
+              _make_edge(b'1876448', b'16827485386298040'),
+              _make_edge(b'1372437', b'11470379189154620'),
+              _make_edge(b'1368305', b'11163838768727470'),
+              _make_edge(b'1974494', b'16011471358128450'),
+              _make_edge(b'1257724', b'18569067217418250'),
+              _make_edge(b'1758057', b'17396883707513070'),
+              _make_edge(b'1531660', b'14844931107602160'),
+              _make_edge(b'1489311', b'1238474857489384'),
+              _make_edge(b'1407706', b'11290312140467510'),
+              _make_edge(b'196838', b'17861046738135650'),
+              _make_edge(b'1195675', b'8878522895102384'),
+              _make_edge(b'1659366', b'13019350102369400'),
+              _make_edge(b'1499004', b'11470379189154620'),
+              _make_edge(b'1344333', b'16283233487191600'),
+              _make_edge(b'1443888', b'9991040399813057'),
+              _make_edge(b'1108778', b'14912408563871390'),
+              _make_edge(b'175583', b'11290312140467510'),
+              _make_edge(b'1251872', b'12948957000457930'),
+              _make_edge(b'1493851', b'3549061668422198'),
+              _make_edge(b'1599418', b'9991040399813057'),
+              _make_edge(b'1768701', b'18362223127059380'),
+              _make_edge(b'1549489', b'1238474857489384'),
+              _make_edge(b'1879799', b'18569067217418250'),
+              _make_edge(b'125454', b'18526138896540830'),
           ],
       }
       converted = root | unigraph_utils.ReadAndConvertUnigraph(
           schema, self.resource_dir
       )
-      converted_customers = (converted['nodes/customer']
-                             | beam.MapTuple(
-                                 lambda x, y: (x, _tf_example_from_bytes(y))))
-      converted_creditcard = (converted['nodes/creditcard']
-                              | beam.MapTuple(
-                                  lambda x, y: (x, _tf_example_from_bytes(y))))
+      converted_customers = converted['nodes/customer'] | beam.MapTuple(
+          lambda x, y: (x, _tf_example_from_bytes(y))
+      )
+      converted_creditcard = converted['nodes/creditcard'] | beam.MapTuple(
+          lambda x, y: (x, _tf_example_from_bytes(y))
+      )
       util.assert_that(
           converted_customers,
           util.equal_to(
@@ -558,8 +592,9 @@ class UnigraphUtilsTest(tf.test.TestCase):
       )
       util.assert_that(
           converted['edges/owns_card'],
-          util.equal_to(expected_dict['edges/owns_card']),
-          label='assert_owns_card')
+          util.equal_to(expected_dict['edges/owns_card'], self._proto_equal),
+          label='assert_owns_card',
+      )
       root.run()
 
 
@@ -568,6 +603,13 @@ class UnigraphUtilsEdgeFeaturesTest(tf.test.TestCase):
   def setUp(self):
     super().setUp()
     self.resource_dir = test_utils.get_resource_dir('testdata/heterogeneous')
+
+  def _proto_equal(self, expected, actual) -> bool:
+    try:
+      self.assertProtoEquals(expected, actual)
+    except AssertionError:
+      return False
+    return True
 
   def test_read_and_convert_edge_features(self):
     schema = text_format.Parse(
@@ -684,371 +726,84 @@ class UnigraphUtilsEdgeFeaturesTest(tf.test.TestCase):
               }
             }
           }
-        }""", tfgnn.GraphSchema(),
+        }""",
+        tfgnn.GraphSchema(),
     )
     expected_owns_card = [
-        (b'1876448', (b'16827485386298040', None)),
-        (b'1372437', (b'11470379189154620', None)),
-        (b'1368305', (b'11163838768727470', None)),
-        (b'1974494', (b'16011471358128450', None)),
-        (b'1257724', (b'18569067217418250', None)),
-        (b'1758057', (b'17396883707513070', None)),
-        (b'1531660', (b'14844931107602160', None)),
-        (b'1489311', (b'1238474857489384', None)),
-        (b'1407706', (b'11290312140467510', None)),
-        (b'196838', (b'17861046738135650', None)),
-        (b'1195675', (b'8878522895102384', None)),
-        (b'1659366', (b'13019350102369400', None)),
-        (b'1499004', (b'11470379189154620', None)),
-        (b'1344333', (b'16283233487191600', None)),
-        (b'1443888', (b'9991040399813057', None)),
-        (b'1108778', (b'14912408563871390', None)),
-        (b'175583', (b'11290312140467510', None)),
-        (b'1251872', (b'12948957000457930', None)),
-        (b'1493851', (b'3549061668422198', None)),
-        (b'1599418', (b'9991040399813057', None)),
-        (b'1768701', (b'18362223127059380', None)),
-        (b'1549489', (b'1238474857489384', None)),
-        (b'1879799', (b'18569067217418250', None)),
-        (b'125454', (b'18526138896540830', None)),
+        _make_edge(b'1876448', b'16827485386298040'),
+        _make_edge(b'1372437', b'11470379189154620'),
+        _make_edge(b'1368305', b'11163838768727470'),
+        _make_edge(b'1974494', b'16011471358128450'),
+        _make_edge(b'1257724', b'18569067217418250'),
+        _make_edge(b'1758057', b'17396883707513070'),
+        _make_edge(b'1531660', b'14844931107602160'),
+        _make_edge(b'1489311', b'1238474857489384'),
+        _make_edge(b'1407706', b'11290312140467510'),
+        _make_edge(b'196838', b'17861046738135650'),
+        _make_edge(b'1195675', b'8878522895102384'),
+        _make_edge(b'1659366', b'13019350102369400'),
+        _make_edge(b'1499004', b'11470379189154620'),
+        _make_edge(b'1344333', b'16283233487191600'),
+        _make_edge(b'1443888', b'9991040399813057'),
+        _make_edge(b'1108778', b'14912408563871390'),
+        _make_edge(b'175583', b'11290312140467510'),
+        _make_edge(b'1251872', b'12948957000457930'),
+        _make_edge(b'1493851', b'3549061668422198'),
+        _make_edge(b'1599418', b'9991040399813057'),
+        _make_edge(b'1768701', b'18362223127059380'),
+        _make_edge(b'1549489', b'1238474857489384'),
+        _make_edge(b'1879799', b'18569067217418250'),
+        _make_edge(b'125454', b'18526138896540830'),
     ]
     expected_paid_with = [
-        (
-            b'1238474857489384',
-            (
-                b'5338667949',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'12968701241275060',
-            (
-                b'2485246926',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'12441028369470600',
-            (
-                b'7574807079',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'12968701241275060',
-            (
-                b'1935037613',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'14990890937985390',
-            (
-                b'3719329604',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'14912408563871390',
-            (
-                b'1015902584',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x02',
-            ),
-        ),
-        (
-            b'18362223127059380',
-            (
-                b'6360467569',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x03',
-            ),
-        ),
-        (
-            b'3549061668422198',
-            (
-                b'3672845476',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'11385846637304370',
-            (
-                b'7577999036',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'14844931107602160',
-            (
-                b'4077264491',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'14844931107602160',
-            (
-                b'6932577020',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'11739198589848540',
-            (
-                b'2952830085',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'13916484476264770',
-            (
-                b'4045329101',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'8878522895102384',
-            (
-                b'2187034790',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'14990890937985390',
-            (
-                b'4071088591',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x01',
-            ),
-        ),
-        (
-            b'11290312140467510',
-            (
-                b'3301719092',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'13019350102369400',
-            (
-                b'3630070609',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'18569067217418250',
-            (
-                b'7220792354',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'3549061668422198',
-            (
-                b'9418989087',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x07',
-            ),
-        ),
-        (
-            b'4541017563963442',
-            (
-                b'4751453767',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x04',
-            ),
-        ),
-        (
-            b'1238474857489384',
-            (
-                b'5488583952',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'11739198589848540',
-            (
-                b'7738736966',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'18526138896540830',
-            (
-                b'7118748138',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'17035680063294790',
-            (
-                b'2507142984',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x04',
-            ),
-        ),
-        (
-            b'16073125141142750',
-            (
-                b'6967991082',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'17035680063294790',
-            (
-                b'9099370006',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'9991040399813057',
-            (
-                b'2674535393',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'8889177882781586',
-            (
-                b'8806410342',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x01',
-            ),
-        ),
-        (
-            b'11739198589848540',
-            (
-                b'8140734876',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'11470379189154620',
-            (
-                b'2432513727',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'11584989140147230',
-            (
-                b'5420798237',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'14990890937985390',
-            (
-                b'6060907986',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'18569067217418250',
-            (
-                b'3315349239',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'11739198589848540',
-            (
-                b'5221186582',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'11584989140147230',
-            (
-                b'8597703614',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'11771673810809530',
-            (
-                b'2277618242',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x01',
-            ),
-        ),
-        (
-            b'8878522895102384',
-            (
-                b'8179757481',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'16827485386298040',
-            (
-                b'2561247267',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'18526138896540830',
-            (
-                b'5675097657',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'16283233487191600',
-            (
-                b'8790765633',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x01',
-            ),
-        ),
-        (
-            b'14844931107602160',
-            (
-                b'4719730577',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'16011471358128450',
-            (
-                b'9232165517',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'15054318664602640',
-            (
-                b'8334230482',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x01',
-            ),
-        ),
-        (
-            b'12948957000457930',
-            (
-                b'5930862377',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'14453480592564160',
-            (
-                b'8603978315',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x05',
-            ),
-        ),
-        (
-            b'11739198589848540',
-            (
-                b'5339238148',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
-        (
-            b'11584989140147230',
-            (
-                b'2346560845',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x01',
-            ),
-        ),
-        (
-            b'12441028369470600',
-            (
-                b'4415620884',
-                b'\n\x12\n\x10\n\x07retries\x12\x05\x1a\x03\n\x01\x00',
-            ),
-        ),
+        _make_paid_with(b'1238474857489384', b'5338667949', 0),
+        _make_paid_with(b'12968701241275060', b'2485246926', 0),
+        _make_paid_with(b'12441028369470600', b'7574807079', 0),
+        _make_paid_with(b'12968701241275060', b'1935037613', 0),
+        _make_paid_with(b'14990890937985390', b'3719329604', 0),
+        _make_paid_with(b'14912408563871390', b'1015902584', 2),
+        _make_paid_with(b'18362223127059380', b'6360467569', 3),
+        _make_paid_with(b'3549061668422198', b'3672845476', 0),
+        _make_paid_with(b'11385846637304370', b'7577999036', 0),
+        _make_paid_with(b'14844931107602160', b'4077264491', 0),
+        _make_paid_with(b'14844931107602160', b'6932577020', 0),
+        _make_paid_with(b'11739198589848540', b'2952830085', 0),
+        _make_paid_with(b'13916484476264770', b'4045329101', 0),
+        _make_paid_with(b'8878522895102384', b'2187034790', 0),
+        _make_paid_with(b'14990890937985390', b'4071088591', 1),
+        _make_paid_with(b'11290312140467510', b'3301719092', 0),
+        _make_paid_with(b'13019350102369400', b'3630070609', 0),
+        _make_paid_with(b'18569067217418250', b'7220792354', 0),
+        _make_paid_with(b'3549061668422198', b'9418989087', 7),
+        _make_paid_with(b'4541017563963442', b'4751453767', 4),
+        _make_paid_with(b'1238474857489384', b'5488583952', 0),
+        _make_paid_with(b'11739198589848540', b'7738736966', 0),
+        _make_paid_with(b'18526138896540830', b'7118748138', 0),
+        _make_paid_with(b'17035680063294790', b'2507142984', 4),
+        _make_paid_with(b'16073125141142750', b'6967991082', 0),
+        _make_paid_with(b'17035680063294790', b'9099370006', 0),
+        _make_paid_with(b'9991040399813057', b'2674535393', 0),
+        _make_paid_with(b'8889177882781586', b'8806410342', 1),
+        _make_paid_with(b'11739198589848540', b'8140734876', 0),
+        _make_paid_with(b'11470379189154620', b'2432513727', 0),
+        _make_paid_with(b'11584989140147230', b'5420798237', 0),
+        _make_paid_with(b'14990890937985390', b'6060907986', 0),
+        _make_paid_with(b'18569067217418250', b'3315349239', 0),
+        _make_paid_with(b'11739198589848540', b'5221186582', 0),
+        _make_paid_with(b'11584989140147230', b'8597703614', 0),
+        _make_paid_with(b'11771673810809530', b'2277618242', 1),
+        _make_paid_with(b'8878522895102384', b'8179757481', 0),
+        _make_paid_with(b'16827485386298040', b'2561247267', 0),
+        _make_paid_with(b'18526138896540830', b'5675097657', 0),
+        _make_paid_with(b'16283233487191600', b'8790765633', 1),
+        _make_paid_with(b'14844931107602160', b'4719730577', 0),
+        _make_paid_with(b'16011471358128450', b'9232165517', 0),
+        _make_paid_with(b'15054318664602640', b'8334230482', 1),
+        _make_paid_with(b'12948957000457930', b'5930862377', 0),
+        _make_paid_with(b'14453480592564160', b'8603978315', 5),
+        _make_paid_with(b'11739198589848540', b'5339238148', 0),
+        _make_paid_with(b'11584989140147230', b'2346560845', 1),
+        _make_paid_with(b'12441028369470600', b'4415620884', 0),
     ]
     with test_pipeline.TestPipeline() as root:
       converted = root | unigraph_utils.ReadAndConvertUnigraph(
@@ -1056,20 +811,12 @@ class UnigraphUtilsEdgeFeaturesTest(tf.test.TestCase):
       )
       util.assert_that(
           converted['edges/owns_card'],
-          util.equal_to(expected_owns_card),
+          util.equal_to(expected_owns_card, self._proto_equal),
           label='assert_owns_card',
       )
       util.assert_that(
-          converted['edges/paid_with']
-          | beam.MapTuple(
-              lambda x, y: (x, (y[0], _tf_example_from_bytes(y[1])))
-          ),
-          util.equal_to(
-              [
-                  (x, (y[0], _tf_example_from_bytes(y[1])))
-                  for x, y in expected_paid_with
-              ]
-          ),
+          converted['edges/paid_with'],
+          util.equal_to(expected_paid_with, self._proto_equal),
           label='assert_paid_with',
       )
       root.run()
@@ -1235,6 +982,7 @@ def _tf_example_from_bytes(s: bytes):
   ex = tf.train.Example()
   ex.ParseFromString(s)
   return ex
+
 
 if __name__ == '__main__':
   tf.test.main()

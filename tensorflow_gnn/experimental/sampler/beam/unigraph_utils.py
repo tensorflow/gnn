@@ -15,6 +15,8 @@
 """Functions to read from unigraph format into that accepted by sampler_v2."""
 
 from __future__ import annotations
+
+import functools
 from typing import Dict, List, Optional, Tuple
 
 import apache_beam as beam
@@ -165,15 +167,20 @@ def _create_node_features(
 
 
 def _create_edge(
-    source_id: bytes,
-    target_id: bytes,
-    example: tf.train.Example) -> Tuple[bytes, Tuple[bytes, Optional[bytes]]]:
-  if set(example.features.feature.keys()) == set(['#source', '#target']):
-    return (source_id, (target_id, None))
-  else:
-    example.features.feature.pop('#source')
-    example.features.feature.pop('#target')
-    return (source_id, (target_id, example.SerializeToString()))
+    unused_source_id: bytes,
+    unused_target_id: bytes,
+    example: tf.train.Example,
+    *,
+    edge_set_name: Optional[tfgnn.EdgeSetName] = None,
+) -> tf.train.Example:
+  """Creates input for edge set sampling stages."""
+  for feature in (tfgnn.SOURCE_NAME, tfgnn.TARGET_NAME):
+    if feature not in example.features.feature:
+      raise ValueError(
+          f'Required feature {feature} is not present for the edge set'
+          f' {edge_set_name}'
+      )
+  return example
 
 
 class ReadAndConvertUnigraph(beam.PTransform):
@@ -201,7 +208,9 @@ class ReadAndConvertUnigraph(beam.PTransform):
           >> beam.MapTuple(_create_node_features)
       )
     for edge_set_name in graph_data['edges'].keys():
-      result_dict[f'edges/{edge_set_name}'] = (
-          graph_data['edges'][edge_set_name]
-          | f'ExtractEdges/{edge_set_name}' >> beam.MapTuple(_create_edge))
+      result_dict[f'edges/{edge_set_name}'] = graph_data['edges'][
+          edge_set_name
+      ] | f'ExtractEdges/{edge_set_name}' >> beam.MapTuple(
+          functools.partial(_create_edge, edge_set_name=edge_set_name)
+      )
     return result_dict
