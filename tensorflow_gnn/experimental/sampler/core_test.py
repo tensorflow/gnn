@@ -1077,6 +1077,25 @@ class InMemUniformEdgesSamplerTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllInSet(get_targets(result, 3), {4})
       self.assertAllInSet(get_targets(result, 4), {})
 
+  @parameterized.product(
+      indices_dtype=[tf.int64, tf.int32], row_splits_dtype=[tf.int64, tf.int32]
+  )
+  def testIndexTypes(self, indices_dtype: tf.DType, row_splits_dtype: tf.DType):
+    layer = core.InMemUniformEdgesSampler(
+        num_source_nodes=5,
+        source=tf.convert_to_tensor([0], indices_dtype),
+        target=tf.convert_to_tensor([0], indices_dtype),
+        seed=42,
+        sample_size=1,
+    )
+    seeds = tf.ragged.constant(
+        [[0]], dtype=indices_dtype, row_splits_dtype=row_splits_dtype
+    )
+    result = layer(seeds)
+    for feat in [tfgnn.SOURCE_NAME, tfgnn.TARGET_NAME]:
+      self.assertEqual(result[feat].dtype, indices_dtype)
+      self.assertEqual(result[feat].row_splits.dtype, row_splits_dtype)
+
   def testFromGraphTensor(self):
     paper_author = core.InMemUniformEdgesSampler.from_graph_tensor(
         CITATION_GRAPH, 'is_written', sample_size=100, seed=42

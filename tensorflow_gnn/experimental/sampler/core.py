@@ -808,10 +808,13 @@ class InMemUniformEdgesSampler(
     # Real indices of sampled edges in the original `self._fields` (not sorted).
     edges_idx = tf.gather(self._sort_index, edges_idx)
 
-    result_row_lengths = tf.math.unsorted_segment_sum(
-        samples_count,
-        source_node_ids.value_rowids(),
-        source_node_ids.nrows(),
+    result_row_lengths = tf.cast(
+        tf.math.unsorted_segment_sum(
+            samples_count,
+            source_node_ids.value_rowids(),
+            source_node_ids.nrows(),
+        ),
+        source_node_ids.row_splits.dtype,
     )
     result_row_splits = _row_lengths_to_row_splits(result_row_lengths)
 
