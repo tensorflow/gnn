@@ -38,6 +38,7 @@ From highest-level to lowest level:
 
 from __future__ import annotations
 import collections
+import functools
 
 from typing import Callable, Mapping, Optional, Dict, Tuple
 import tensorflow as tf
@@ -291,14 +292,19 @@ class SamplingPipeline:
         tfgnn.SOURCE_NAME: ragged_seed,
         tfgnn.TARGET_NAME: ragged_seed,
     }
+
     graph_tensor = core.build_graph_tensor(edge_sets=edge_sets)
 
     # Remove fake edge set.
-    graph_tensor = tf.keras.layers.Lambda(
-        lambda g: tfgnn.GraphTensor.from_pieces(  # pylint: disable=g-long-lambda
-            context=g.context, node_sets=g.node_sets,
-            edge_sets={n: e for n, e in g.edge_sets.items()
-                       if n != fake_edge_set_name}))(graph_tensor)
+    graph_tensor = tfgnn.GraphTensor.from_pieces(
+        context=graph_tensor.context,
+        node_sets=graph_tensor.node_sets,
+        edge_sets={
+            n: e
+            for n, e in graph_tensor.edge_sets.items()
+            if n != fake_edge_set_name
+        },
+    )
 
     features = {}
     for node_set_name, node_set in graph_tensor.node_sets.items():
@@ -495,40 +501,40 @@ def sample_edge_sets(
   """
   assert_sorted_sampling_spec(sampling_spec)
 
-  edge_set_sources = collections.defaultdict(list)
-  edge_set_targets = collections.defaultdict(list)
+  features_by_edge_set = collections.defaultdict(
+      lambda: collections.defaultdict(list)
+  )
   seed_op = (
       sampling_spec.seed_op
       if sampling_spec.HasField('seed_op')
       else sampling_spec.symmetric_link_seed_op
   )
-  tensors_by_op_name = {
+  seeds_by_op_name = {
       seed_op.op_name: seed_node_ids
   }
 
+  # Concatenates inputs `[batch, item, ...]`` along the item dimension.
+  concat_fn = functools.partial(tf.concat, axis=1)
   for sampling_op in sampling_spec.sampling_ops:
-    input_tensors = tf.concat(
-        [tensors_by_op_name[op_name] for op_name in sampling_op.input_op_names],
-        axis=-1)
+    input_tensors = concat_fn(
+        [seeds_by_op_name[op_name] for op_name in sampling_op.input_op_names]
+    )
     edge_sampler = edge_sampler_factory(sampling_op)
     sampled_edges = edge_sampler(input_tensors)
+    features = features_by_edge_set[sampling_op.edge_set_name]
+    for feature_name, feature_value in sampled_edges.items():
+      features[feature_name].append(feature_value)
 
-    edge_set_sources[sampling_op.edge_set_name].append(
-        sampled_edges[tfgnn.SOURCE_NAME])
-    edge_set_targets[sampling_op.edge_set_name].append(
-        sampled_edges[tfgnn.TARGET_NAME])
-    tensors_by_op_name[sampling_op.op_name] = sampled_edges[tfgnn.TARGET_NAME]
+    seeds_by_op_name[sampling_op.op_name] = sampled_edges[tfgnn.TARGET_NAME]
 
   edge_sets = {}
-  for edge_set_name, source_list in edge_set_sources.items():
-    target_list = edge_set_targets[edge_set_name]
-    edge_set_key = ','.join((graph_schema.edge_sets[edge_set_name].source,
-                             edge_set_name,
-                             graph_schema.edge_sets[edge_set_name].target))
-    edge_sets[edge_set_key] = {
-        tfgnn.SOURCE_NAME: tf.concat(source_list, axis=-1),
-        tfgnn.TARGET_NAME: tf.concat(target_list, axis=-1),
-    }
+  for edge_set_name, features in features_by_edge_set.items():
+    edge_set_key = ','.join((
+        graph_schema.edge_sets[edge_set_name].source,
+        edge_set_name,
+        graph_schema.edge_sets[edge_set_name].target,
+    ))
+    edge_sets[edge_set_key] = {k: concat_fn(v) for k, v in features.items()}
 
   return edge_sets
 

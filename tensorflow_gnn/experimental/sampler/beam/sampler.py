@@ -70,16 +70,46 @@ def get_sampling_model(
     a mapping from the layer's name to the corresponding edge set.
   """
   layer_name_to_edge_set = {}
+
+  def get_tensor_spec(
+      feature: graph_schema_pb2.Feature,
+      *,
+      outer_dims: tuple[Optional[int], ...] = (),
+      debug_context: str = '',
+  ) -> tf.TensorSpec:
+    try:
+      dtype = tf.dtypes.as_dtype(feature.dtype)
+      shape = _get_shape(feature)
+      shape = tf.TensorShape(outer_dims).concatenate(shape)
+      ragged_rank = sum([int(d is None) for d in shape[1:]])
+      if ragged_rank == 0:
+        return tf.TensorSpec(shape, dtype)
+      else:
+        return tf.RaggedTensorSpec(shape, dtype, ragged_rank=ragged_rank)
+    except Exception as e:
+      raise ValueError(f'Invalid graph schema for {debug_context}') from e
+
   def edge_sampler_factory(
       op: sampler_lib.SamplingOp,
       *,
       counter: dict[str, int],
   ) -> sampler.UniformEdgesSampler:
+    # pylint: disable=g-complex-comprehension
+    edge_features = graph_schema.edge_sets[op.edge_set_name].features
     accessor = sampler.KeyToTfExampleAccessor(
-        sampler.InMemStringKeyToBytesAccessor(
-            keys_to_values={'b': b'b'}),
+        sampler.InMemStringKeyToBytesAccessor(keys_to_values={'b': b'b'}),
         features_spec={
             '#target': tf.TensorSpec([None], tf.string),
+            **{
+                name: get_tensor_spec(
+                    feature,
+                    outer_dims=(None,),
+                    debug_context=(
+                        f'{op.edge_set_name} edge set, feature {name}'
+                    ),
+                )
+                for name, feature in edge_features.items()
+            },
         },
     )
     edge_set_count = counter.setdefault(op.edge_set_name, 0)
@@ -107,20 +137,11 @@ def get_sampling_model(
       return None
 
     node_features = graph_schema.node_sets[node_set_name].features
-    def get_tensor_spec(
-        name: str, feature: graph_schema_pb2.Feature
-    ) -> tf.TensorSpec:
-      try:
-        shape = _get_shape(feature)
-        dtype = tf.dtypes.as_dtype(feature.dtype)
-        return tf.TensorSpec(shape, dtype)
-      except Exception as e:
-        raise ValueError(
-            f'Invalid graph schema for {node_set_name} node set, feature {name}'
-        ) from e
 
     features_spec = {
-        name: get_tensor_spec(name, feature)
+        name: get_tensor_spec(
+            feature, debug_context=f'{node_set_name} node set, feature {name}'
+        )
         for name, feature in node_features.items()
     }
 

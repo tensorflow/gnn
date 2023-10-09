@@ -22,6 +22,7 @@ import numpy as np
 import tensorflow as tf
 
 import tensorflow_gnn as tfgnn
+from tensorflow_gnn.experimental.sampler import core
 from tensorflow_gnn.experimental.sampler import interfaces
 from tensorflow_gnn.experimental.sampler import subgraph_pipeline
 from tensorflow_gnn.sampler import sampling_spec_pb2
@@ -325,6 +326,48 @@ class SubgraphPipelineTest(tf.test.TestCase, parameterized.TestCase):
 
     for food, animal in zip(src_values.numpy(), tgt_values.numpy()):
       self.assertIn(food.decode(), eats_edges[animal.decode()])
+
+
+class EdgeFeaturesTest(tf.test.TestCase):
+
+  def test_homogeneous(self):
+    graph_schema = tfgnn.GraphSchema()
+    graph_schema.node_sets['a'].description = 'test node set'
+    graph_schema.edge_sets['a->a'].source = 'a'
+    graph_schema.edge_sets['a->a'].target = 'a'
+    graph_schema.edge_sets['a->a'].features['f'].dtype = 1
+
+    sampling_spec = sampling_spec_pb2.SamplingSpec()
+    sampling_spec.seed_op.op_name = 'seed'
+    sampling_spec.seed_op.node_set_name = 'a'
+    sampling_spec.sampling_ops.add(
+        op_name='hop1', edge_set_name='a->a', sample_size=100
+    ).input_op_names.append('seed')
+
+    def edge_sampler_factory(sampling_op):
+      self.assertEqual(sampling_op.edge_set_name, 'a->a')
+      return core.InMemUniformEdgesSampler(
+          num_source_nodes=3,
+          source=tf.constant([2, 0], tf.int32),
+          target=tf.constant([0, 1], tf.int32),
+          edge_features={'f': [2.0, 0.0]},
+          seed=42,
+          sample_size=sampling_op.sample_size,
+          name=sampling_op.edge_set_name,
+      )
+
+    sampling_model = subgraph_pipeline.create_sampling_model_from_spec(
+        graph_schema,
+        sampling_spec,
+        edge_sampler_factory,
+        seed_node_dtype=tf.int32,
+    )
+    result = sampling_model(tf.ragged.constant([[2], [0]]))
+    self.assertIn('a', result.node_sets)
+    self.assertIn('a->a', result.edge_sets)
+    edge_features = result.edge_sets['a->a'].get_features_dict()
+    self.assertIn('f', edge_features)
+    self.assertAllEqual(edge_features['f'], tf.ragged.constant([[2.0], [0.0]]))
 
 
 def _get_test_link_edges_sampler_schema_spec():

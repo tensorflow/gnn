@@ -16,8 +16,7 @@
 
 from __future__ import annotations
 
-import functools
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import apache_beam as beam
 import numpy as np
@@ -46,7 +45,7 @@ def read_seeds(root: beam.Pipeline, data_path: str) -> PCollection:
   Args:
     root: The root Beam Pipeline.
     data_path: The file path for the input node set.
-    
+
   Returns:
     PCollection of sampler-compatible seeds.
   """
@@ -67,7 +66,7 @@ def _make_seed_feature(
     example: tf.train.Example with the seed features.
     feat_name: The feature to extract in this call
 
-  Returns: 
+  Returns:
     bytes key and a list/np.array representation of a ragged tensor
 
   Raises:
@@ -143,21 +142,23 @@ class ReadLinkSeeds(beam.PTransform):
 
 
 def seeds_from_graph_dict(
-    graph_dict: Dict[str, PCollection],
-    sampling_spec: sampler_lib.SamplingSpec) -> PCollection:
+    graph_dict: Dict[str, PCollection], sampling_spec: sampler_lib.SamplingSpec
+) -> PCollection:
   """Emits sampler-compatible seeds from a collection of graph data and a sampling spec.
-  
+
   Args:
     graph_dict: A dict of graph data represented as PCollections.
     sampling_spec: The sampling spec with the node set used for seeding.
-    
+
   Returns:
     PCollection of sampler-compatible seeds.
   """
   seed_nodes = graph_dict[f'nodes/{sampling_spec.seed_op.node_set_name}']
-  return (seed_nodes
-          | 'SeedKeys' >> beam.Keys()
-          | 'MakeSeeds' >> beam.Map(_create_seeds))
+  return (
+      seed_nodes
+      | 'SeedKeys' >> beam.Keys()
+      | 'MakeSeeds' >> beam.Map(_create_seeds)
+  )
 
 
 def _create_node_features(
@@ -167,19 +168,18 @@ def _create_node_features(
 
 
 def _create_edge(
-    unused_source_id: bytes,
-    unused_target_id: bytes,
+    source_id: bytes,
+    target_id: bytes,
     example: tf.train.Example,
-    *,
-    edge_set_name: Optional[tfgnn.EdgeSetName] = None,
 ) -> tf.train.Example:
   """Creates input for edge set sampling stages."""
-  for feature in (tfgnn.SOURCE_NAME, tfgnn.TARGET_NAME):
-    if feature not in example.features.feature:
-      raise ValueError(
-          f'Required feature {feature} is not present for the edge set'
-          f' {edge_set_name}'
-      )
+  for name, value in (
+      (tfgnn.SOURCE_NAME, source_id),
+      (tfgnn.TARGET_NAME, target_id),
+  ):
+    example.features.feature[name].CopyFrom(
+        tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+    )
   return example
 
 
@@ -188,7 +188,7 @@ class ReadAndConvertUnigraph(beam.PTransform):
 
   def __init__(self, graph_schema: tfgnn.GraphSchema, data_path: str):
     """Constructor for ReadAndConvertUnigraph PTransform.
-    
+
     Args:
       graph_schema: tfgnn.GraphSchema for the input graph.
       data_path: A file path for the graph data in accepted file formats.
@@ -196,21 +196,17 @@ class ReadAndConvertUnigraph(beam.PTransform):
     self._graph_schema = graph_schema
     self._data_path = data_path
 
-  def expand(self,
-             rcoll: PCollection
-            ) -> Dict[str, PCollection]:
+  def expand(self, rcoll: PCollection) -> Dict[str, PCollection]:
     graph_data = unigraph.read_graph(self._graph_schema, self._data_path, rcoll)
     result_dict = {}
     for node_set_name in graph_data['nodes'].keys():
-      result_dict[f'nodes/{node_set_name}'] = (
-          graph_data['nodes'][node_set_name]
-          | f'ExtractNodeFeatures/{node_set_name}'
-          >> beam.MapTuple(_create_node_features)
+      result_dict[f'nodes/{node_set_name}'] = graph_data['nodes'][
+          node_set_name
+      ] | f'ExtractNodeFeatures/{node_set_name}' >> beam.MapTuple(
+          _create_node_features
       )
     for edge_set_name in graph_data['edges'].keys():
       result_dict[f'edges/{edge_set_name}'] = graph_data['edges'][
           edge_set_name
-      ] | f'ExtractEdges/{edge_set_name}' >> beam.MapTuple(
-          functools.partial(_create_edge, edge_set_name=edge_set_name)
-      )
+      ] | f'ExtractEdges/{edge_set_name}' >> beam.MapTuple(_create_edge)
     return result_dict
