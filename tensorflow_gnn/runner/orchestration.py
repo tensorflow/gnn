@@ -379,7 +379,8 @@ def run(*,
         train_padding: Optional[GraphTensorPadding] = None,
         valid_padding: Optional[GraphTensorPadding] = None,
         tf_data_service_config: Optional[TFDataServiceConfig] = None,
-        steps_per_execution: Optional[int] = None):
+        steps_per_execution: Optional[int] = None,
+        run_eagerly: bool = False):
   """Runs training (and validation) of a model on task(s) with the given data.
 
   This includes preprocessing the input data, appending any suitable head(s),
@@ -476,6 +477,10 @@ def run(*,
     steps_per_execution: The number of batches to run during each training
       iteration. If not set, for TPU strategy default to 100 and to `None`
       otherwise.
+    run_eagerly: Whether to compile the model in eager mode, primarily for
+      debugging purposes. Note that the symbolic model will still be run twice,
+      so if you use a `breakpoint()` you will have to Continue twice before you
+      are in a real eager execution.
 
   Returns:
     A `RunResult` object containing models and information about this run.
@@ -594,14 +599,18 @@ def run(*,
           loss=losses,
           loss_weights=loss_weights,
           metrics=metrics,
-          steps_per_execution=steps_per_execution)
+          steps_per_execution=steps_per_execution,
+          run_eagerly=run_eagerly,
+      )
     else:
       model.compile(
           optimizer_fn(),
           loss=losses,
           loss_weights=loss_weights,
           weighted_metrics=metrics,
-          steps_per_execution=steps_per_execution)
+          steps_per_execution=steps_per_execution,
+          run_eagerly=run_eagerly,
+      )
 
     return model
 
