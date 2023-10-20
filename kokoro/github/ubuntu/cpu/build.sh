@@ -38,7 +38,8 @@ tag_filters="-no_oss,-oss_excluded"
 
 bazel clean
 pip install -r requirements-dev.txt --progress-bar off
-pip install tf-nightly --progress-bar off --upgrade
+# TODO(b/306641264): Unpin the version!
+pip install tf-nightly==2.16.0.dev20231018 --progress-bar off --upgrade
 # We need to remove the dependency on tensorflow to test nightly
 # The dependencies will be provided by tf-nightly
 perl -i  -lpe '$k+= s/tensorflow>=2\.[0-9]+\.[0-9]+/tf-nightly/g; END{exit($k != 1)}' setup.py
