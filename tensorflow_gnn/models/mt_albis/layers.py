@@ -193,9 +193,10 @@ class MtAlbisNextNodeState(tf.keras.layers.Layer):
     input_state = _require_single_tensor(input_state, "input state")
     flat_inputs.append(input_state)
     # Collect and combine pooled messages (conv results) from edge sets.
-    edge_input = self._combine_edge_inputs(edge_set_inputs)
-    edge_input = self._dropout(edge_input)
-    flat_inputs.append(edge_input)
+    if edge_set_inputs:
+      edge_input = self._combine_edge_inputs(edge_set_inputs)
+      edge_input = self._dropout(edge_input)
+      flat_inputs.append(edge_input)
     # Collect a context input, if any. (Empty Mapping means none.)
     if isinstance(context_input, Mapping) and not context_input:
       pass
@@ -243,7 +244,6 @@ def MtAlbisGraphUpdate(  # To be called like a class initializer.  pylint: disab
     message_dim: int,
     receiver_tag: tfgnn.IncidentNodeTag,
     node_set_names: Optional[Collection[tfgnn.NodeSetName]] = None,
-    # TODO(b/261835577): Can edge_feature be set for some EdgeSets only?
     edge_feature_name: Optional[tfgnn.FieldName] = None,
     attention_type: Literal["none", "multi_head", "gat_v2"] = "none",
     attention_edge_set_names: Optional[Collection[tfgnn.EdgeSetName]] = None,

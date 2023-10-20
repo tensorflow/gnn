@@ -22,12 +22,12 @@ from tensorflow_gnn.models.mt_albis import layers
 def graph_update_get_config_dict() -> config_dict.ConfigDict:
   """Returns ConfigDict for graph_update_from_config_dict() with defaults."""
   # LINT.IfChange(graph_update_get_config_dict)
-  # TODO(b/261835577): What about node_set_names, edge_feature_name,
-  # attention_edge_set_names?
+  # TODO(b/261835577): What about node_set_names, attention_edge_set_names?
   cfg = config_dict.ConfigDict()
   cfg.units = config_dict.placeholder(int)  # Sets type to Optional[int].
   cfg.message_dim = config_dict.placeholder(int)
   cfg.receiver_tag = config_dict.placeholder(int)
+  cfg.edge_feature_name = config_dict.placeholder(str)
   cfg.attention_type = "none"
   cfg.attention_num_heads = 4
   cfg.simple_conv_reduce_type = "mean"
