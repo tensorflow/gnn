@@ -267,6 +267,42 @@ class TensorUtilsTest(tf.test.TestCase):
         value, tf.ones([value.nrows()], value.row_splits.dtype))
     self.assertAllEqual(utils.pad_to_nrows(value, 2, ''), value)
 
+  def testPadToNRowsTypes(self):
+    self.assertAllEqual(
+        utils.pad_to_nrows(as_tensor([1, 2], tf.int32), 2, 0),
+        utils.pad_to_nrows(as_tensor([1, 2], tf.int32), as_tensor(2), 0),
+    )
+    self.assertAllEqual(
+        utils.pad_to_nrows(as_tensor([1, 2], tf.int32), 2, 0),
+        utils.pad_to_nrows(
+            as_tensor([1, 2], tf.int32), as_tensor(2), as_tensor(0)
+        ),
+    )
+    self.assertAllEqual(
+        utils.pad_to_nrows(as_tensor([0.0, 1.1]), 4, 2.2),
+        utils.pad_to_nrows(as_tensor([0.0, 1.1]), 4, 2.2),
+    )
+    self.assertAllEqual(
+        utils.pad_to_nrows(as_tensor([0.0, 1.1]), 4, 2.2),
+        utils.pad_to_nrows(as_tensor([0.0, 1.1]), 4, as_tensor(2.2)),
+    )
+    self.assertAllEqual(
+        utils.pad_to_nrows(as_tensor([0.0, 1.1]), 4, 2.2),
+        utils.pad_to_nrows(as_tensor([0.0, 1.1]), 4, 2.2),
+    )
+    self.assertAllEqual(
+        utils.pad_to_nrows(as_tensor([b'a', b'b']), 3, as_tensor(b'?')),
+        utils.pad_to_nrows(as_tensor([b'a', b'b']), 3, '?'),
+    )
+    self.assertAllEqual(
+        utils.pad_to_nrows(as_tensor(['a', 'b']), 3, b'?'),
+        as_tensor(['a', 'b', '?']),
+    )
+    self.assertAllEqual(
+        utils.pad_to_nrows(as_tensor([b'a', b'b']), 3, b'?'),
+        utils.pad_to_nrows(as_tensor([b'a', b'b']), 3, '?'),
+    )
+
 
 _SEED = 42
 

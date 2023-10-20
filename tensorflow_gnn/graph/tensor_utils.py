@@ -13,11 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 """Utils for tensors and ragged tensors."""
-from typing import List, Optional, Text, Union, Mapping
+
+from typing import List, Mapping, Optional, Text, Union
 
 import tensorflow as tf
-
 from tensorflow_gnn.graph import tf_internal
+
 
 Value = Union[tf.Tensor, tf.RaggedTensor]
 ValueSpec = Union[tf.TensorSpec, tf.RaggedTensorSpec]
@@ -319,7 +320,7 @@ def ensure_static_nrows(value: Value, nrows: int) -> Value:
   raise ValueError(f'Unsupported type {type(value).__name__}')
 
 
-def fill(spec: ValueSpec, nrows: tf.Tensor, value: tf.Tensor) -> Value:
+def fill(spec: ValueSpec, nrows: tf.Tensor, value) -> Value:
   """Creates tensor filled with a scalar `value` according to the constraints.
 
   This function returns a Tensor or RaggedTensor compatible with `spec`.
@@ -333,7 +334,8 @@ def fill(spec: ValueSpec, nrows: tf.Tensor, value: tf.Tensor) -> Value:
     nrows: number of rows in the result tensor. For a dense tensor, this is the
       outermost dimension size. For a ragged tensor, this is the number of rows
       in the outermost split (`tf.RaggedTensor.nrows`).
-    value: scalar value to use for filling.
+    value: scalar value to use for filling. The type must be convertible to
+      a tensor value.
 
   Returns:
     Tensor filled with `value` that is compatible with `spec` and has `nrows`
@@ -402,8 +404,8 @@ def fill(spec: ValueSpec, nrows: tf.Tensor, value: tf.Tensor) -> Value:
 
 
 def pad_to_nrows(value: Value,
-                 target_nrows: tf.Tensor,
-                 padding_value: tf.Tensor,
+                 target_nrows: Union[tf.Tensor, int],
+                 padding_value,
                  validate: bool = True) -> Value:
   """Pads `value` to the target number of rows with scalar `padding_value`.
 
@@ -412,7 +414,8 @@ def pad_to_nrows(value: Value,
     target_nrows: number of rows in the result tensor. For a dense tensor, this
       is the outermost dimension size. For a ragged tensor, this is the number
       of rows in the outermost split (`tf.RaggedTensor.nrows`).
-    padding_value: scalar value to use for padding.
+    padding_value: scalar value to use for padding. The type must be
+      convertible to a tensor value and consistent with `value`'s dtype.
     validate: if true, adds runtime checks that value could be padded.
 
   Returns:
