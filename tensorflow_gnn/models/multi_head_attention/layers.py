@@ -454,13 +454,12 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       pass
     elif self._score_scaling == "rsqrt_dim":
       attention_coefficients *= tf.math.rsqrt(
-          tf.cast(tf.shape(keys)[-1], tf.float32))
+          tf.cast(tf.shape(keys)[-1], self.compute_dtype))
     elif self._score_scaling == "trainable_elup1":
       if self._score_scaling_weight is None:
         self._score_scaling_weight = self.add_weight(
             name="score_scaling",
             shape=[self._num_heads, 1],
-            dtype=tf.float32,
             initializer=tf.keras.initializers.Constant(0.0),
             trainable=True,
         )
