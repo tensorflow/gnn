@@ -222,9 +222,9 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     # use a single Dense layer that outputs `num_heads` units because we need
     # to apply a different attention function a_k to its corresponding
     # W_k-transformed features.
-    self._attention_logits_fn = tf.keras.layers.experimental.EinsumDense(
+    self._attention_logits_fn = tf.keras.layers.EinsumDense(
         "...ik,ki->...i",
-        output_shape=(None, num_heads, 1),  # TODO(b/205825425): (num_heads,)
+        output_shape=(num_heads,),
         kernel_initializer=tfgnn.keras.clone_initializer(
             self._kernel_initializer),
         kernel_regularizer=kernel_regularizer,
