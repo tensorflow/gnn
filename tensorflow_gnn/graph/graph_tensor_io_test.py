@@ -68,29 +68,29 @@ class TfExampleParsingFromSpecTest(TfExampleParsingTestBase):
               context_spec=gt.ContextSpec.from_field_specs(features_spec={
                   'v': tf.TensorSpec(shape=(2,), dtype=tf.int16),
                   'm': tf.TensorSpec(shape=(2, 3), dtype=tf.int32),
-                  't': tf.TensorSpec(shape=(1, 1, 2), dtype=tf.int64),
+                  't': tf.TensorSpec(shape=(2, 1, 2), dtype=tf.int64),
               })),
           examples=[
               r"""
               features {
                 feature {key: "context/v" value {int64_list {value: [1, 2]} } }
                 feature {key: "context/m" value {int64_list {value: [1, 2, 3, 4, 5, 6]} } }
-                feature {key: "context/t" value {int64_list {value: [1, 2] } } }
+                feature {key: "context/t" value {int64_list {value: [1, 2, 3, 4] } } }
               }""", r"""
               features {
                 feature {key: "context/v" value {int64_list {value: [9, 8]} } }
                 feature {key: "context/m" value {int64_list {value: [9, 8, 7, 6, 5, 4]} } }
-                feature {key: "context/t" value {int64_list {value: [9, 8]} } }
+                feature {key: "context/t" value {int64_list {value: [9, 8, 7, 6]} } }
               }"""
           ],
           expected_values=[{
               'context/v': as_tensor([1, 2]),
               'context/m': as_tensor([[1, 2, 3], [4, 5, 6]]),
-              'context/t': as_tensor([[[1, 2]]])
+              'context/t': as_tensor([[[1, 2]], [[3, 4]]])
           }, {
               'context/v': as_tensor([9, 8]),
               'context/m': as_tensor([[9, 8, 7], [6, 5, 4]]),
-              'context/t': as_tensor([[[9, 8]]])
+              'context/t': as_tensor([[[9, 8]], [[7, 6]]])
           }]),
       dict(
           description='context ragged features parsing',
@@ -211,26 +211,26 @@ class TfExampleParsingFromSpecTest(TfExampleParsingTestBase):
           context_spec=gt.ContextSpec.from_field_specs(features_spec={
               'v': tf.TensorSpec(shape=(2,), dtype=tf.int16),
               'm': tf.TensorSpec(shape=(2, 3), dtype=tf.int32),
-              't': tf.TensorSpec(shape=(1, 1, 2), dtype=tf.int64),
+              't': tf.TensorSpec(shape=(2, 1, 2), dtype=tf.int64),
           })),
       examples=[
           r"""
           features {
             feature {key: "context/v" value {int64_list {value: [1, 2]} } }
             feature {key: "context/m" value {int64_list {value: [1, 2, 3, 4, 5, 6]} } }
-            feature {key: "context/t" value {int64_list {value: [1, 2] } } }
+            feature {key: "context/t" value {int64_list {value: [1, 2, 3, 4] } } }
           }""", r"""
           features {
             feature {key: "context/v" value {int64_list {value: [9, 8]} } }
             feature {key: "context/m" value {int64_list {value: [9, 8, 7, 6, 5, 4]} } }
-            feature {key: "context/t" value {int64_list {value: [9, 8]} } }
+            feature {key: "context/t" value {int64_list {value: [9, 8, 7, 6]} } }
           }"""
       ],
       expected={
           'context/v': as_tensor([[1, 2], [9, 8]]),
           'context/m': as_tensor([[[1, 2, 3], [4, 5, 6]],
                                   [[9, 8, 7], [6, 5, 4]]]),
-          'context/t': as_tensor([[[[1, 2]]], [[[9, 8]]]])
+          'context/t': as_tensor([[[[1, 2]], [[3, 4]]], [[[9, 8]], [[7, 6]]]])
       },
       prefix=None,
       validate=True)
