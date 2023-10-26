@@ -125,6 +125,11 @@ def _parallel_vee_example_graph():
 
 class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    # tf.test.TestCase neglects to reset this between tests.
+    tf.keras.mixed_precision.set_global_policy("float32")
+
   # TODO(b/269076334): Test with "_readout" node set.
   def test_ndim_input(self):
     """Tests that HGT can handle inputs with more than 2 dimensions."""
@@ -226,7 +231,18 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
         lambda: conv(test_graph),
     )
 
-  def test_homogeneous_multi_head(self):
+  @parameterized.named_parameters(
+      ("",),
+      ("F64", "float64"),
+      ("MF16", "mixed_float16"),
+      ("MBF16", "mixed_bfloat16"))
+  def test_homogeneous_multi_head(self,
+                                  mixed_precision_policy_name=None):
+
+    if mixed_precision_policy_name:
+      tf.keras.mixed_precision.set_global_policy(mixed_precision_policy_name)
+    mixed_precision_policy = tf.keras.mixed_precision.global_policy()
+
     test_graph = tfgnn.GraphTensor.from_pieces(
         node_sets={
             "nodes":
@@ -258,36 +274,53 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
     _ = conv(test_graph)
     weights = {v.name: v for v in conv.trainable_weights}
     self.assertLen(weights, 11)  # Includes biases and edge type priors.
+    for k, v in weights.items():
+      with self.subTest(f"dtype check for weight '{k}'"):
+        self.assertDTypeEqual(v, mixed_precision_policy.variable_dtype)
+
     # Use identity transformations for the initial key/message/query states.
-    weights["hgt_graph_update/key_node_nodes/kernel:0"].assign(tf.eye(4))
-    weights["hgt_graph_update/message_node_nodes/kernel:0"].assign(tf.eye(4))
-    weights["hgt_graph_update/query_node_nodes/kernel:0"].assign(tf.eye(4))
+    weights["hgt_graph_update/key_node_nodes/kernel:0"].assign(
+        np.eye(4, dtype=mixed_precision_policy.variable_dtype))
+    weights["hgt_graph_update/message_node_nodes/kernel:0"].assign(
+        np.eye(4, dtype=mixed_precision_policy.variable_dtype))
+    weights["hgt_graph_update/query_node_nodes/kernel:0"].assign(
+        np.eye(4, dtype=mixed_precision_policy.variable_dtype))
     # Use identity transformation for the final node transformation as well.
-    weights["hgt_graph_update/aggr_node_nodes/kernel:0"].assign(tf.eye(4))
+    weights["hgt_graph_update/aggr_node_nodes/kernel:0"].assign(
+        np.eye(4, dtype=mixed_precision_policy.variable_dtype))
     # Each attention head should apply identity transformation
     # to its channels.
     weights["hgt_graph_update/attention_edge_edges/kernel:0"].assign(
-        tf.stack([tf.eye(2), tf.eye(2)]))
+        np.stack([np.eye(2), np.eye(2)]))
     weights["hgt_graph_update/message_edge_edges/kernel:0"].assign(
-        tf.stack([tf.eye(2), tf.eye(2)]))
-    self.assertAllClose(
-        conv(test_graph).node_sets["nodes"]["hidden_state"],
-        # Each node has 2 incoming edges where the node feature is its
-        # corresponding unit vector.
-        # The first two entries of each unit vector get transformed by
-        # att head 0, the other two are transformed by att head 1.
-        # The results of each head get added together when computing scores,
-        # then scaled by softmax to 0.5 each.
-        # After pooling the attention results, the result is eye(4) combined
-        # with 0.5 at every coordinate corresponding to a (target, source) pair.
-        tf.constant([
-            [1, 0, 0.5, 0.5],
-            [0.5, 1, 0, 0.5],
-            [0.5, 0.5, 1, 0],
-            [0, 0.5, 0.5, 1],
-        ]),
-        rtol=1e-06,
-    )
+        np.stack([np.eye(2), np.eye(2)]))
+    got = conv(test_graph).node_sets["nodes"]["hidden_state"]
+    # Each node has 2 incoming edges where the node feature is its
+    # corresponding unit vector.
+    # The first two entries of each unit vector get transformed by
+    # att head 0, the other two are transformed by att head 1.
+    # The results of each head get added together when computing scores,
+    # then scaled by softmax to 0.5 each.
+    # After pooling the attention results, the result is eye(4) combined
+    # with 0.5 at every coordinate corresponding to a (target, source) pair.,
+    want = tf.constant([
+        [1, 0, 0.5, 0.5],
+        [0.5, 1, 0, 0.5],
+        [0.5, 0.5, 1, 0],
+        [0, 0.5, 0.5, 1],
+    ], dtype=mixed_precision_policy.compute_dtype)
+    self.assertAllCloseAccordingToType(
+        got,
+        want,
+        rtol=0.,
+        atol=1e-8,
+        float_rtol=0.,
+        float_atol=.0001,
+        half_rtol=0.,
+        half_atol=.01,
+        bfloat16_rtol=0.,
+        bfloat16_atol=.04)
+    self.assertEqual(got.dtype, want.dtype)
 
   def test_multi_senders_one_receiver_multi_head(self):
     log20 = tf.math.log(20.0).numpy()

@@ -283,7 +283,9 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     # Broadcast the scores and messages over the edge sets
     messages_by_edge_set = {}
     scores_by_receiver = collections.defaultdict(dict)
-    rsqrt_dim = tf.math.rsqrt(tf.cast(self._per_head_channels, tf.float32))
+    rsqrt_dim = tf.math.rsqrt(
+        tf.cast(self._per_head_channels, self.compute_dtype)
+    )
     for edge_set_name, edge_set in graph.edge_sets.items():
       if tfgnn.get_aux_type_prefix(edge_set_name):
         continue
@@ -359,9 +361,11 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
       if self._is_state_size_constant[node_set_name]:
         if self._use_weighted_skip:
           alpha = tf.sigmoid(self._skip_connection_weights[node_set_name])
-          res = res * alpha + node_set[self._feature_name] * (1 - alpha)
+          res = res * alpha + tf.cast(
+              node_set[self._feature_name], self.compute_dtype
+          ) * (1 - alpha)
         else:
-          res = res + node_set[self._feature_name]
+          res = res + tf.cast(node_set[self._feature_name], self.compute_dtype)
       features = graph.node_sets[node_set_name].get_features_dict()  # Copy
       features[self._feature_name] = self._norms[node_set_name](res)
       updated_node_features[node_set_name] = features
