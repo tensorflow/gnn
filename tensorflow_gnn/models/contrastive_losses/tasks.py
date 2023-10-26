@@ -66,6 +66,10 @@ class ContrastiveLossTask(runner.Task):
   ):
     """Constructs the `runner.Task`.
 
+    NOTE: This class uses `ShuffleFeaturesGlobally` as the default corruptor.
+    Per b/269249455, it does not support TPU execution. However, this is most
+    robust corruption function in practice, which is why we default to it.
+
     Args:
       node_set_name: Name of the node set for readout.
       feature_name: Feature name for readout.

@@ -167,7 +167,11 @@ def _seed_wrapper(
 
 @tf.keras.utils.register_keras_serializable(package=_PACKAGE)
 class ShuffleFeaturesGlobally(Corruptor[float]):
-  """A corruptor that shuffles features."""
+  """A corruptor that shuffles features.
+
+  NOTE: this function does not currently support TPUs. Consider using other
+  corruptor functions if executing on TPUs. See b/269249455 for reference.
+  """
 
   def __init__(self, *args, seed: Optional[float] = None, **kwargs):
     self._seed = seed
@@ -208,6 +212,7 @@ def _shuffle_tensor(
 
   This function shuffles tensors across the second (feature) dimension. For
   example, tensor [node_batch, feature_dim, ...] is shuffled across feature_dim.
+  NOTE: this function does not currently support TPUs. See b/269249455.
 
   Args:
     tensor: Input Tensor. Both dense and ragged tensors are supported.
