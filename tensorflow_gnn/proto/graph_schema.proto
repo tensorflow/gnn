@@ -116,12 +116,10 @@ message Feature {
   // this field itself.
   optional string source = 4;
 
-  // Extension to attach domain-specific metadata about the feature.
-  repeated tensorflow.Feature example_values = 5 [deprecated = true];
-
   // IDs of removed fields.
-  reserved 6;
+  reserved 5, 6;
 
+  // Extension to attach domain-specific metadata about the feature.
   extensions 65536 to max;
 }
 
