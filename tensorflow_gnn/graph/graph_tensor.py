@@ -1855,10 +1855,17 @@ def _static_check_items_dim(
   if not features:
     return
 
+  def is_undefined(dim) -> bool:
+    if isinstance(dim, int):
+      return False
+
+    # dim may be tf.compat.v1.Dimension...
+    return dim is None or dim.value is None
+
   num_items = {
-      fvalue.shape[graph_rank]: fname
+      int(fvalue.shape[graph_rank]): fname
       for fname, fvalue in features.items()
-      if fvalue.shape[graph_rank] is not None
+      if not is_undefined(fvalue.shape[graph_rank])
   }
   if len(num_items) >= 2:
     (da, fa), (db, fb) = list(num_items.items())[:2]
