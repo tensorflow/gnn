@@ -104,7 +104,7 @@ class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
             tf.debugging.assert_equal(
                 tf.size(result),
                 tf.size(result_dense),
-                message='`sizes` shape is not compatible with the piece shape'))
+                message='`sizes` shape is incompatible with the piece shape'))
 
       with tf.control_dependencies(check_ops):
         result = tf.identity(result_dense)
@@ -163,12 +163,21 @@ class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
       raise NotImplementedError
 
     # Note that this graph piece does not use any metadata fields.
-    return cls._from_data(
+    result = cls._from_data(
         data=data,
         shape=sizes.shape[:-1],
         indices_dtype=indices_dtype,
         row_splits_dtype=row_splits_dtype,
     )
+
+    if const.validate_graph_tensor_inputs:
+      # NOTE: The batch dimensions are already validated by the
+      # `GraphPieceBase._from_data()`. At this point we are checking only
+      # invariants specific to the `_GraphPieceWithFeatures`.
+      _static_check_sizes(result.sizes, result.shape.rank)
+      _static_check_items_dim(result.features, result.shape.rank)
+
+    return result
 
   def get_features_dict(self) -> Dict[FieldName, Field]:
     """Returns features copy as a dictionary."""
@@ -231,6 +240,7 @@ class _GraphPieceWithFeaturesSpec(gp.GraphPieceSpecBase):
     gp.check_indices_dtype(sizes_spec.dtype, what='`sizes_spec`')
 
     features_spec = features_spec.copy()
+
     data_spec = {
         _NodeOrEdgeSet._DATAKEY_FEATURES: features_spec,
         _NodeOrEdgeSet._DATAKEY_SIZES: sizes_spec,
@@ -251,12 +261,18 @@ class _GraphPieceWithFeaturesSpec(gp.GraphPieceSpecBase):
       raise NotImplementedError
 
     # Note that this graph piece does not use any metadata fields.
-    return cls._from_data_spec(
+    result = cls._from_data_spec(
         data_spec,
         shape=sizes_spec.shape[:-1],
         indices_dtype=indices_dtype,
         row_splits_dtype=row_splits_dtype,
     )
+
+    if const.validate_graph_tensor_inputs:
+      _static_check_sizes(result.sizes_spec, result.rank)
+      _static_check_items_dim(result.features_spec, result.rank)
+
+    return result
 
   @classmethod
   def _data_spec_with_indices_dtype(
@@ -1792,3 +1808,61 @@ def check_homogeneous_graph_tensor(
   """Raises ValueError when tfgnn.get_homogeneous_node_and_edge_set_name() does.
   """
   _ = get_homogeneous_node_and_edge_set_name(graph, name=name)
+
+
+def _static_check_sizes(
+    sizes: Union[Field, FieldSpec], graph_rank: int
+) -> None:
+  """Checks graph component sizes rank.
+
+  Args:
+    sizes: graph piece sizes, as `[*graph_shape, num_components]`.
+    graph_rank: The number of batch dimensions, as `graph_shape.rank`.
+
+  Raises:
+    ValueError: if `sizes.shape.rank != graph_rank + 1`.
+  """
+  expected_rank = graph_rank + 1
+  if sizes.shape.rank != expected_rank:
+    raise ValueError(
+        f'`sizes` must be of rank {expected_rank} (number of batch dimensions'
+        f' plus 1), got {sizes.shape.rank}.'
+    )
+
+
+def _static_check_items_dim(
+    features: Union[Fields, FieldsSpec], graph_rank: int
+) -> None:
+  """Checks items dimension in features shape.
+
+  NOTE: here we check the subset of graph tensor shape rules and allow a mix of
+  fully defined and undefined item dimensions, as long as all fully defined
+  dimensions have the same sizes. The reason for this is that unknown dimensions
+  can originate from the imperfect static shape inference in Tensorflow or from
+  ragged tensors that have uniform inner dimensions but were constructed using
+  ragged row partitions. We delegate pedantic validation of the statically
+  unknown dimensions to the dynamic checks.
+
+  Args:
+    features: graph pieces features or their type specs. Must have shapes
+      `[*graph_shape, num_items, *feature_shape]`.
+    graph_rank: the number of batch dimensions as `graph_shape.rank`.
+
+  Raises:
+    ValueError: if some fully defined item dimensions do not match.
+  """
+
+  if not features:
+    return
+
+  num_items = {
+      fvalue.shape[graph_rank]: fname
+      for fname, fvalue in features.items()
+      if fvalue.shape[graph_rank] is not None
+  }
+  if len(num_items) >= 2:
+    (da, fa), (db, fb) = list(num_items.items())[:2]
+    raise ValueError(
+        f'Features "{fa}" and "{fb}" have shapes with'
+        f' incompatible items dimension (dim={graph_rank}): {da} != {db}.'
+    )

@@ -70,6 +70,23 @@ class CreationTest(tu.GraphTensorTestBase):
       self.assertAllEqual(context.spec['a'],
                           type_spec.type_spec_from_value(features['a']))
 
+  def testValidationOnOff(self):
+    invalid_features = {'a': [1, 2], 'b': [1, 2, 3]}
+    const.disable_graph_tensor_inputs_validation()
+    _ = gt.Context.from_fields(features=invalid_features)
+
+    const.enable_graph_tensor_inputs_validation()
+    with self.assertRaises(ValueError):
+      gt.Context.from_fields(features=invalid_features)
+
+  def testRaisesOnInvalidContextInit(self):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        'Features "a" and "b" have shapes with incompatible items dimension'
+        ' (dim=0): 2 != 3.',
+    ):
+      gt.Context.from_fields(features={'a': [1, 2], 'b': [1, 2, 3]})
+
   def testCreationChain(self):
     source = gt.Context.from_fields(features={'x': as_tensor([1.])})
     copy1 = gt.Context.from_fields(features=source.features)
@@ -122,6 +139,30 @@ class CreationTest(tu.GraphTensorTestBase):
       self.assertAllEqual(node_set.spec['a'],
                           type_spec.type_spec_from_value(features['a']))
 
+  def testRaisesOnInvalidNodeSetInit(self):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        'Field rank must be greater than the batch rank: field shape=(1,),'
+        ' batch_rank=1',
+    ):
+      gt.NodeSet.from_fields(sizes=[[3]], features={'a': [1]})
+
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        'Fields batch dimensions do not match: batch_rank=1, 1st field shape:'
+        ' (1, 2), 2nd field shape: (2, 1)',
+    ):
+      gt.NodeSet.from_fields(sizes=[[3], [2]], features={'x': [[1, 2]]})
+
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        'Features "a" and "b" have shapes with incompatible items'
+        ' dimension (dim=0): 1 != 2.',
+    ):
+      gt.NodeSet.from_fields(
+          sizes=[3], features={'a': [1], 'b': as_ragged([[1], [2, 3]])}
+      )
+
   @parameterized.parameters([
       dict(
           features={},
@@ -158,6 +199,21 @@ class CreationTest(tu.GraphTensorTestBase):
     self.assertAllEqual(edge_set.adjacency.shape, expected_shape)
     self.assertAllEqual(edge_set.adjacency[const.SOURCE],
                         adjacency[const.SOURCE])
+
+  def testRaisesOnInvalidEdgeSetInit(self):
+    with self.assertRaisesWithLiteralMatch(
+        ValueError,
+        'Field rank must be greater than the batch rank: field shape=(),'
+        ' batch_rank=0',
+    ):
+      gt.EdgeSet.from_fields(
+          sizes=3,
+          adjacency=adj.Adjacency.from_indices(
+              ('node', [0]),
+              ('node', [0]),
+          ),
+          features={},
+      )
 
   def testEmptyGraphTensor(self):
     result = gt.GraphTensor.from_pieces()
@@ -1010,12 +1066,15 @@ class BatchingUnbatchingMergingTest(tf.test.TestCase, parameterized.TestCase):
 
     @tf.function
     def generate(num_nodes):
+      ones = tf.ones(tf.stack([num_nodes], 0), dtype=row_splits_dtype)
+      zeros = tf.convert_to_tensor([0], dtype=row_splits_dtype)
+      row_lengths = tf.concat([zeros, ones, zeros], axis=0)
       return gt.Context.from_fields(
           features={
               'x': tf.range(num_nodes),
               'r': tf.RaggedTensor.from_row_lengths(
                   tf.ones(tf.stack([num_nodes], 0), dtype=tf.float32),
-                  tf.cast(tf.stack([0, num_nodes, 0], 0), row_splits_dtype),
+                  row_lengths,
               ),
           }
       )
@@ -1038,10 +1097,17 @@ class BatchingUnbatchingMergingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(
         element['r'],
         as_ragged([
-            [[[], [], []], [[], [1], []], [[], [1, 1], []]],
-            [[[], [1, 1, 1], []], [[], [1, 1, 1, 1], []],
-             [[], [1, 1, 1, 1, 1], []]],
-        ]))
+            [
+                [[], []],
+                [[], [1.0], []],
+                [[], [1.0], [1.0], []]],
+            [
+                [[], [1.0], [1.0], [1.0], []],
+                [[], [1.0], [1.0], [1.0], [1.0], []],
+                [[], [1.0], [1.0], [1.0], [1.0], [1.0], []],
+            ],
+        ]),
+    )
 
     self.assertAllEqual(
         type_spec.type_spec_from_value(element['x']),

@@ -262,7 +262,7 @@ class StructuredReadoutIntoFeatureTest(tf.test.TestCase,
                           "zeros": tf.zeros([2])}),
             "unrelated": gt.NodeSet.from_fields(
                 sizes=tf.constant([1]),
-                features={"labels": tf.constant([9, 9]),
+                features={"labels": tf.constant([9]),
                           "stuff": tf.constant([[3.14, 2.71]])}),
             "_readout": gt.NodeSet.from_fields(
                 sizes=tf.constant([2]),
@@ -378,7 +378,7 @@ class ContextReadoutIntoFeatureTest(tf.test.TestCase, parameterized.TestCase):
             "unrelated": gt.NodeSet.from_fields(
                 sizes=tf.constant([1]),
                 features={"labels": tf.constant([9, 9]),
-                          "stuff": tf.constant([[3.14, 2.71]])})})
+                          "stuff": tf.constant([[3.14], [2.71]])})})
 
     graph = readout.context_readout_into_feature(
         test_graph, feature_name="labels", new_feature_name="target",
@@ -404,9 +404,9 @@ class ContextReadoutIntoFeatureTest(tf.test.TestCase, parameterized.TestCase):
                 features={"labels": tf.constant([11, 22, 33, 44, 55]),
                           "ones": tf.ones([5, 1])}),
             "unrelated": gt.NodeSet.from_fields(
-                sizes=tf.constant([1]),
+                sizes=tf.constant([1, 1]),
                 features={"labels": tf.constant([9, 9]),
-                          "stuff": tf.constant([[3.14, 2.71]])})})
+                          "stuff": tf.constant([3.14, 2.71])})})
     # Put a readout node set like a multi-task training pipeline with
     # context and seed node features would.
     test_graph = readout.add_readout_from_first_node(test_graph, "seed",

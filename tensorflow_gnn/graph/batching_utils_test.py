@@ -42,7 +42,7 @@ class DynamicBatchTest(tu.GraphTensorTestBase):
               'f1': as_tensor([1.]),
               'f2': as_tensor([[1., 2.]]),
               'i3': as_tensor([[[1, 2], [3, 4]]]),
-              'r1': as_ragged([[], ['a', 'b']]),
+              'r1': as_ragged([[[], ['a', 'b']]]),
           }),
   ])
   def testFeaturesBatching(self, target_num_components: int,

@@ -28,7 +28,7 @@ class AttributionTest(tf.test.TestCase):
       context=tfgnn.Context.from_fields(features={
           "h": tf.convert_to_tensor((.514, .433)),
           # An integer feature with uniform values.
-          "labels": tf.convert_to_tensor((0,)),
+          "labels": tf.convert_to_tensor((0, 1)),
       }),
       node_sets={
           "node":
@@ -58,7 +58,7 @@ class AttributionTest(tf.test.TestCase):
         tf.convert_to_tensor((0.49280962, 0.466383)))
     self.assertAllEqual(
         counterfactual.context.features["labels"],
-        tf.convert_to_tensor((0,)))
+        tf.convert_to_tensor((1, 0)))
 
     self.assertAllEqual(
         counterfactual.edge_sets["edge"].features["weight"],
@@ -76,7 +76,7 @@ class AttributionTest(tf.test.TestCase):
         tf.convert_to_tensor((0, 0)))
     self.assertAllEqual(
         counterfactual.context.features["labels"],
-        tf.convert_to_tensor((0,)))
+        tf.convert_to_tensor((0, 0)))
 
     self.assertAllEqual(
         counterfactual.edge_sets["edge"].features["weight"],
@@ -92,7 +92,7 @@ class AttributionTest(tf.test.TestCase):
         self.gt.replace_features(
             context={
                 "h": tf.convert_to_tensor((.4, .8)),
-                "labels": tf.convert_to_tensor((1,))
+                "labels": tf.convert_to_tensor((1, 1))
             },
             node_sets={
                 "node": {
@@ -110,7 +110,7 @@ class AttributionTest(tf.test.TestCase):
         tf.convert_to_tensor((.514 - .4, .433 - .8)))
     self.assertAllClose(
         deltas.context.features["labels"],
-        tf.convert_to_tensor((0 - 1,)))
+        tf.convert_to_tensor((0 - 1, 1 - 1)))
 
     self.assertAllClose(
         deltas.edge_sets["edge"].features["weight"],
