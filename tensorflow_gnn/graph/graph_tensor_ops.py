@@ -60,6 +60,7 @@ def _zero_edge_feat_init(
   return tf.zeros(shape, dtype=tf.float32)
 
 
+@kt.disallow_keras_tensors(alternative='tfgnn.keras.layers.AddSelfLoops')
 def add_self_loops(
     graph: GraphTensor, edge_set_name: gt.EdgeSetName, *,
     edge_feature_initializer: _EdgeFeatureInitializer = _zero_edge_feat_init,
@@ -178,6 +179,7 @@ def add_self_loops(
       edge_sets=updated_edge_sets)
 
 
+@kt.delegate_keras_tensors
 def gather_first_node(graph_tensor: GraphTensor,
                       node_set_name: NodeSetName,
                       *,
@@ -231,6 +233,7 @@ def gather_first_node(graph_tensor: GraphTensor,
     return tf.gather(node_value, components_starts)
 
 
+@kt.delegate_keras_tensors
 def mask_edges(
     graph: GraphTensor,
     edge_set_name: gt.EdgeSetName,
@@ -347,6 +350,7 @@ def mask_edges(
         edge_sets=new_edge_sets)
 
 
+@kt.delegate_keras_tensors
 def combine_values(inputs: List[Field], combine_type: str) -> Field:
   """Combines a list of tensors into one (by concatenation or otherwise).
 
@@ -403,6 +407,7 @@ def is_graph_tensor(value: Any) -> bool:
   return isinstance(value, (GraphTensor, GraphKerasTensor))
 
 
+@kt.delegate_keras_tensors
 def shuffle_features_globally(graph_tensor: GraphTensor,
                               *,
                               seed: Optional[int] = None) -> GraphTensor:
@@ -446,6 +451,7 @@ def shuffle_features_globally(graph_tensor: GraphTensor,
   return graph_tensor.replace_features(context, node_sets, edge_sets)
 
 
+@kt.delegate_keras_tensors
 def reorder_nodes(graph_tensor: GraphTensor,
                   node_indices: Mapping[gt.NodeSetName, tf.Tensor],
                   *,
@@ -551,6 +557,7 @@ def reorder_nodes(graph_tensor: GraphTensor,
   return result
 
 
+@kt.delegate_keras_tensors
 def shuffle_nodes(graph_tensor: GraphTensor,
                   *,
                   node_sets: Optional[Collection[gt.NodeSetName]] = None,
@@ -617,6 +624,7 @@ def shuffle_nodes(graph_tensor: GraphTensor,
       graph_tensor, node_indices, validate=const.validate_internal_results)
 
 
+@kt.delegate_keras_tensors
 def node_degree(graph_tensor: GraphTensor,
                 edge_set_name: EdgeSetName,
                 node_tag: IncidentNodeTag) -> Field:
@@ -1018,6 +1026,7 @@ def _convert_to_non_backtracking_line_graph(
   return line_graph_tensor
 
 
+@kt.delegate_keras_tensors
 def convert_to_line_graph(
     graph_tensor: gt.GraphTensor,
     *,
@@ -1134,6 +1143,7 @@ def convert_to_line_graph(
 
 # This function depends on both broadcast_ops and pool_ops, so it is defined
 # here, alongside other higher-level ops.
+@kt.delegate_keras_tensors
 def pool_neighbors_to_node(
     graph_tensor: GraphTensor,
     edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName],
@@ -1200,6 +1210,7 @@ def pool_neighbors_to_node(
   )
 
 
+@kt.delegate_keras_tensors
 def pool_neighbors_to_node_feature(
     graph_tensor: GraphTensor,
     edge_set_name: Union[Sequence[EdgeSetName], EdgeSetName],

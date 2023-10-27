@@ -60,6 +60,8 @@ tf_py_test(
         "//tensorflow_gnn/graph:broadcast_ops",
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
+        "//tensorflow_gnn/graph:graph_tensor_ops",
+        "//tensorflow_gnn/graph:padding_ops",
         "//tensorflow_gnn/graph:pool_ops",
     ],
 )

@@ -22,6 +22,7 @@ from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import tag_utils
 from tensorflow_gnn.graph import tensor_utils as utils
+from tensorflow_gnn.keras import keras_tensors as kt
 
 Field = const.Field
 FieldName = const.FieldName
@@ -32,6 +33,7 @@ IncidentNodeOrContextTag = const.IncidentNodeOrContextTag
 GraphTensor = gt.GraphTensor
 
 
+@kt.delegate_keras_tensors
 def broadcast_node_to_edges(graph_tensor: GraphTensor,
                             edge_set_name: EdgeSetName,
                             node_tag: IncidentNodeTag,
@@ -79,6 +81,7 @@ def broadcast_node_to_edges(graph_tensor: GraphTensor,
   return tf.gather(node_value, adjacency[node_tag])
 
 
+@kt.delegate_keras_tensors
 def broadcast_context_to_nodes(
     graph_tensor: GraphTensor,
     node_set_name: NodeSetName,
@@ -118,6 +121,7 @@ def broadcast_context_to_nodes(
       feature_name=feature_name)
 
 
+@kt.delegate_keras_tensors
 def broadcast_context_to_edges(
     graph_tensor: GraphTensor,
     edge_set_name: EdgeSetName,
@@ -178,6 +182,7 @@ def _broadcast_context(graph_tensor: GraphTensor,
       repeats_sum_hint=node_or_edge_set.spec.total_size)
 
 
+@kt.delegate_keras_tensors(name="broadcast")
 def broadcast_v2(
     graph_tensor: GraphTensor,
     from_tag: IncidentNodeOrContextTag,

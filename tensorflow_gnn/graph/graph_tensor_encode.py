@@ -27,8 +27,10 @@ from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as gc
 from tensorflow_gnn.graph import graph_piece as gp
 from tensorflow_gnn.graph import graph_tensor as gt
+from tensorflow_gnn.keras import keras_tensors as kt
 
 
+@kt.disallow_keras_tensors
 def write_example(graph: gt.GraphTensor,
                   prefix: Optional[str] = None) -> tf.train.Example:
   """Encode an eager `GraphTensor` to a tf.train.Example proto.

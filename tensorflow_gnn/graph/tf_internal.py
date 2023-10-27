@@ -38,13 +38,16 @@ try:
   if hasattr(keras, 'src'):  # As of TF/Keras 2.13.
     from keras.src.engine import keras_tensor  # pytype: disable=import-error
     from keras.src.layers import core as core_layers  # pytype: disable=import-error
+    import keras.src.backend as keras_backend  # pytype: disable=import-error
   else:
     from keras.engine import keras_tensor  # pytype: disable=import-error
     from keras.layers import core as core_layers  # pytype: disable=import-error
+    import keras.backend as keras_backend  # pytype: disable=import-error
 except ImportError:
   # Internal
   keras_tensor = tf._keras_internal.engine.keras_tensor  # pylint: disable=protected-access
   core_layers = tf._keras_internal.layers.core  # pylint: disable=protected-access
+  keras_backend = tf._keras_internal.backend  # pylint: disable=protected-access
 
 CompositeTensor = composite_tensor.CompositeTensor
 BatchableTypeSpec = type_spec.BatchableTypeSpec
@@ -75,6 +78,8 @@ delegate_property = core_layers._delegate_property  # pylint: disable=protected-
 delegate_method = core_layers._delegate_method  # pylint: disable=protected-access
 
 OpDispatcher = tf.__internal__.dispatch.OpDispatcher
+
+unique_keras_object_name = keras_backend.unique_object_name
 
 # Delete imports, in their order above.
 del composite_tensor

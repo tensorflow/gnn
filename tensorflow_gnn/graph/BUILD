@@ -80,6 +80,7 @@ pytype_strict_library(
         ":graph_piece",
         ":graph_tensor",
         "//:expect_tensorflow_installed",
+        "//tensorflow_gnn/keras:keras_tensors",
     ],
 )
 
@@ -102,6 +103,7 @@ pytype_strict_library(
     deps = [
         ":graph_tensor",
         "//:expect_numpy_installed",
+        "//tensorflow_gnn/keras:keras_tensors",
     ],
 )
 
@@ -138,6 +140,7 @@ pytype_strict_library(
         ":graph_tensor",
         ":pool_ops",
         "//:expect_tensorflow_installed",
+        "//tensorflow_gnn/keras:keras_tensors",
     ],
 )
 
@@ -165,6 +168,7 @@ pytype_strict_library(
         ":graph_constants",
         ":graph_tensor",
         "//:expect_tensorflow_installed",
+        "//tensorflow_gnn/keras:keras_tensors",
         "//tensorflow_gnn/proto:graph_schema_py_proto",
     ],
 )
@@ -391,6 +395,7 @@ pytype_strict_library(
         ":graph_tensor",
         ":pool_ops",
         "//:expect_tensorflow_installed",
+        "//tensorflow_gnn/keras:keras_tensors",
     ],
 )
 
@@ -459,6 +464,7 @@ pytype_strict_library(
         ":tensor_utils",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//tensorflow_gnn/keras:keras_tensors",
     ],
 )
 
@@ -538,6 +544,7 @@ pytype_strict_library(
         ":tag_utils",
         ":tensor_utils",
         "//:expect_tensorflow_installed",
+        "//tensorflow_gnn/keras:keras_tensors",
     ],
 )
 

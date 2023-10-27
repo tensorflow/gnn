@@ -25,8 +25,10 @@ from tensorflow_gnn.graph import graph_piece as gp
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import preprocessing_common as preprocessing
 from tensorflow_gnn.graph import tensor_utils
+from tensorflow_gnn.keras import keras_tensors as kt
 
 
+@kt.disallow_keras_tensors(alternative='tfgnn.keras.layers.PadToTotalSizes')
 def pad_to_total_sizes(
     graph_tensor: gt.GraphTensor,
     size_constraints: preprocessing.SizeConstraints,
@@ -183,6 +185,7 @@ def pad_to_total_sizes(
   return padded_graph_tensor, cast(tf.Tensor, padding_mask)
 
 
+@kt.delegate_keras_tensors
 def satisfies_size_constraints(
     graph_tensor: gt.GraphTensor,
     total_sizes: preprocessing.SizeConstraints) -> tf.Tensor:
@@ -210,6 +213,7 @@ def satisfies_size_constraints(
   return tf.math.reduce_all(tf.stack(conditions, axis=0))
 
 
+@kt.disallow_keras_tensors
 def assert_satisfies_size_constraints(
     graph_tensor: gt.GraphTensor,
     size_constraints: preprocessing.SizeConstraints):

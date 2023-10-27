@@ -38,6 +38,7 @@ GraphTensor = gt.GraphTensor
 GraphTensorSpec = gt.GraphTensorSpec
 
 
+@kt.delegate_keras_tensors
 def pool_edges_to_node(graph_tensor: GraphTensor,
                        edge_set_name: EdgeSetName,
                        node_tag: IncidentNodeTag,
@@ -96,6 +97,7 @@ def pool_edges_to_node(graph_tensor: GraphTensor,
                  feature_value=feature_value, feature_name=feature_name)
 
 
+@kt.delegate_keras_tensors
 def pool_nodes_to_context(graph_tensor: GraphTensor,
                           node_set_name: NodeSetName,
                           reduce_type: str = "sum",
@@ -148,6 +150,7 @@ def pool_nodes_to_context(graph_tensor: GraphTensor,
                  feature_name=feature_name)
 
 
+@kt.delegate_keras_tensors
 def pool_edges_to_context(graph_tensor: GraphTensor,
                           edge_set_name: EdgeSetName,
                           reduce_type: str = "sum",
@@ -204,6 +207,7 @@ def pool_edges_to_context(graph_tensor: GraphTensor,
                  feature_name=feature_name)
 
 
+@kt.delegate_keras_tensors(name="pool")
 def pool_v2(
     graph_tensor: GraphTensor,
     to_tag: IncidentNodeOrContextTag,

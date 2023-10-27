@@ -22,6 +22,7 @@ from tensorflow_gnn.graph import broadcast_ops
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import pool_ops
+from tensorflow_gnn.keras import keras_tensors as kt
 
 
 Field = const.Field
@@ -33,6 +34,7 @@ IncidentNodeOrContextTag = const.IncidentNodeOrContextTag
 GraphTensor = gt.GraphTensor
 
 
+@kt.delegate_keras_tensors
 def softmax(
     graph_tensor: GraphTensor,
     per_tag: IncidentNodeOrContextTag,
@@ -116,6 +118,7 @@ def _zip_strict(*args):
   return zip(*args)
 
 
+@kt.delegate_keras_tensors
 def softmax_edges_per_node(
     graph_tensor: GraphTensor,
     edge_set_name: EdgeSetName,
@@ -129,6 +132,7 @@ def softmax_edges_per_node(
                       feature_value=feature_value, feature_name=feature_name))
 
 
+@kt.delegate_keras_tensors
 def softmax_edges_per_component(
     graph_tensor: GraphTensor,
     edge_set_name: EdgeSetName,
@@ -141,6 +145,7 @@ def softmax_edges_per_component(
                       feature_value=feature_value, feature_name=feature_name))
 
 
+@kt.delegate_keras_tensors
 def softmax_nodes_per_component(
     graph_tensor: GraphTensor,
     node_set_name: NodeSetName,

@@ -19,6 +19,7 @@ from typing import Any, Dict
 import numpy
 
 from tensorflow_gnn.graph import graph_tensor as gt
+from tensorflow_gnn.keras import keras_tensors as kt
 
 
 # NOTE(blais): Recursive type annotations not supported yet so we use Any.
@@ -46,6 +47,7 @@ def _get_features_data(features: gt.Fields) -> Dict[str, Any]:
           for name, tensor in features.items()}
 
 
+@kt.disallow_keras_tensors
 def graph_tensor_to_values(graph: gt.GraphTensor) -> Dict[str, Any]:
   """Convert an eager `GraphTensor` to a mapping of mappings of PODTs.
 

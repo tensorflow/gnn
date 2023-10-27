@@ -24,6 +24,7 @@ from tensorflow_gnn.graph import broadcast_ops
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import pool_ops
+from tensorflow_gnn.keras import keras_tensors as kt
 
 
 def validate_graph_tensor_spec_for_readout(
@@ -64,6 +65,7 @@ def validate_graph_tensor_spec_for_readout(
       graph_spec, required_keys, readout_node_set=readout_node_set)
 
 
+@kt.delegate_keras_tensors
 def validate_graph_tensor_for_readout(
     graph: gt.GraphTensor,
     required_keys: Optional[Sequence[str]] = None,
@@ -134,6 +136,7 @@ def validate_graph_tensor_for_readout(
     return tf.identity(graph)
 
 
+@kt.delegate_keras_tensors
 def structured_readout(
     graph: gt.GraphTensor,
     key: str,
@@ -269,6 +272,7 @@ def structured_readout(
   return result
 
 
+@kt.delegate_keras_tensors
 def structured_readout_into_feature(
     graph: gt.GraphTensor,
     key: str,
@@ -536,6 +540,7 @@ def get_validated_edge_set_map_for_readout(
   return edge_set_map
 
 
+@kt.delegate_keras_tensors
 def add_readout_from_first_node(
     graph: gt.GraphTensor,
     key: str,

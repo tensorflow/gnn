@@ -20,6 +20,7 @@ import tensorflow as tf
 from tensorflow_gnn.graph import adjacency
 from tensorflow_gnn.graph import graph_constants as gc
 from tensorflow_gnn.graph import graph_tensor as gt
+from tensorflow_gnn.keras import keras_tensors as kt
 import tensorflow_gnn.proto.graph_schema_pb2 as schema_pb2
 
 from google.protobuf import text_format
@@ -121,6 +122,7 @@ def create_graph_spec_from_schema_pb(
       edge_sets_spec=edges_spec)
 
 
+@kt.disallow_keras_tensors
 def create_schema_pb_from_graph_spec(
     graph: Union[gt.GraphTensor, gt.GraphTensorSpec]) -> schema_pb2.GraphSchema:
   """Converts scalar GraphTensorSpec to a graph schema proto message.
@@ -185,6 +187,7 @@ def create_schema_pb_from_graph_spec(
   return result
 
 
+@kt.disallow_keras_tensors
 def check_compatible_with_schema_pb(graph: Union[gt.GraphTensor,
                                                  gt.GraphTensorSpec],
                                     schema: schema_pb2.GraphSchema) -> None:
@@ -270,6 +273,7 @@ def _create_fields_spec_from_schema(
   return result
 
 
+@kt.disallow_keras_tensors
 def iter_sets(
     schema: Union[schema_pb2.GraphSchema, gt.GraphTensor]
 ) -> Iterator[Tuple[str, str, Any]]:
@@ -297,6 +301,7 @@ def iter_sets(
     yield (gc.EDGES, set_name, set_)
 
 
+@kt.disallow_keras_tensors
 def iter_features(
     schema: Union[schema_pb2.GraphSchema, gt.GraphTensor]
 ) -> Iterator[Tuple[Text, Text, Text, Union[schema_pb2.Feature, gt.Field]]]:
