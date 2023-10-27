@@ -213,6 +213,10 @@ is_dense_tensor = tensor_utils.is_dense_tensor
 is_ragged_tensor = tensor_utils.is_ragged_tensor
 is_graph_tensor = graph_tensor_ops.is_graph_tensor
 
+# Global state flags that controls GraphPieces checks.
+enable_graph_tensor_inputs_validation = graph_constants.enable_graph_tensor_inputs_validation
+disable_graph_tensor_inputs_validation = graph_constants.disable_graph_tensor_inputs_validation
+
 # Prune imported module symbols so they're not accessible implicitly,
 # except those meant to be used as subpackages, like tfgnn.keras.*.
 # Please use the same order as for the import statements at the top.

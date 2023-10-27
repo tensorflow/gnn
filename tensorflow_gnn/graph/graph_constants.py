@@ -98,6 +98,10 @@ validate_internal_results = True
 # the wider type.
 allow_indices_auto_casting = True
 
+# If set, validates `GraphTensor` and its pieces and raises exception on an
+# attempt to construct invalid graph tensors.
+validate_graph_tensor_inputs = True
+
 # The default choice for `indices_dtype`.
 # Can be either tf.int32 or tf.int64.
 #
@@ -118,3 +122,15 @@ default_row_splits_dtype = tf.int64
 
 # An older name used before tensorflow_gnn 0.2.
 DEFAULT_STATE_NAME = HIDDEN_STATE
+
+
+def disable_graph_tensor_inputs_validation():
+  """Disables validation of `GraphTensor` inputs."""
+  global validate_graph_tensor_inputs
+  validate_graph_tensor_inputs = False
+
+
+def enable_graph_tensor_inputs_validation():
+  """Enables validation for `GraphTensor` inputs."""
+  global validate_graph_tensor_inputs
+  validate_graph_tensor_inputs = True
