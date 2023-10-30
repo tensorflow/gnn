@@ -15,6 +15,7 @@ pytype_strict_library(
     ],
     deps = [
         ":layers",
+        ":metrics",
         ":tasks",
     ],
 )

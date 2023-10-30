@@ -22,6 +22,7 @@ from tensorflow_gnn.models import contrastive_losses
 ```
 """
 from tensorflow_gnn.models.contrastive_losses import layers
+from tensorflow_gnn.models.contrastive_losses import metrics
 from tensorflow_gnn.models.contrastive_losses import tasks
 
 CorruptionSpec = layers.CorruptionSpec
@@ -36,6 +37,14 @@ ContrastiveLossTask = tasks.ContrastiveLossTask
 DeepGraphInfomaxTask = tasks.DeepGraphInfomaxTask
 TripletLossTask = tasks.TripletLossTask
 VicRegTask = tasks.VicRegTask
+
+AllSvdMetrics = metrics.AllSvdMetrics
+coherence = metrics.coherence
+numerical_rank = metrics.numerical_rank
+pseudo_condition_number = metrics.pseudo_condition_number
+rankme = metrics.rankme
+self_clustering = metrics.self_clustering
+
 
 del layers
 del tasks
