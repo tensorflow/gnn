@@ -163,7 +163,7 @@ class MetricsTest(tf.test.TestCase, parameterized.TestCase):
     metric_object = metrics.AllSvdMetrics()
     metric_object.update_state(None, tensor)
     result = metric_object.result()
-    self.assertAllClose(result["pseudo_condition_number"], 0)
+    self.assertAllClose(result["coherence"], 1)
     self.assertAllClose(result["numerical_rank"], 1)
     self.assertAllClose(result["rankme"], 1)
 

@@ -71,6 +71,8 @@ def pseudo_condition_number(
   """Pseudo-condition number metric implementation.
 
   Computes a metric that measures the decay rate of the singular values.
+  NOTE: Can be unstable in practice, when using small batch sizes, leading
+  to numerical instabilities.
 
   Args:
     representations: Input representations. We expect rank 2 input.
@@ -332,9 +334,9 @@ class AllSvdMetrics(_SvdMetrics):
     super().__init__(
         *args,
         fns={
-            "pseudo_condition_number": pseudo_condition_number,
             "numerical_rank": numerical_rank,
             "rankme": rankme,
+            "coherence": coherence,
         },
         **kwargs,
     )
