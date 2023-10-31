@@ -17,6 +17,7 @@ pytype_strict_library(
         ":layers",
         ":metrics",
         ":tasks",
+        "//tensorflow_gnn/utils:api_utils",
     ],
 )
 

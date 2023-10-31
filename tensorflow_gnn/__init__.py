@@ -50,6 +50,11 @@ from tensorflow_gnn.graph import schema_validation
 from tensorflow_gnn.graph import tag_utils
 from tensorflow_gnn.graph import tensor_utils
 from tensorflow_gnn.proto import graph_schema
+from tensorflow_gnn.utils import api_utils
+
+# NOTE: This package is covered by tensorflow_gnn/api_def/api_symbols_test.py.
+# Please see there for instructions how to reflect API changes.
+# LINT.IfChange
 
 # Package version.
 __version__ = version.__version__
@@ -217,28 +222,12 @@ is_graph_tensor = graph_tensor_ops.is_graph_tensor
 enable_graph_tensor_inputs_validation = graph_constants.enable_graph_tensor_inputs_validation
 disable_graph_tensor_inputs_validation = graph_constants.disable_graph_tensor_inputs_validation
 
-# Prune imported module symbols so they're not accessible implicitly,
-# except those meant to be used as subpackages, like tfgnn.keras.*.
-# Please use the same order as for the import statements at the top.
-del version
-del adjacency
-del batching_utils
-del broadcast_ops
-del graph_constants
-del graph_tensor
-del graph_tensor_encode
-del graph_tensor_io
-del graph_tensor_ops
-del graph_tensor_pprint
-del graph_tensor_random
-del normalization_ops
-del padding_ops
-del pool_ops
-del preprocessing_common
-del readout
-del schema_utils
-del schema_validation
-del tag_utils
-del tensor_utils
-del graph_schema
-
+# Remove all names added by module imports, unless explicitly allowed here.
+api_utils.remove_submodules_except(__name__, [
+    "experimental",
+    "graph",  # TODO(b/266920603): Fix legacy users and remove!
+    "keras",
+    "proto",  # TODO(b/266920603): Fix legacy users and remove!
+    "sampler",
+])
+# LINT.ThenChange(api_def/tfgnn-symbols.txt)

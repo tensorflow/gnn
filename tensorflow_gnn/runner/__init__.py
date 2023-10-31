@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """A general purpose runner for TF-GNN."""
+# pylint: disable=line-too-long
+
 from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner import orchestration
 from tensorflow_gnn.runner.input import datasets
@@ -26,6 +28,11 @@ from tensorflow_gnn.runner.utils import model_dir
 from tensorflow_gnn.runner.utils import model_export
 from tensorflow_gnn.runner.utils import padding as padding_utils
 from tensorflow_gnn.runner.utils import strategies
+from tensorflow_gnn.utils import api_utils
+
+# NOTE: This package is covered by tensorflow_gnn/api_def/api_symbols_test.py.
+# Please see there for instructions how to reflect API changes.
+# LINT.IfChange
 
 # Attribution
 integrated_gradients = attribution.integrated_gradients
@@ -104,25 +111,18 @@ RootNodeMeanAbsolutePercentageError = regression.RootNodeMeanAbsolutePercentageE
 RootNodeMeanSquaredError = regression.RootNodeMeanSquaredError
 RootNodeMeanSquaredLogarithmicError = regression.RootNodeMeanSquaredLogarithmicError
 RootNodeMeanSquaredLogScaledError = regression.RootNodeMeanSquaredLogScaledError
-RootNodeMeanAbsoluteLogarithmicError = (
-    regression.RootNodeMeanAbsoluteLogarithmicError
-)
+RootNodeMeanAbsoluteLogarithmicError = regression.RootNodeMeanAbsoluteLogarithmicError
 
 # Training
 KerasTrainer = keras_fit.KerasTrainer
 KerasTrainerOptions = keras_fit.KerasTrainerOptions
 KerasTrainerCheckpointOptions = keras_fit.KerasTrainerCheckpointOptions
 
-del interfaces
-del orchestration
-del datasets
-del classification
-del link_prediction
-del regression
-del keras_fit
-del attribution
-del label_fns
-del model_dir
-del model_export
-del padding_utils
-del strategies
+# Remove all names added by module imports, unless explicitly allowed here.
+api_utils.remove_submodules_except(__name__, [
+    "input",  # TODO(b/266920603): Fix legacy users and remove!
+    "tasks",  # TODO(b/266920603): Fix legacy users and remove!
+    "trainers",  # TODO(b/266920603): Fix legacy users and remove!
+    "utils",  # TODO(b/266920603): Fix legacy users and remove!
+])
+# LINT.ThenChange(../api_def/runner-symbols.txt)

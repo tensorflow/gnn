@@ -1,0 +1,7 @@
+gat_v2.GATv2Conv
+gat_v2.GATv2EdgePool
+gat_v2.GATv2GraphUpdate
+gat_v2.GATv2HomGraphUpdate
+gat_v2.GATv2MPNNGraphUpdate
+gat_v2.graph_update_from_config_dict
+gat_v2.graph_update_get_config_dict

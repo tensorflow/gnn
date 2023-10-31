@@ -27,11 +27,16 @@ so it does not define any Conv class by itself.
 
 from tensorflow_gnn.models.vanilla_mpnn import config_dict
 from tensorflow_gnn.models.vanilla_mpnn import layers
+from tensorflow_gnn.utils import api_utils
+
+# NOTE: This package is covered by tensorflow_gnn/api_def/api_symbols_test.py.
+# Please see there for instructions how to reflect API changes.
+# LINT.IfChange
 
 VanillaMPNNGraphUpdate = layers.VanillaMPNNGraphUpdate
 graph_update_get_config_dict = config_dict.graph_update_get_config_dict
 graph_update_from_config_dict = config_dict.graph_update_from_config_dict
 
-# Prune imported module symbols so they're not accessible implicitly.
-del config_dict
-del layers
+# Remove all names added by module imports, unless explicitly allowed here.
+api_utils.remove_submodules_except(__name__, [])
+# LINT.ThenChange(../../api_def/vanilla_mpnn-symbols.txt)

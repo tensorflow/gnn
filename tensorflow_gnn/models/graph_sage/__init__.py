@@ -23,6 +23,11 @@ from tensorflow_gnn.models import graph_sage
 """
 
 from tensorflow_gnn.models.graph_sage import layers
+from tensorflow_gnn.utils import api_utils
+
+# NOTE: This package is covered by tensorflow_gnn/api_def/api_symbols_test.py.
+# Please see there for instructions how to reflect API changes.
+# LINT.IfChange
 
 GCNGraphSAGENodeSetUpdate = layers.GCNGraphSAGENodeSetUpdate
 GraphSAGEAggregatorConv = layers.GraphSAGEAggregatorConv
@@ -30,5 +35,6 @@ GraphSAGEPoolingConv = layers.GraphSAGEPoolingConv
 GraphSAGENextState = layers.GraphSAGENextState
 GraphSAGEGraphUpdate = layers.GraphSAGEGraphUpdate
 
-# Prune imported module symbols so they're not accessible implicitly.
-del layers
+# Remove all names added by module imports, unless explicitly allowed here.
+api_utils.remove_submodules_except(__name__, [])
+# LINT.ThenChange(../../api_def/graph_sage-symbols.txt)

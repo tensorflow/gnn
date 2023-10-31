@@ -24,6 +24,11 @@ from tensorflow_gnn.models import multi_head_attention
 
 from tensorflow_gnn.models.multi_head_attention import config_dict
 from tensorflow_gnn.models.multi_head_attention import layers
+from tensorflow_gnn.utils import api_utils
+
+# NOTE: This package is covered by tensorflow_gnn/api_def/api_symbols_test.py.
+# Please see there for instructions how to reflect API changes.
+# LINT.IfChange
 
 MultiHeadAttentionConv = layers.MultiHeadAttentionConv
 MultiHeadAttentionEdgePool = layers.MultiHeadAttentionEdgePool
@@ -32,6 +37,6 @@ MultiHeadAttentionMPNNGraphUpdate = layers.MultiHeadAttentionMPNNGraphUpdate
 graph_update_get_config_dict = config_dict.graph_update_get_config_dict
 graph_update_from_config_dict = config_dict.graph_update_from_config_dict
 
-# Prune imported module symbols so they're not accessible implicitly.
-del config_dict
-del layers
+# Remove all names added by module imports, unless explicitly allowed here.
+api_utils.remove_submodules_except(__name__, [])
+# LINT.ThenChange(../../api_def/multi_head_attention-symbols.txt)

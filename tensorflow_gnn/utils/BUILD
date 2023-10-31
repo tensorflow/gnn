@@ -12,3 +12,8 @@ pytype_strict_library(
     srcs = ["test_utils.py"],
     srcs_version = "PY3ONLY",
 )
+
+pytype_strict_library(
+    name = "api_utils",
+    srcs = ["api_utils.py"],
+)

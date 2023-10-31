@@ -24,6 +24,11 @@ from tensorflow_gnn.models import gat_v2
 
 from tensorflow_gnn.models.gat_v2 import config_dict
 from tensorflow_gnn.models.gat_v2 import layers
+from tensorflow_gnn.utils import api_utils
+
+# NOTE: This package is covered by tensorflow_gnn/api_def/api_symbols_test.py.
+# Please see there for instructions how to reflect API changes.
+# LINT.IfChange
 
 GATv2Conv = layers.GATv2Conv
 GATv2EdgePool = layers.GATv2EdgePool
@@ -33,6 +38,6 @@ GATv2MPNNGraphUpdate = layers.GATv2MPNNGraphUpdate
 graph_update_get_config_dict = config_dict.graph_update_get_config_dict
 graph_update_from_config_dict = config_dict.graph_update_from_config_dict
 
-# Prune imported module symbols so they're not accessible implicitly.
-del config_dict
-del layers
+# Remove all names added by module imports, unless explicitly allowed here.
+api_utils.remove_submodules_except(__name__, [])
+# LINT.ThenChange(../../api_def/gat_v2-symbols.txt)

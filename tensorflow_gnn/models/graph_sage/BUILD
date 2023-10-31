@@ -20,6 +20,7 @@ pytype_strict_library(
     ],
     deps = [
         ":layers",
+        "//tensorflow_gnn/utils:api_utils",
     ],
 )
 

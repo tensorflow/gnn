@@ -24,6 +24,7 @@ pytype_strict_library(
     ],
     deps = [
         ":gcn_conv",
+        "//tensorflow_gnn/utils:api_utils",
     ],
 )
 

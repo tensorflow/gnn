@@ -1,0 +1,5 @@
+graph_sage.GCNGraphSAGENodeSetUpdate
+graph_sage.GraphSAGEAggregatorConv
+graph_sage.GraphSAGEGraphUpdate
+graph_sage.GraphSAGENextState
+graph_sage.GraphSAGEPoolingConv

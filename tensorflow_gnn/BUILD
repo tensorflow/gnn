@@ -54,6 +54,7 @@ pytype_strict_library(
         "//tensorflow_gnn/keras",
         "//tensorflow_gnn/proto:graph_schema",
         "//tensorflow_gnn/sampler",
+        "//tensorflow_gnn/utils:api_utils",
     ],
 )
 

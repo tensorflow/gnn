@@ -23,10 +23,16 @@ from tensorflow_gnn.models import hgt
 """
 from tensorflow_gnn.models.hgt import config_dict
 from tensorflow_gnn.models.hgt import layers
+from tensorflow_gnn.utils import api_utils
+
+# NOTE: This package is covered by tensorflow_gnn/api_def/api_symbols_test.py.
+# Please see there for instructions how to reflect API changes.
+# LINT.IfChange
 
 HGTGraphUpdate = layers.HGTGraphUpdate
 graph_update_get_config_dict = config_dict.graph_update_get_config_dict
 graph_update_from_config_dict = config_dict.graph_update_from_config_dict
 
-del config_dict
-del layers
+# Remove all names added by module imports, unless explicitly allowed here.
+api_utils.remove_submodules_except(__name__, [])
+# LINT.ThenChange(../../api_def/hgt-symbols.txt)

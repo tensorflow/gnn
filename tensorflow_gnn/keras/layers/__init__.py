@@ -9,6 +9,11 @@ from tensorflow_gnn.keras.layers import map_features
 from tensorflow_gnn.keras.layers import next_state
 from tensorflow_gnn.keras.layers import padding_ops
 from tensorflow_gnn.keras.layers import parse_example
+from tensorflow_gnn.utils import api_utils
+
+# NOTE: This package is covered by tensorflow_gnn/api_def/api_symbols_test.py.
+# Please see there for instructions how to reflect API changes.
+# LINT.IfChange
 
 ParseExample = parse_example.ParseExample
 ParseSingleExample = parse_example.ParseSingleExample
@@ -44,14 +49,6 @@ NodeSetUpdate = graph_update.NodeSetUpdate
 ContextUpdate = graph_update.ContextUpdate
 GraphUpdate = graph_update.GraphUpdate
 
-# Prune imported module symbols so they're not accessible implicitly.
-# Please use the same order as for the import statements at the top.
-del convolution_base
-del convolutions
-del graph_ops
-del graph_update
-del item_dropout
-del map_features
-del next_state
-del padding_ops
-del parse_example
+# Remove all names added by module imports, unless explicitly allowed here.
+api_utils.remove_submodules_except(__name__, [])
+# LINT.ThenChange(../../api_def/tfgnn-symbols.txt)

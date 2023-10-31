@@ -13,11 +13,17 @@
 # limitations under the License.
 # ==============================================================================
 """Public interface for GNN Sampler."""
+
 from tensorflow_gnn.experimental.sampler import core
 from tensorflow_gnn.experimental.sampler import eval_dag
 from tensorflow_gnn.experimental.sampler import ext_ops
 from tensorflow_gnn.experimental.sampler import interfaces
 from tensorflow_gnn.experimental.sampler import subgraph_pipeline
+from tensorflow_gnn.utils import api_utils
+
+# NOTE: This package is covered by tensorflow_gnn/api_def/api_symbols_test.py.
+# Please see there for instructions how to reflect API changes.
+# LINT.IfChange
 
 # Helpers.
 set_ext_ops_implementation = ext_ops.set_ops_implementation
@@ -56,8 +62,12 @@ OutgoingEdgesSampler = interfaces.OutgoingEdgesSampler
 KeyToFeaturesAccessor = interfaces.KeyToFeaturesAccessor
 KeyToBytesAccessor = interfaces.KeyToBytesAccessor
 
-del core
-del eval_dag
-del ext_ops
-del interfaces
-del subgraph_pipeline
+# Remove all names added by module imports, unless explicitly allowed here.
+api_utils.remove_submodules_except(__name__, [
+    "eval_dag_pb2",  # TODO(b/266920603): Fix legacy users and remove!
+    "ext_ops_custom",  # TODO(b/266920603): Fix legacy users and remove!
+    "ext_ops_parallel",  # TODO(b/266920603): Fix legacy users and remove!
+    "ext_ops_vectorized",  # TODO(b/266920603): Fix legacy users and remove!
+    "gen_custom_ops",  # TODO(b/266920603): Fix legacy users and remove!
+])
+# LINT.ThenChange(../../api_def/sampler-symbols.txt)

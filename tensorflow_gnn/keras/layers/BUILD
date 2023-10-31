@@ -26,6 +26,7 @@ pytype_strict_library(
         ":next_state",
         ":padding_ops",
         ":parse_example",
+        "//tensorflow_gnn/utils:api_utils",
     ],
 )
 

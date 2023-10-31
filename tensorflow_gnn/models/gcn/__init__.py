@@ -22,8 +22,15 @@ from tensorflow_gnn.models import gcn
 ```
 """
 from tensorflow_gnn.models.gcn import gcn_conv
+from tensorflow_gnn.utils import api_utils
+
+# NOTE: This package is covered by tensorflow_gnn/api_def/api_symbols_test.py.
+# Please see there for instructions how to reflect API changes.
+# LINT.IfChange
 
 GCNConv = gcn_conv.GCNConv
 GCNHomGraphUpdate = gcn_conv.GCNHomGraphUpdate
 
-del gcn_conv
+# Remove all names added by module imports, unless explicitly allowed here.
+api_utils.remove_submodules_except(__name__, [])
+# LINT.ThenChange(../../api_def/gcn-symbols.txt)

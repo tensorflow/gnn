@@ -16,15 +16,19 @@
 
 from tensorflow_gnn.keras import builders
 from tensorflow_gnn.keras import initializers
-from tensorflow_gnn.keras import keras_tensors  # To register the types.
-from tensorflow_gnn.keras import layers  # Provided as subpackage.
+from tensorflow_gnn.keras import keras_tensors  # To register the types. pylint: disable=unused-import
+from tensorflow_gnn.keras import layers  # Exposed as submodule. pylint: disable=unused-import
+from tensorflow_gnn.utils import api_utils
+
+# NOTE: This package is covered by tensorflow_gnn/api_def/api_symbols_test.py.
+# Please see there for instructions how to reflect API changes.
+# LINT.IfChange
 
 ConvGNNBuilder = builders.ConvGNNBuilder
 clone_initializer = initializers.clone_initializer
 
-# Prune imported module symbols so they're not accessible implicitly,
-# except those meant to be used as subpackages, like tfgnn.keras.layers.
-# Please use the same order as for the import statements at the top.
-del builders
-del initializers
-del keras_tensors
+# Remove all names added by module imports, unless explicitly allowed here.
+api_utils.remove_submodules_except(__name__, [
+    "layers",
+])
+# LINT.ThenChange()../api_def/tfgnn-symbols.txt)

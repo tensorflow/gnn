@@ -20,6 +20,7 @@ pytype_strict_library(
         ":initializers",
         ":keras_tensors",
         "//tensorflow_gnn/keras/layers",
+        "//tensorflow_gnn/utils:api_utils",
     ],
 )
 

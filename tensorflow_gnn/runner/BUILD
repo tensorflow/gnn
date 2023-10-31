@@ -27,6 +27,7 @@ pytype_strict_library(
         "//tensorflow_gnn/runner/utils:model_export",
         "//tensorflow_gnn/runner/utils:padding",
         "//tensorflow_gnn/runner/utils:strategies",
+        "//tensorflow_gnn/utils:api_utils",
     ],
 )
 
