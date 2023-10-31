@@ -33,16 +33,30 @@ except ImportError:
   type_spec_registry = None  # Not available before TF 2.12.
 
 try:
-  # OSS
-  import keras  # pytype: disable=import-error
-  if hasattr(keras, 'src'):  # As of TF/Keras 2.13.
-    from keras.src.engine import keras_tensor  # pytype: disable=import-error
-    from keras.src.layers import core as core_layers  # pytype: disable=import-error
-    import keras.src.backend as keras_backend  # pytype: disable=import-error
-  else:
-    from keras.engine import keras_tensor  # pytype: disable=import-error
-    from keras.layers import core as core_layers  # pytype: disable=import-error
-    import keras.backend as keras_backend  # pytype: disable=import-error
+  try:
+    # Get Keras v2 from the separate tf_keras package.
+    # In OSS, it exists for TF2.14+. It may become required for TF2.16+.
+    from tf_keras.src.engine import keras_tensor  # pytype: disable=import-error
+    from tf_keras.src.layers import core as core_layers  # pytype: disable=import-error
+    import tf_keras.src.backend as keras_backend  # pytype: disable=import-error
+  except ImportError:
+    # Get Keras v2 from the keras package.
+    # In OSS, this is possible for TF2.15 and older.
+    import keras  # pytype: disable=import-error
+    if not keras.__version__.startswith('2.'):
+      raise ImportError(
+          'tensorflow_gnn requires tf_keras to be installed or keras version <'
+          f' 3. Instead got keras version {keras.__version__}.'
+      ) from None  # A Keras version mismatch is different to lacking tf_keras.
+    import keras  # pytype: disable=import-error
+    if hasattr(keras, 'src'):  # As of TF/Keras 2.13.
+      from keras.src.engine import keras_tensor  # pytype: disable=import-error
+      from keras.src.layers import core as core_layers  # pytype: disable=import-error
+      import keras.src.backend as keras_backend  # pytype: disable=import-error
+    else:
+      from keras.engine import keras_tensor  # pytype: disable=import-error
+      from keras.layers import core as core_layers  # pytype: disable=import-error
+      import keras.backend as keras_backend  # pytype: disable=import-error
 except ImportError:
   # Internal
   keras_tensor = tf._keras_internal.engine.keras_tensor  # pylint: disable=protected-access

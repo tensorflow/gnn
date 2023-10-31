@@ -38,14 +38,16 @@ tag_filters="-no_oss,-oss_excluded"
 
 bazel clean
 pip install -r requirements-dev.txt --progress-bar off
-# TODO(b/306641264): Unpin the version!
-pip install tf-nightly==2.16.0.dev20231018 --progress-bar off --upgrade
+pip install tf-keras-nightly tf-nightly --progress-bar off --upgrade
 # We need to remove the dependency on tensorflow to test nightly
 # The dependencies will be provided by tf-nightly
-perl -i  -lpe '$k+= s/tensorflow>=2\.[0-9]+\.[0-9]+/tf-nightly/g; END{exit($k != 1)}' setup.py
+perl  -i -lpe '$k+= s/tensorflow>=2\.[0-9]+\.[0-9]+(,<=?[0-9.]+)?;/tf-nightly;/g; END{exit($k != 1)}' setup.py
 python3 setup.py bdist_wheel
 pip uninstall -y tensorflow_gnn
 pip install dist/tensorflow_gnn-*.whl
 # Check that tf-nightly is installed but tensorflow is not
+# Also check that tf-keras-nightly is installed.
 pip freeze | grep -q tf-nightly= && ! pip freeze | grep -q tensorflow=
-bazel test --build_tag_filters="${tag_filters}" --test_tag_filters="${tag_filters}" --test_output=errors --verbose_failures=true --build_tests_only --define=no_tfgnn_py_deps=true --keep_going --experimental_repo_remote_exec //bazel_pip/tensorflow_gnn/...
+pip freeze | grep -q tf-keras-nightly= && ! pip freeze | grep -q tf-keras=
+# The env variable is needed to ensure that TF keras still behaves like keras 2
+bazel test --test_env="TF_USE_LEGACY_KERAS=1" --build_tag_filters="${tag_filters}" --test_tag_filters="${tag_filters}" --test_output=errors --verbose_failures=true --build_tests_only --define=no_tfgnn_py_deps=true --keep_going --experimental_repo_remote_exec //bazel_pip/tensorflow_gnn/...

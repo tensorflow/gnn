@@ -31,11 +31,19 @@ from tensorflow_gnn.experimental.sampler import interfaces
 try:
   input_layer = tf._keras_internal.engine.input_layer  # pylint:disable=g-import-not-at-top # pytype: disable=import-error # pylint:disable=protected-access
 except AttributeError:
-  import keras  # pylint:disable=g-import-not-at-top # pytype: disable=import-error
-  if hasattr(keras, 'src'):
-    from keras.src.engine import input_layer  # pylint:disable=g-import-not-at-top # pytype: disable=import-error
-  else:
-    from keras.engine import input_layer  # pylint:disable=g-import-not-at-top # pytype: disable=import-error
+  try:
+    from tf_keras.src.engine import input_layer  # pylint:disable=g-import-not-at-top # pytype: disable=import-error
+  except ImportError:
+    import keras  # pylint:disable=g-import-not-at-top # pytype: disable=import-error
+    if not keras.__version__.startswith('2.'):
+      raise ImportError(
+          'tensorflow_gnn requires tf_keras to be installed or keras version <'
+          f' 3. Instead got keras version {keras.__version__}.'
+      ) from None  # This is Keras version mismatch, not just lacking tf_keras.
+    if hasattr(keras, 'src'):
+      from keras.src.engine import input_layer  # pylint:disable=g-import-not-at-top # pytype: disable=import-error
+    else:
+      from keras.engine import input_layer  # pylint:disable=g-import-not-at-top # pytype: disable=import-error
 
 
 @dataclasses.dataclass

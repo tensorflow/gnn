@@ -557,6 +557,7 @@ pytype_library(
     ],
     deps = [
         "//:expect_tensorflow_installed",
+        "//:expect_tf_keras_installed",
         "//third_party/tensorflow/python/framework:composite_tensor",
         "//third_party/tensorflow/python/framework:type_spec",
     ],
