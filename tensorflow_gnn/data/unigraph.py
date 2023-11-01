@@ -941,7 +941,7 @@ class DictStreams:
 
   @staticmethod
   def iter_records_from_bigquery(
-      bq_schema: tfgnn.proto.graph_schema_pb2.BigQuery) -> Iterable[
+      bq_schema: graph_schema_pb2.BigQuery) -> Iterable[
           Dict[str, pyarrow.Scalar]]:
     """Yields records from BigQuery."""
     # NOTE: Does not work if .sql is used -- proto uses "oneof".
