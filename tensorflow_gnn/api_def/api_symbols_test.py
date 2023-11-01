@@ -89,10 +89,6 @@ _ALL_PACKAGES = [
 ## TODO(b/266920603): Remove all following in the respective  __init__.py file!
 del tfgnn.graph  # To be removed also from build_docs.py.
 del tfgnn.proto  # To be removed also from build_docs.py.
-del runner.input
-del runner.tasks
-del runner.trainers
-del runner.utils
 del sampler.eval_dag_pb2
 del sampler.ext_ops_custom
 del sampler.ext_ops_parallel

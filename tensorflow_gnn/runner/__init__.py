@@ -119,10 +119,5 @@ KerasTrainerOptions = keras_fit.KerasTrainerOptions
 KerasTrainerCheckpointOptions = keras_fit.KerasTrainerCheckpointOptions
 
 # Remove all names added by module imports, unless explicitly allowed here.
-api_utils.remove_submodules_except(__name__, [
-    "input",  # TODO(b/266920603): Fix legacy users and remove!
-    "tasks",  # TODO(b/266920603): Fix legacy users and remove!
-    "trainers",  # TODO(b/266920603): Fix legacy users and remove!
-    "utils",  # TODO(b/266920603): Fix legacy users and remove!
-])
+api_utils.remove_submodules_except(__name__, [])
 # LINT.ThenChange(../api_def/runner-symbols.txt)
