@@ -166,6 +166,7 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
       metadata: Metadata = None,
       check_consistent_indices_dtype: bool = True,
       check_consistent_row_splits_dtype: bool = True,
+      validate: bool = False,
   ) -> 'GraphPieceBase':
     """Creates a GraphPiece from its data and attributes.
 
@@ -175,24 +176,26 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
         (In particular, if a dimension is None for one, it must be None for
         all.)
       shape: A hint for the shape of the result. This shape must have a known
-        rank. It must be compatible with (but not necessary equal to) the
-        common batch dimensions of the Fields nested in data. (This is meant to
-        align this function with the requirements of TypeSpec._from_components()
-        and BatchableTypeSpec._from_compatible_tensor_list().)
+        rank. It must be compatible with (but not necessary equal to) the common
+        batch dimensions of the Fields nested in data. (This is meant to align
+        this function with the requirements of TypeSpec._from_components() and
+        BatchableTypeSpec._from_compatible_tensor_list().)
       indices_dtype: dtype to use for graph items indexing. All graph pieces in
         the data must have matching `indices_dtype`.
       row_splits_dtype: dtype to use for potentially ragged fields batching. All
         graph pieces in the data must have matching `row_splits_dtype` and all
         ragged fields must have ragged row partitions of this type.
       metadata: optional mapping from a string key to hashable values.
-      check_consistent_indices_dtype: By default, all graph pieces in `data`
-        are checked to have the same value of `indices_dtype` as passed here.
+      check_consistent_indices_dtype: By default, all graph pieces in `data` are
+        checked to have the same value of `indices_dtype` as passed here.
         Setting this to `False` enables backwards compatibility with GraphTensor
         instances saved before the fix of b/285269757 in TF-GNN v0.6.0. Note
         that this cannot be handled by auto-casting as this class method is
         called by extension types API methods which disallow any TF operations.
-      check_consistent_row_splits_dtype: For `row_splits_dtype`, the
-        analogue to `check_consistent_indices_dtype`.
+      check_consistent_row_splits_dtype: For `row_splits_dtype`, the analogue to
+        `check_consistent_indices_dtype`.
+      validate: If true, use tf.assert ops to inspect the shapes of each field
+        and check at runtime that they form a valid GraphPiece.
 
     Returns:
       An instance of GraphPieceBase, holding the data, after GraphPieces in the
@@ -240,7 +243,7 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
 
     # We delegate all consistency checks of static information (shape,
     # indices_dtype, row_splits_dtype, etc) to the `GraphPieceSpecBase`.
-    return cls(
+    result = cls(
         data,
         cls_spec._from_data_spec(
             data_spec,
@@ -252,6 +255,11 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
             check_consistent_row_splits_dtype=check_consistent_row_splits_dtype,
         ),
     )
+    if validate:
+      with tf.control_dependencies(_check_batch_shape(result)):
+        return tf.identity(result)
+
+    return result
 
   @property
   def shape(self) -> tf.TensorShape:
@@ -1440,3 +1448,107 @@ def check_row_splits_dtype(
 def _check_int64_or_int32(dtype: tf.dtypes.DType, what: str) -> None:
   if dtype not in (tf.int32, tf.int64):
     raise ValueError(f'{what} dtype must be int32 or int64. Received {dtype}')
+
+
+def _check_batch_shape(graph_piece: GraphPieceBase) -> List[Any]:
+  """Checks that all fields have the same dynamic batch shape.
+
+  Args:
+    graph_piece: A graph piece to validate.
+
+  Returns:
+    List of assertions to use with `tf.control_dependencies()`.
+  """
+  rank = graph_piece.rank
+  if rank == 0:
+    return []
+
+  shapes = []
+  for value in tf.nest.flatten(graph_piece._data):  # pylint: disable=protected-access
+    shapes.append(
+        get_shape_tensor(value)
+        if isinstance(value, GraphPieceBase)
+        else _get_batch_shape_tensor(value, rank, graph_piece.indices_dtype)
+    )
+
+  check_ops = []
+  for shape in shapes[1:]:
+    check_ops.append(
+        tf.debugging.assert_equal(
+            shapes[0],
+            shape,
+            message='Fields have different batch dimensions',
+            summarize=-1,
+        )
+    )
+
+  return check_ops
+
+
+def get_shape_tensor(graph_piece: GraphPieceBase) -> tf.Tensor:
+  """Returns the dynamic shape tensor of the graph piece."""
+
+  # The graph_piece has been validated internally, so any one field will do.
+  indicative_field = _get_indicative_field(graph_piece._data)  # pylint: disable=protected-access
+
+  if isinstance(indicative_field, GraphPieceBase):
+    return get_shape_tensor(indicative_field)
+  else:
+    return _get_batch_shape_tensor(
+        indicative_field, graph_piece.rank, graph_piece.indices_dtype
+    )
+
+
+def _get_batch_shape_tensor(
+    field: Field, batch_rank: int, dtype: tf.dtypes.DType
+) -> tf.Tensor:
+  """Returns the batch shape tensor of the field."""
+  if batch_rank == 0:
+    return tf.constant([], dtype=dtype)
+
+  assert field.shape.rank >= batch_rank
+
+  if isinstance(field, tf.Tensor):
+    return tf.shape(field, dtype)[:batch_rank]
+
+  assert isinstance(field, tf.RaggedTensor)
+
+  dims = [tf.size(field.row_splits, dtype) - tf.constant(1, dtype=dtype)]
+
+  for d in range(1, batch_rank):
+    if isinstance(field, tf.Tensor):
+      dims.extend(tf.unstack(tf.shape(field, dtype)[1: (batch_rank + 1 - d)]))
+      break
+
+    if field.uniform_row_length is None:
+      # NOTE: this exception should never be raised if the graph piece is
+      # constructed using  `GraphPieceBase._from_data()` with static shapes
+      # validatition being enabled (true by default). The `_from_data()`
+      # checks that all input fields have fully defined batch dimensions, except
+      # the outermost. This means that the ragged fields must have uniform
+      # batch dimensions.
+      raise ValueError(
+          f'The dimension={d} of the ragged field must be uniform as it is part'
+          f' of the graph shape (graph rank={batch_rank}), got ragged.'
+      )
+
+    dims.append(tf.cast(field.uniform_row_length, dtype))
+    field = field.values
+
+  return tf.stack(dims)
+
+
+def _get_indicative_field(fields) -> Field:
+  """Deterministically selects one of the fields."""
+
+  def key_fn(field):
+    """dense < ragged < graph piece."""
+    is_piece = isinstance(field, GraphPieceBase)
+    ragged_rank = field.ragged_rank if isinstance(field, tf.RaggedTensor) else 0
+    return (is_piece, ragged_rank)
+
+  fields = tf.nest.flatten(fields)
+  if not fields:
+    raise ValueError('Empty fields are not supported')
+
+  return min(fields, key=key_fn)

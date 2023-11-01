@@ -132,8 +132,9 @@ class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
     return self._data[_GraphPieceWithFeatures._DATAKEY_FEATURES]
 
   @classmethod
-  def _from_features_and_sizes(cls, features: Fields, sizes: Field,
-                               **extra_data) -> '_GraphPieceWithFeatures':
+  def _from_features_and_sizes(
+      cls, features: Fields, sizes: Field, validate: bool, **extra_data
+  ) -> '_GraphPieceWithFeatures':
     """Constructs graph piece from features and component sizes."""
     assert isinstance(features, Mapping)
     sizes = gp.convert_to_tensor_or_ragged(sizes)
@@ -168,6 +169,7 @@ class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
         shape=sizes.shape[:-1],
         indices_dtype=indices_dtype,
         row_splits_dtype=row_splits_dtype,
+        validate=validate,
     )
 
     if const.validate_graph_tensor_inputs:
@@ -324,7 +326,8 @@ class Context(_GraphPieceWithFeatures):
                   features: Optional[Fields] = None,
                   sizes: Optional[Field] = None,
                   shape: Optional[ShapeLike] = None,
-                  indices_dtype: Optional[tf.dtypes.DType] = None) -> 'Context':
+                  indices_dtype: Optional[tf.dtypes.DType] = None,
+                  validate: bool = True) -> 'Context':
     """Constructs a new instance from context fields.
 
     Example:
@@ -351,6 +354,8 @@ class Context(_GraphPieceWithFeatures):
       indices_dtype: An `indices_dtype` of a GraphTensor containing this object,
         used as `row_splits_dtype` when batching potentially ragged fields. If
         `sizes` are specified they are casted to that type.
+      validate: If true, use tf.assert ops to inspect the shapes of each field
+        and check at runtime that they form a valid Context.
 
     Returns:
       A `Context` composite tensor.
@@ -402,7 +407,9 @@ class Context(_GraphPieceWithFeatures):
         sizes = utils.ones_like_leading_dims(
             indicative_feature, shape.rank + 1, dtype=indices_dtype)
 
-    return cls._from_features_and_sizes(features=features, sizes=sizes)
+    return cls._from_features_and_sizes(
+        features=features, sizes=sizes, validate=validate
+    )
 
   def replace_features(self, features: Fields) -> 'Context':
     """Returns a new instance with a new set of features."""
@@ -539,7 +546,8 @@ class NodeSet(_NodeOrEdgeSet):
   def from_fields(cls,
                   *_,
                   features: Optional[Fields] = None,
-                  sizes: Field) -> 'NodeSet':
+                  sizes: Field,
+                  validate: bool = True) -> 'NodeSet':
     """Constructs a new instance from node set fields.
 
     Example:
@@ -566,6 +574,8 @@ class NodeSet(_NodeOrEdgeSet):
       sizes: A number of nodes in each graph component. Has shape
         `[*graph_shape, num_components]`, where `num_components` is the number
         of graph components (could be ragged).
+      validate: If true, use tf.assert ops to inspect the shapes of each field
+        and check at runtime that they form a valid NodeSet.
 
     Returns:
       A `NodeSet` composite tensor.
@@ -575,7 +585,9 @@ class NodeSet(_NodeOrEdgeSet):
 
     if features is None:
       features = {}
-    return cls._from_features_and_sizes(features=features, sizes=sizes)
+    return cls._from_features_and_sizes(
+        features=features, sizes=sizes, validate=validate
+    )
 
   @staticmethod
   def _type_spec_cls():
@@ -664,7 +676,8 @@ class EdgeSet(_NodeOrEdgeSet):
                   *_,
                   features: Optional[Fields] = None,
                   sizes: Field,
-                  adjacency: Adjacency) -> 'EdgeSet':
+                  adjacency: Adjacency,
+                  validate: bool = True) -> 'EdgeSet':
     """Constructs a new instance from edge set fields.
 
     Example 1:
@@ -697,6 +710,8 @@ class EdgeSet(_NodeOrEdgeSet):
         `[*graph_shape, num_components]`, where `num_components` is the number
         of graph components (could be ragged).
       adjacency: One of the supported adjacency types (see adjacency.py).
+      validate: If true, use tf.assert ops to inspect the shapes of each field
+        and check at runtime that they form a valid EdgeSet.
 
     Returns:
       An `EdgeSet` composite tensor.
@@ -707,7 +722,8 @@ class EdgeSet(_NodeOrEdgeSet):
     if features is None:
       features = {}
     return cls._from_features_and_sizes(
-        features=features, sizes=sizes, adjacency=adjacency)
+        features=features, sizes=sizes, adjacency=adjacency, validate=validate
+    )
 
   @property
   def adjacency(self) -> Adjacency:
@@ -963,6 +979,7 @@ class GraphTensor(gp.GraphPieceBase):
       context: Optional[Context] = None,
       node_sets: Optional[Mapping[NodeSetName, NodeSet]] = None,
       edge_sets: Optional[Mapping[EdgeSetName, EdgeSet]] = None,
+      validate: bool = True,
   ) -> 'GraphTensor':
     """Constructs a new `GraphTensor` from context, node sets and edge sets."""
     node_sets = _ifnone(node_sets, dict()).copy()
@@ -1026,6 +1043,7 @@ class GraphTensor(gp.GraphPieceBase):
         shape=context.shape,
         indices_dtype=indices_dtype,
         row_splits_dtype=row_splits_dtype,
+        validate=validate,
     )
 
   def merge_batch_to_components(self) -> 'GraphTensor':

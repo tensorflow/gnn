@@ -54,7 +54,8 @@ class TestPiece(gp.GraphPieceBase):
         row_splits_dtype=row_splits_dtype,
         metadata=metadata,
         check_consistent_indices_dtype=check_consistent_indices_dtype,
-        check_consistent_row_splits_dtype=check_consistent_row_splits_dtype
+        check_consistent_row_splits_dtype=check_consistent_row_splits_dtype,
+        validate=True
     )
 
   @property
@@ -506,17 +507,6 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
                         tf.ragged.constant([[[0, 1, 2, 3], [0, 1, 2, 3, 4]]]))
     self.assertRaises(StopIteration, lambda: next(itr))
 
-  def testRaisesOnVarSizeBatching(self):
-
-    @tf.function
-    def generate(num_nodes):
-      return TestPiece.from_value(value=tf.range(num_nodes),)
-
-    ds = tf.data.Dataset.range(0, 6)
-    ds = ds.map(generate)
-    ds = ds.batch(3)
-    self.assertRaises(NotImplementedError, lambda: ds.batch(2))
-
   def testNestedPieces(self):
 
     @tf.function
@@ -607,6 +597,228 @@ class BatchingUnbatchingTest(tf.test.TestCase, parameterized.TestCase):
             dtype=tf.int32,
             ragged_rank=2,
             row_splits_dtype=row_splits_dtype))
+
+
+class ShapeInvariantsTest(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.named_parameters([
+      dict(
+          testcase_name='scalar.int32',
+          field=tf.convert_to_tensor([1]),
+          batch_rank=0,
+          dtype=tf.int32,
+          expected_result=tf.convert_to_tensor([], tf.int32),
+      ),
+      dict(
+          testcase_name='scalar.int64',
+          field=tf.convert_to_tensor([1]),
+          batch_rank=0,
+          dtype=tf.int64,
+          expected_result=tf.convert_to_tensor([], tf.int64),
+      ),
+      dict(
+          testcase_name='dense.rank1',
+          field=tf.convert_to_tensor([1, 2, 3]),
+          batch_rank=1,
+          dtype=tf.int32,
+          expected_result=tf.convert_to_tensor([3], tf.int32),
+      ),
+      dict(
+          testcase_name='dense.rank2',
+          field=tf.convert_to_tensor([[[1], [2], [3]], [[4], [5], [6]]]),
+          batch_rank=2,
+          dtype=tf.int64,
+          expected_result=tf.convert_to_tensor([2, 3], tf.int64),
+      ),
+      dict(
+          testcase_name='ragged.rank1',
+          field=tf.ragged.constant([[], [1], [2, 3]]),
+          batch_rank=1,
+          dtype=tf.int32,
+          expected_result=tf.convert_to_tensor([3], tf.int32),
+      ),
+      dict(
+          testcase_name='ragged.rank3',
+          field=tf.RaggedTensor.from_tensor(
+              tf.zeros([3, 4, 2, 5]), ragged_rank=3
+          ),
+          batch_rank=3,
+          dtype=tf.int32,
+          expected_result=tf.convert_to_tensor([3, 4, 2], tf.int32),
+      ),
+      dict(
+          testcase_name='ragged.rank3.uniform_inner',
+          field=tf.RaggedTensor.from_tensor(
+              tf.zeros([3, 4, 2, 5]), ragged_rank=1
+          ),
+          batch_rank=3,
+          dtype=tf.int32,
+          expected_result=tf.convert_to_tensor([3, 4, 2], tf.int32),
+      ),
+      dict(
+          testcase_name='ragged.rank2',
+          field=tf.RaggedTensor.from_tensor(
+              tf.ones([2, 3, 1]), ragged_rank=2
+          ).with_values(tf.ragged.constant([[], [1], [2, 3], [4], [], [5]])),
+          batch_rank=2,
+          dtype=tf.int32,
+          expected_result=tf.convert_to_tensor([2, 3], tf.int32),
+      ),
+  ])
+  def testBatchShapeTensorForFields(
+      self,
+      field: gp.Field,
+      batch_rank: int,
+      dtype: tf.dtypes.DType,
+      expected_result: tf.Tensor,
+  ):
+    self.assertAllEqual(
+        expected_result, gp._get_batch_shape_tensor(field, batch_rank, dtype)
+    )
+
+  def testBatchShapeTensorForPieces(self):
+    @tf.function(
+        input_signature=[
+            tf.TensorSpec(shape=[None, 1], dtype=tf.int32),
+        ]
+    )
+    def get_shape(f):
+      piece = TestPiece.from_value(
+          TestPiece.from_value(
+              {
+                  'f': f,
+              },
+              shape_dims=(None,),
+          ),
+          shape_dims=(None,),
+      )
+      return gp.get_shape_tensor(piece), gp.get_shape_tensor(piece.value)
+
+    shape1, shape2 = get_shape(tf.convert_to_tensor([[1], [2], [3]]))
+
+    self.assertAllEqual([3], shape1)
+    self.assertAllEqual(shape1, shape2)
+
+  def testRaisesOnDenseFieldsShapeMismatch(self):
+    @tf.function(
+        input_signature=[
+            tf.TensorSpec(shape=[None, 1], dtype=tf.int32),
+            tf.TensorSpec(shape=[None, 1], dtype=tf.int32),
+        ]
+    )
+    def build(f1, f2):
+      return TestPiece.from_value(
+          {
+              'f1': f1,
+              'f2': f2,
+          },
+          shape_dims=(None,),
+      )
+
+    with self.assertRaisesRegex(
+        tf.errors.InvalidArgumentError, 'Fields have different batch dimensions'
+    ):
+      build(
+          tf.convert_to_tensor([[1], [2]]),
+          tf.convert_to_tensor([[1], [2], [3]]),
+      )
+
+  def testRaisesOnRaggedFieldsShapeMismatch(self):
+    @tf.function(
+        input_signature=[
+            tf.TensorSpec(shape=[None, 1], dtype=tf.int32),
+            tf.RaggedTensorSpec(
+                shape=[None, None], dtype=tf.int32, ragged_rank=1
+            ),
+        ]
+    )
+    def build(d, r):
+      TestPiece.from_value(
+          {
+              'd': d,
+              'r': r,
+          },
+          shape_dims=(None,),
+      )
+
+    _ = build(
+        tf.convert_to_tensor([[1], [2]]),
+        tf.ragged.constant([[1], [2]]),
+    )
+
+    with self.assertRaisesRegex(
+        tf.errors.InvalidArgumentError, 'Fields have different batch dimensions'
+    ):
+      build(
+          tf.convert_to_tensor([[1], [2]]),
+          tf.ragged.constant([[1], [2], [3]]),
+      )
+
+  def testRaisesOnComponentsShapeMismatch(self):
+    @tf.function(
+        input_signature=[
+            tf.TensorSpec(shape=[None, 1], dtype=tf.int32),
+            tf.TensorSpec(shape=[None, 1], dtype=tf.int32),
+        ]
+    )
+    def build(f1, f2):
+      return TestPiece.from_value(
+          {
+              'f1': TestPiece.from_value(f1, shape_dims=(None,)),
+              'f2': TestPiece.from_value(f2, shape_dims=(None,)),
+          },
+          shape_dims=(None,),
+      )
+
+    with self.assertRaisesRegex(
+        tf.errors.InvalidArgumentError, 'Fields have different batch dimensions'
+    ):
+      build(
+          tf.convert_to_tensor([[1], [2]]),
+          tf.convert_to_tensor([[1], [2], [3]]),
+      )
+
+  def testRaisesOnDenseInnerNoneDimension(self):
+    @tf.function(
+        input_signature=[
+            tf.TensorSpec(shape=[None, None, 3], dtype=tf.float32),
+        ]
+    )
+    def build(t):
+      return TestPiece.from_value(
+          t,
+          shape_dims=(None, None),
+      )
+
+    with self.assertRaisesRegex(
+        ValueError,
+        'All shape dimensions except the outermost must be fully defined',
+    ):
+      build(
+          tf.zeros([3, 3, 3]),
+      )
+
+  def testRaisesOnRaggedInnerNoneDimension(self):
+    @tf.function(
+        input_signature=[
+            tf.RaggedTensorSpec(
+                shape=[None, None, None], dtype=tf.int32, ragged_rank=2
+            ),
+        ]
+    )
+    def build(r):
+      return TestPiece.from_value(
+          r,
+          shape_dims=(None, None),
+      )
+
+    with self.assertRaisesRegex(
+        ValueError,
+        'All shape dimensions except the outermost must be fully defined',
+    ):
+      build(
+          tf.ragged.constant([[[1]], [[2]], [[3]]]),
+      )
 
 
 class MergeBatchToComponentsTest(tf.test.TestCase, parameterized.TestCase):
