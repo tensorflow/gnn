@@ -98,9 +98,6 @@ del sampler.ext_ops_custom
 del sampler.ext_ops_parallel
 del sampler.ext_ops_vectorized
 del sampler.gen_custom_ops
-del contrastive_losses.losses
-del contrastive_losses.metrics
-del contrastive_losses.utils
 
 
 ##

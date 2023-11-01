@@ -52,9 +52,5 @@ self_clustering = metrics.self_clustering
 
 
 # Remove all names added by module imports, unless explicitly allowed here.
-api_utils.remove_submodules_except(__name__, [
-    "losses",  # TODO(b/266920603): Fix legacy users and remove!
-    "metrics",  # TODO(b/266920603): Fix legacy users and remove!
-    "utils",  # TODO(b/266920603): Fix legacy users and remove!
-])
+api_utils.remove_submodules_except(__name__, [])
 # LINT.ThenChange(../../api_def/contrastive_losses-symbols.txt)
