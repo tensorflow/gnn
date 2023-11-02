@@ -21,7 +21,7 @@ import tensorflow_gnn as tfgnn
 
 @tf.keras.utils.register_keras_serializable(package="GNN")
 class ContextLabelFn(tf.keras.layers.Layer):
-  """Reads out a context `tfgnn.Field`."""
+  """Reads out a `tfgnn.Field` from the `GraphTensor` context."""
 
   def __init__(self, feature_name: str, **kwargs):
     super().__init__(**kwargs)
@@ -42,7 +42,7 @@ class ContextLabelFn(tf.keras.layers.Layer):
 
 @tf.keras.utils.register_keras_serializable(package="GNN")
 class RootNodeLabelFn(tf.keras.layers.Layer):
-  """Reads out a root node `tfgnn.Field`."""
+  """Reads out a `tfgnn.Field` from the `GraphTensor` root (i.e. first) node."""
 
   def __init__(
       self,
