@@ -63,11 +63,5 @@ KeyToFeaturesAccessor = interfaces.KeyToFeaturesAccessor
 KeyToBytesAccessor = interfaces.KeyToBytesAccessor
 
 # Remove all names added by module imports, unless explicitly allowed here.
-api_utils.remove_submodules_except(__name__, [
-    "eval_dag_pb2",  # TODO(b/266920603): Fix legacy users and remove!
-    "ext_ops_custom",  # TODO(b/266920603): Fix legacy users and remove!
-    "ext_ops_parallel",  # TODO(b/266920603): Fix legacy users and remove!
-    "ext_ops_vectorized",  # TODO(b/266920603): Fix legacy users and remove!
-    "gen_custom_ops",  # TODO(b/266920603): Fix legacy users and remove!
-])
+api_utils.remove_submodules_except(__name__, [])
 # LINT.ThenChange(../../api_def/sampler-symbols.txt)
