@@ -24,9 +24,10 @@ fake credit card data in the `examples/sampler/creditcard` directory.
 In particular, let's use the following graph schema, with a graph of customers,
 credit cards, and ownership linking them. For any node sets with features, there
 should also be a feature called `#id`, and edge sets should contain `#source`
-and `#target` features that correspond to node `#id`s. For more information, see
-[the data prep guide](./data_prep.md).Here, both node sets have associated
-features besides simple `#id`s, so we need to specify the files that map the
+and `#target` features that correspond to node `#id`s. These special features
+should not be explicitly specified in the graph schema. For more information,
+see [the data prep guide](./data_prep.md). Here, both node sets have features
+besides simple `#id`s, so we need to specify the files that map the
 `#id`s to features.
 
 ```

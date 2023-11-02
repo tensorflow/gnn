@@ -107,7 +107,7 @@ Three of the features are implicitly defined:
     edges/<set_name>.#size
     ```
 
-*   **Source and Target Indices**. These features provide the edge indices for
+*   **Source and Target Indices**. These features provide the node indices for
     each endpoint of a binary edge. The features are always of type `tf.int64`
     and are encoded as
 
@@ -695,12 +695,6 @@ and the location of the tables that represent the graph:
 node_sets {
   key: "author"
   value {
-    features {
-      key: "#id"
-      value {
-        dtype: DT_STRING
-      }
-    }
     metadata {
       filename: "nodes-author.tfrecords@15"
       cardinality: 1134649
@@ -710,12 +704,6 @@ node_sets {
 node_sets {
   key: "field_of_study"
   value {
-    features {
-      key: "#id"
-      value {
-        dtype: DT_STRING
-      }
-    }
     metadata {
       filename: "nodes-field_of_study.tfrecords@2"
       cardinality: 59965
@@ -725,12 +713,6 @@ node_sets {
 node_sets {
   key: "institution"
   value {
-    features {
-      key: "#id"
-      value {
-        dtype: DT_STRING
-      }
-    }
     metadata {
       filename: "nodes-institution.tfrecords"
       cardinality: 8740
@@ -740,12 +722,6 @@ node_sets {
 node_sets {
   key: "paper"
   value {
-    features {
-     key: "#id"
-      value {
-        dtype: DT_STRING
-      }
-    }
     features {
       key: "feat"
       value {
