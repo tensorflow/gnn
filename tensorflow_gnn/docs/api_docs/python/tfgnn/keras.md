@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # Module: tfgnn.keras
 
 [TOC]
@@ -13,11 +15,7 @@
 </td>
 </table>
 
-
-
 The tfgnn.keras package.
-
-
 
 ## Modules
 
@@ -25,7 +23,8 @@ The tfgnn.keras package.
 
 ## Classes
 
-[`class ConvGNNBuilder`](../tfgnn/keras/ConvGNNBuilder.md): Factory of layers that do convolutions on a graph.
+[`class ConvGNNBuilder`](../tfgnn/keras/ConvGNNBuilder.md): Factory of layers
+that do convolutions on a graph.
 
 ## Functions
 

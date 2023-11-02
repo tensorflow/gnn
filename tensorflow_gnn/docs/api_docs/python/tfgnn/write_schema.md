@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.write_schema
 
 [TOC]
@@ -6,7 +8,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_utils.py#L55-L64">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_utils.py#L56-L65">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -22,12 +24,10 @@ Write a `GraphSchema` to a text-formatted proto file.
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>

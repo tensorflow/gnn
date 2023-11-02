@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # graph_sage.GCNGraphSAGENodeSetUpdate
 
 [TOC]
@@ -38,7 +40,7 @@ GCNGraphSAGENodeSetUpdate is an extension of the mean aggregator operator.
 For a complete GraphSAGE update on a node set, use this layer in a `GraphUpdate`
 call as a `NodeSetUpdate` layer. An example update would look as below:
 
-```python
+``` python
 import tensorflow_gnn as tfgnn
 graph = tfgnn.keras.layers.GraphUpdate(
     node_sets={
@@ -50,24 +52,22 @@ graph = tfgnn.keras.layers.GraphUpdate(
     })(graph)
 ```
 
-This class extends Eq. (2) from
-[Hamilton et al., 2017](https://arxiv.org/abs/1706.02216) to multiple edge sets.
-For each node state pooled from the configured edge list and the self node
-states there's a separate weight vector learned which is mapping each to the
-same output dimensions. Also if specified a random dropout operation with given
-probability will be applied to all the node states. If share_weights is enabled,
-then it'll learn the same weights for self and sender node states, this is the
+This class extends Eq. (2) from [Hamilton et
+al., 2017](https://arxiv.org/abs/1706.02216) to multiple edge sets. For each
+node state pooled from the configured edge list and the self node states there's
+a separate weight vector learned which is mapping each to the same output
+dimensions. Also if specified a random dropout operation with given probability
+will be applied to all the node states. If share_weights is enabled, then it'll
+learn the same weights for self and sender node states, this is the
 implementation for homogeneous graphs from the paper. Note that enabling this
 requires both sender and receiver node states to have the same dimension. Below
 is the simplified summary of the applied transformations to generate new node
 states:
 
-```
-h_v = activation(
-          reduce(  {W_E * D_p[h_{N(v)}] for all edge sets E}
-                 U {W_self * D_p[h_v]})
-          + b)
-```
+    h_v = activation(
+              reduce(  {W_E * D_p[h_{N(v)}] for all edge sets E}
+                     U {W_self * D_p[h_v]})
+              + b)
 
 N(v) denotes the neighbors of node v, D_p denotes dropout with probability p
 which is applied independenly to self and sender node states, W_E and W_self
@@ -78,6 +78,7 @@ on the reduce_type specified. If share_weights is set to True, then single
 weight matrix will be used in place of W_E and W_self.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>

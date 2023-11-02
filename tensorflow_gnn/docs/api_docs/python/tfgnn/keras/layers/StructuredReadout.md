@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.keras.layers.StructuredReadout
 
 [TOC]
@@ -34,7 +36,7 @@ function. It addresses the need to read out final hidden states from a GNN
 computation to make predictions for some nodes (or edges) of interest. Its
 typical usage looks as follows:
 
-```python
+``` python
 input_graph = tf.keras.Input(type_spec=graph_tensor_spec)
 graph = SomeGraphUpdate(...)(input_graph)  # Run your GNN here.
 seed_node_states = tfgnn.keras.layers.StructuredReadout("seed")(graph)

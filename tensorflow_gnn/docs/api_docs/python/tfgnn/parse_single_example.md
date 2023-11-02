@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.parse_single_example
 
 [TOC]
@@ -24,14 +26,14 @@ Parses a single serialized Example proto into a single `GraphTensor`.
 ) -> <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
-Like `parse_example()`, but for a single graph tensor.
-See <a href="../tfgnn/parse_example.md"><code>tfgnn.parse_example()</code></a> for reference.
+Like `parse_example()`, but for a single graph tensor. See
+<a href="../tfgnn/parse_example.md"><code>tfgnn.parse_example()</code></a> for
+reference.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -71,6 +73,7 @@ fields form a valid `GraphTensor`. Defaults to `True`.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
@@ -81,4 +84,3 @@ A graph tensor object with a matching type spec.
 </tr>
 
 </table>
-

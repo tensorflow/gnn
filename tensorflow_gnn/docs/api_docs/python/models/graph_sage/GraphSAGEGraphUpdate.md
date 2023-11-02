@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # graph_sage.GraphSAGEGraphUpdate
 
 [TOC]
@@ -37,12 +39,13 @@ Returns a GraphSAGE GraphUpdater layer for nodes in node_set_names.
 
 <!-- Placeholder for "Used in" -->
 
-For more information on GraphSAGE algorithm please refer to
-[Hamilton et al., 2017](https://arxiv.org/abs/1706.02216). Returned layer
-applies only one step of GraphSAGE convolution over the incident nodes of the
+For more information on GraphSAGE algorithm please refer to [Hamilton et
+al., 2017](https://arxiv.org/abs/1706.02216). Returned layer applies only one
+step of GraphSAGE convolution over the incident nodes of the
 edge_set_name_list for the specified node_set_name node.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>

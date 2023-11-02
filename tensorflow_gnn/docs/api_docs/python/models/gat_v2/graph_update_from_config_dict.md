@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # gat_v2.graph_update_from_config_dict
 
 [TOC]
@@ -22,6 +24,7 @@ Returns a GATv2MPNNGraphUpdate initialized from `cfg`.
 </code></pre>
 
 <!-- Placeholder for "Used in" -->
+
 <!-- Tabular view -->
 
  <table class="responsive fixed orange">

@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.dataset_filter_with_summary
 
 [TOC]
@@ -26,20 +28,19 @@ Dataset filter with a summary for the fraction of dataset elements removed.
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
 The fraction of removed elements is computed using exponential moving average.
-See https://en.wikipedia.org/wiki/Moving_average.
+See <https://en.wikipedia.org/wiki/Moving_average>.
 
 The summary is reported each `summary_steps` elements in the input dataset
 before filtering. Statistics are reported using `tf.summary.scalar()` with
 `step` set to the element index in the result (filtered) dataset, see
-https://tensorflow.org/tensorboard/scalars_and_keras#logging_custom_scalars
+<https://tensorflow.org/tensorboard/scalars_and_keras#logging_custom_scalars>
 for how to write and retreive them.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -85,6 +86,7 @@ defaults to the `exp(- 1 / summary_steps)`.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
@@ -96,4 +98,3 @@ Thed dataset containing the elements of this dataset for which predicate is
 </tr>
 
 </table>
-

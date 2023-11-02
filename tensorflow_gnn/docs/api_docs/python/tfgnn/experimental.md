@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # Module: tfgnn.experimental
 
 [TOC]
@@ -17,11 +19,9 @@ Experimental (unstable) parts of the public interface of TensorFlow GNN.
 
 A symbol `foo` exposed here is available to library users as
 
-```
-import tensorflow_gnn as tfgnn
+    import tensorflow_gnn as tfgnn
 
-tfgnn.experimental.foo()
-```
+    tfgnn.experimental.foo()
 
 This is the preferred way to expose individual functions on track to inclusion
 into the stable public interface of TensorFlow GNN.

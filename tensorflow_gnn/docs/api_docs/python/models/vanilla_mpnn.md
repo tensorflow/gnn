@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # Module: vanilla_mpnn
 
 [TOC]
@@ -17,7 +19,7 @@ TF-GNN's "Vanilla MPNN" model.
 
 Users of TF-GNN can use this model by importing it next to the core library as
 
-```python
+``` python
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models import vanilla_gnn
 ```

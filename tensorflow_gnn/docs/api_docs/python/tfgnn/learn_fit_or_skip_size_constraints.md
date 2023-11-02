@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.learn_fit_or_skip_size_constraints
 
 [TOC]
@@ -27,21 +29,17 @@ Learns the optimal size constraints for the fixed size batching with retry.
 ) -> Union[<a href="../tfgnn/SizeConstraints.md"><code>tfgnn.SizeConstraints</code></a>, List[Any]]
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
 The function estimates the smallest possible size constraints so that a random
-sample of `batch_size` graph tensors meets those constraints with probability
-no less than `success_ratio`. The success ratio is treated as a hard
-constraint, up to sampling error. The constraints can be used for graph tensor
-padding to the fully defined shapes required by XLA.
+sample of `batch_size` graph tensors meets those constraints with probability no
+less than `success_ratio`. The success ratio is treated as a hard constraint, up
+to sampling error. The constraints can be used for graph tensor padding to the
+fully defined shapes required by XLA.
 
 #### Example:
 
-
-
-```python
+``` python
 # Learn size constraints for a given dataset of graph tensors and the target
 # batch size(s). The constraints could be learned once and then reused.
 constraints = tfgnn.learn_fit_or_skip_size_constraints(dataset, batch_size)
@@ -74,20 +72,21 @@ if training:
 The learned constraints are intend to be used only with randomized repeated
 dataset. This dataset are first batched using `tf.data.Dataset.batch()`, the
 batches that are too large to fit the learned contraints are filtered using
-<a href="../tfgnn/satisfies_size_constraints.md"><code>tfgnn.satisfies_size_constraints()</code></a> and then padded
+<a href="../tfgnn/satisfies_size_constraints.md"><code>tfgnn.satisfies_size_constraints()</code></a>
+and then padded
 <a href="../tfgnn/pad_to_total_sizes.md"><code>tfgnn.pad_to_total_sizes()</code></a>.
 
 This approach, if applicable, is more efficient compared to padding to the
 maximum possible sizes. It is also simpler and faster compared to the dynamic
-batching, especially for the large batch sizes (>10).  To illustrate the main
+batching, especially for the large batch sizes (\>10). To illustrate the main
 point, consider graphs containing only 0 or 1 nodes. A random batch of 1000 of
 those graphs could contain 1000 nodes in the worst case. If this maximum limit
 is used to reseve space for random 1000 graphs, the space of 425 nodes is used
-only in 1:1000_000 cases. It is >40% more efficient to reserve space only for
+only in 1:1000_000 cases. It is \>40% more efficient to reserve space only for
 575 nodes and resample batches in the rare cases when they do not fit.
 
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -148,6 +147,7 @@ distributions.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
@@ -162,4 +162,3 @@ is squeezed in the output.
 </tr>
 
 </table>
-

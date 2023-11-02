@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # vanilla_mpnn.graph_update_get_config_dict
 
 [TOC]

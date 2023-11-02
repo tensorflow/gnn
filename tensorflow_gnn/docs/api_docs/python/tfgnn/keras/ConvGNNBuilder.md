@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.keras.ConvGNNBuilder
 
 [TOC]
@@ -31,15 +33,14 @@ Factory of layers that do convolutions on a graph.
 ConvGNNBuilder object constructs `GraphUpdate` layers, that apply arbitrary
 convolutions and updates on nodes of a graph. The convolutions (created by the
 `convolutions_factory`) propagate information to the incident edges of the
-graph. The results of the convolution together with the current nodes states
-are used to update the nodes, using a layer created by
-`nodes_next_state_factory`.
+graph. The results of the convolution together with the current nodes states are
+used to update the nodes, using a layer created by `nodes_next_state_factory`.
 
 Layers created by ConvGNNBuilder can be (re-)used in any order.
 
 #### Example:
 
-```python
+``` python
 # Model hyper-parameters:
 h_dims = {'a': 64, 'b': 32, 'c': 32}
 m_dims = {'a->b': 64, 'b->c': 32, 'c->a': 32}
@@ -64,7 +65,7 @@ Advanced users can pass additional callbacks to further customize the creation
 of node set updates and the complete graph updates. The default values of those
 callbacks are equivalent to
 
-```python
+``` python
 def node_set_update_factory(node_set_name, edge_set_inputs, next_state):
   del node_set_name  # Unused by default.
   return tfgnn.keras.layers.NodeSetUpdate(edge_set_inputs, next_state)
@@ -75,6 +76,7 @@ def graph_update_factory(deferred_init_callback, name):
 ```
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
@@ -154,6 +156,7 @@ GraphUpdate layer. Auxiliary node sets (e.g., as needed for
 `tfgnn.keras.layers.NamedReadout`) are ignored.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Args</th></tr>
@@ -180,6 +183,7 @@ Optionally, a name for the returned GraphUpate layer.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Returns</th></tr>
@@ -190,8 +194,3 @@ A GraphUpdate layer, with building deferred to the first call.
 </tr>
 
 </table>
-
-
-
-
-

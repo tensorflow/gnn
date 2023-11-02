@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.validate_schema
 
 [TOC]
@@ -25,11 +27,12 @@ Validates the correctness of a graph schema instance.
 <!-- Placeholder for "Used in" -->
 
 `GraphSchema` configuration messages are created by users in order to describe
-the topology of a graph. This function checks various aspects of the schema
-for correctness, e.g. prevents usage of reserved feature names, ensures given
-shapes are fully-defined, ensures set name references are found, etc.
+the topology of a graph. This function checks various aspects of the schema for
+correctness, e.g. prevents usage of reserved feature names, ensures given shapes
+are fully-defined, ensures set name references are found, etc.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -55,6 +58,7 @@ That's sufficient for most cases. Optionally, you can pass a list of
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
@@ -67,9 +71,8 @@ Render those to your favorite stream (or ignore).
 
 </table>
 
-
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Raises</h2></th></tr>

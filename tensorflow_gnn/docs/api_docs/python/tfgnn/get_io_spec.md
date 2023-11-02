@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.get_io_spec
 
 [TOC]
@@ -27,16 +29,18 @@ Returns tf.io parsing features for `GraphTensorSpec` type spec.
 
 This function returns a mapping of `tf.train.Feature` names to configuration
 objects that can be used to parse instances of `tf.train.Example` (see
-https://www.tensorflow.org/api_docs/python/tf/io). The resulting mapping can
+<https://www.tensorflow.org/api_docs/python/tf/io>). The resulting mapping can
 be used with `tf.io.parse_example()` for reading the individual fields of a
 `GraphTensor` instance. This essentially forms our encoding of a `GraphTensor`
 to a `tf.train.Example` proto.
 
 (This is an internal function. You are not likely to be using this if you're
-decoding graph tensors. Instead, you should use the <a href="../tfgnn/parse_example.md"><code>tfgnn.parse_example()</code></a>
+decoding graph tensors. Instead, you should use the
+<a href="../tfgnn/parse_example.md"><code>tfgnn.parse_example()</code></a>
 routine directly, which handles this process for you.)
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -68,6 +72,7 @@ fields form a valid `GraphTensor`. Defaults to `True`.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
@@ -79,4 +84,3 @@ used in `tf.io.parse_example()`.
 </tr>
 
 </table>
-

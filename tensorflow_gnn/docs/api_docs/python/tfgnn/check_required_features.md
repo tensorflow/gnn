@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.check_required_features
 
 [TOC]
@@ -22,29 +24,27 @@ Checks the requirements of a given schema against another.
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
 This function is used to enable the specification of required features to a
 function. A function accepting a `GraphTensor` instance can this way document
-what features it is expecting to find on it. The function accepts two schemas:
-a `requirements` schema which describes what the function will attempt to
-fetch and use on the `GraphTensor`, and an `actual` schema instance, which is
-the schema describing the dataset. You can use this in your model code to
-ensure that a dataset contains all the expected node sets, edge sets and
-features that the model uses.
+what features it is expecting to find on it. The function accepts two schemas: a
+`requirements` schema which describes what the function will attempt to fetch
+and use on the `GraphTensor`, and an `actual` schema instance, which is the
+schema describing the dataset. You can use this in your model code to ensure
+that a dataset contains all the expected node sets, edge sets and features that
+the model uses.
 
 Note that a dimension with a size of `0` in a feature from the `requirements`
-schema is interpreted specially: it means "accept any value for this
-dimension." The special value `-1` is still used to represent a ragged
-dimension.
+schema is interpreted specially: it means "accept any value for this dimension."
+The special value `-1` is still used to represent a ragged dimension.
 
 (Finally, note that this function predates the existence of `GraphTensorSpec`,
-which is a runtime descriptor for a `GraphTensor`. We may eventually perovide
-an equivalent construct using the `GraphTensorSpec.)
+which is a runtime descriptor for a `GraphTensor`. We may eventually perovide an
+equivalent construct using the \`GraphTensorSpec.)
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -68,6 +68,7 @@ of the required schema.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Raises</h2></th></tr>

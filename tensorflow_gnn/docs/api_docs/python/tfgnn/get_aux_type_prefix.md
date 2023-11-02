@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.get_aux_type_prefix
 
 [TOC]
@@ -6,7 +8,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1555-L1587">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1755-L1787">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -39,7 +41,7 @@ following it.
 Users can define their own aux types and handle them in their own code. The
 TF-GNN library uses the following types:
 
-*   `"_readout"` and (rarely) `"_shadow"`, for `tfgnn.structured_readout()`.
+  - `"_readout"` and (rarely) `"_shadow"`, for `tfgnn.structured_readout()`.
 
 See the named function(s) for how the respective types of auxiliary edge sets
 and node sets are formed.

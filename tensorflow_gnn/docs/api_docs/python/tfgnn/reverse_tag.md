@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.reverse_tag
 
 [TOC]
@@ -20,7 +22,5 @@ Flips tfgnn.SOURCE to tfgnn.TARGET and vice versa.
     tag
 )
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->

@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.is_graph_tensor
 
 [TOC]
@@ -6,7 +8,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L401-L403">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L405-L407">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -20,7 +22,5 @@ Returns whether `value` is a GraphTensor (possibly wrapped for Keras).
     value: Any
 ) -> bool
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->

@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # gcn.GCNHomGraphUpdate
 
 [TOC]
@@ -30,7 +32,7 @@ Returns a graph update layer for GCN convolution.
 <!-- Placeholder for "Used in" -->
 
 The returned layer performs one update step of a Graph Convolutional Network
-(GCN) from https://arxiv.org/abs/1609.02907 on a GraphTensor that stores a
+(GCN) from <https://arxiv.org/abs/1609.02907> on a GraphTensor that stores a
 homogeneous graph. For heterogeneous graphs with multiple edge sets connecting a
 single node set, users are advised to consider a GraphUpdate with one or more
 GCNConv objects instead.
@@ -42,6 +44,7 @@ GCNConv objects instead.
 > `add_self_loops=True`.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>

@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.sampler.SamplingSpecBuilder
 
 [TOC]
@@ -31,7 +33,7 @@ is named "edges", then you can create the sampling spec proto as:
 
 NOTE: This should come from the outside, e.g., `graph_tensor.schema`.
 
-```python
+``` python
 schema = schema_pb2.GraphSchema()
 schema.edge_sets['edges'].source = s.edge_sets['edges'].target = 'nodes'
 
@@ -40,16 +42,17 @@ proto = (SamplingSpecBuilder(schema)
          .build())
 ```
 
-The above spec is instructing to start at: - Nodes of type set name "nodes",
-then, - for each seed node, sample 10 of its neighbors (from edge set
-"edges"). - for each of those neighbors, sample 5 neighbors (from same edge
-set).
+The above spec is instructing to start at:
+
+  - Nodes of type set name "nodes", then,
+  - for each seed node, sample 10 of its neighbors (from edge set "edges").
+  - for each of those neighbors, sample 5 neighbors (from same edge set).
 
 Example: Heterogeneous Graphs.
 
 E.g., if you consider citation datasets, you can make a SamplingSpec proto as:
 
-```python
+``` python
 proto = (SamplingSpecBuilder(schema)
          .seed('author').sample('writes', 10).sample('cited_by', 5)
          .build())

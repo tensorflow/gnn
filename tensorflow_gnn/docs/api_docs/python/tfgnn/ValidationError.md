@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.ValidationError
 
 [TOC]
@@ -21,10 +23,7 @@ A schema validation error.
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
 This exception is raised if in the course of validating the schema for
 correctness some errors are found.
-

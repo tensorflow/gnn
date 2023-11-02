@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.Feature
 
 [TOC]
@@ -13,8 +15,6 @@
 </td>
 </table>
 
-
-
 A schema for a single feature.
 
 <!-- Placeholder for "Used in" -->
@@ -22,9 +22,8 @@ A schema for a single feature.
 This proto message contains the description, shape, data type and some more
 fields about a feature in the schema.
 
-
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>
@@ -42,20 +41,6 @@ fields about a feature in the schema.
 </td>
 <td>
 `DataType dtype`
-</td>
-</tr><tr>
-<td>
-`example_values`<a id="example_values"></a>
-</td>
-<td>
-`repeated Feature example_values`
-</td>
-</tr><tr>
-<td>
-`sample_values`<a id="sample_values"></a>
-</td>
-<td>
-`Feature sample_values`
 </td>
 </tr><tr>
 <td>

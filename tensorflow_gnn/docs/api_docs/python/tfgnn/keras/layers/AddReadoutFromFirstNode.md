@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.keras.layers.AddReadoutFromFirstNode
 
 [TOC]
@@ -27,6 +29,7 @@ Adds readout node set equivalent to
 </code></pre>
 
 <!-- Placeholder for "Used in" -->
+
 <!-- Tabular view -->
 
  <table class="responsive fixed orange">

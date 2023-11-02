@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.sampler.make_sampling_spec_tree
 
 [TOC]

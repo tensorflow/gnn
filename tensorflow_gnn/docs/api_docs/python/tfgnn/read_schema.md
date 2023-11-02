@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.read_schema
 
 [TOC]
@@ -6,7 +8,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_utils.py#L41-L52">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_utils.py#L42-L53">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -21,12 +23,10 @@ Read a proto schema from a file with text-formatted contents.
 ) -> <a href="../tfgnn/GraphSchema.md"><code>tfgnn.GraphSchema</code></a>
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -43,6 +43,7 @@ buffer rendition of a `GraphSchema` message.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
@@ -53,4 +54,3 @@ A `GraphSchema` instance.
 </tr>
 
 </table>
-

@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # graph_sage.GraphSAGENextState
 
 [TOC]
@@ -40,7 +42,7 @@ on each of the specified end-point of edge sets.
 
 Usage example (with strangely mixed aggregations for demonstration):
 
-```python
+``` python
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models import graph_sage
 graph = tfgnn.keras.layers.GraphUpdate(node_sets={
@@ -57,10 +59,10 @@ graph = tfgnn.keras.layers.GraphUpdate(node_sets={
 The `units=...` parameter of the next-state layer and all convolutions must be
 equal, unless `combine_type="concat"`is set.
 
-GraphSAGE is Algorithm 1 in Hamilton et al.:
-["Inductive Representation Learning on Large Graphs"](https://arxiv.org/abs/1706.02216),
-2017. It computes the new hidden state h_v for each node v from a concatenation
-of the previous hiddden state with an aggregation of the neighbor states as
+GraphSAGE is Algorithm 1 in Hamilton et al.: ["Inductive Representation Learning
+on Large Graphs"](https://arxiv.org/abs/1706.02216), 2017. It computes the new
+hidden state h_v for each node v from a concatenation of the previous hiddden
+state with an aggregation of the neighbor states as
 
 $$h_v = \sigma(W \text{ concat}(h_v, h_{N(v)}))$$
 
@@ -72,7 +74,7 @@ $$h_v = \sigma(W_{\text{self}} h_v + W_{\text{neigh}} h_{N(v)}),$$
 which transforms both inputs separately and then combines them by summation
 (assuming the default `combine_type="sum"`; see there for more).
 
-The GraphSAGE*Conv classes are in charge of computing the right-hand term
+The GraphSAGE\*Conv classes are in charge of computing the right-hand term
 W_{neigh} h_{N(v)} (for one edge set each, typically with separate weights).
 This class is in charge of computing the left-hand term W_{self} h_v from the
 old node state h_v, combining it with the results for each edge set and
@@ -80,13 +82,14 @@ computing the new node state h_v from it.
 
 Beyond the original GraphSAGE, this class supports:
 
-*   dropout, applied to the input h_v, analogous to the dropout provided by
-    GraphSAGE*Conv for their inputs;
-*   a bias term added just before the final nonlinearity;
-*   a configurable combine_type (originally "sum");
-*   additional options to influence normalization, activation, etc.
+  - dropout, applied to the input h_v, analogous to the dropout provided by
+    GraphSAGE\*Conv for their inputs;
+  - a bias term added just before the final nonlinearity;
+  - a configurable combine_type (originally "sum");
+  - additional options to influence normalization, activation, etc.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>

@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.keras.layers.ParseSingleExample
 
 [TOC]
@@ -13,7 +15,7 @@
 </td>
 </table>
 
-Applies tfgnn.parse_single_example(graph_tensor_spec, _).
+Applies tfgnn.parse_single_example(graph_tensor_spec, \_).
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.keras.layers.ParseSingleExample(
@@ -22,8 +24,4 @@ Applies tfgnn.parse_single_example(graph_tensor_spec, _).
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
-
-

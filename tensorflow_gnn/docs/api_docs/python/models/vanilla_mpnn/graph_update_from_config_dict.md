@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # vanilla_mpnn.graph_update_from_config_dict
 
 [TOC]
@@ -24,6 +26,7 @@ Returns a VanillaMPNNGraphUpdate initialized from `cfg`.
 <!-- Placeholder for "Used in" -->
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -44,6 +47,7 @@ passing it here.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
@@ -56,6 +60,7 @@ A new `VanillaMPNNGraphUpdate` object.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Raises</h2></th></tr>

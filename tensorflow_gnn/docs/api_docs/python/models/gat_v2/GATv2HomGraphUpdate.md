@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # gat_v2.GATv2HomGraphUpdate
 
 [TOC]
@@ -31,7 +33,7 @@ Returns a GraphUpdate layer with a Graph Attention Network V2 (GATv2).
 <!-- Placeholder for "Used in" -->
 
 The returned layer performs one update step of a Graph Attention Network v2
-(GATv2) from https://arxiv.org/abs/2105.14491 on a GraphTensor that stores a
+(GATv2\) from <https://arxiv.org/abs/2105.14491> on a GraphTensor that stores a
 homogeneous graph. For heterogeneous graphs with multiple node sets and edge
 sets, users are advised to consider a GraphUpdate with one or more GATv2Conv
 objects instead, such as the GATv2MPNNGraphUpdate.
@@ -41,6 +43,7 @@ objects instead, such as the GATv2MPNNGraphUpdate.
 > requires having an explicit loop in the edge set.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>

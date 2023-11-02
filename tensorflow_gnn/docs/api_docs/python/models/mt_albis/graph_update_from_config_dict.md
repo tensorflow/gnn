@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # mt_albis.graph_update_from_config_dict
 
 [TOC]
@@ -22,6 +24,7 @@ Constructs a MtAlbisGraphUpdate from a ConfigDict.
 </code></pre>
 
 <!-- Placeholder for "Used in" -->
+
 <!-- Tabular view -->
 
  <table class="responsive fixed orange">

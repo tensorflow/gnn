@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.keras.layers.AddSelfLoops
 
 [TOC]
@@ -23,6 +25,6 @@ Adds self-loops to scalar graphs.
 
 <!-- Placeholder for "Used in" -->
 
-The edge_set_name is expected to be a homogeneous edge (connects a node pair of
-the node set). NOTE: Self-connections will always be added, regardless if if
+The edge_set_name is expected to be a homogeneous edge (connects a node pair
+of the node set). NOTE: Self-connections will always be added, regardless if if
 self-connections already exist or not.

@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.sampler.SamplingOp
 
 [TOC]
@@ -16,6 +18,7 @@
 A ProtocolMessage
 
 <!-- Placeholder for "Used in" -->
+
 <!-- Tabular view -->
 
  <table class="responsive fixed orange">

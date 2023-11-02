@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # multi_head_attention.graph_update_get_config_dict
 
 [TOC]

@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # vanilla_mpnn.VanillaMPNNGraphUpdate
 
 [TOC]
@@ -38,12 +40,11 @@ Passing Neural Network that uses a single dense layer to compute messages and
 update node states.
 
 For each edge set E, the pooled messages for node v are computed as follows from
-its neighbors N_E(v), that is, the other endpoints of those edges that have v at
-the endpoint identified by `receiver_tag`.
+its neighbors N_E(v), that is, the other endpoints of those edges that have v
+at the endpoint identified by `receiver_tag`.
 
-$$m_E = \text{reduce}(
-    \text{ReLU}(W_{\text{msg}} (h_v || h_u || x_{(u,v)}))
-    \text{ for all } u \in N_E(v)).$$
+$$m_E = \\text{reduce}( \\text{ReLU}(W_{\\text{msg}} (h_v || h_u ||
+x_{(u,v)})) \\text{ for all } u \\in N_E(v)).$$
 
 The inputs are, in this order: the `tfgnn.HIDDEN_STATE` features of the receiver
 and sender node as well as the named `edge_feature`, if any. The reduction
@@ -52,10 +53,11 @@ happens with the specified `reduce_type`, e.g., sum or mean.
 The new hidden state at node v is computed as follows from the old node state
 and the pooled messages from all incident node sets E_1, E_2, ...:
 
-$$h_v := \text{ReLU}(
-    W_{\text{state}} (h_v || m_{E_1} || m_{E_2} || \ldots)).$$
+$$h_v := \\text{ReLU}( W_{\\text{state}} (h_v || m_{E_1} || m_{E_2} ||
+\\ldots)).$$
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -147,6 +149,7 @@ normalization to the new node state.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>

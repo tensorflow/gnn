@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.parse_example
 
 [TOC]
@@ -24,8 +26,6 @@ Parses a batch of serialized Example protos into a single `GraphTensor`.
 ) -> <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
 We expect `serialized` to be a string tensor batched with `batch_size` many
@@ -38,11 +38,12 @@ function accepts a type spec for a graph tensor and implements an encoding for
 all container tensors, including ragged tensors, from a batched sequence of
 `tf.train.Example` protocol buffer messages.
 
-The encoded examples shapes and features are expected to conform to the
-encoding defined by `get_io_spec()`. The `validate` flag exists to implement
+The encoded examples shapes and features are expected to conform to the encoding
+defined by `get_io_spec()`. The `validate` flag exists to implement
 verifications of this encoding.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -84,6 +85,7 @@ values form a valid GraphTensor. Defaults to `True`.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
@@ -94,4 +96,3 @@ A graph tensor object with `spec.batch(serialized.shape[0])` type spec.
 </tr>
 
 </table>
-

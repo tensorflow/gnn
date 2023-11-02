@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.keras.layers.PadToTotalSizes
 
 [TOC]
@@ -24,15 +26,12 @@ Applies tfgnn.pad_to_total_sizes() to a GraphTensor.
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
 This Keras layer maps a GraphTensor to a GraphTensor by calling
-<a href="../../../tfgnn/pad_to_total_sizes.md"><code>tfgnn.pad_to_total_sizes()</code></a> with the additional arguments, notably
-`sizes_constraints`, passed at initialization time. See that function
-for detailed documentation.
+<a href="../../../tfgnn/pad_to_total_sizes.md"><code>tfgnn.pad_to_total_sizes()</code></a>
+with the additional arguments, notably `sizes_constraints`, passed at
+initialization time. See that function for detailed documentation.
 
 Serialization to a Keras model config requires the `sizes_constraints` to
 contain Python integers or eager Tensors, not symbolic Tensors.
-

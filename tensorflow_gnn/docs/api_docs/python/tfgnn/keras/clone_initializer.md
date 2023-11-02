@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.keras.clone_initializer
 
 [TOC]
@@ -42,21 +44,19 @@ this function as well.
 
 #### Example:
 
-```
-def build_graph_update(units, initializer):
-  def dense(units):  # Called for multiple node sets and edge sets.
-    tf.keras.layers.Dense(
-        units, activation="relu",
-        kernel_initializer=tfgnn.keras.clone_initializer(initializer))
+    def build_graph_update(units, initializer):
+      def dense(units):  # Called for multiple node sets and edge sets.
+        tf.keras.layers.Dense(
+            units, activation="relu",
+            kernel_initializer=tfgnn.keras.clone_initializer(initializer))
 
-  gnn_builder = tfgnn.keras.ConvGNNBuilder(
-      lambda edge_set_name, receiver_tag: tfgnn.keras.layers.SimpleConv(
-          dense(units), receiver_tag=receiver_tag),
-      lambda node_set_name: tfgnn.keras.layers.NextStateFromConcat(
-          dense(units)),
-      receiver_tag=tfgnn.TARGET)
-return gnn_builder.Convolve()
-```
+      gnn_builder = tfgnn.keras.ConvGNNBuilder(
+          lambda edge_set_name, receiver_tag: tfgnn.keras.layers.SimpleConv(
+              dense(units), receiver_tag=receiver_tag),
+          lambda node_set_name: tfgnn.keras.layers.NextStateFromConcat(
+              dense(units)),
+          receiver_tag=tfgnn.TARGET)
+    return gnn_builder.Convolve()
 
 <!-- Tabular view -->
 

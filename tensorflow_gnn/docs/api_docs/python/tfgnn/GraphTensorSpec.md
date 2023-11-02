@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.GraphTensorSpec
 
 [TOC]
@@ -6,62 +8,109 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1207-L1311">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1385-L1511">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
 </td>
 </table>
 
-A type spec for <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>.
+A type spec for
+<a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.GraphTensorSpec(
     data_spec: DataSpec,
     shape: tf.TensorShape,
     indices_dtype: tf.dtypes.DType,
+    row_splits_dtype: tf.dtypes.DType,
     metadata: Metadata = None,
-    validate: bool = False
+    check_consistent_indices_dtype: bool = False,
+    check_consistent_row_splits_dtype: bool = False
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
-
-
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>
 
-<tr> <td> `context_spec`<a id="context_spec"></a> </td> <td> The graph context
-type spec. </td> </tr><tr> <td> `edge_sets_spec`<a id="edge_sets_spec"></a>
-</td> <td> A read-only mapping form edge set name to the edge set type spec.
-</td> </tr><tr> <td> `indices_dtype`<a id="indices_dtype"></a> </td> <td> The
-integer type to represent ragged splits. </td> </tr><tr> <td>
-`node_sets_spec`<a id="node_sets_spec"></a> </td> <td> A read-only mapping form
-node set name to the node set type spec. </td> </tr><tr> <td>
-`rank`<a id="rank"></a> </td> <td> The rank of the GraphPiece. Guaranteed not to
-be `None`. </td> </tr><tr> <td> `shape`<a id="shape"></a> </td> <td> A
-possibly-partial shape specification of the GraphPiece.
+<tr>
+<td>
+`context_spec`<a id="context_spec"></a>
+</td>
+<td>
+The graph context type spec.
+</td>
+</tr><tr>
+<td>
+`edge_sets_spec`<a id="edge_sets_spec"></a>
+</td>
+<td>
+A read-only mapping form edge set name to the edge set type spec.
+</td>
+</tr><tr>
+<td>
+`indices_dtype`<a id="indices_dtype"></a>
+</td>
+<td>
+The dtype for graph items indexing. One of `tf.int32` or `tf.int64`.
+</td>
+</tr><tr>
+<td>
+`node_sets_spec`<a id="node_sets_spec"></a>
+</td>
+<td>
+A read-only mapping form node set name to the node set type spec.
+</td>
+</tr><tr>
+<td>
+`rank`<a id="rank"></a>
+</td>
+<td>
+The rank of the GraphPiece. Guaranteed not to be `None`.
+</td>
+</tr><tr>
+<td>
+`row_splits_dtype`<a id="row_splits_dtype"></a>
+</td>
+<td>
+The dtype for ragged row partions. One of `tf.int32` or `tf.int64`.
+</td>
+</tr><tr>
+<td>
+`shape`<a id="shape"></a>
+</td>
+<td>
+A possibly-partial shape specification of the GraphPiece.
 
 The returned `TensorShape` is guaranteed to have a known rank, but the
-individual dimension sizes may be unknown. </td> </tr><tr> <td>
-`total_num_components`<a id="total_num_components"></a> </td> <td> The total
-number of graph components if known. </td> </tr><tr> <td>
-`value_type`<a id="value_type"></a> </td> <td> The Python type for values that
-are compatible with this TypeSpec.
+individual dimension sizes may be unknown.
+
+</td>
+</tr><tr>
+<td>
+`total_num_components`<a id="total_num_components"></a>
+</td>
+<td>
+The total number of graph components if known.
+</td>
+</tr><tr>
+<td>
+`value_type`<a id="value_type"></a>
+</td>
+<td>
+The Python type for values that are compatible with this TypeSpec.
 
 In particular, all values that are compatible with this TypeSpec must be an
 instance of this type.
+
 </td>
 </tr>
 </table>
-
-
 
 ## Methods
 
@@ -89,6 +138,7 @@ Returns a TypeSpec instance based on the serialized proto.
 Do NOT override for custom non-TF types.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Args</th></tr>
@@ -116,7 +166,7 @@ Do NOT override for custom non-TF types.
 
 <h3 id="from_piece_specs"><code>from_piece_specs</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1211-L1241">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1389-L1441">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -128,12 +178,13 @@ source</a>
 ) -> 'GraphTensorSpec'
 </code></pre>
 
-The counterpart of <a href="../tfgnn/GraphTensor.md#from_pieces"><code>GraphTensor.from_pieces</code></a> for pieces type specs.
-
+The counterpart of
+<a href="../tfgnn/GraphTensor.md#from_pieces"><code>GraphTensor.from_pieces</code></a>
+for pieces type specs.
 
 <h3 id="from_value"><code>from_value</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L491-L494">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L672-L675">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -144,7 +195,6 @@ source</a>
 </code></pre>
 
 Extension Types API: Factory method.
-
 
 <h3 id="is_compatible_with"><code>is_compatible_with</code></h3>
 
@@ -160,6 +210,7 @@ Prefer using "is_subtype_of" and "most_specific_common_supertype" wherever
 possible.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Args</th></tr>
@@ -174,8 +225,6 @@ A TypeSpec or TypeSpec associated value to compare against.
 </tr>
 </table>
 
-
-
 <h3 id="is_subtype_of"><code>is_subtype_of</code></h3>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -188,12 +237,12 @@ Returns True if `self` is a subtype of `other`.
 
 Implements the tf.types.experimental.func.TraceType interface.
 
-If not overridden by a subclass, the default behavior is to assume the
-TypeSpec is covariant upon attributes that implement TraceType and
-invariant upon rest of the attributes as well as the structure and type
-of the TypeSpec.
+If not overridden by a subclass, the default behavior is to assume the TypeSpec
+is covariant upon attributes that implement TraceType and invariant upon rest of
+the attributes as well as the structure and type of the TypeSpec.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Args</th></tr>
@@ -208,8 +257,6 @@ A TraceType object.
 </tr>
 </table>
 
-
-
 <h3 id="most_specific_common_supertype"><code>most_specific_common_supertype</code></h3>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -218,16 +265,16 @@ A TraceType object.
 ) -> Optional['TypeSpec']
 </code></pre>
 
-Returns the most specific supertype TypeSpec  of `self` and `others`.
+Returns the most specific supertype TypeSpec of `self` and `others`.
 
 Implements the tf.types.experimental.func.TraceType interface.
 
-If not overridden by a subclass, the default behavior is to assume the
-TypeSpec is covariant upon attributes that implement TraceType and
-invariant upon rest of the attributes as well as the structure and type
-of the TypeSpec.
+If not overridden by a subclass, the default behavior is to assume the TypeSpec
+is covariant upon attributes that implement TraceType and invariant upon rest of
+the attributes as well as the structure and type of the TypeSpec.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Args</th></tr>
@@ -242,8 +289,6 @@ A sequence of TraceTypes.
 </tr>
 </table>
 
-
-
 <h3 id="most_specific_compatible_type"><code>most_specific_compatible_type</code></h3>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -252,16 +297,17 @@ A sequence of TraceTypes.
 ) -> 'TypeSpec'
 </code></pre>
 
-Returns the most specific TypeSpec compatible with `self` and `other`. (deprecated)
+Returns the most specific TypeSpec compatible with `self` and `other`.
+(deprecated)
 
 Deprecated: THIS FUNCTION IS DEPRECATED. It will be removed in a future version.
-Instructions for updating:
-Use most_specific_common_supertype instead.
+Instructions for updating: Use most_specific_common_supertype instead.
 
-Deprecated. Please use `most_specific_common_supertype` instead.
-Do not override this function.
+Deprecated. Please use `most_specific_common_supertype` instead. Do not override
+this function.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Args</th></tr>
@@ -276,9 +322,8 @@ A `TypeSpec`.
 </tr>
 </table>
 
-
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Raises</th></tr>
@@ -296,7 +341,7 @@ and `other`.
 
 <h3 id="relax"><code>relax</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1274-L1311">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1474-L1511">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -313,6 +358,7 @@ Allows variable number of graph nodes, edges or/and graph components.
 Calling with all default parameters keeps the spec unchanged.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Args</th></tr>
@@ -342,6 +388,7 @@ if True, allows a variable number of edges in each edge set.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Returns</th></tr>
@@ -354,6 +401,7 @@ Relaxed compatible graph tensor spec.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Raises</th></tr>
@@ -368,6 +416,45 @@ if graph tensor is not scalar (rank > 0).
 </tr>
 </table>
 
+<h3 id="with_indices_dtype"><code>with_indices_dtype</code></h3>
+
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L596-L608">View
+source</a>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>with_indices_dtype(
+    dtype: tf.dtypes.DType
+) -> 'GraphPieceSpecBase'
+</code></pre>
+
+Returns a copy of this piece spec with the given indices dtype.
+
+<h3 id="with_row_splits_dtype"><code>with_row_splits_dtype</code></h3>
+
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L637-L651">View
+source</a>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>with_row_splits_dtype(
+    dtype: tf.dtypes.DType
+) -> 'GraphPieceSpecBase'
+</code></pre>
+
+Returns a copy of this piece spec with the given row splits dtype.
+
+<h3 id="with_shape"><code>with_shape</code></h3>
+
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L570-L584">View
+source</a>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>with_shape(
+    new_shape: ShapeLike
+) -> 'GraphPieceSpecBase'
+</code></pre>
+
+Enforce the common prefix shape on all the contained features.
+
 <h3 id="__eq__"><code>__eq__</code></h3>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -378,7 +465,6 @@ if graph tensor is not scalar (rank > 0).
 
 Return self==value.
 
-
 <h3 id="__ne__"><code>__ne__</code></h3>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -388,7 +474,3 @@ Return self==value.
 </code></pre>
 
 Return self!=value.
-
-
-
-

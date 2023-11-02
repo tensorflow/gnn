@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # graph_sage.GraphSAGEPoolingConv
 
 [TOC]
@@ -38,9 +40,9 @@ NodeSetUpdate together with the
 <a href="../graph_sage/GraphSAGENextState.md"><code>graph_sage.GraphSAGENextState</code></a>
 layer to update the final node state (see there for details).
 
-GraphSAGE and the pooling aggregation are from Hamilton et al.:
-["Inductive Representation Learning on Large Graphs"](https://arxiv.org/abs/1706.02216),
-2017. Similar to
+GraphSAGE and the pooling aggregation are from Hamilton et al.: ["Inductive
+Representation Learning on Large
+Graphs"](https://arxiv.org/abs/1706.02216), 2017\. Similar to
 <a href="../graph_sage/GraphSAGEAggregatorConv.md"><code>graph_sage.GraphSAGEAggregatorConv</code></a>,
 dropout is applied to the inputs of neighbor nodes (separately for each
 node-neighbor pair). Then, they are passed through a fully connected layer and
@@ -54,6 +56,7 @@ involves the aforementioned hidden layer. For element-wise aggregation (as in
 <a href="../graph_sage/GraphSAGEAggregatorConv.md"><code>graph_sage.GraphSAGEAggregatorConv</code></a>.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -141,6 +144,7 @@ Additional arguments for the Layer.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>

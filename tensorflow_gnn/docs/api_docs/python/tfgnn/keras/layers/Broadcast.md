@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.keras.layers.Broadcast
 
 [TOC]
@@ -33,7 +35,7 @@ the broadcast feature value.
 
 There are two kinds of broadcast that this layer can be used for:
 
-*   From a node set to an edge set (or multiple edge sets). This is selected by
+  - From a node set to an edge set (or multiple edge sets). This is selected by
     specifying the receiver edge set(s) as `edge_set_name=...` and the sender by
     tag `tgnn.SOURCE` or
     <a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a> relative to
@@ -43,7 +45,7 @@ There are two kinds of broadcast that this layer can be used for:
     feature that is present at its `SOURCE` or `TARGET` node. From a node's
     point of view, `SOURCE` means broadcast to outgoing edges, and `TARGET`
     means broadcast to incoming edges.
-*   From the context to one (or more) node sets or one (or more) edge sets. This
+  - From the context to one (or more) node sets or one (or more) edge sets. This
     is selected by specifying the receiver(s) as either `node_set_name=...` or
     `edge_set_name=...` and the sender by tag
     <a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>. The
@@ -60,6 +62,7 @@ left unset to select
 <a href="../../../tfgnn.md#HIDDEN_STATE"><code>tfgnn.HIDDEN_STATE</code></a>.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
@@ -102,6 +105,7 @@ the <a href="../../../tfgnn.md#HIDDEN_STATE"><code>tfgnn.HIDDEN_STATE</code></a>
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call args</h2></th></tr>
@@ -148,11 +152,8 @@ requested receivers.
 
 </table>
 
-
-
-
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>

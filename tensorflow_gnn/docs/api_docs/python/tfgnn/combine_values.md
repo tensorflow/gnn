@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.combine_values
 
 [TOC]
@@ -5,58 +7,22 @@
 <!-- Insert buttons and diff -->
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L350-L383">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
+
 </table>
 
-Combines a list of tensors into one (by concatenation or otherwise).
+Dispatches function calls for KerasTensor inputs.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.combine_values(
-    inputs: List[Field], combine_type: str
-) -> Field
+    *args, **kwargs
+)
 </code></pre>
 
 <!-- Placeholder for "Used in" -->
 
-This is a convenience wrapper around standard TensorFlow operations, to
-provide standard names for common types of combining.
+Wraps a TF-GNN library function as a TFGNNOpLambda Keras layer if any of the
+call inputs are Keras tensors. In particular, this allows to use TFGNN
+functions, such as `tf.broadcast(...)`, with the Keras Functional API.
 
-<!-- Tabular view -->
- <table class="responsive fixed orange">
-<colgroup><col width="214px"><col></colgroup>
-<tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
-
-<tr> <td> `inputs`<a id="inputs"></a> </td> <td> a list of Tensors or
-RaggedTensors, with shapes and types that are compatible for the selected
-combine_type. </td> </tr><tr> <td> `combine_type`<a id="combine_type"></a> </td>
-<td> one of the following string values, to select the method for combining the
-inputs:
-
-  * "sum": The input tensors are added. Their dtypes and shapes must
-    match.
-  * "concat": The input tensors are concatenated along the last axis.
-    Their dtypes and shapes must match, except for the number of elements
-    along the last axis.
-</td>
-</tr>
-</table>
-
-
-
-<!-- Tabular view -->
- <table class="responsive fixed orange">
-<colgroup><col width="214px"><col></colgroup>
-<tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
-<tr class="alt">
-<td colspan="2">
-A tensor with the combined value of the inputs.
-</td>
-</tr>
-
-</table>
-
+See `_GraphPieceClassMethodDispatcher` for details on how function arguments are
+translated into the Keras Layer inputs.

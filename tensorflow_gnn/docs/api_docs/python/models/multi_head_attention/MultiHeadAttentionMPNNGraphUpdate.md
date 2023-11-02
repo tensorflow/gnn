@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # multi_head_attention.MultiHeadAttentionMPNNGraphUpdate
 
 [TOC]
@@ -6,7 +8,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L684-L781">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L685-L782">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -45,6 +47,7 @@ and all pooled messages, analogous to TF-GNN's
 `vanilla_mpnn.VanillaMPNNGraphUpdate` and `gat_v2.GATv2MPNNGraphUpdate`.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -160,6 +163,7 @@ if not set explicitly. For more, see `tfgnn.keras.clone_initializer()`.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>

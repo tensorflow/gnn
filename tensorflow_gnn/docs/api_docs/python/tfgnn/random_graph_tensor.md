@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.random_graph_tensor
 
 [TOC]
@@ -6,7 +8,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_random.py#L144-L241">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_random.py#L144-L243">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -20,12 +22,9 @@ Generate a graph tensor from a schema, with random features.
     spec: <a href="../tfgnn/GraphTensorSpec.md"><code>tfgnn.GraphTensorSpec</code></a>,
     sample_dict: Optional[SampleDict] = None,
     row_lengths_range: Tuple[int, int] = (2, 8),
-    row_splits_dtype: tf.dtypes.DType = tf.int32,
     validate: bool = True
 ) -> <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
 
@@ -36,6 +35,7 @@ It should not be included in the `spec`, and if needed, should be added
 separately in a later step.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -68,13 +68,6 @@ ragged range.
 </td>
 </tr><tr>
 <td>
-`row_splits_dtype`<a id="row_splits_dtype"></a>
-</td>
-<td>
-Data type for row splits.
-</td>
-</tr><tr>
-<td>
 `validate`<a id="validate"></a>
 </td>
 <td>
@@ -86,6 +79,7 @@ they must be checked for each tensor value.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
@@ -96,4 +90,3 @@ An instance of a GraphTensor.
 </tr>
 
 </table>
-

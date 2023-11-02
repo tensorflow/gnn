@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.find_tight_size_constraints
 
 [TOC]
@@ -24,17 +26,15 @@ Returns smallest possible size constraints that allow dataset padding.
 ) -> <a href="../tfgnn/SizeConstraints.md"><code>tfgnn.SizeConstraints</code></a>
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
 Evaluated constraints are intended to be used when it is required that all
 elements of the `dataset` can be padded, e.g., when evaluating models.
 
 Typically, this function is used on a dataset of individual examples (that is,
-not batched), and the `target_batch_size` is passed as an argument. The
-returned constraints will work for all possible batches up to that size drawn
-from the dataset.
+not batched), and the `target_batch_size` is passed as an argument. The returned
+constraints will work for all possible batches up to that size drawn from the
+dataset.
 
 Alternatively, this function can be used on a dataset that is already batched,
 passing `target_batch_size=None`. The returned constraints will work for the
@@ -43,10 +43,11 @@ optimized ways of building a Dataset (like parallel .map() and .interleave()
 calls before .batch()) introduce nondeterminism and may not deliver the exact
 same batches again.
 
-Note that this function iterates over all elements of the input dataset, so
-its execution time is proportional to the dataset's cardinality.
+Note that this function iterates over all elements of the input dataset, so its
+execution time is proportional to the dataset's cardinality.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -78,6 +79,7 @@ measured from dataset before making room for padding.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
@@ -90,9 +92,8 @@ in the input dataset.
 
 </table>
 
-
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Raises</h2></th></tr>

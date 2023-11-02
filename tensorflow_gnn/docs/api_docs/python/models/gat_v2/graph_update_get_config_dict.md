@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # gat_v2.graph_update_get_config_dict
 
 [TOC]

@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.softmax_edges_per_node
 
 [TOC]
@@ -5,25 +7,22 @@
 <!-- Insert buttons and diff -->
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/normalization_ops.py#L119-L129">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
+
 </table>
 
-Returns softmax() of edge values per common `node_tag` node.
+Dispatches function calls for KerasTensor inputs.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.softmax_edges_per_node(
-    graph_tensor: <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>,
-    edge_set_name: EdgeSetName,
-    node_tag: IncidentNodeTag,
-    *,
-    feature_value: Optional[Field] = None,
-    feature_name: Optional[FieldName] = None
-) -> <a href="../tfgnn/Field.md"><code>tfgnn.Field</code></a>
+    *args, **kwargs
+)
 </code></pre>
 
 <!-- Placeholder for "Used in" -->
+
+Wraps a TF-GNN library function as a TFGNNOpLambda Keras layer if any of the
+call inputs are Keras tensors. In particular, this allows to use TFGNN
+functions, such as `tf.broadcast(...)`, with the Keras Functional API.
+
+See `_GraphPieceClassMethodDispatcher` for details on how function arguments are
+translated into the Keras Layer inputs.

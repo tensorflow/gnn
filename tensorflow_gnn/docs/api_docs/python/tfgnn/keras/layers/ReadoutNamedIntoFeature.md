@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.keras.layers.ReadoutNamedIntoFeature
 
 [TOC]

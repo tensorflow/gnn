@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.keras.layers.ParseExample
 
 [TOC]
@@ -13,7 +15,7 @@
 </td>
 </table>
 
-Applies tfgnn.parse_example(graph_tensor_spec, _) to a batch of strings.
+Applies tfgnn.parse_example(graph_tensor_spec, \_) to a batch of strings.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.keras.layers.ParseExample(
@@ -22,8 +24,4 @@ Applies tfgnn.parse_example(graph_tensor_spec, _) to a batch of strings.
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
-
-

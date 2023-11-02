@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # gat_v2.GATv2Conv
 
 [TOC]
@@ -37,17 +39,17 @@ The multi-head attention from Graph Attention Networks v2 (GATv2).
 
 <!-- Placeholder for "Used in" -->
 
-GATv2 (https://arxiv.org/abs/2105.14491) improves upon the popular GAT
-architecture (https://arxiv.org/abs/1710.10903) by allowing the network to
+GATv2 (<https://arxiv.org/abs/2105.14491>) improves upon the popular GAT
+architecture (<https://arxiv.org/abs/1710.10903>) by allowing the network to
 compute a more expressive "dynamic" instead of just "static" attention, each of
 whose heads is described by Equations (7), (3) and (4) in
-https://arxiv.org/abs/2105.14491.
+<https://arxiv.org/abs/2105.14491>.
 
 Example: GATv2-style attention on incoming edges whose result is concatenated
 with the old node state and passed through a Dense layer to compute the new node
 state.
 
-```python
+``` python
 dense = tf.keras.layers.Dense
 graph = tfgnn.keras.layers.GraphUpdate(
     node_sets={"paper": tfgnn.keras.layers.NodeSetUpdate(
@@ -60,20 +62,20 @@ graph = tfgnn.keras.layers.GraphUpdate(
 This layer implements the multi-head attention of GATv2 with the following
 generalizations:
 
-*   This implementation of GATv2 attends only to edges that are explicitly
+  - This implementation of GATv2 attends only to edges that are explicitly
     stored in the input GraphTensor. Attention of a node to itself is enabled or
     disabled by storing or not storing an explicit loop in the edge set. The
     example above uses a separate layer to combine the old node state with the
     attention result to form the new node state.
-*   Attention values can be computed from a sender node state that gets
+  - Attention values can be computed from a sender node state that gets
     broadcast onto the edge (see arg `sender_node_feature`), from an edge
     feature (see arg `sender_edge_feature`), or from their concatenation (by
     setting both arguments). This choice is used in place of the sender node
     state $h_j$ in the defining equations cited above.
-*   This layer can be used with `receiver_tag=tfgnn.CONTEXT` to perform a
+  - This layer can be used with `receiver_tag=tfgnn.CONTEXT` to perform a
     convolution to the context, with graph components as receivers and the
     containment in graph components used in lieu of edges.
-*   An `edge_dropout` option is provided.
+  - An `edge_dropout` option is provided.
 
 This layer can also be configured to do attention pooling from edges to context
 or to receiver nodes (without regard for source nodes) by setting
@@ -87,6 +89,7 @@ perform an identical computation on each of the `num_nodes * 2 * 4` input
 values.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
@@ -190,7 +193,8 @@ of `alpha=0.2`.
 <td>
 The merge operation for combining output from
 all `num_heads` attention heads. By default, output of heads will be
-concatenated. However, GAT paper (Velickovic et al, Eq 6) recommends *only for output layer* to do mean across attention heads, which is acheivable
+concatenated. However, GAT paper (Velickovic et al, Eq 6) recommends *only
+for output layer* to do mean across attention heads, which is acheivable
 by setting to `"mean"`.
 </td>
 </tr><tr>
@@ -222,52 +226,81 @@ If given, will be used to regularize all layer kernels.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
-<tr> <td> `receiver_tag`<a id="receiver_tag"></a> </td> <td> one of
-`tfgnn.SOURCE`, `tfgnn.TARGET` or `tfgnn.CONTEXT`. The results are aggregated
-for this graph piece. If set to `tfgnn.SOURCE` or `tfgnn.TARGET`, the layer can
-be called for an edge set and will aggregate results at the specified endpoint
-of the edges. If set to `tfgnn.CONTEXT`, the layer can be called for an edge set
-or a node set and will aggregate results for context (per graph component). If
-left unset for init, the tag must be passed at call time. </td> </tr><tr> <td>
-`receiver_feature`<a id="receiver_feature"></a> </td> <td> The name of the
-feature that is read from the receiver graph piece and passed as
-convolve(receiver_input=...). </td> </tr><tr> <td>
-`sender_node_feature`<a id="sender_node_feature"></a> </td> <td> The name of the
-feature that is read from the sender nodes, if any, and passed as
-convolve(sender_node_input=...). NOTICE this must be `None` for use with
-`receiver_tag=tfgnn.CONTEXT` on an edge set, or for pooling from edges without
-sender node states. </td> </tr><tr> <td>
-`sender_edge_feature`<a id="sender_edge_feature"></a> </td> <td> The name of the
-feature that is read from the sender edges, if any, and passed as
-convolve(sender_edge_input=...). NOTICE this must not be `None` for use with
-`receiver_tag=tfgnn.CONTEXT` on an edge set. </td> </tr><tr> <td>
-`extra_receiver_ops`<a id="extra_receiver_ops"></a> </td> <td> A str-keyed
-dictionary of Python callables that are wrapped to bind some arguments and then
-passed on to `convolve()`. Sample usage: `extra_receiver_ops={"softmax":
-tfgnn.softmax}`. The values passed in this dict must be callable as follows,
-with two positional arguments:
+<tr>
+<td>
+`receiver_tag`<a id="receiver_tag"></a>
+</td>
+<td>
+one of `tfgnn.SOURCE`, `tfgnn.TARGET` or `tfgnn.CONTEXT`.
+The results are aggregated for this graph piece.
+If set to `tfgnn.SOURCE` or `tfgnn.TARGET`, the layer can be called for
+an edge set and will aggregate results at the specified endpoint of the
+edges.
+If set to `tfgnn.CONTEXT`, the layer can be called for an edge set or a
+node set and will aggregate results for context (per graph component).
+If left unset for init, the tag must be passed at call time.
+</td>
+</tr><tr>
+<td>
+`receiver_feature`<a id="receiver_feature"></a>
+</td>
+<td>
+The name of the feature that is read from the receiver
+graph piece and passed as convolve(receiver_input=...).
+</td>
+</tr><tr>
+<td>
+`sender_node_feature`<a id="sender_node_feature"></a>
+</td>
+<td>
+The name of the feature that is read from the sender
+nodes, if any, and passed as convolve(sender_node_input=...).
+NOTICE this must be `None` for use with `receiver_tag=tfgnn.CONTEXT`
+on an edge set, or for pooling from edges without sender node states.
+</td>
+</tr><tr>
+<td>
+`sender_edge_feature`<a id="sender_edge_feature"></a>
+</td>
+<td>
+The name of the feature that is read from the sender
+edges, if any, and passed as convolve(sender_edge_input=...).
+NOTICE this must not be `None` for use with `receiver_tag=tfgnn.CONTEXT`
+on an edge set.
+</td>
+</tr><tr>
+<td>
+`extra_receiver_ops`<a id="extra_receiver_ops"></a>
+</td>
+<td>
+A str-keyed dictionary of Python callables that are
+wrapped to bind some arguments and then passed on to `convolve()`.
+Sample usage: `extra_receiver_ops={"softmax": tfgnn.softmax}`.
+The values passed in this dict must be callable as follows, with two
+positional arguments:
 
-```python
+``` python
 f(graph, receiver_tag, node_set_name=..., feature_value=..., ...)
 f(graph, receiver_tag, edge_set_name=..., feature_value=..., ...)
 ```
 
 The wrapped callables seen by `convolve()` can be called like
 
-```python
+``` python
 wrapped_f(feature_value, ...)
 ```
 
-The first three arguments of `f` are set to the input GraphTensor of
-the layer and the tag/name pair required by `tfgnn.broadcast()` and
-`tfgnn.pool()` to move values between the receiver and the messages that
-are computed inside the convolution. The sole positional argument of
-`wrapped_f()` is passed to `f()`  as `feature_value=`, and any keyword
-arguments are forwarded.
+The first three arguments of `f` are set to the input GraphTensor of the layer
+and the tag/name pair required by `tfgnn.broadcast()` and `tfgnn.pool()` to move
+values between the receiver and the messages that are computed inside the
+convolution. The sole positional argument of `wrapped_f()` is passed to `f()` as
+`feature_value=`, and any keyword arguments are forwarded.
+
 </td>
 </tr><tr>
 <td>
@@ -280,6 +313,7 @@ Forwarded to the base class tf.keras.layers.Layer.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>

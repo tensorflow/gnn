@@ -47,6 +47,8 @@
 *   <a href="../tfgnn/create_schema_pb_from_graph_spec.md"><code>tfgnn.create_schema_pb_from_graph_spec</code></a>
 *   <a href="../tfgnn/dataset_filter_with_summary.md"><code>tfgnn.dataset_filter_with_summary</code></a>
 *   <a href="../tfgnn/dataset_from_generator.md"><code>tfgnn.dataset_from_generator</code></a>
+*   <a href="../tfgnn/disable_graph_tensor_inputs_validation.md"><code>tfgnn.disable_graph_tensor_inputs_validation</code></a>
+*   <a href="../tfgnn/enable_graph_tensor_inputs_validation.md"><code>tfgnn.enable_graph_tensor_inputs_validation</code></a>
 *   <a href="../tfgnn/experimental.md"><code>tfgnn.experimental</code></a>
 *   <a href="../tfgnn/find_tight_size_constraints.md"><code>tfgnn.find_tight_size_constraints</code></a>
 *   <a href="../tfgnn/gather_first_node.md"><code>tfgnn.gather_first_node</code></a>
@@ -99,6 +101,8 @@
 *   <a href="../tfgnn/pool.md"><code>tfgnn.pool</code></a>
 *   <a href="../tfgnn/pool_edges_to_context.md"><code>tfgnn.pool_edges_to_context</code></a>
 *   <a href="../tfgnn/pool_edges_to_node.md"><code>tfgnn.pool_edges_to_node</code></a>
+*   <a href="../tfgnn/pool_neighbors_to_node.md"><code>tfgnn.pool_neighbors_to_node</code></a>
+*   <a href="../tfgnn/pool_neighbors_to_node_feature.md"><code>tfgnn.pool_neighbors_to_node_feature</code></a>
 *   <a href="../tfgnn/pool_nodes_to_context.md"><code>tfgnn.pool_nodes_to_context</code></a>
 *   <a href="../tfgnn/random_graph_tensor.md"><code>tfgnn.random_graph_tensor</code></a>
 *   <a href="../tfgnn/read_schema.md"><code>tfgnn.read_schema</code></a>

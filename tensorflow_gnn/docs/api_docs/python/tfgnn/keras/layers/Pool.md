@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.keras.layers.Pool
 
 [TOC]
@@ -29,12 +31,12 @@ Pools a GraphTensor feature.
 
 <!-- Placeholder for "Used in" -->
 
-This layer accepts a complete GraphTensor and returns a tensor with the
-result of pooling some feature.
+This layer accepts a complete GraphTensor and returns a tensor with the result
+of pooling some feature.
 
 There are two kinds of pooling that this layer can be used for:
 
-*   From an edge set (or multiple edge sets) to a single node set. This is
+  - From an edge set (or multiple edge sets) to a single node set. This is
     selected by specifying the sender as `edge_set_name=...` and the receiver
     with tag `tgnn.SOURCE` or
     <a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a>; the
@@ -43,7 +45,7 @@ There are two kinds of pooling that this layer can be used for:
     in which each node has the aggregated feature values from the edges of the
     edge set(s) that have it as their `SOURCE` or `TARGET`, resp.; that is, the
     outgoing or incoming edges of the node.
-*   From one (or more) node sets or one (or more) edge sets to the context. This
+  - From one (or more) node sets or one (or more) edge sets to the context. This
     is selected by specifying the sender as either `node_set_name=...` or
     `edge_set_name=...` and the receiver with tag
     <a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>. The
@@ -64,6 +66,7 @@ The feature name can be left unset to select
 <a href="../../../tfgnn.md#HIDDEN_STATE"><code>tfgnn.HIDDEN_STATE</code></a>.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
@@ -113,6 +116,7 @@ the <a href="../../../tfgnn.md#HIDDEN_STATE"><code>tfgnn.HIDDEN_STATE</code></a>
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call args</h2></th></tr>
@@ -154,6 +158,7 @@ be the same. If passed to neither, <a href="../../../tfgnn.md#HIDDEN_STATE"><cod
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
@@ -165,11 +170,8 @@ A tensor with the pooled feature value.
 
 </table>
 
-
-
-
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>

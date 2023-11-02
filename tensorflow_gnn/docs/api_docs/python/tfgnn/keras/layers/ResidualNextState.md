@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.keras.layers.ResidualNextState
 
 [TOC]
@@ -30,7 +32,7 @@ Updates a state with a residual block.
 This layer concatenates all inputs, sends them through a user-supplied
 transformation, forms a skip connection by adding back the state of the updated
 graph piece, and finally applies an activation function. In other words, the
-user-supplied transformation is a residual block that modifies the state. The
+user\-supplied transformation is a residual block that modifies the state. The
 output shape of the residual block must match the shape of the state that gets
 updated so that they can be added.
 
@@ -39,6 +41,7 @@ skip connection is omitted. This avoids the need to special-case, say, latent
 node sets in modeling code applied to different node sets.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
@@ -77,6 +80,7 @@ defaults to <a href="../../../tfgnn.md#HIDDEN_STATE"><code>tfgnn.HIDDEN_STATE</c
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call returns</h2></th></tr>

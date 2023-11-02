@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.SizeConstraints
 
 [TOC]
@@ -24,14 +26,10 @@ Constraints on the number of entities in the graph.
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
-
-
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>

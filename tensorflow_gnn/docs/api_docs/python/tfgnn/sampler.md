@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # Module: tfgnn.sampler
 
 [TOC]

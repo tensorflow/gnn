@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.GraphSchema
 
 [TOC]
@@ -12,8 +14,6 @@
   </a>
 </td>
 </table>
-
-
 
 A schema definition for graphs.
 
@@ -39,21 +39,18 @@ information that isn't related to the data stored in the container of features.
 
 #### Intended usage:
 
-
-
-* To accompany a graph container data structure, as documentation reporting
-  entities, edges and features available during training.
-* To be serialized in the metadata of training data files.
-* To be safeguarded along with model checkpoints in order to keep track of input
-  features used historically.
-* To be utilized to automatically infer good default models.
+  - To accompany a graph container data structure, as documentation reporting
+    entities, edges and features available during training.
+  - To be serialized in the metadata of training data files.
+  - To be safeguarded along with model checkpoints in order to keep track of
+    input features used historically.
+  - To be utilized to automatically infer good default models.
 
 Note that a feature names beginnning with `#` are explicitly reserved and
 disallowed. (These are used in serialization.)
 
-
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>

@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # Module: graph_sage
 
 [TOC]
@@ -17,7 +19,7 @@ GraphSAGE.
 
 Users of TF-GNN can use this model by importing it next to the core library as
 
-```python
+``` python
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models import graph_sage
 ```

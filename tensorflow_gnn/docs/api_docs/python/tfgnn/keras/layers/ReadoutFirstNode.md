@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.keras.layers.ReadoutFirstNode
 
 [TOC]
@@ -26,15 +28,15 @@ Reads a feature from the first node of each graph component.
 
 <!-- Placeholder for "Used in" -->
 
-Given a particular node set (identified by `node_set_name`), this layer
-will gather the given feature from the first node of each graph component.
+Given a particular node set (identified by `node_set_name`), this layer will
+gather the given feature from the first node of each graph component.
 
 This is often used for rooted graphs created by sampling around the
 neighborhoods of seed nodes in a large graph: by convention, each seed node is
-the first node of its component in the respective node set, and this layer
-reads out the information it has accumulated there. (In other node sets, the
-first node may be arbitrary -- or nonexistant, in which case this operation
-must not be used and may raise an error at runtime.)
+the first node of its component in the respective node set, and this layer reads
+out the information it has accumulated there. (In other node sets, the first
+node may be arbitrary -- or nonexistant, in which case this operation must not
+be used and may raise an error at runtime.)
 
 This implicit convention is inflexible and hard to validate. New models are
 encouraged to use
@@ -44,6 +46,7 @@ sampled dataset itself; if not, it can be added after the fact by
 <a href="../../../tfgnn/keras/layers/AddReadoutFromFirstNode.md"><code>tfgnn.keras.layers.AddReadoutFromFirstNode</code></a>.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
@@ -67,6 +70,7 @@ tfgnn.HIDDEN_STATE will be read.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call args</h2></th></tr>
@@ -98,6 +102,7 @@ be the same. If passed to neither, tfgnn.HIDDEN_STATE is used.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
@@ -110,23 +115,26 @@ context feature.
 
 </table>
 
-
-
-
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>
 
-<tr> <td> `feature_name`<a id="feature_name"></a> </td> <td> Returns the
-feature_name argument to init, or None if unset. </td> </tr><tr> <td>
-`location`<a id="location"></a> </td> <td> Returns a dict with the kwarg to init
-that selected the feature location.
+<tr>
+<td>
+`feature_name`<a id="feature_name"></a>
+</td>
+<td>
+Returns the feature_name argument to init, or None if unset.
+</td>
+</tr><tr>
+<td>
+`location`<a id="location"></a>
+</td>
+<td>
+Returns a dict with the kwarg to init that selected the feature location.
 
 </td>
 </tr>
 </table>
-
-
-

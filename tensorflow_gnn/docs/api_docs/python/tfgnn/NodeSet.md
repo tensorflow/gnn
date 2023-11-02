@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.NodeSet
 
 [TOC]
@@ -6,7 +8,7 @@
 
 <table class="tfo-notebook-buttons tfo-api nocontent" align="left">
 <td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L433-L498">
+  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L524-L599">
     <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
     View source on GitHub
   </a>
@@ -17,18 +19,16 @@ A composite tensor for node set features plus size information.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.NodeSet(
-    data: Data, spec: 'GraphPieceSpecBase', validate: bool = False
+    data: Data, spec: 'GraphPieceSpecBase'
 )
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
 
 The items of the node set are subset of graph nodes.
 
-All nodes in a node set have the same features, identified by a string key.
-Each feature is stored as one tensor and has shape `[*graph_shape, num_nodes,
+All nodes in a node set have the same features, identified by a string key. Each
+feature is stored as one tensor and has shape `[*graph_shape, num_nodes,
 *feature_shape]`. The `num_nodes` is the number of nodes in a graph (could be
 ragged). The `feature_shape` is the shape of the feature value for each node.
 NodeSet supports both fixed-size and variable-size features. The fixed-size
@@ -36,11 +36,12 @@ features must have fully defined feature_shape. They are stored as `tf.Tensor`
 if `num_nodes` is fixed-size or `graph_shape.rank = 0`. Variable-size node
 features are always stored as `tf.RaggedTensor`.
 
-Note that node set features are indexed without regard to graph components.
-The information which node belong to which graph component is contained in
-the `.sizes` tensor which defines the number of nodes in each graph component.
+Note that node set features are indexed without regard to graph components. The
+information which node belong to which graph component is contained in the
+`.sizes` tensor which defines the number of nodes in each graph component.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -60,34 +61,60 @@ Nest of Field or subclasses of GraphPieceBase.
 A subclass of GraphPieceSpecBase with a `_data_spec` that matches
 `data`.
 </td>
-</tr><tr>
-<td>
-`validate`<a id="validate"></a>
-</td>
-<td>
-if set, checks that data and spec are aligned, compatible and
-supported.
-</td>
 </tr>
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>
 
-<tr> <td> `features`<a id="features"></a> </td> <td> A read-only mapping of
-feature name to feature specs. </td> </tr><tr> <td>
-`indices_dtype`<a id="indices_dtype"></a> </td> <td> The integer type to
-represent ragged splits. </td> </tr><tr> <td>
-`num_components`<a id="num_components"></a> </td> <td> The number of graph
-components for each graph. </td> </tr><tr> <td> `rank`<a id="rank"></a> </td>
-<td> The rank of this Tensor. Guaranteed not to be `None`. </td> </tr><tr> <td>
-`shape`<a id="shape"></a> </td> <td> A possibly-partial shape specification for
-this Tensor.
+<tr>
+<td>
+`features`<a id="features"></a>
+</td>
+<td>
+A read-only mapping of feature name to feature specs.
+</td>
+</tr><tr>
+<td>
+`indices_dtype`<a id="indices_dtype"></a>
+</td>
+<td>
+The dtype for graph items indexing. One of `tf.int32` or `tf.int64`.
+</td>
+</tr><tr>
+<td>
+`num_components`<a id="num_components"></a>
+</td>
+<td>
+The number of graph components for each graph.
+</td>
+</tr><tr>
+<td>
+`rank`<a id="rank"></a>
+</td>
+<td>
+The rank of this Tensor. Guaranteed not to be `None`.
+</td>
+</tr><tr>
+<td>
+`row_splits_dtype`<a id="row_splits_dtype"></a>
+</td>
+<td>
+The dtype for ragged row partions. One of `tf.int32` or `tf.int64`.
+</td>
+</tr><tr>
+<td>
+`shape`<a id="shape"></a>
+</td>
+<td>
+A possibly-partial shape specification for this Tensor.
 
 The returned `TensorShape` is guaranteed to have a known rank, but the
 individual dimension sizes may be unknown.
+
 </td>
 </tr><tr>
 <td>
@@ -124,24 +151,21 @@ The total number of items.
 
 <h3 id="from_fields"><code>from_fields</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L452-L489">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L544-L590">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>@classmethod</code>
 <code>from_fields(
-    *, features: Optional[Fields] = None, sizes: Field
+    *_, features: Optional[Fields] = None, sizes: Field, validate: bool = True
 ) -> 'NodeSet'
 </code></pre>
 
 Constructs a new instance from node set fields.
 
-
 #### Example:
 
-
-
-```python
+``` python
 tfgnn.NodeSet.from_fields(
     sizes=tf.constant([3]),
     features={
@@ -155,6 +179,7 @@ tfgnn.NodeSet.from_fields(
 ```
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Args</th></tr>
@@ -179,12 +204,19 @@ A number of nodes in each graph component. Has shape
 `[*graph_shape, num_components]`, where `num_components` is the number
 of graph components (could be ragged).
 </td>
+</tr><tr>
+<td>
+`validate`
+</td>
+<td>
+If true, use tf.assert ops to inspect the shapes of each field
+and check at runtime that they form a valid NodeSet.
+</td>
 </tr>
 </table>
 
-
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Returns</th></tr>
@@ -196,11 +228,9 @@ A `NodeSet` composite tensor.
 
 </table>
 
-
-
 <h3 id="get_features_dict"><code>get_features_dict</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L156-L158">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L184-L186">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -209,10 +239,9 @@ source</a>
 
 Returns features copy as a dictionary.
 
-
 <h3 id="replace_features"><code>replace_features</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L419-L425">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L510-L516">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -223,20 +252,57 @@ source</a>
 
 Returns a new instance with a new set of features.
 
-
 <h3 id="set_shape"><code>set_shape</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L300-L306">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L277-L279">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>set_shape(
     new_shape: ShapeLike
-) -> 'GraphPieceSpecBase'
+) -> 'GraphPieceBase'
+</code></pre>
+
+Deprecated. Use `with_shape()`.
+
+<h3 id="with_indices_dtype"><code>with_indices_dtype</code></h3>
+
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L308-L321">View
+source</a>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>with_indices_dtype(
+    dtype: tf.dtypes.DType
+) -> 'GraphPieceBase'
+</code></pre>
+
+Returns a copy of this piece with the given indices dtype.
+
+<h3 id="with_row_splits_dtype"><code>with_row_splits_dtype</code></h3>
+
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L347-L360">View
+source</a>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>with_row_splits_dtype(
+    dtype: tf.dtypes.DType
+) -> 'GraphPieceBase'
+</code></pre>
+
+Returns a copy of this piece with the given row splits dtype.
+
+<h3 id="with_shape"><code>with_shape</code></h3>
+
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L281-L295">View
+source</a>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>with_shape(
+    new_shape: ShapeLike
+) -> 'GraphPieceBase'
 </code></pre>
 
 Enforce the common prefix shape on all the contained features.
-
 
 <h3 id="__getitem__"><code>__getitem__</code></h3>
 
@@ -250,7 +316,3 @@ source</a>
 </code></pre>
 
 Indexing operator `[]` to access feature values by their name.
-
-
-
-

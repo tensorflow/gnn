@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # Module: mt_albis
 
 [TOC]
@@ -22,7 +24,7 @@ class.
 
 Users of TF-GNN can use it by importing it next to the core library as
 
-```python
+``` python
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models import mt_albis
 ```

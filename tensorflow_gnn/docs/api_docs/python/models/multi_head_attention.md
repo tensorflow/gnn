@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # Module: multi_head_attention
 
 [TOC]
@@ -17,14 +19,15 @@ Transformer-style multi-head attention.
 
 Users of TF-GNN can use this model by importing it next to the core library as
 
-```python
+``` python
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models import multi_head_attention
 ```
 
 ## Classes
 
-[`class MultiHeadAttentionConv`](./multi_head_attention/MultiHeadAttentionConv.md):
+[`class
+MultiHeadAttentionConv`](./multi_head_attention/MultiHeadAttentionConv.md):
 Transformer-style (dot-product) multi-head attention on GNNs.
 
 ## Functions

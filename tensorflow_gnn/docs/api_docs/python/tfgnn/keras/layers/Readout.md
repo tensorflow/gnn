@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.keras.layers.Readout
 
 [TOC]
@@ -36,18 +38,18 @@ require a Keras Layer and do not allow subscrpting syntax like
 `graph_tensor.node_sets["user"]["name"]`.
 
 A location in the graph is selected by setting exactly one of the keyword
-arguments `edge_set_name=...`, `node_set_name=...` or `from_context=True`.
-From there, the keyword argument `feature_name=...` selects the feature.
+arguments `edge_set_name=...`, `node_set_name=...` or `from_context=True`. From
+there, the keyword argument `feature_name=...` selects the feature.
 
-Both the initialization of and the call to this layer accept arguments to
-select the feature location and the feature name. The call arguments take
-effect for that call only and can supply missing values, but they are not
-allowed to contradict initialization arguments. The feature name can be left
-unset to select tfgnn.HIDDEN_STATE.
+Both the initialization of and the call to this layer accept arguments to select
+the feature location and the feature name. The call arguments take effect for
+that call only and can supply missing values, but they are not allowed to
+contradict initialization arguments. The feature name can be left unset to
+select tfgnn.HIDDEN_STATE.
 
 #### For example:
 
-```python
+``` python
 readout = tfgnn.keras.layers.Readout(feature_name="value")
 value = readout(graph_tensor, edge_set_name="edges")
 assert value == graph_tensor.edge_sets["edge"]["value"]
@@ -64,6 +66,7 @@ previously handled by
 <a href="../../../tfgnn/keras/layers/ReadoutFirstNode.md"><code>tfgnn.keras.layers.ReadoutFirstNode</code></a>.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
@@ -104,6 +107,7 @@ tfgnn.HIDDEN_STATE will be read.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call args</h2></th></tr>
@@ -129,6 +133,7 @@ be the same. If passed to neither, tfgnn.HIDDEN_STATE is used.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
@@ -140,28 +145,32 @@ The tensor with the selected feature.
 
 </table>
 
-
-
-
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>
 
-<tr> <td> `feature_name`<a id="feature_name"></a> </td> <td> Returns the
-feature_name argument to init, or None if unset. </td> </tr><tr> <td>
-`location`<a id="location"></a> </td> <td> Returns a dict with the kwarg to init
-that selected the feature location.
+<tr>
+<td>
+`feature_name`<a id="feature_name"></a>
+</td>
+<td>
+Returns the feature_name argument to init, or None if unset.
+</td>
+</tr><tr>
+<td>
+`location`<a id="location"></a>
+</td>
+<td>
+Returns a dict with the kwarg to init that selected the feature location.
 
-The result contains the keyword argument and value passed to `__init__()`
-that selects the location from which the layer's output feature is read,
- that is, one of `edge_set_name=...`, `node_set_name=...` or
-`from_context=True`. If none of these has been set, the result is
-empty, and one of them must be set at call time.
+The result contains the keyword argument and value passed to `__init__()` that
+selects the location from which the layer's output feature is read, that is, one
+of `edge_set_name=...`, `node_set_name=...` or `from_context=True`. If none of
+these has been set, the result is empty, and one of them must be set at call
+time.
+
 </td>
 </tr>
 </table>
-
-
-

@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.sampler.SamplingSpec
 
 [TOC]
@@ -16,6 +18,7 @@
 A ProtocolMessage
 
 <!-- Placeholder for "Used in" -->
+
 <!-- Tabular view -->
 
  <table class="responsive fixed orange">
@@ -35,6 +38,13 @@ A ProtocolMessage
 </td>
 <td>
 `SeedOp seed_op`
+</td>
+</tr><tr>
+<td>
+`symmetric_link_seed_op`<a id="symmetric_link_seed_op"></a>
+</td>
+<td>
+`SymmetricLinkSeedOp symmetric_link_seed_op`
 </td>
 </tr>
 </table>

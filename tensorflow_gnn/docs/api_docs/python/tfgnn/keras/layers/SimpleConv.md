@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.keras.layers.SimpleConv
 
 [TOC]
@@ -49,7 +51,7 @@ network to compute "sum"-pooled message on each edge from concatenated source
 and target states. (The result is then fed into the next-state layer, which
 concatenates the old node state and applies another single-layer network.)
 
-```python
+``` python
 dense = tf.keras.layers.Dense  # ...or some fancier feed-forward network.
 graph = tfgnn.keras.layers.GraphUpdate(
     node_sets={"paper": tfgnn.keras.layers.NodeSetUpdate(
@@ -60,6 +62,7 @@ graph = tfgnn.keras.layers.GraphUpdate(
 ```
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
@@ -139,6 +142,7 @@ edge set.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call returns</h2></th></tr>
@@ -152,57 +156,83 @@ pooled messages for each receiver.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
-<tr> <td> `receiver_tag`<a id="receiver_tag"></a> </td> <td> one of
-<a href="../../../tfgnn.md#SOURCE"><code>tfgnn.SOURCE</code></a>,
-<a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a> or
-<a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>. The results
-are aggregated for this graph piece. If set to
-<a href="../../../tfgnn.md#SOURCE"><code>tfgnn.SOURCE</code></a> or
-<a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a>, the layer can
-be called for an edge set and will aggregate results at the specified endpoint
-of the edges. If set to
-<a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>, the layer
-can be called for an edge set or a node set and will aggregate results for
-context (per graph component). If left unset for init, the tag must be passed at
-call time. </td> </tr><tr> <td> `receiver_feature`<a id="receiver_feature"></a>
-</td> <td> The name of the feature that is read from the receiver graph piece
-and passed as convolve(receiver_input=...). </td> </tr><tr> <td>
-`sender_node_feature`<a id="sender_node_feature"></a> </td> <td> The name of the
-feature that is read from the sender nodes, if any, and passed as
-convolve(sender_node_input=...). NOTICE this must be `None` for use with
-`receiver_tag=tfgnn.CONTEXT` on an edge set, or for pooling from edges without
-sender node states. </td> </tr><tr> <td>
-`sender_edge_feature`<a id="sender_edge_feature"></a> </td> <td> The name of the
-feature that is read from the sender edges, if any, and passed as
-convolve(sender_edge_input=...). NOTICE this must not be `None` for use with
-`receiver_tag=tfgnn.CONTEXT` on an edge set. </td> </tr><tr> <td>
-`extra_receiver_ops`<a id="extra_receiver_ops"></a> </td> <td> A str-keyed
-dictionary of Python callables that are wrapped to bind some arguments and then
-passed on to `convolve()`. Sample usage: `extra_receiver_ops={"softmax":
-tfgnn.softmax}`. The values passed in this dict must be callable as follows,
-with two positional arguments:
+<tr>
+<td>
+`receiver_tag`<a id="receiver_tag"></a>
+</td>
+<td>
+one of <a href="../../../tfgnn.md#SOURCE"><code>tfgnn.SOURCE</code></a>, <a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a> or <a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>.
+The results are aggregated for this graph piece.
+If set to <a href="../../../tfgnn.md#SOURCE"><code>tfgnn.SOURCE</code></a> or <a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a>, the layer can be called for
+an edge set and will aggregate results at the specified endpoint of the
+edges.
+If set to <a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>, the layer can be called for an edge set or a
+node set and will aggregate results for context (per graph component).
+If left unset for init, the tag must be passed at call time.
+</td>
+</tr><tr>
+<td>
+`receiver_feature`<a id="receiver_feature"></a>
+</td>
+<td>
+The name of the feature that is read from the receiver
+graph piece and passed as convolve(receiver_input=...).
+</td>
+</tr><tr>
+<td>
+`sender_node_feature`<a id="sender_node_feature"></a>
+</td>
+<td>
+The name of the feature that is read from the sender
+nodes, if any, and passed as convolve(sender_node_input=...).
+NOTICE this must be `None` for use with `receiver_tag=tfgnn.CONTEXT`
+on an edge set, or for pooling from edges without sender node states.
+</td>
+</tr><tr>
+<td>
+`sender_edge_feature`<a id="sender_edge_feature"></a>
+</td>
+<td>
+The name of the feature that is read from the sender
+edges, if any, and passed as convolve(sender_edge_input=...).
+NOTICE this must not be `None` for use with `receiver_tag=tfgnn.CONTEXT`
+on an edge set.
+</td>
+</tr><tr>
+<td>
+`extra_receiver_ops`<a id="extra_receiver_ops"></a>
+</td>
+<td>
+A str-keyed dictionary of Python callables that are
+wrapped to bind some arguments and then passed on to `convolve()`.
+Sample usage: `extra_receiver_ops={"softmax": tfgnn.softmax}`.
+The values passed in this dict must be callable as follows, with two
+positional arguments:
 
-```python
+``` python
 f(graph, receiver_tag, node_set_name=..., feature_value=..., ...)
 f(graph, receiver_tag, edge_set_name=..., feature_value=..., ...)
 ```
 
 The wrapped callables seen by `convolve()` can be called like
 
-```python
+``` python
 wrapped_f(feature_value, ...)
 ```
 
-The first three arguments of `f` are set to the input GraphTensor of
-the layer and the tag/name pair required by <a href="../../../tfgnn/broadcast.md"><code>tfgnn.broadcast()</code></a> and
-<a href="../../../tfgnn/pool.md"><code>tfgnn.pool()</code></a> to move values between the receiver and the messages that
-are computed inside the convolution. The sole positional argument of
-`wrapped_f()` is passed to `f()`  as `feature_value=`, and any keyword
-arguments are forwarded.
+The first three arguments of `f` are set to the input GraphTensor of the layer
+and the tag/name pair required by
+<a href="../../../tfgnn/broadcast.md"><code>tfgnn.broadcast()</code></a> and
+<a href="../../../tfgnn/pool.md"><code>tfgnn.pool()</code></a> to move values
+between the receiver and the messages that are computed inside the convolution.
+The sole positional argument of `wrapped_f()` is passed to `f()` as
+`feature_value=`, and any keyword arguments are forwarded.
+
 </td>
 </tr><tr>
 <td>
@@ -215,6 +245,7 @@ Forwarded to the base class tf.keras.layers.Layer.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>
@@ -273,6 +304,7 @@ from nodes to context). In the end, values have to be pooled from there into a
 Tensor with a leading dimension indexed by receivers, see `pool_to_receiver`.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Args</th></tr>
@@ -360,6 +392,7 @@ does not require forwarding this arg, Keras does that automatically.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Returns</th></tr>

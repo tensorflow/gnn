@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # gcn.GCNConv
 
 [TOC]
@@ -13,7 +15,7 @@
 </td>
 </table>
 
-Implements the Graph Convolutional Network by Kipf&Welling (2016).
+Implements the Graph Convolutional Network by Kipf\&Welling (2016).
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>gcn.GCNConv(
@@ -35,7 +37,7 @@ Implements the Graph Convolutional Network by Kipf&Welling (2016).
 <!-- Placeholder for "Used in" -->
 
 This class implements a Graph Convolutional Network from
-https://arxiv.org/abs/1609.02907 as a Keras layer that can be used as a
+<https://arxiv.org/abs/1609.02907> as a Keras layer that can be used as a
 convolution on an edge set in a tfgnn.keras.layers.NodeSetUpdate. The original
 algorithm proposed in the Graph Convolutional Network paper expects a symmetric
 graph as input. That is, if there is an edge from node i to node j, there is
@@ -43,15 +45,15 @@ also an edge from node j to node i. This implementation, however, is able to
 take asymmetric graphs as input.
 
 Let $w_{ij}$ be the weight of the edge from sender i to receiver j. Let
-$\deg^{in}_i$ be the number of incoming edges to i (in the direction of message
-flow, see `receiver_tag`), and $\deg^{out}_i$ the number of outgoing edges from
-i. In a symmetric graphs, both are equal.
+$\\deg^{in}_i$ be the number of incoming edges to i (in the direction of
+message flow, see `receiver_tag`), and $\\deg^{out}_i$ the number of outgoing
+edges from i. In a symmetric graphs, both are equal.
 
 In this implementation, we provide multiple approaches for normalizing an edge
 weight $w_{ij}$ in $v_{ij}$, namely `"none"`, `"in"`, `"out"`, `"in_out"`, and
 `"in_in"`. Setting normalization to `"none"` will end up in set $v_{ij} =
-w_{ij}$. The `"in"` normalization normalizes edge weights using the in-degree of
-the receiver node, that is:
+w_{ij}$. The `"in"` normalization normalizes edge weights using the in-degree
+of the receiver node, that is:
 
 $$v_{ij} = w_{ij} / \deg^{in}_j.$$
 
@@ -72,6 +74,7 @@ For symmetric graphs (as in the original GCN paper), `"in_out"` and `"in_in"`
 are equal, but the latter needs to compute degrees just once.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init arguments</h2></th></tr>
@@ -166,6 +169,7 @@ additional arguments for the Layer.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call arguments</h2></th></tr>
@@ -194,7 +198,7 @@ This graph has one edge set, named `tfgnn.EDGES`. This returns a tf.Tensor of
 shape (4,3). In order to return a GraphTensor this should be wrapped in
 NodeSetUpdate/ EdgeSetUpdate.
 
-```python
+``` python
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models.gcn import gcn_conv

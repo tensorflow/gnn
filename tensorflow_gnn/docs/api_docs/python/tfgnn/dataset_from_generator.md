@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.dataset_from_generator
 
 [TOC]
@@ -33,15 +35,14 @@ NOTE: Compared to `tf.data.from_generator()` the generator is first called
 during the dataset construction. If generator is shared between two datasets
 this could lead to some obscure behaviour, like:
 
-```
-my_generator = [pieceA, pieceB, pieceC, pieceD]
-dataset1 = tfgnn.dataset_from_generator(my_generator).take(2)
-dataset2 = tfgnn.dataset_from_generator(my_generator).take(2)
-print([dataset2])  # prints: pieceB, pieceC, while expected pieceA, pieceB.
-print([dataset1])  # prints: pieceA, pieceD.
-```
+    my_generator = [pieceA, pieceB, pieceC, pieceD]
+    dataset1 = tfgnn.dataset_from_generator(my_generator).take(2)
+    dataset2 = tfgnn.dataset_from_generator(my_generator).take(2)
+    print([dataset2])  # prints: pieceB, pieceC, while expected pieceA, pieceB.
+    print([dataset1])  # prints: pieceA, pieceD.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -60,6 +61,7 @@ protocol. Could consist of any nest of tensors and scalar graph pieces
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
@@ -72,6 +74,7 @@ A `tf.data.Dataset`.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Raises</h2></th></tr>

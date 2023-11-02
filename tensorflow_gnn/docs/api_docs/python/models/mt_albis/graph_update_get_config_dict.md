@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # mt_albis.graph_update_get_config_dict
 
 [TOC]

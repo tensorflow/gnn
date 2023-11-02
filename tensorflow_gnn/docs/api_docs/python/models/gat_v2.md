@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # Module: gat_v2
 
 [TOC]
@@ -17,7 +19,7 @@ Graph Attention Networks v2.
 
 Users of TF-GNN can use this model by importing it next to the core library as
 
-```python
+``` python
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models import gat_v2
 ```

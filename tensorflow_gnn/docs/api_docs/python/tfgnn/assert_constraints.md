@@ -1,3 +1,5 @@
+<!-- lint-g3mark -->
+
 # tfgnn.assert_constraints
 
 [TOC]
@@ -21,17 +23,16 @@ Validate the shape constaints of a graph's features at runtime.
 ) -> tf.Operation
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
 This code returns a TensorFlow op with debugging assertions that ensure the
-parsed data has valid shape constraints for a graph. This can be instantiated
-in your TensorFlow graph while debugging if you believe that your data may be
+parsed data has valid shape constraints for a graph. This can be instantiated in
+your TensorFlow graph while debugging if you believe that your data may be
 incorrectly shaped, or simply applied to a manually produced dataset to ensure
 that those constraints have been applied correctly.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
@@ -47,6 +48,7 @@ An instance of a `GraphTensor`.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
@@ -57,4 +59,3 @@ A list of check operations.
 </tr>
 
 </table>
-
