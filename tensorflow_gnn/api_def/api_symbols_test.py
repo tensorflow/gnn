@@ -88,7 +88,6 @@ _ALL_PACKAGES = [
 ## against the officially supported API.
 ## TODO(b/266920603): Remove all following in the respective  __init__.py file!
 del tfgnn.graph  # To be removed also from build_docs.py.
-del tfgnn.proto  # To be removed also from build_docs.py.
 
 
 ##

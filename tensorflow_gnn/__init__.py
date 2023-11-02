@@ -227,7 +227,6 @@ api_utils.remove_submodules_except(__name__, [
     "experimental",
     "graph",  # TODO(b/266920603): Fix legacy users and remove!
     "keras",
-    "proto",  # TODO(b/266920603): Fix legacy users and remove!
     "sampler",
 ])
 # LINT.ThenChange(api_def/tfgnn-symbols.txt)
