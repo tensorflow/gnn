@@ -225,7 +225,6 @@ disable_graph_tensor_inputs_validation = graph_constants.disable_graph_tensor_in
 # Remove all names added by module imports, unless explicitly allowed here.
 api_utils.remove_submodules_except(__name__, [
     "experimental",
-    "graph",  # TODO(b/266920603): Fix legacy users and remove!
     "keras",
     "sampler",
 ])

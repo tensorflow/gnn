@@ -83,13 +83,6 @@ _ALL_PACKAGES = [
     "vanilla_mpnn",
 ]
 
-## TEMPORARY HACK: Some __init__.py files still leak non-public submodules on
-## purpose to accommodate legacy users. We delete them here before testing
-## against the officially supported API.
-## TODO(b/266920603): Remove all following in the respective  __init__.py file!
-del tfgnn.graph  # To be removed also from build_docs.py.
-
-
 ##
 ## STEP 2: Deal with subpackages added after __init__.py
 ##
