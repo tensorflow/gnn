@@ -330,7 +330,10 @@ class MergeGraphsIntoOneComponentTest(tf.test.TestCase, parameterized.TestCase):
                         gt.edge_sets['es2'].sizes)
 
     # Features.
-    self.assertAllEqual(gt.context['cf'], tf.concat(self.contexts, axis=0))
+    self.assertAllEqual(
+        gt.context['cf'],
+        tf.expand_dims(tf.concat(self.contexts, axis=0), axis=0),
+    )
 
     node_feats1 = tf.concat([nf[0] for nf in self.nodes_features], axis=0)
     node_feats2 = tf.concat([nf[1] for nf in self.nodes_features], axis=0)

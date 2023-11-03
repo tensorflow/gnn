@@ -22,6 +22,7 @@ from tensorflow_gnn.graph import adjacency
 from tensorflow_gnn.graph import graph_constants
 from tensorflow_gnn.graph import graph_piece
 from tensorflow_gnn.graph import graph_tensor
+from tensorflow_gnn.graph import tensor_utils as utils
 import tensorflow_gnn.proto.graph_schema_pb2 as schema_pb2
 
 from tensorflow_gnn.sampler import sampling_spec_pb2
@@ -340,11 +341,31 @@ def stack_componets(graph_tensors: list[GraphTensor]) -> GraphTensor:
 
 
 def merge_components(graph: GraphTensor) -> GraphTensor:
-  """Combines graph with several components into one component."""
+  """Combines graph with several components into one component.
+
+  Args:
+    graph: The input scalar graph tensor with any number of graph components.
+
+  Returns:
+    Scalar graph tensor with single graph component. For result node and edge
+    sets their sizes are summed up and features are not modified. The result
+    graph context has `sizes=[1]` and its features have an added dimension-0
+    of size 1 (the graph components dimension).
+  """
   ssum = functools.partial(tf.reduce_sum, axis=0, keepdims=True)
+  def _add_dim0(t):
+    if utils.is_dense_tensor(t):
+      return tf.expand_dims(t, 0)
+    else:
+      assert utils.is_ragged_tensor(t)
+      return tf.RaggedTensor.from_uniform_row_length(
+          t, tf.size(t.row_lengths(), t.row_splits.dtype)
+      )
+
   return GraphTensor.from_pieces(
       context=graph_tensor.Context.from_fields(
-          sizes=ssum(graph.context.sizes), features=graph.context.features),
+          sizes=tf.constant([1], graph.indices_dtype),
+          features=tf.nest.map_structure(_add_dim0, graph.context.features)),
       node_sets=(
           {name: graph_tensor.NodeSet.from_fields(
               sizes=ssum(node_set.sizes), features=node_set.features)
