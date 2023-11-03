@@ -1924,5 +1924,51 @@ class AttributesSettersTest(tf.test.TestCase):
     self.assertEqual(get_test_case(tf.int64, tf.int64, tf.int64), tf.int64)
 
 
+class SpecsInitializationTest(tu.GraphTensorTestBase):
+
+  def testSerialization(self):
+    # pylint: disable=protected-access
+    graph_without_edges = gt.GraphTensor.from_pieces(
+        node_sets={
+            'v': gt.NodeSet.from_fields(
+                sizes=tf.constant([1]), features=dict(f=tf.constant([42.0]))
+            )
+        }
+    )
+    original = graph_without_edges.spec
+    serialized = original._serialize()
+    deserialized = gt.GraphTensorSpec._deserialize(serialized)
+    self.assertEqual(original, deserialized)
+    # Check that object is comparable with itself.
+    self.assertEqual(deserialized, deserialized)
+
+  def testRebuildFromPieces(self):
+    graph_with_edges = gt.GraphTensor.from_pieces(
+        node_sets={
+            'v': gt.NodeSet.from_fields(
+                sizes=tf.constant([1]), features=dict(f=tf.constant([42.0]))
+            )
+        },
+        edge_sets={
+            'e': gt.EdgeSet.from_fields(
+                sizes=tf.constant([1]),
+                adjacency=adj.Adjacency.from_indices(
+                    ('v', tf.constant([0])), ('v', tf.constant([0]))
+                ),
+            )
+        },
+    )
+    original = graph_with_edges.spec
+    self.assertEqual(original, original)
+    rebuilt = gt.GraphTensorSpec.from_piece_specs(
+        context_spec=original.context_spec,
+        node_sets_spec=original.node_sets_spec,
+        edge_sets_spec=original.edge_sets_spec,
+    )
+    self.assertEqual(rebuilt, original)
+    # Check that object is comparable with itself.
+    self.assertEqual(rebuilt, rebuilt)
+
+
 if __name__ == '__main__':
   tf.test.main()

@@ -241,7 +241,7 @@ class _GraphPieceWithFeaturesSpec(gp.GraphPieceSpecBase):
 
     gp.check_indices_dtype(sizes_spec.dtype, what='`sizes_spec`')
 
-    features_spec = features_spec.copy()
+    features_spec = dict(features_spec)
 
     data_spec = {
         _NodeOrEdgeSet._DATAKEY_FEATURES: features_spec,
@@ -1025,8 +1025,8 @@ class GraphTensor(gp.GraphPieceBase):
 
     data = {
         GraphTensor._DATAKEY_CONTEXT: context,
-        GraphTensor._DATAKEY_NODE_SETS: node_sets,
-        GraphTensor._DATAKEY_EDGE_SETS: edge_sets,
+        GraphTensor._DATAKEY_NODE_SETS: dict(node_sets),
+        GraphTensor._DATAKEY_EDGE_SETS: dict(edge_sets),
     }
 
     indices_dtype = gp.get_max_indices_dtype(data)
@@ -1418,8 +1418,8 @@ class GraphTensorSpec(gp.GraphPieceSpecBase):
     # pylint: disable=protected-access
     data_spec = {
         GraphTensor._DATAKEY_CONTEXT: context_spec,
-        GraphTensor._DATAKEY_NODE_SETS: node_sets_spec,
-        GraphTensor._DATAKEY_EDGE_SETS: edge_sets_spec,
+        GraphTensor._DATAKEY_NODE_SETS: dict(node_sets_spec),
+        GraphTensor._DATAKEY_EDGE_SETS: dict(edge_sets_spec),
     }
     indices_dtype = gp.get_max_indices_dtype(data_spec)
     row_splits_dtype = gp.get_max_row_splits_dtype(data_spec)
