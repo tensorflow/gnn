@@ -223,7 +223,7 @@ class Task(abc.ABC):
 
 
 class Trainer(abc.ABC):
-  """A class for training and validation."""
+  """A class for training and validation of a Keras model."""
 
   @property
   @abc.abstractmethod

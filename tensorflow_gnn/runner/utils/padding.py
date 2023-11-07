@@ -26,6 +26,7 @@ SizeConstraints = tfgnn.SizeConstraints
 
 
 def one_node_per_component(gtspec: tfgnn.GraphTensorSpec) -> Mapping[str, int]:
+  """Returns a `Mapping` `node_set_name: 1` for every node set in `gtspec`."""
   return {k: 1 for k in gtspec.node_sets_spec.keys()}
 
 
