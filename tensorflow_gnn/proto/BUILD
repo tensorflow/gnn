@@ -4,6 +4,17 @@ licenses(["notice"])  # Apache 2.0
 
 load("@com_google_protobuf//:protobuf.bzl", "py_proto_library")
 
+py_library(
+    name = "proto",
+    srcs = ["__init__.py"],
+    srcs_version = "PY3",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":graph_schema",
+        "//tensorflow_gnn/utils:api_utils",
+    ],
+)
+
 py_proto_library(
     name = "graph_schema_py_proto",
     srcs = ["graph_schema.proto"],

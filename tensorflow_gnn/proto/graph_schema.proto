@@ -28,6 +28,9 @@
 //   D: An example embedding's width.
 //
 
+// NOTE: When adding a new top-level message or enum here, also add it in
+// ./graph_schema.py, __init__.py, and the test referenced from there.
+
 syntax = "proto2";
 
 package tensorflow_gnn;
@@ -35,15 +38,7 @@ package tensorflow_gnn;
 import "tensorflow/core/framework/tensor_shape.proto";
 import "tensorflow/core/framework/types.proto";
 
-// An enumeration for the various types of set.
-enum SetType {
-  UNSPECIFIED = 0;
-  CONTEXT = 1;  // A set of graph-global context features.
-  NODES = 2;    // A node set, containing features per node.
-  EDGES = 3;    // An edge set, containing features per edge and indices.
-}
-
-// The top-level container for graph schemas.
+// The top-level container for the schema of a graph dataset.
 message GraphSchema {
   // A set of global context tensors. These are referenced by name from the
   // 'context' fields of the node sets and edge sets below.
@@ -71,6 +66,7 @@ message GraphSchema {
   optional OriginInfo info = 4;
 }
 
+// The schema entry for a single feature.
 message Feature {
   // A free-form description of the content provided by this feature.
   optional string description = 1;
@@ -122,8 +118,7 @@ message Feature {
   extensions 65536 to max;
 }
 
-// Message describing a BigQuery table or SQL statement at a source for node
-// features or edge sets.
+// Describes a BigQuery table or SQL statement as datasource of a graph piece.
 message BigQuery {
   message TableSpec {
     // If a table_spec is specified, the entire table will be read
@@ -173,8 +168,7 @@ message Metadata {
   optional BigQuery bigquery = 4;
 }
 
-// A container for named features of global scope, which may apply to the entire
-// graph or arbitrary subsets of nodes and/or edges.
+// The schema for the features that apply across the entire input graph.
 message Context {
   // The list of feature tensors. The keys are the Feature names.
   // Names starting with with '#' are reserved for internal use.
@@ -185,11 +179,10 @@ message Context {
   optional Metadata metadata = 2;
 }
 
-// A set of nodes. There should be one instance of this for each unique node
-// type, even if there are no features associated with the node (those nodes are
-// "latent" aggregators of features over edges). Note that it is a valid (and
-// common) use case to have a single node set with edges from and to the same
-// set of nodes.
+// The schema shared by a set of nodes in the graph.
+//
+// Note that it is a valid (and common) use-case to have a single node set with
+// edges from and to the same set of nodes.
 message NodeSet {
   // A free-form description of this entity.
   optional string description = 1;
@@ -207,18 +200,20 @@ message NodeSet {
   // refer to feature names in the Context object associated with the graph.
   // This is metadata you can use to indicate how features are related.
   // NOTE: This field is not currently used by any TF-GNN modeling code (last
-  // checked May 2022).
+  // checked November 2023).
   repeated string context = 3;
 
   // Optional metadata associated with the node set.
   optional Metadata metadata = 4;
 }
 
-// A set of edges between two sets of nodes. For example, if you have three sets
-// of nodes A, B, and C, you might have two sets of edges A->B and B->C. Note
-// that edge sets are named, and it's okay to have multiple sets of edges
-// between the same two sets of nodes. It's also valid for edges to be defined
-// from and to the same set of nodes.
+// The schema shared by a set of edges that connect the same pair of node sets.
+//
+// For example, if you have three node sets A, B, and C, you might have an
+// edge set that connect A to B and another one that connects B to C. Edge sets
+// are identified by distinct names, and it is okay to have multiple edge sets
+// between the same pair of node sets. It is also valid for an edge set to
+// connect a node set to itself, say, A to A.
 message EdgeSet {
   // A free-form description of this entity.
   optional string description = 1;
@@ -247,9 +242,11 @@ message EdgeSet {
   optional Metadata metadata = 6;
 }
 
-// What type of graph this is. Different generator tools (e.g. graph samplers or
-// converters) are able to generate different subsets or projections of graphs;
-// this is a simple enum that includes some of the most common cases.
+// An enumeration of graph types according to the method of creation.
+//
+// Different generator tools (e.g. graph samplers or converters) are able to
+// generate different subsets or projections of graphs; this is a simple enum
+// that includes some of the most common cases.
 enum GraphType {
   UNDEFINED = 0;
   FULL = 1;          // A full graph (not a subset of another).
@@ -257,7 +254,7 @@ enum GraphType {
   RANDOM_WALKS = 3;  // Random walks.
 }
 
-// Metadata about the origin of the graph.
+// Metadata about the origin of the graph data.
 message OriginInfo {
   // The type of graph represented by this schema.
   optional GraphType graph_type = 1;
@@ -267,4 +264,13 @@ message OriginInfo {
   // is an error to set this string to a value that is not a declared node set
   // in the schema.
   repeated string root_set = 2;
+}
+
+// TODO(b/309765923): Remove this!
+// DEPRECATED in favor of tfgnn.SetType and tfgnn.CONTEXT/NODES/EDGES.
+enum SetType {
+  UNSPECIFIED = 0;
+  CONTEXT = 1;  // A set of graph-global context features.
+  NODES = 2;    // A node set, containing features per node.
+  EDGES = 3;    // An edge set, containing features per edge and indices.
 }

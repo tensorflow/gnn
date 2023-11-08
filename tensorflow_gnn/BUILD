@@ -52,7 +52,7 @@ pytype_strict_library(
         "//tensorflow_gnn/graph:tag_utils",
         "//tensorflow_gnn/graph:tensor_utils",
         "//tensorflow_gnn/keras",
-        "//tensorflow_gnn/proto:graph_schema",
+        "//tensorflow_gnn/proto",
         "//tensorflow_gnn/sampler",
         "//tensorflow_gnn/utils:api_utils",
     ],

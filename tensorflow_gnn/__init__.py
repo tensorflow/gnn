@@ -18,16 +18,15 @@ All the public symbols, data types and functions are provided from this
 top-level package. To use the library, you should use a single import statement,
 like this:
 
-    import tensorflow_gnn as tfgnn
-
-The various data types provided by the GNN library have corresponding schemas
-similar to `tf.TensorSpec`. For example, a `FieldSpec` describes an instance of
-`Field`, and a `GraphTensorSpec` describes an instance of `GraphTensor`.
+```
+import tensorflow_gnn as tfgnn
+```
 """
 # pylint: disable=line-too-long
 
 from tensorflow_gnn import experimental  # Exposed as submodule. pylint: disable=unused-import
 from tensorflow_gnn import keras  # Exposed as submodule. pylint: disable=unused-import
+from tensorflow_gnn import proto  # Exposed as submodule. pylint: disable=unused-import
 from tensorflow_gnn import sampler  # Exposed as submodule. pylint: disable=unused-import
 from tensorflow_gnn import version
 from tensorflow_gnn.graph import adjacency
@@ -49,7 +48,6 @@ from tensorflow_gnn.graph import schema_utils
 from tensorflow_gnn.graph import schema_validation
 from tensorflow_gnn.graph import tag_utils
 from tensorflow_gnn.graph import tensor_utils
-from tensorflow_gnn.proto import graph_schema
 from tensorflow_gnn.utils import api_utils
 
 # NOTE: This package is covered by tensorflow_gnn/api_def/api_symbols_test.py.
@@ -115,9 +113,9 @@ GraphTensor = graph_tensor.GraphTensor
 GraphTensorSpec = graph_tensor.GraphTensorSpec
 homogeneous = graph_tensor.homogeneous
 
-# Proto description of schema.
-GraphSchema = graph_schema.GraphSchema
-Feature = graph_schema.Feature
+# Legacy aliases from before tfgnn.proto.*.
+GraphSchema = proto.GraphSchema
+Feature = proto.Feature
 
 # Preprocessing (batching and padding) types.
 FeatureDefaultValues = preprocessing_common.FeatureDefaultValues
@@ -226,6 +224,7 @@ disable_graph_tensor_inputs_validation = graph_constants.disable_graph_tensor_in
 api_utils.remove_submodules_except(__name__, [
     "experimental",
     "keras",
+    "proto",
     "sampler",
 ])
 # LINT.ThenChange(api_def/tfgnn-symbols.txt)

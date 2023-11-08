@@ -113,6 +113,15 @@ tfgnn.pool_edges_to_node
 tfgnn.pool_neighbors_to_node
 tfgnn.pool_neighbors_to_node_feature
 tfgnn.pool_nodes_to_context
+tfgnn.proto.BigQuery
+tfgnn.proto.Context
+tfgnn.proto.EdgeSet
+tfgnn.proto.Feature
+tfgnn.proto.GraphSchema
+tfgnn.proto.GraphType
+tfgnn.proto.Metadata
+tfgnn.proto.NodeSet
+tfgnn.proto.OriginInfo
 tfgnn.random_graph_tensor
 tfgnn.read_schema
 tfgnn.readout_named
