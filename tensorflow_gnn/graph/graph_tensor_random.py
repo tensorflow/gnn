@@ -25,7 +25,6 @@ from tensorflow_gnn.graph import graph_constants as gc
 from tensorflow_gnn.graph import graph_tensor as gt
 
 
-@tf.function
 def random_ragged_tensor(
     shape: List[Union[int, None, tf.Tensor]],
     dtype: tf.dtypes.DType,
