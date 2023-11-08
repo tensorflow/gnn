@@ -173,12 +173,10 @@ setup(
         'networkx',
         'pyarrow',
         # pylint:disable=g-line-too-long
-        'tensorflow>=2.10.0; platform_machine != "arm64" or platform_system != "Darwin"',
-        'tensorflow-macos>=2.10.0; platform_machine == "arm64" and platform_system == "Darwin"',
+        'tensorflow>=2.12.0; platform_machine != "arm64" or platform_system != "Darwin"',
+        'tensorflow-macos>=2.12.0; platform_machine == "arm64" and platform_system == "Darwin"',
         # pylint:enable=g-line-too-long
-        # TODO(b/283835852): Unpin beam version when all supported TF versions
-        # enable protobuf >=3.20
-        'apache-beam<2.47.0',
+        'apache-beam',
     ],
     python_requires='>=3.8,<4',
     packages=find_namespace_packages(

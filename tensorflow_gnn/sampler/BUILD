@@ -2,30 +2,33 @@ package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])  # Apache 2.0
 
-load("@com_google_protobuf//:protobuf.bzl", "py_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@rules_python//python:proto.bzl", "py_proto_library")
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_contrib_test")
+
+proto_library(
+    name = "subgraph_proto",
+    srcs = ["subgraph.proto"],
+    deps = ["@org_tensorflow//tensorflow/core:protos_all"],
+)
 
 py_proto_library(
     name = "subgraph_py_proto",
-    srcs = ["subgraph.proto"],
-    default_runtime = "@com_google_protobuf//:protobuf_python",
-    protoc = "@com_google_protobuf//:protoc",
-    srcs_version = "PY3",
     deps = [
-        "@com_google_protobuf//:protobuf_python",
-        "@org_tensorflow//tensorflow/core:protos_all_py",
+        ":subgraph_proto",
     ],
+)
+
+proto_library(
+    name = "sampling_spec_proto",
+    srcs = ["sampling_spec.proto"],
+    deps = ["@org_tensorflow//tensorflow/core:protos_all"],
 )
 
 py_proto_library(
     name = "sampling_spec_py_proto",
-    srcs = ["sampling_spec.proto"],
-    default_runtime = "@com_google_protobuf//:protobuf_python",
-    protoc = "@com_google_protobuf//:protoc",
-    srcs_version = "PY3",
     deps = [
-        "@com_google_protobuf//:protobuf_python",
-        "@org_tensorflow//tensorflow/core:protos_all_py",
+        ":sampling_spec_proto",
     ],
 )
 
