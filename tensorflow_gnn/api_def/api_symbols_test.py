@@ -32,7 +32,7 @@ bazel-bin/tensorflow_gnn/api_def/api_symbols_test  # Check that it passes.
 ## How to add a new public sub-package of TF-GNN for testing
 
  0. Familiarize yourself with the multiple steps of the test code below.
- 1. In step 1, add `from tensorflow_gnn import foo.bar as bar` and
+ 1. In step 1, add `from tensorflow_gnn.foo import bar` and
     `_ALL_PACKAGES = [ ..., "bar"]`
  2. In step 2, check and remove bar from foo and foo from tfgnn
     (see comments for an explanation of the technical Python background).
