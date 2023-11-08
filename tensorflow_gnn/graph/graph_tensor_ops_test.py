@@ -390,7 +390,15 @@ class SelfLoopsTest(tf.test.TestCase, parameterized.TestCase):
       target_ids.extend(component_target_ids)
 
     total_edges = len(target_ids)
-    edge_features = tf.random.uniform(shape=(total_edges, 5, 2))
+    edge_features_map = {
+        # Test misc dtypes and shapes.
+        'flag': tf.constant([bool(i%2)
+                             for i in range(total_edges)]),
+        'words': tf.constant([['hello', f'planet_{i}']
+                              for i in range(total_edges)]),
+        'matrix': tf.random.uniform(minval=1, maxval=10,  # Never zero.
+                                    shape=(total_edges, 5, 2)),
+    }
 
     graph = gt.GraphTensor.from_pieces(
         node_sets={
@@ -405,7 +413,7 @@ class SelfLoopsTest(tf.test.TestCase, parameterized.TestCase):
                     source=('node', as_tensor(source_ids)),
                     target=('node', as_tensor(target_ids)),
                 ),
-                features={'feats': edge_features}),
+                features=edge_features_map),
         })
     out_graph = ops.add_self_loops(graph, 'edge')
 
@@ -426,7 +434,6 @@ class SelfLoopsTest(tf.test.TestCase, parameterized.TestCase):
         out_graph.edge_sets['edge'].adjacency.source,
         out_graph.edge_sets['edge'].adjacency.target,
     ], 1)
-    out_features = out_graph.edge_sets['edge'].features['feats']
     for ns, es, (src, trgt) in zip(node_sizes, edge_sizes, component_edges):
       new_es = es + ns  # i.e., expected_edge_sizes[.]
       out_component_edges = (
@@ -442,15 +449,17 @@ class SelfLoopsTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(0, out_component_edges.shape[0])
 
       # Assert that features are copied correctly.
-      out_component_features = (
-          out_features[offset_new_edges : offset_new_edges + new_es])
-      expected_component_features = (
-          edge_features[offset_edges : offset_edges + es])
-      expected_component_features = tf.concat([
-          expected_component_features,
-          tf.zeros_like(out_component_features[-ns:]),
-      ], 0)
-      self.assertAllEqual(out_component_features, expected_component_features)
+      for feature_name, edge_features in edge_features_map.items():
+        out_features = out_graph.edge_sets['edge'][feature_name]
+        out_component_features = (
+            out_features[offset_new_edges : offset_new_edges + new_es])
+        expected_component_features = (
+            edge_features[offset_edges : offset_edges + es])
+        expected_component_features = tf.concat([
+            expected_component_features,
+            tf.zeros_like(out_component_features[-ns:]),
+        ], 0)
+        self.assertAllEqual(out_component_features, expected_component_features)
 
       offset_new_edges += new_es
       offset_nodes += ns

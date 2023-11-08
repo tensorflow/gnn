@@ -50,34 +50,23 @@ GraphKerasTensor = kt.GraphKerasTensor
 CombineOp = Callable[[List[Field]], Field]
 
 
-_EdgeFeatureInitializer = Callable[[gt.FieldName, tf.TensorShape], tf.Tensor]
-
-
-def _zero_edge_feat_init(
-    feature_name: gt.FieldName, shape: tf.TensorShape) -> tf.Tensor:
-  """Returns zeros with shape `shape`."""
-  del feature_name
-  return tf.zeros(shape, dtype=tf.float32)
-
-
 @kt.disallow_keras_tensors(alternative='tfgnn.keras.layers.AddSelfLoops')
 def add_self_loops(
-    graph: GraphTensor, edge_set_name: gt.EdgeSetName, *,
-    edge_feature_initializer: _EdgeFeatureInitializer = _zero_edge_feat_init,
-    ) -> GraphTensor:
-  """Adds self-loops for edge with name `edge_set_name` EVEN if already exist.
-
-  Edge `edge_set_name` must connect pair of nodes of the same node set.
+    graph: GraphTensor, edge_set_name: gt.EdgeSetName,
+) -> GraphTensor:
+  """Adds self-loops for `edge_set_name` EVEN if they already exist.
 
   Args:
-    graph: GraphTensor without self-loops. NOTE: If it has self-loops, then
-      another round if self-loops will be added.
-    edge_set_name: Must connect node pairs of the same node set.
-    edge_feature_initializer: initializes edge features for the self-loop edges.
-      It defaults to initializing features of new edges to tf.zeros.
+    graph: A scalar GraphTensor.
+    edge_set_name: An edge set in `graph` that has the same node set as source
+      and target.
 
   Returns:
-    GraphTensor with self-loops added.
+    A GraphTensor with self-loops added. A self-loop is added at each node,
+    even if some or all of these nodes already have a loop. All feature tensors
+    of the edge set are extended to cover the newly added edges with values
+    that are all zeros (for numeric features), false (for boolean features), or
+    empty (for string features), respectively.
   """
   gt.check_scalar_graph_tensor(graph, 'tfgnn.add_self_loops()')
 
@@ -151,14 +140,18 @@ def add_self_loops(
 
     updated_features = {}
     for feat_name, existing_feat_value in existing_edge_set.features.items():
+      # TODO(b/306320952): What if the feature is ragged?
       feat_shape = tf.shape(existing_feat_value)[1:]
-      self_loop_edge_feature = edge_feature_initializer(feat_name, feat_shape)
+      feat_dtype = existing_feat_value.dtype
+      # Conveniently, tf.zeros() also works for tf.bool and tf.string.
+      self_loop_edge_feature = tf.zeros(feat_shape, feat_dtype)
       self_loop_edge_feature = utils.repeat(
           tf.expand_dims(self_loop_edge_feature, axis=0),
           tf.expand_dims(num_nodes, axis=0),
           repeats_sum_hint=tf.get_static_value(num_nodes + 0))
       # Transposing twice so that we get broadcasting for free (instead of
       # reshaping, adding 1's on some axis dimensions).
+      # TODO(b/309749041): What if there are no existing feature values?
       new_feature = tf.transpose(tf.where(
           bool_edge_indicator,
           tf.transpose(tf.gather(existing_feat_value, edge_positions)),
