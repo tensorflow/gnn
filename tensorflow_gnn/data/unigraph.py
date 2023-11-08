@@ -40,7 +40,6 @@ import apache_beam as beam
 import pyarrow
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
-from tensorflow_gnn.proto import graph_schema_pb2
 # Placeholder for optional Google-internal record file format pipeline import
 # Placeholder for optional Google-internal record file format import
 # Placeholder for optional Google-internal sorted string file format utils
@@ -302,7 +301,7 @@ def read_graph(
   return pcoll_dict
 
 
-def is_edge_reversed(schema_edge_set: graph_schema_pb2.EdgeSet):
+def is_edge_reversed(schema_edge_set: tfgnn.proto.EdgeSet):
   for kv in schema_edge_set.metadata.extra:
     if kv.key == "edge_type" and kv.value == "reversed":
       return True
@@ -325,8 +324,8 @@ class ReadUnigraphPieceFromFile(beam.PTransform):
   """
 
   def __init__(self, fset_type: str, fset_name: str,
-               fset: Union[graph_schema_pb2.NodeSet,
-                           graph_schema_pb2.EdgeSet], graph_dir: Optional[str]):
+               fset: Union[tfgnn.proto.NodeSet,
+                           tfgnn.proto.EdgeSet], graph_dir: Optional[str]):
     """Constructor for ReadUnigraphPieceFromFile PTransform.
 
     Args:
@@ -357,7 +356,7 @@ class ReadUnigraphPieceFromFile(beam.PTransform):
 
     self.converters = build_converter_from_schema(self.fset.features)
 
-    if isinstance(fset, graph_schema_pb2.EdgeSet):
+    if isinstance(fset, tfgnn.proto.EdgeSet):
       self.reversed = is_edge_reversed(fset)
 
   def expand(self, pcoll: beam.PCollection) -> beam.PCollection:
@@ -411,7 +410,7 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
   def __init__(
       self,
       fset_name: str,
-      fset: Union[graph_schema_pb2.NodeSet, graph_schema_pb2.EdgeSet],
+      fset: Union[tfgnn.proto.NodeSet, tfgnn.proto.EdgeSet],
       gcs_location: Optional[str] = None,
       bigquery_reader: Callable[..., beam.PCollection[Dict[
           str, Any]]] = beam.io.ReadFromBigQuery,
@@ -420,7 +419,7 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
 
     Args:
       fset_name: The string name of the node/edge/context set.
-      fset: Either a graph_schema_pb2.NodeSet or graph_schema_pb2.EdgeSet
+      fset: Either a tfgnn.proto.NodeSet or tfgnn.proto.EdgeSet
         message.
       gcs_location: An optional string specifying a google storage location
         used if the EXPORT BigQuery method is specified.
@@ -441,7 +440,7 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
       raise ValueError("NodeSet does not specify a BigQuery table.")
 
     # Only used for edge sets
-    self.edge_reversed = (isinstance(self.fset, graph_schema_pb2.EdgeSet) and
+    self.edge_reversed = (isinstance(self.fset, tfgnn.proto.EdgeSet) and
                           is_edge_reversed(self.fset))
 
     self.bq = fset.metadata.bigquery
@@ -465,11 +464,11 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
           raise ValueError(err)
 
   @staticmethod
-  def bigquery_args_from_proto(bq: graph_schema_pb2.BigQuery) -> Dict[str, Any]:
+  def bigquery_args_from_proto(bq: tfgnn.proto.BigQuery) -> Dict[str, Any]:
     """Parse a tensorflow_gnn.BigQuery message and return BigQuery source args.
 
     Args:
-      bq: A graph_schema_pb2.BigQuery message.
+      bq: A tfgnn.proto.BigQuery message.
 
     Returns:
       Dict[str, Any] Dictionary that can be used as arguments to
@@ -499,17 +498,17 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
     else:
       raise ValueError("Must provide BigQuerySource table_spec or query.")
 
-    if bq.read_method == graph_schema_pb2.BigQuery.EXPORT:
+    if bq.read_method == tfgnn.proto.BigQuery.EXPORT:
       bq_args["method"] = "EXPORT"
-    elif bq.read_method == graph_schema_pb2.BigQuery.DIRECT_READ:
+    elif bq.read_method == tfgnn.proto.BigQuery.DIRECT_READ:
       bq_args["method"] = "DIRECT_READ"
 
     return bq_args
 
   @staticmethod
   def stage_name_suffix(
-      fset_name: str, fset: Union[graph_schema_pb2.NodeSet,
-                                  graph_schema_pb2.EdgeSet]) -> str:
+      fset_name: str, fset: Union[tfgnn.proto.NodeSet,
+                                  tfgnn.proto.EdgeSet]) -> str:
     """Return a stage name suffix from a BigQuery proto message.
 
     Args:
@@ -527,9 +526,9 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
 
     bq = fset.metadata.bigquery
     sfx = "ReadFromBigQuery"
-    if isinstance(fset, graph_schema_pb2.NodeSet):
+    if isinstance(fset, tfgnn.proto.NodeSet):
       sfx += "/NodeSet/"
-    elif isinstance(fset, graph_schema_pb2.EdgeSet):
+    elif isinstance(fset, tfgnn.proto.EdgeSet):
       sfx += "/EdgeSet/"
     else:
       raise ValueError("Must specify a Node or Edge set.")
@@ -559,7 +558,7 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
   @staticmethod
   def row_to_keyed_example(
       row: Mapping[str, Any],
-      fset: Union[graph_schema_pb2.NodeSet, graph_schema_pb2.EdgeSet],
+      fset: Union[tfgnn.proto.NodeSet, tfgnn.proto.EdgeSet],
       edge_reversed=False, output_bq_row=False) -> Any:
     """Convert a single row from a BigQuery result to tf.Example.
 
@@ -580,16 +579,16 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
     Args:
       row: Dict[str, Any] result of a BigQuery read.
       fset: Schema for NodeSet or EdgeSet.
-      edge_reversed: Applicable if `isinstance(fset, graph_schema_pb2.EdgeSet)`.
+      edge_reversed: Applicable if `isinstance(fset, tfgnn.proto.EdgeSet)`.
         If set, edges would be reversed. Specifically, the return would be
         tuple (target, source, example).
       output_bq_row: If set, then output tuple[-1] would be BigQuery row.
         Otherwise (default), then output tuple[-1] will be `tf.Example`.
 
     Returns:
-      If the input fset is a graph_schema_pb2.NodeSet, returns
+      If the input fset is a tfgnn.proto.NodeSet, returns
         Tuple(id: str, example: tf.train.Example).
-      If the input fset is a graph_schema_pb2.Edgeset, returns
+      If the input fset is a tfgnn.proto.Edgeset, returns
         Tuple(source: str, target: str, example: tf.train.Example)
 
     Raises:
@@ -601,7 +600,7 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
     ret_key = None
     cls = ReadUnigraphPieceFromBigQuery  # for short
 
-    if isinstance(fset, graph_schema_pb2.NodeSet):
+    if isinstance(fset, tfgnn.proto.NodeSet):
       if cls.ID_COLUMN not in row.keys():
         raise ValueError(
             f"Query result must have a column named {cls.ID_COLUMN}")
@@ -609,7 +608,7 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
       node_id = row[cls.ID_COLUMN]
       ret_key = [node_id]
 
-    elif isinstance(fset, graph_schema_pb2.EdgeSet):
+    elif isinstance(fset, tfgnn.proto.EdgeSet):
       if cls.SOURCE_COLUMN not in row.keys():
         raise ValueError(
             f"Query result must have a column named {cls.SOURCE_COLUMN}")
@@ -632,10 +631,10 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
       output_record = row
     else:
       output_record = example = Example()
-      if isinstance(fset, graph_schema_pb2.NodeSet):
+      if isinstance(fset, tfgnn.proto.NodeSet):
         example.features.feature[NODE_ID].bytes_list.value.append(
             _to_bytes(node_id))
-      elif isinstance(fset, graph_schema_pb2.EdgeSet):
+      elif isinstance(fset, tfgnn.proto.EdgeSet):
         source_feature_name = _TRANSLATIONS[cls.SOURCE_COLUMN]
         target_feature_name = _TRANSLATIONS[cls.TARGET_COLUMN]
 
@@ -882,7 +881,7 @@ class DictStreams:
   def iter_tfrecord_examples(
       file_path: str,
       unused_fset: Optional[
-          Union[graph_schema_pb2.NodeSet, graph_schema_pb2.EdgeSet]] = None
+          Union[tfgnn.proto.NodeSet, tfgnn.proto.EdgeSet]] = None
       ) -> Iterable[Example]:
     """Yields `tf.Example` from tfrecord file."""
     for example in tf.data.TFRecordDataset(file_path):
@@ -892,7 +891,7 @@ class DictStreams:
   def iter_csv_examples(
       file_path: str,
       fset: Optional[
-          Union[graph_schema_pb2.NodeSet, graph_schema_pb2.EdgeSet]] = None
+          Union[tfgnn.proto.NodeSet, tfgnn.proto.EdgeSet]] = None
       ) -> Iterable[Example]:
     """Yields `tf.Example` from CSV files."""
     if fset is not None:
@@ -905,7 +904,7 @@ class DictStreams:
 
   @staticmethod
   def fn_iter_from_file(file_format) -> Callable[  # pylint: disable=missing-function-docstring
-      [str, Union[None, graph_schema_pb2.NodeSet, graph_schema_pb2.EdgeSet]],
+      [str, Union[None, tfgnn.proto.NodeSet, tfgnn.proto.EdgeSet]],
       Iterable[Example]]:
     lookup = {
         "csv": DictStreams.iter_csv_examples,
@@ -920,7 +919,7 @@ class DictStreams:
   def iter_records_from_filepattern(
       filepattern: str,
       fset: Optional[
-          Union[graph_schema_pb2.NodeSet, graph_schema_pb2.EdgeSet]] = None
+          Union[tfgnn.proto.NodeSet, tfgnn.proto.EdgeSet]] = None
       ) -> Iterable[Example]:
     """Yields records from SSTables and other data sources."""
     file_format = guess_file_format(filepattern)
@@ -941,7 +940,7 @@ class DictStreams:
 
   @staticmethod
   def iter_records_from_bigquery(
-      bq_schema: graph_schema_pb2.BigQuery) -> Iterable[
+      bq_schema: tfgnn.proto.BigQuery) -> Iterable[
           Dict[str, pyarrow.Scalar]]:
     """Yields records from BigQuery."""
     # NOTE: Does not work if .sql is used -- proto uses "oneof".

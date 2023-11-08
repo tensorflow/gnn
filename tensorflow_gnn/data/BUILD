@@ -18,7 +18,6 @@ pytype_strict_library(
         "//third_party/py/pyarrow",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-        "//tensorflow_gnn/proto:graph_schema_py_proto",
     ] + GOOGLE_INTERNAL_UNIGRAPH_DEPENDENCIES,
 )
 
@@ -36,7 +35,6 @@ pytype_strict_contrib_test(
         "//third_party/py/apache_beam",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-        "//tensorflow_gnn/proto:graph_schema_py_proto",
         "//tensorflow_gnn/utils:test_utils",
     ],
 )

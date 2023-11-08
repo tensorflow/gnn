@@ -22,7 +22,6 @@ from apache_beam.testing import util
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.data import unigraph
-from tensorflow_gnn.proto import graph_schema_pb2
 from tensorflow_gnn.utils import test_utils
 
 from google.protobuf import text_format
@@ -173,7 +172,7 @@ class TestReadGraph(tf.test.TestCase):
         project: "test_project"
         dataset: "test_dataset"
         table: "test_table"
-      }""", graph_schema_pb2.BigQuery())
+      }""", tfgnn.proto.BigQuery())
     self.assertEqual(
         unigraph.ReadUnigraphPieceFromBigQuery.bigquery_args_from_proto(bq), {
             "table": "test_project:test_dataset.test_table",
@@ -221,7 +220,7 @@ class TestReadGraph(tf.test.TestCase):
                   table: "test_table"
                 }
             }
-        } """, graph_schema_pb2.NodeSet())
+        } """, tfgnn.proto.NodeSet())
 
     # Quick test of the suffix generation
     self.assertEqual(
@@ -375,7 +374,7 @@ class TestReadGraph(tf.test.TestCase):
                   table: "test_table"
                 }
             }
-        }""", graph_schema_pb2.EdgeSet())
+        }""", tfgnn.proto.EdgeSet())
 
     self.assertEqual(
         unigraph.ReadUnigraphPieceFromBigQuery.stage_name_suffix(
@@ -533,7 +532,7 @@ class TestReadGraph(tf.test.TestCase):
                   table: "test_table"
                 }
             }
-        }""", graph_schema_pb2.EdgeSet())
+        }""", tfgnn.proto.EdgeSet())
 
     # Mock a source that returns fake BQ rows.
     def fake_bq_reader(**unused_kwargs):

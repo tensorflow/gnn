@@ -259,7 +259,7 @@ def convert_samples_to_examples(
 
 
 def run_sample_graph_pipeline(
-    schema: unigraph.graph_schema_pb2.GraphSchema,
+    schema: tfgnn.GraphSchema,
     sampling_spec: sampling_spec_pb2.SamplingSpec,
     edge_aggregation_method: EdgeAggregationMethod,
     output_pattern: str,
@@ -270,7 +270,7 @@ def run_sample_graph_pipeline(
   """Runs the pipeline on a graph, which may be homogeneous or heterogeneous.
 
   Args:
-    schema: A unigraph.graph_Schema_pb2.GraphSchema protobuf message describing
+    schema: A tfgnn.GraphSchema protobuf message describing
       heterogeneous topology and data locations.
     sampling_spec: A sampling_spec_pb2.SamplingSpec protobuf message describing
       the desired sampling tragectory.
