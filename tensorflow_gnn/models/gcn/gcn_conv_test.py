@@ -502,7 +502,7 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
     graph = tfgnn.GraphTensor.from_pieces(
         node_sets={
             tfgnn.NODES: tfgnn.NodeSet.from_fields(
-                sizes=[4],
+                sizes=[3],
                 features={
                     tfgnn.HIDDEN_STATE: tf.constant([
                         [1.0, 0.0, 0.0, 0.0],

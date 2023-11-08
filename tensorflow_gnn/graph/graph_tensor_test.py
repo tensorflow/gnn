@@ -115,7 +115,7 @@ class CreationTest(tu.GraphTensorTestBase):
               'a': as_tensor([1., 2., 3.]),
               'b': as_ragged([[1, 2], [3], []])
           },
-          sizes=as_tensor([1]),
+          sizes=as_tensor([3]),
           expected_shape=[]),
       dict(
           features={
@@ -437,11 +437,11 @@ class HomogeneousTest(tu.GraphTensorTestBase):
               target=tf.constant([1, 2, 6, 4]),
               node_features=tf.eye(7),
               edge_features=tf.ones([4, 3]),
-              context_features=tf.zeros(5),
+              context_features=tf.zeros([1, 5]),
           ),
           gt.GraphTensor.from_pieces(
               context=gt.Context.from_fields(
-                  features={const.HIDDEN_STATE: tf.zeros(5)},
+                  features={const.HIDDEN_STATE: tf.zeros([1, 5])},
                   sizes=tf.constant([1])),
               node_sets={
                   const.NODES:
@@ -468,11 +468,11 @@ class HomogeneousTest(tu.GraphTensorTestBase):
               target=tf.constant([1, 2, 6, 4]),
               node_features={'onehots': tf.eye(7)},
               edge_features={'floats': tf.ones([4, 3])},
-              context_features={'labels': tf.zeros(5)},
+              context_features={'labels': tf.zeros([1, 5])},
           ),
           gt.GraphTensor.from_pieces(
               context=gt.Context.from_fields(
-                  features={'labels': tf.zeros(5)},
+                  features={'labels': tf.zeros([1, 5])},
                   sizes=tf.constant([1])),
               node_sets={
                   const.NODES:
@@ -513,11 +513,11 @@ class HomogeneousTest(tu.GraphTensorTestBase):
         target=tf.constant([1, 2, 6, 4]),
         node_features={'onehots': tf.eye(7)},
         edge_features={'floats': tf.ones([4, 3])},
-        context_features={'labels': tf.zeros(5)},
+        context_features={'labels': tf.zeros([1, 5])},
     )
     expected = gt.GraphTensor.from_pieces(
         context=gt.Context.from_fields(
-            features={'labels': tf.zeros(5)}, sizes=tf.constant([1])
+            features={'labels': tf.zeros([1, 5])}, sizes=tf.constant([1])
         ),
         node_sets={
             const.NODES: gt.NodeSet.from_fields(
@@ -1065,15 +1065,16 @@ class BatchingUnbatchingMergingTest(tf.test.TestCase, parameterized.TestCase):
   def testVarSizeBatching(self, row_splits_dtype: tf.DType):
 
     @tf.function
-    def generate(num_nodes):
-      ones = tf.ones(tf.stack([num_nodes], 0), dtype=row_splits_dtype)
+    def generate(num_components_seed):
+      ones = tf.ones(tf.stack([num_components_seed], 0), dtype=row_splits_dtype)
       zeros = tf.convert_to_tensor([0], dtype=row_splits_dtype)
+      # number of components: 1 + num_components_seed + 1
       row_lengths = tf.concat([zeros, ones, zeros], axis=0)
       return gt.Context.from_fields(
           features={
-              'x': tf.range(num_nodes),
+              'x': tf.range(num_components_seed + 2),
               'r': tf.RaggedTensor.from_row_lengths(
-                  tf.ones(tf.stack([num_nodes], 0), dtype=tf.float32),
+                  tf.ones(tf.stack([num_components_seed], 0), dtype=tf.float32),
                   row_lengths,
               ),
           }
@@ -1091,8 +1092,8 @@ class BatchingUnbatchingMergingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(
         element['x'],
         as_ragged([
-            [[], [0], [0, 1]],
-            [[0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3, 4]],
+            [range(2), range(3), range(4)],
+            [range(5), range(6), range(7)],
         ]))
     self.assertAllEqual(
         element['r'],
@@ -1121,9 +1122,9 @@ class BatchingUnbatchingMergingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(
         element['x'],
         as_ragged([
-            [[0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5, 6],
-             [0, 1, 2, 3, 4, 5, 6, 7]],
-        ]))
+            [range(8), range(9), range(10)],
+        ]),
+    )
     self.assertAllEqual(
         type_spec.type_spec_from_value(element['x']),
         tf.RaggedTensorSpec(
@@ -1473,7 +1474,7 @@ class NumComponentsTest(tu.GraphTensorTestBase):
       dict(features={}, sizes=as_tensor([[1], [1]]), expected=[1, 1]),
       dict(
           features={'a': as_ragged([[1., 2.], [3.], [4.]])},
-          sizes=as_ragged([[1, 1], [1], [0]]),
+          sizes=as_ragged([[1, 1], [1], [1]]),
           expected=[2, 1, 1]),
   ])
   def testContextUpdate(self, features, sizes, expected):
@@ -1810,7 +1811,7 @@ class AttributesSettersTest(tf.test.TestCase):
                   features={
                       'f': as_ragged([[1], [2, 3]], row_splits_dtype=dtype1)
                   },
-                  sizes=as_tensor([1, 2]),
+                  sizes=as_tensor([[1], [2]]),
               ),
           },
           edge_sets={
@@ -1818,15 +1819,15 @@ class AttributesSettersTest(tf.test.TestCase):
                   features={
                       'f': as_ragged([[1, 2], [3]], row_splits_dtype=dtype2)
                   },
-                  sizes=as_tensor([2, 1], dtype2),
+                  sizes=as_tensor([[2], [1]], dtype2),
                   adjacency=adj.Adjacency.from_indices(
                       source=(
-                          'a',
-                          as_ragged([[0, 1], [0]], row_splits_dtype=dtype3),
+                          'n',
+                          as_ragged([[0, 0], [0]], row_splits_dtype=dtype3),
                       ),
                       target=(
-                          'b',
-                          as_ragged([[1, 2], [0]], row_splits_dtype=dtype3),
+                          'n',
+                          as_ragged([[0, 0], [0]], row_splits_dtype=dtype3),
                       ),
                   ),
               ),
@@ -1899,16 +1900,16 @@ class AttributesSettersTest(tf.test.TestCase):
       return gt.GraphTensor.from_pieces(
           node_sets={
               'n': gt.NodeSet.from_fields(
-                  features={}, sizes=as_tensor([1, 1], dtype1)
+                  features={}, sizes=as_tensor([[1], [1]], dtype1)
               ),
           },
           edge_sets={
               'e': gt.EdgeSet.from_fields(
                   features={'f': as_ragged([[1, 2], [3]], tf.int64)},
-                  sizes=as_tensor([2, 1], dtype2),
+                  sizes=as_tensor([[2], [1]], dtype2),
                   adjacency=adj.Adjacency.from_indices(
-                      source=('a', as_ragged([[0, 1], [0]], dtype3)),
-                      target=('b', as_ragged([[1, 2], [0]], dtype3)),
+                      source=('n', as_ragged([[0, 0], [0]], dtype3)),
+                      target=('n', as_ragged([[0, 0], [0]], dtype3)),
                   ),
               ),
           },

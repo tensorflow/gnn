@@ -245,7 +245,7 @@ class ClassMethodsTest(_TestBase):
 
   @parameterized.named_parameters([
       ('scalar', as_tensor([3]), as_tensor([1, 2, 3])),
-      ('ragged', as_tensor([2]), as_ragged([[1], [], [1, 2, 3]])),
+      ('ragged', as_tensor([3]), as_ragged([[1], [], [1, 2, 3]])),
   ])
   def testNodeSet(self, test_sizes, test_feature):
     test_sizes_spec = tf.type_spec_from_value(test_sizes)

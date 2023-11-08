@@ -66,7 +66,8 @@ class NetworkxTest(tf.test.TestCase):
   def test_three_components(self):
     tf_gnn_graph = gt.GraphTensor.from_pieces(
         context=gt.Context.from_fields(
-            features={const.HIDDEN_STATE: tf.zeros(5)}, sizes=tf.constant([1])
+            features={const.HIDDEN_STATE: tf.zeros([1, 5])},
+            sizes=tf.constant([1]),
         ),
         node_sets={
             const.NODES: gt.NodeSet.from_fields(

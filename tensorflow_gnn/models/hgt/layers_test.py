@@ -42,7 +42,7 @@ def _homogeneous_cycle_graph(node_state, edge_state=None):
       edge_sets={
           "edges":
               tfgnn.EdgeSet.from_fields(
-                  sizes=[6],
+                  sizes=[3],
                   adjacency=tfgnn.Adjacency.from_indices(
                       ("nodes", tf.constant([0, 1, 2])),
                       ("nodes", tf.constant([1, 2, 0])),
@@ -348,7 +348,7 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
         edge_sets={
             "sender0->receiver":
                 tfgnn.EdgeSet.from_fields(
-                    sizes=[8],
+                    sizes=[4],
                     features={},
                     adjacency=tfgnn.Adjacency.from_indices(
                         source=("sender0", [0, 1, 2, 3]),
@@ -357,7 +357,7 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
                 ),
             "sender1->receiver":
                 tfgnn.EdgeSet.from_fields(
-                    sizes=[8],
+                    sizes=[4],
                     features={},
                     adjacency=tfgnn.Adjacency.from_indices(
                         source=("sender1", [0, 1, 2, 3]),

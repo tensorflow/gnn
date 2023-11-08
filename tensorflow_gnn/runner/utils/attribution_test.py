@@ -26,9 +26,9 @@ class AttributionTest(tf.test.TestCase):
 
   gt = tfgnn.GraphTensor.from_pieces(
       context=tfgnn.Context.from_fields(features={
-          "h": tf.convert_to_tensor((.514, .433)),
+          "h": tf.convert_to_tensor(((.514, .433),)),
           # An integer feature with uniform values.
-          "labels": tf.convert_to_tensor((0, 1)),
+          "labels": tf.convert_to_tensor(((0, 1),)),
       }),
       node_sets={
           "node":
@@ -55,10 +55,10 @@ class AttributionTest(tf.test.TestCase):
 
     self.assertAllEqual(
         counterfactual.context.features["h"],
-        tf.convert_to_tensor((0.49280962, 0.466383)))
+        tf.convert_to_tensor(((0.49280962, 0.466383),)))
     self.assertAllEqual(
         counterfactual.context.features["labels"],
-        tf.convert_to_tensor((1, 0)))
+        tf.convert_to_tensor(((1, 0),)))
 
     self.assertAllEqual(
         counterfactual.edge_sets["edge"].features["weight"],
@@ -73,10 +73,10 @@ class AttributionTest(tf.test.TestCase):
 
     self.assertAllEqual(
         counterfactual.context.features["h"],
-        tf.convert_to_tensor((0, 0)))
+        tf.convert_to_tensor(((0, 0),)))
     self.assertAllEqual(
         counterfactual.context.features["labels"],
-        tf.convert_to_tensor((0, 0)))
+        tf.convert_to_tensor(((0, 0),)))
 
     self.assertAllEqual(
         counterfactual.edge_sets["edge"].features["weight"],
@@ -91,8 +91,8 @@ class AttributionTest(tf.test.TestCase):
         self.gt,
         self.gt.replace_features(
             context={
-                "h": tf.convert_to_tensor((.4, .8)),
-                "labels": tf.convert_to_tensor((1, 1))
+                "h": tf.convert_to_tensor(((.4, .8),)),
+                "labels": tf.convert_to_tensor(((1, 1),))
             },
             node_sets={
                 "node": {
@@ -107,10 +107,10 @@ class AttributionTest(tf.test.TestCase):
 
     self.assertAllClose(
         deltas.context.features["h"],
-        tf.convert_to_tensor((.514 - .4, .433 - .8)))
+        tf.convert_to_tensor(((.514 - .4, .433 - .8),)))
     self.assertAllClose(
         deltas.context.features["labels"],
-        tf.convert_to_tensor((0 - 1, 1 - 1)))
+        tf.convert_to_tensor(((0 - 1, 1 - 1),)))
 
     self.assertAllClose(
         deltas.edge_sets["edge"].features["weight"],
@@ -132,7 +132,7 @@ class AttributionTest(tf.test.TestCase):
     # Interpolation 0
     self.assertAllEqual(
         interpolations[0].context.features["h"],
-        tf.convert_to_tensor((0.49280962, 0.466383)))
+        tf.convert_to_tensor(((0.49280962, 0.466383),)))
 
     self.assertAllEqual(
         interpolations[0].edge_sets["edge"].features["weight"],
@@ -145,8 +145,8 @@ class AttributionTest(tf.test.TestCase):
     # Interpolation 1
     self.assertAllEqual(
         interpolations[1].context.features["h"],
-        tf.convert_to_tensor((0.49280962 + (.514 - 0.49280962) * 1 / 3,
-                              0.466383 + (.433 - 0.466383) * 1 / 3)))
+        tf.convert_to_tensor(((0.49280962 + (.514 - 0.49280962) * 1 / 3,
+                               0.466383 + (.433 - 0.466383) * 1 / 3),)))
 
     self.assertAllClose(
         interpolations[1].edge_sets["edge"].features["weight"],
@@ -162,8 +162,8 @@ class AttributionTest(tf.test.TestCase):
     # Interpolation 2
     self.assertAllEqual(
         interpolations[2].context.features["h"],
-        tf.convert_to_tensor((0.49280962 + (.514 - 0.49280962) * 2 / 3,
-                              0.466383 + (.433 - 0.466383) * 2 / 3)))
+        tf.convert_to_tensor(((0.49280962 + (.514 - 0.49280962) * 2 / 3,
+                               0.466383 + (.433 - 0.466383) * 2 / 3),)))
 
     self.assertAllClose(
         interpolations[2].edge_sets["edge"].features["weight"],
@@ -179,7 +179,7 @@ class AttributionTest(tf.test.TestCase):
     # Interpolation 3
     self.assertAllEqual(
         interpolations[3].context.features["h"],
-        tf.convert_to_tensor((.514, .433)))
+        tf.convert_to_tensor(((.514, .433),)))
 
     self.assertAllEqual(
         interpolations[3].edge_sets["edge"].features["weight"],
@@ -194,7 +194,7 @@ class AttributionTest(tf.test.TestCase):
 
     self.assertAllEqual(
         summation.context.features["h"],
-        tf.convert_to_tensor((.514 * 4, .433 * 4)))
+        tf.convert_to_tensor(((.514 * 4, .433 * 4),)))
 
     self.assertAllEqual(
         summation.edge_sets["edge"].features["weight"],

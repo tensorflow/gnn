@@ -119,8 +119,8 @@ class StructuredReadoutTest(tf.test.TestCase):
                      [2., 22.],  # Read out as "seed_edge" 1.
                      [2., 23.]])},
                 adjacency=adj.Adjacency.from_indices(
-                    ("items", tf.constant([0, 1, 3])),
-                    ("items", tf.constant([1, 2, 4])))),
+                    ("items", tf.constant([0, 1, 3, 4])),
+                    ("items", tf.constant([1, 2, 4, 3])))),
             "_readout/seed_edge": gt.EdgeSet.from_fields(
                 sizes=tf.constant([1, 1]),
                 adjacency=adj.Adjacency.from_indices(
@@ -318,7 +318,7 @@ class StructuredReadoutIntoFeatureTest(tf.test.TestCase,
                           "other": tf.constant([9., 9.])})},
         edge_sets={
             "_readout/the_key": gt.EdgeSet.from_fields(
-                sizes=tf.constant([1]),
+                sizes=tf.constant([2]),
                 adjacency=adj.Adjacency.from_indices(
                     ("objects", tf.constant([1, 0])),
                     ("_readout", tf.constant([0, 1]))))})
@@ -376,7 +376,7 @@ class ContextReadoutIntoFeatureTest(tf.test.TestCase, parameterized.TestCase):
                       "zeros": tf.zeros([2])}),
         node_sets={
             "unrelated": gt.NodeSet.from_fields(
-                sizes=tf.constant([1]),
+                sizes=tf.constant([1, 1]),
                 features={"labels": tf.constant([9, 9]),
                           "stuff": tf.constant([[3.14], [2.71]])})})
 

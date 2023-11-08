@@ -205,7 +205,7 @@ class LayersTest(tf.test.TestCase, parameterized.TestCase):
           ),
           "context": tfgnn.Context.from_fields(
               features={
-                  "feature": tf.convert_to_tensor([[1.0], [2.0], [3.0]]),
+                  "feature": tf.convert_to_tensor([[1.0], [2.0]]),
               },
           ),
           "node_set": tfgnn.NodeSet.from_fields(
@@ -221,18 +221,20 @@ class LayersTest(tf.test.TestCase, parameterized.TestCase):
                   tfgnn.TARGET: ("node", tf.convert_to_tensor([2, 1, 0, 0, 0])),
               }),
               features={
-                  "feature": tf.convert_to_tensor([[7.0], [8.0], [9.0]]),
+                  "feature": tf.convert_to_tensor(
+                      [[7.0], [8.0], [9.0], [10.0], [11.0]]),
               },
           ),
           "expected_fields": {
               tfgnn.Context: {
-                  "feature": tf.convert_to_tensor([[2.0], [1.0], [3.0]])
+                  "feature": tf.convert_to_tensor([[2.0], [1.0]])
               },
               tfgnn.NodeSet: {
                   "feature": tf.convert_to_tensor([[5.0], [4.0], [6.0]])
               },
               tfgnn.EdgeSet: {
-                  "feature": tf.convert_to_tensor([[8.0], [7.0], [9.0]])
+                  "feature": tf.convert_to_tensor(
+                      [[8.0], [10.0], [9.0], [11.0], [7.0]])
               },
           },
       },
@@ -243,7 +245,7 @@ class LayersTest(tf.test.TestCase, parameterized.TestCase):
           ),
           "context": tfgnn.Context.from_fields(
               features={
-                  "feature": tf.convert_to_tensor([[1.0], [2.0], [3.0]]),
+                  "feature": tf.convert_to_tensor([[1.0], [2.0]]),
               },
           ),
           "node_set": tfgnn.NodeSet.from_fields(
@@ -259,18 +261,20 @@ class LayersTest(tf.test.TestCase, parameterized.TestCase):
                   tfgnn.TARGET: ("node", tf.convert_to_tensor([2, 1, 0, 0, 0])),
               }),
               features={
-                  "feature": tf.convert_to_tensor([[7.0], [8.0], [9.0]]),
+                  "feature": tf.convert_to_tensor(
+                      [[7.0], [8.0], [9.0], [10.0], [11.0]]),
               },
           ),
           "expected_fields": {
               tfgnn.Context: {
-                  "feature": tf.convert_to_tensor([[2.0], [1.0], [3.0]])
+                  "feature": tf.convert_to_tensor([[2.0], [1.0]])
               },
               tfgnn.NodeSet: {
                   "feature": tf.convert_to_tensor([[5.0], [4.0], [6.0]])
               },
               tfgnn.EdgeSet: {
-                  "feature": tf.convert_to_tensor([[8.0], [7.0], [9.0]])
+                  "feature": tf.convert_to_tensor(
+                      [[8.0], [10.0], [9.0], [11.0], [7.0]])
               },
           },
       },
@@ -312,7 +316,7 @@ class LayersTest(tf.test.TestCase, parameterized.TestCase):
           ),
           "context": tfgnn.Context.from_fields(
               features={
-                  "feature": tf.convert_to_tensor([[1.0], [2.0], [3.0]]),
+                  "feature": tf.convert_to_tensor([[1.0], [2.0]]),
               },
           ),
           "node_set": tfgnn.NodeSet.from_fields(
@@ -328,18 +332,20 @@ class LayersTest(tf.test.TestCase, parameterized.TestCase):
                   tfgnn.TARGET: ("node", tf.convert_to_tensor([2, 1, 0, 0, 0])),
               }),
               features={
-                  "feature": tf.convert_to_tensor([[7.0], [8.0], [9.0]]),
+                  "feature": tf.convert_to_tensor(
+                      [[7.0], [8.0], [9.0], [10.0], [11.0]]),
               },
           ),
           "expected_fields": {
               tfgnn.Context: {
-                  "feature": tf.convert_to_tensor([[0.0], [0.0], [0.0]])
+                  "feature": tf.convert_to_tensor([[0.0], [0.0]])
               },
               tfgnn.NodeSet: {
                   "feature": tf.convert_to_tensor([[0.0], [0.0], [0.0]])
               },
               tfgnn.EdgeSet: {
-                  "feature": tf.convert_to_tensor([[0.0], [0.0], [0.0]])
+                  "feature": tf.convert_to_tensor(
+                      [[0.0], [0.0], [0.0], [0.0], [0.0]])
               },
           },
       },

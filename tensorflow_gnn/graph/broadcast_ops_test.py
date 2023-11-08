@@ -57,7 +57,7 @@ class BroadcastXToYTest(tf.test.TestCase, parameterized.TestCase):
     else:
       adjacency = adj.Adjacency.from_indices(edge_source, edge_target)
     edge_set = gt.EdgeSet.from_fields(
-        sizes=as_tensor([2, 2]), adjacency=adjacency, features={})
+        sizes=as_tensor([2, 3]), adjacency=adjacency, features={})
     expected_source_fields = {
         "scalar": as_tensor([1., 1., 1., 3., 3.]),
         "vector": as_tensor([[1., 3.], [1., 3.], [1., 3.], [3., 1.], [3., 1.]]),

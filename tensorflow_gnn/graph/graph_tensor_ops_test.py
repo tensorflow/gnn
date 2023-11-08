@@ -96,7 +96,7 @@ class ShuffleOpsTest(tf.test.TestCase, parameterized.TestCase):
           description='scalar',
           context=gt.Context.from_fields(
               features={
-                  'scalar': as_tensor([1, 2, 3]),
+                  'scalar': as_tensor([1, 2]),
               }
           ),
           node_set=gt.NodeSet.from_fields(
@@ -116,7 +116,7 @@ class ShuffleOpsTest(tf.test.TestCase, parameterized.TestCase):
               },
           ),
           expected_fields={
-              gt.Context: {'scalar': [2, 1, 3]},
+              gt.Context: {'scalar': [2, 1]},
               gt.NodeSet: {'scalar': [2.0, 1.0, 3.0]},
               gt.EdgeSet: {'scalar': [5.0, 2.0, 3.0, 1.0, 4.0]},
           },
@@ -125,7 +125,7 @@ class ShuffleOpsTest(tf.test.TestCase, parameterized.TestCase):
           description='vector',
           context=gt.Context.from_fields(
               features={
-                  'vector': as_tensor([[1], [2], [3]]),
+                  'vector': as_tensor([[1], [2]]),
               }
           ),
           node_set=gt.NodeSet.from_fields(
@@ -151,7 +151,7 @@ class ShuffleOpsTest(tf.test.TestCase, parameterized.TestCase):
               },
           ),
           expected_fields={
-              gt.Context: {'vector': [[2], [1], [3]]},
+              gt.Context: {'vector': [[2], [1]]},
               gt.NodeSet: {'vector': [[2.0, 2.0], [1.0, 3.0], [3.0, 1.0]]},
               gt.EdgeSet: {
                   'vector': [
@@ -764,7 +764,7 @@ class ShuffleNodesTest(tf.test.TestCase, parameterized.TestCase):
                         source=('node', [1, 0, 2, 3]),
                         target=('node', [0, 1, 3, 2]),
                     ),
-                    features={'s': [1, 2, 3]}),
+                    features={'s': [1, 2, 3, 4]}),
         })
     unique_permutations = set()
     for _ in range(30):
@@ -1851,7 +1851,7 @@ class PoolNeighborsToNodeTest(tf.test.TestCase, parameterized.TestCase):
         },
         edge_sets={
             'edge': gt.EdgeSet.from_fields(
-                sizes=as_tensor([2]),
+                sizes=as_tensor([6]),
                 adjacency=adj.HyperAdjacency.from_indices({
                     0: ('node', as_tensor([0, 1, 1, 2, 2, 2])),
                 }),
