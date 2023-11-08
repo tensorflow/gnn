@@ -32,7 +32,6 @@ syntax = "proto2";
 
 package tensorflow_gnn;
 
-import "tensorflow/core/example/feature.proto";
 import "tensorflow/core/framework/tensor_shape.proto";
 import "tensorflow/core/framework/types.proto";
 
