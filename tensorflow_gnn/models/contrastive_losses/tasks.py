@@ -32,6 +32,11 @@ Field = tfgnn.Field
 GraphTensor = tfgnn.GraphTensor
 
 
+# In our implementation of contrastive learning, `y_pred`` is a tensor with
+# clean and corrupted representations stacked in the first dimension.
+_UNSTACK_FN = lambda y_pred: tf.unstack(y_pred, axis=1)[0]
+
+
 class ContrastiveLossTask(runner.Task):
   """Base class for unsupervised contrastive representation learning tasks.
 
@@ -226,7 +231,9 @@ class DeepGraphInfomaxTask(ContrastiveLossTask):
             tf.keras.metrics.BinaryCrossentropy(from_logits=True),
             tf.keras.metrics.BinaryAccuracy(),
         ),
-        "representations": (metrics.AllSvdMetrics(),),
+        "representations": (
+            metrics.AllSvdMetrics(y_pred_transform_fn=_UNSTACK_FN),
+        ),
     }
 
 
@@ -271,7 +278,7 @@ class BarlowTwinsTask(ContrastiveLossTask):
     return loss_fn
 
   def metrics(self) -> runner.Metrics:
-    return (metrics.AllSvdMetrics(),)
+    return (metrics.AllSvdMetrics(y_pred_transform_fn=_UNSTACK_FN),)
 
 
 class VicRegTask(ContrastiveLossTask):
@@ -305,7 +312,7 @@ class VicRegTask(ContrastiveLossTask):
     return loss_fn
 
   def metrics(self) -> runner.Metrics:
-    return (metrics.AllSvdMetrics(),)
+    return (metrics.AllSvdMetrics(y_pred_transform_fn=_UNSTACK_FN),)
 
 
 class TripletLossTask(ContrastiveLossTask):

@@ -159,7 +159,7 @@ class MetricsTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(actual["triplet_distance"], -1.75)
 
   def test_svd_metrics(self):
-    tensor = tf.ones((2, 2, 2))
+    tensor = tf.ones((2, 2))
     metric_object = metrics.AllSvdMetrics()
     metric_object.update_state(None, tensor)
     result = metric_object.result()

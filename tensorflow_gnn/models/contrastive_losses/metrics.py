@@ -15,7 +15,7 @@
 """Metrics for unsupervised embedding evaluation."""
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Optional, Protocol
 
 import tensorflow as tf
@@ -294,6 +294,9 @@ class _SvdMetrics(tf.keras.metrics.Metric):
   def __init__(
       self,
       fns: Mapping[str, _SvdProtocol],
+      y_pred_transform_fn: Optional[
+          Callable[[tf.Tensor], tf.Tensor]
+      ] = None,
       name: str = "svd_metrics",
   ):
     """Constructs the `tf.keras.metrics.Metric` that reuses SVD decomposition.
@@ -302,6 +305,8 @@ class _SvdMetrics(tf.keras.metrics.Metric):
       fns: a mapping from a metric name to a `Callable` that accepts
         representations as well as the result of their SVD decomposition.
         Currently only singular values are passed.
+      y_pred_transform_fn: a function to extract clean representations
+        from model predictions. By default, no transformation is applied.
       name: Name for the metric class, used for Keras bookkeeping.
     """
     super().__init__(name=name)
@@ -309,20 +314,21 @@ class _SvdMetrics(tf.keras.metrics.Metric):
     self._metric_container = {
         k: tf.keras.metrics.Mean(name=k) for k in fns.keys()
     }
+    if not y_pred_transform_fn:
+      y_pred_transform_fn = lambda x: x
+    self._y_pred_transform_fn = y_pred_transform_fn
 
   def reset_state(self) -> None:
     for v in self._metric_container.values():
       v.reset_state()
 
   def update_state(self, _, y_pred: tf.Tensor, sample_weight=None) -> None:
-    # In our implementation of contrastive learning, y_pred is a tensor with
-    # clean and corrupted representations stacked in the first dimension.
-    representations_clean, _ = tf.unstack(y_pred, axis=1)
+    representations = self._y_pred_transform_fn(y_pred)
     sigma, u, _ = tf.linalg.svd(
-        representations_clean, compute_uv=True, full_matrices=False
+        representations, compute_uv=True, full_matrices=False
     )
     for k, v in self._metric_container.items():
-      v.update_state(self._fns[k](representations_clean, sigma=sigma, u=u))
+      v.update_state(self._fns[k](representations, sigma=sigma, u=u))
 
   def result(self) -> Mapping[str, tf.Tensor]:
     return {k: v.result() for k, v in self._metric_container.items()}
