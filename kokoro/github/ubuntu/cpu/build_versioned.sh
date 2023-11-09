@@ -22,6 +22,7 @@ sudo apt-get install -y "python${PYTHON_VERSION}"
 
 # Update alternatives, taken from corresponding Keras OSS test script
 sudo update-alternatives --install /usr/bin/python3 python3 "/usr/bin/python$PYTHON_VERSION" 1
+sudo apt-get install -y python$PYTHON_VERSION-venv
 
 PYTHON_BINARY="/usr/bin/python${PYTHON_VERSION}"
 PIP_TEST_PREFIX=bazel_pip
