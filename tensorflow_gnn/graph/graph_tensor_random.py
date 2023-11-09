@@ -146,7 +146,7 @@ def random_graph_tensor(
     sample_dict: Optional[SampleDict] = None,
     row_lengths_range: Tuple[int, int] = (2, 8),
     validate: bool = True,
-    num_components_range: Tuple[int, int] = (1, 1),
+    num_components_range: Tuple[int, int] = (1, 2),
 ) -> gt.GraphTensor:
   """Generate a graph tensor from a spec, with random features.
 
@@ -163,12 +163,12 @@ def random_graph_tensor(
       more realistic, more representative of what the actual dataset will
       contain. You can provide such if the values aren't provided for a feature,
       random features are inserted of the right type.
-    row_lengths_range: Minimum (included) and maximum (included) values for each
+    row_lengths_range: Minimum (included) and maximum (excluded) values for each
       row lengths in a ragged range.
     validate: If true, then use assertions to check that the arguments form a
       valid RaggedTensor. Note: these assertions incur a runtime cost, since
       they must be checked for each tensor value.
-    num_components_range: Minimum (included) and maximum (included) values for
+    num_components_range: Minimum (included) and maximum (excluded) values for
       the number of graph components. Overrides the number of components
       from spec.
 
@@ -183,9 +183,9 @@ def random_graph_tensor(
 
   if sample_dict is None:
     sample_dict = {}
-  if not 0 <= row_lengths_range[0] <= row_lengths_range[1]:
+  if not 0 <= row_lengths_range[0] < row_lengths_range[1]:
     raise ValueError(
-        "Expected 0 <= row_lengths_range[0] <= row_lengths_range[1], got"
+        "Expected 0 <= row_lengths_range[0] < row_lengths_range[1], got"
         f" {row_lengths_range}"
     )
 
@@ -329,7 +329,7 @@ def _random_sizes(
 ) -> tf.Tensor:
   """Random sizes with constraints on the number of items in each component."""
   minval = tf.convert_to_tensor(num_items_min, dtype)
-  length = tf.convert_to_tensor(num_items_max + 1 - num_items_min, dtype)
+  length = tf.convert_to_tensor(num_items_max - num_items_min, dtype)
   alpha = tf.random.uniform([num_components], dtype=tf.float64)
   return minval + tf.cast(alpha * tf.cast(length, tf.float64), dtype)
 
@@ -338,9 +338,9 @@ def _get_num_components(
     spec: gt.GraphTensorSpec, num_components_range: Tuple[int, int]
 ) -> Union[int, tf.Tensor]:
   """Chooses the number of components based on spec and allowed range."""
-  if not 0 <= num_components_range[0] <= num_components_range[1]:
+  if not 0 <= num_components_range[0] < num_components_range[1]:
     raise ValueError(
-        "Expected 0 <= num_components_range[0] <= num_components_range[1],"
+        "Expected 0 <= num_components_range[0] < num_components_range[1],"
         f" got {num_components_range}"
     )
 
@@ -350,6 +350,6 @@ def _get_num_components(
     return tf.random.uniform(
         (),
         num_components_range[0],
-        num_components_range[1] + 1,
+        num_components_range[1],
         dtype=spec.indices_dtype,
     )

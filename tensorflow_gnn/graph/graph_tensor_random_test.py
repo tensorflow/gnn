@@ -222,10 +222,10 @@ class TestSpecConstraints(tf.test.TestCase):
       spec = self.example.spec
       result = gr.random_graph_tensor(
           spec,
-          row_lengths_range=(0, 3),
+          row_lengths_range=(0, 4),
           num_components_range=(
               spec.total_num_components,
-              spec.total_num_components,
+              spec.total_num_components + 1,
           ),
       )
       self.assertAllEqual(
@@ -275,7 +275,7 @@ class TestSpecConstraints(tf.test.TestCase):
     num_components = []
     for _ in range(100):
       spec = self.example.spec
-      result = gr.random_graph_tensor(spec, num_components_range=(0, 2))
+      result = gr.random_graph_tensor(spec, num_components_range=(0, 3))
       self.assertTrue(
           result.spec.is_compatible_with(
               spec.relax(num_components=True, num_nodes=True, num_edges=True)
