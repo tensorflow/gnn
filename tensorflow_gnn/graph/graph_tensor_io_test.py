@@ -430,6 +430,94 @@ class TfExampleParsingFromSchemaTest(TfExampleParsingTestBase):
     test_case(batch_then_parse=False, drop_remainder=True)
     test_case(batch_then_parse=False, drop_remainder=False)
 
+  @parameterized.parameters([tf.bfloat16, tf.float16, tf.float32, tf.float64])
+  def testFloatTypes(self, dtype: tf.DType):
+    schema_pbtxt = r"""
+          context {
+            features {
+              key: "f"
+              value: { dtype: %s }
+            }
+          }""" % dtype.as_datatype_enum
+    example = tf.train.Example(
+        features=tf.train.Features(
+            feature={
+                'context/f': tf.train.Feature(
+                    float_list=tf.train.FloatList(value=[0.5])
+                )
+            }
+        )
+    )
+    spec = su.create_graph_spec_from_schema_pb(
+        pbtext.Merge(schema_pbtxt, schema_pb2.GraphSchema())
+    )
+    result = io.parse_single_example(spec, example.SerializeToString())
+    self.assertEqual(result.context['f'].dtype, dtype)
+    self.assertAllEqual(result.context['f'], [0.5])
+
+  @parameterized.parameters([
+      tf.int8,
+      tf.uint8,
+      tf.int16,
+      tf.uint16,
+      tf.int32,
+      tf.uint32,
+      tf.int64,
+      tf.uint64,
+  ])
+  def testIntegerTypes(self, dtype: tf.DType):
+    schema_pbtxt = r"""
+          context {
+            features {
+              key: "i"
+              value: { dtype: %s }
+            }
+          }""" % dtype.as_datatype_enum
+    example = tf.train.Example(
+        features=tf.train.Features(
+            feature={
+                'context/i': tf.train.Feature(
+                    int64_list=tf.train.Int64List(value=[42])
+                )
+            }
+        )
+    )
+    spec = su.create_graph_spec_from_schema_pb(
+        pbtext.Merge(schema_pbtxt, schema_pb2.GraphSchema())
+    )
+    result = io.parse_single_example(spec, example.SerializeToString())
+    self.assertEqual(result.context['i'].dtype, dtype)
+    self.assertAllEqual(result.context['i'], [42])
+
+  @parameterized.parameters([0, 1, 42, -1, 0])
+  def testBooleanType(self, value):
+    schema_pbtxt = r"""
+          node_sets {
+            key: 'node'
+            value {
+              features {
+                key: "b"
+                value: { dtype:  DT_BOOL }
+              }
+            }
+          }"""
+    example = tf.train.Example(
+        features=tf.train.Features(
+            feature={
+                'nodes/node.b': tf.train.Feature(
+                    int64_list=tf.train.Int64List(value=[value])
+                ),
+            }
+        )
+    )
+    spec = su.create_graph_spec_from_schema_pb(
+        pbtext.Merge(schema_pbtxt, schema_pb2.GraphSchema())
+    )
+    result = io.parse_single_example(spec, example.SerializeToString())
+    value = result.node_sets['node']['b']
+    self.assertEqual(value.dtype, tf.bool)
+    self.assertAllEqual(value, [bool(value)])
+
   @parameterized.parameters([
       dict(
           description='context dense features parsing',

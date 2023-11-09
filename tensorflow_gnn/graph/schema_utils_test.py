@@ -214,6 +214,22 @@ class GraphTensorSpecToSchemaTest(tf.test.TestCase, parameterized.TestCase):
     expected_schema_pb = pbtext.Merge(schema_pbtxt, schema_pb2.GraphSchema())
     self.assertEqual(expected_schema_pb, result_schema)
 
+  @parameterized.parameters([tf.complex64, tf.variant])
+  def testRaises(self, dtype: tf.DType):
+    graph_spec = gt.GraphTensorSpec.from_piece_specs(
+        context_spec=gt.ContextSpec.from_field_specs(
+            features_spec={
+                'feat': tf.TensorSpec(shape=(1,), dtype=dtype),
+            },
+            indices_dtype=tf.int64,
+        )
+    )
+    with self.assertRaisesRegex(
+        ValueError,
+        f'Graph context feature feat has dtype={dtype}',
+    ):
+      su.create_schema_pb_from_graph_spec(graph_spec)
+
 
 class CompatibleWithSchemaTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for Graph Tensor specification."""

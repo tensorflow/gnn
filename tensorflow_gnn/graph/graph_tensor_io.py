@@ -170,7 +170,7 @@ def get_io_spec(spec: gt.GraphTensorSpec,
     return tuple(partitions)
 
   def get_io_feature(fname: str, value_spec: gt.FieldSpec) -> IOFeature:
-    io_dtype = _get_io_type(value_spec.dtype)
+    io_dtype = get_io_dtype(value_spec.dtype)
     if isinstance(value_spec, tf.RaggedTensorSpec):
       return tf.io.RaggedFeature(
           value_key=fname,
@@ -392,20 +392,24 @@ def _get_prefixed_field(fields: gc.Fields, field_name: str,
   return fields[full_name]
 
 
-def _get_io_type(dtype: tf.dtypes.DType) -> tf.dtypes.DType:
+def get_io_dtype(dtype: tf.dtypes.DType) -> tf.dtypes.DType:
   """Maps `dtype` on one of the supported by the tf.io types."""
-  if dtype in (tf.int8, tf.int16, tf.int32, tf.int64):
+  if dtype.is_bool or dtype.is_integer:
     return tf.int64
-  if dtype in (tf.uint8, tf.uint16, tf.uint32):
-    return tf.int64
-  if dtype in (tf.float16, tf.float32):
+  elif dtype.is_floating:
     return tf.float32
-  if dtype in (tf.string,):
+  elif dtype == tf.string:
     return tf.string
-  raise TypeError((f'Unsupported type {dtype}.'
-                   ' Type must be safely castable to one'
-                   ' of the following supported IO types:'
-                   ' tf.int64, tf.float32, tf.string'))
+  else:
+    raise TypeError(
+        f'Unsupported type {dtype}. {get_printable_supported_io_types()}'
+    )
+
+
+def get_printable_supported_io_types() -> str:
+  return (
+      'Supported types are boolean, (non-quantized) integer types, '
+      '(non-quantized, non-complex) floating-point types and `string`.')
 
 
 def _restore_types(spec: gt.GraphTensorSpec,

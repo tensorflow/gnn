@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 from absl.testing import parameterized
-import numpy
 import tensorflow as tf
 
 from tensorflow_gnn.graph import adjacency as adj
@@ -29,14 +28,31 @@ rt = tf.ragged.constant
 
 class TestRandomRaggedTensor(tf.test.TestCase, parameterized.TestCase):
 
-  @parameterized.parameters([(tf.int32, numpy.int32),
-                             (tf.int64, numpy.int64),
-                             (tf.float32, numpy.float32),
-                             (tf.float64, numpy.float64),
-                             (tf.string, object)])
-  def test_typed_random_values(self, dtype, ptype):
-    value = gr.typed_random_values(5, dtype)
-    self.assertEqual(5, value.shape[0])
+  @parameterized.parameters([
+      tf.bool,
+      tf.int8,
+      tf.uint8,
+      tf.int16,
+      tf.uint16,
+      tf.int32,
+      tf.uint32,
+      tf.int32,
+      tf.uint32,
+      tf.int64,
+      tf.uint64,
+      tf.bfloat16,
+      tf.float16,
+      tf.float32,
+      tf.float64,
+      tf.string,
+  ])
+  def test_typed_random_values(self, dtype):
+    value = gr.typed_random_values(1_000, dtype)
+    if dtype.is_floating:
+      self.assertAllGreaterEqual(value, 0.0)
+      self.assertAllLess(value, 1.0)
+    self.assertEqual(dtype, value.dtype)
+    self.assertEqual(1_000, value.shape[0])
 
   @parameterized.parameters(([4],),
                             ([3, None],),

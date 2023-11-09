@@ -119,14 +119,19 @@ def typed_random_values(size: tf.Tensor, dtype: tf.dtypes.DType) -> tf.Tensor:
   Returns:
     A tensor of shape [size] and dtype `dtype`.
   """
-  if dtype == tf.dtypes.int32:
-    values = tf.random.uniform([size], 10, 100, tf.int32)
-  elif dtype == tf.dtypes.int64:
-    values = tf.random.uniform([size], 100, 999, tf.int64)
-  elif dtype == tf.dtypes.float32:
-    values = tf.random.uniform([size], dtype=tf.float32)
-  elif dtype == tf.dtypes.float64:
-    values = tf.random.uniform([size], dtype=tf.float64)
+  if dtype.is_integer:
+    # random.uniform supports: `int32` or `int64` types.
+    if dtype in (tf.dtypes.int64, tf.dtypes.uint64):
+      values = tf.random.uniform([size], 100, 999, tf.int64)
+    else:
+      minvalue = tf.constant(max(10, dtype.min), tf.int32)
+      maxvalue = tf.constant(min(100, dtype.max), tf.int32)
+      values = tf.random.uniform([size], minvalue, maxvalue, tf.int32)
+    values = tf.cast(values, dtype)
+  elif dtype.is_floating:
+    values = tf.random.uniform([size], dtype=dtype)
+  elif dtype == tf.dtypes.bool:
+    values = tf.random.uniform([size], dtype=tf.float32) > 0.5
   elif dtype == tf.dtypes.string:
     letters = tf.constant(list(string.ascii_uppercase))
     indices = tf.random.uniform([size], 0, len(string.ascii_uppercase),

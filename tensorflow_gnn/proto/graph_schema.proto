@@ -71,9 +71,8 @@ message Feature {
   // A free-form description of the content provided by this feature.
   optional string description = 1;
 
-  // Data type. For now only DT_STRING, DT_INT64 and DT_FLOAT are supported, due
-  // to limitations of tensorflow.Example (some of these limitations will be
-  // lifted later, either by conversion or using another encoding format).
+  // Data type. Supported types are boolean, (non-quantized) integer types,
+  // (non-quantized, non-complex) floating-point types and `string`.
   //
   // Note that we support arbitrary shaped tensors, including variable shaped
   // ones, so you do NOT need to preprocess your data to encode all your

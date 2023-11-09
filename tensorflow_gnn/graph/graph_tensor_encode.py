@@ -27,6 +27,7 @@ from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as gc
 from tensorflow_gnn.graph import graph_piece as gp
 from tensorflow_gnn.graph import graph_tensor as gt
+from tensorflow_gnn.graph import graph_tensor_io as io
 from tensorflow_gnn.keras import keras_tensors as kt
 
 
@@ -125,24 +126,21 @@ def _copy_feature_values(values: gc.Field, fname: str,
   if isinstance(flat_values, tf.RaggedTensor):
     flat_values = values.flat_values
   flat_values = tf.reshape(flat_values, [-1])
-  array = flat_values.numpy()
-
+  dtype = flat_values.dtype
   # Convert the values to the proper type and set them.
   feature = result.features.feature[fname]
-  if flat_values.dtype is tf.int32:
-    flat_values = tf.cast(flat_values, tf.int64)
+  io_dtype = io.get_io_dtype(dtype)
+  array = tf.cast(flat_values, io_dtype).numpy()
+  if io_dtype == tf.int64:
     feature.int64_list.value.extend(array)
-  elif flat_values.dtype is tf.int64:
-    feature.int64_list.value.extend(array)
-  elif flat_values.dtype is tf.float32:
+  elif io_dtype == tf.float32:
     feature.float_list.value.extend(array)
-  elif flat_values.dtype is tf.float64:
-    flat_values = tf.cast(flat_values, tf.float32)
-    feature.float_list.value.extend(array)
-  elif flat_values.dtype is tf.string:
+  elif io_dtype == tf.string:
     feature.bytes_list.value.extend(array)
   else:
-    raise ValueError(f'Invalid type for tf.Example: {flat_values}')
+    raise ValueError(
+        f'Unsupported IO dtype {io_dtype} for tf.Example: {flat_values}'
+    )
 
   # If the tensor has ragged dimensions, serialize those into features to be
   # parsed as partitions.

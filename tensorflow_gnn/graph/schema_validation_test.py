@@ -53,15 +53,33 @@ class GraphValidationTest(tf.test.TestCase):
     with self.assertRaises(sv.ValidationError):
       sv._validate_schema_feature_dtypes(schema)
 
-    for dtype in tf.string, tf.int64, tf.float32:
+    for dtype in (
+        tf.bool,
+        tf.int8,
+        tf.uint8,
+        tf.int16,
+        tf.uint16,
+        tf.int32,
+        tf.uint32,
+        tf.int32,
+        tf.uint32,
+        tf.int64,
+        tf.uint64,
+        tf.bfloat16,
+        tf.float16,
+        tf.float32,
+        tf.float64,
+        tf.string,
+    ):
       num_words = schema.node_sets['queries'].features['num_words']
       num_words.dtype = dtype.as_datatype_enum
-      sv._validate_schema_feature_dtypes(schema)
+      with self.subTest(dtype=dtype):
+        sv._validate_schema_feature_dtypes(schema)
 
-    for dtype in tf.int32, tf.float64:
+    for dtype in tf.complex64, tf.variant, tf.qint32:
       num_words = schema.node_sets['queries'].features['num_words']
       num_words.dtype = dtype.as_datatype_enum
-      with self.assertRaises(sv.ValidationError):
+      with self.subTest(dtype=dtype), self.assertRaises(sv.ValidationError):
         sv._validate_schema_feature_dtypes(schema)
 
   def test_validate_schema_shapes(self):

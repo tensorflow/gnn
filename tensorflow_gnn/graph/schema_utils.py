@@ -20,6 +20,7 @@ import tensorflow as tf
 from tensorflow_gnn.graph import adjacency
 from tensorflow_gnn.graph import graph_constants as gc
 from tensorflow_gnn.graph import graph_tensor as gt
+from tensorflow_gnn.graph import graph_tensor_io as io
 from tensorflow_gnn.keras import keras_tensors as kt
 import tensorflow_gnn.proto.graph_schema_pb2 as schema_pb2
 
@@ -145,12 +146,21 @@ def create_schema_pb_from_graph_spec(
   Raises:
     ValueError: if graph has multiple graph components or rank > 0.
     ValueError: if adjacency types is not an instance of `fgnn.Adjacency`.
+    ValueError: if graph tensor features have types that are not supported
+      by the graph schema.
   """
   graph_spec = gt.get_graph_tensor_spec(graph)
   gt.check_scalar_singleton_graph_tensor(graph_spec,
                                          'create_schema_pb_from_graph()')
 
-  def _to_feature(spec: gc.FieldSpec) -> schema_pb2.Feature:
+  def _to_feature(debug_context: str, spec: gc.FieldSpec) -> schema_pb2.Feature:
+    if not is_supported_dtype(spec.dtype):
+      raise ValueError(
+          f'{debug_context} has dtype={spec.dtype} which is not supported by'
+          ' the GraphSchema. Supported types'
+          f' {get_printable_supported_dtypes()}'
+      )
+
     result = schema_pb2.Feature()
     result.dtype = spec.dtype.as_datatype_enum
     feature_shape = spec.shape[1:]  # Drop num_items dimension.
@@ -158,23 +168,39 @@ def create_schema_pb_from_graph_spec(
       result.shape.CopyFrom(feature_shape.as_proto())
     return result
 
-  def _add_features_spec(features_spec: gc.FieldsSpec,
-                         target: Mapping[str, schema_pb2.Feature]) -> None:
+  def _add_features_spec(
+      debug_context: str,
+      features_spec: gc.FieldsSpec,
+      target: Mapping[str, schema_pb2.Feature],
+  ) -> None:
     for name, spec in features_spec.items():
-      target[name].MergeFrom(_to_feature(spec))
+      target[name].MergeFrom(
+          _to_feature(f'{debug_context} feature {name}', spec)
+      )
 
   result = schema_pb2.GraphSchema()
 
-  _add_features_spec(graph_spec.context_spec.features_spec,
-                     result.context.features)
+  _add_features_spec(
+      'Graph context',
+      graph_spec.context_spec.features_spec,
+      result.context.features,
+  )
 
   for name, node_set_spec in graph_spec.node_sets_spec.items():
     node_set_schema = result.node_sets[name]
-    _add_features_spec(node_set_spec.features_spec, node_set_schema.features)
+    _add_features_spec(
+        f'Node set {name}',
+        node_set_spec.features_spec,
+        node_set_schema.features,
+    )
 
   for name, edge_set_spec in graph_spec.edge_sets_spec.items():
     edge_set_schema = result.edge_sets[name]
-    _add_features_spec(edge_set_spec.features_spec, edge_set_schema.features)
+    _add_features_spec(
+        f'Edge set {name}',
+        edge_set_spec.features_spec,
+        edge_set_schema.features,
+    )
     adjacency_spec = edge_set_spec.adjacency_spec
     if not isinstance(adjacency_spec, adjacency.AdjacencySpec):
       raise ValueError(f'Adjacency type `{adjacency_spec.value_type.__name__}`'
@@ -331,3 +357,19 @@ def iter_features(
   for set_name, set_ in schema.edge_sets.items():
     for feature_name, feature in set_.features.items():
       yield (gc.EDGES, set_name, feature_name, feature)
+
+
+def is_supported_dtype(dtype) -> bool:
+  dtype = tf.dtypes.as_dtype(dtype)
+  if dtype != dtype.base_dtype:
+    # It's a TF1 _ref dtype, which have been deprecated in TF2.'
+    return False
+  try:
+    _ = io.get_io_dtype(dtype)
+    return True
+  except TypeError:
+    return False
+
+
+def get_printable_supported_dtypes() -> str:
+  return io.get_printable_supported_io_types()

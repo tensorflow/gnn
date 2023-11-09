@@ -27,13 +27,6 @@ from tensorflow_gnn.graph import schema_utils as su
 import tensorflow_gnn.proto.graph_schema_pb2 as schema_pb2
 
 
-# The supported data types. Note that these are currently limited to the ones
-# supported by `tensorflow.Example` but we can eventually extend the list by
-# adding casting transformations, and supporting other data formats for
-# encoding.
-VALID_DTYPES = (tf.string, tf.int64, tf.float32)
-
-
 class ValidationError(ValueError):
   """A schema validation error.
 
@@ -156,13 +149,20 @@ def _validate_schema_feature_dtypes(schema: schema_pb2.GraphSchema):
       raise ValidationError(
           "Missing 'dtype' field on {} set '{}' feature '{}'".format(
               set_type, set_name, feature_name))
-    if feature.dtype not in {dtype.as_datatype_enum
-                             for dtype in VALID_DTYPES}:
+    if not su.is_supported_dtype(feature.dtype):
       raise ValidationError(
-          ("Invalid 'dtype' field {} on {} set '{}' feature '{}': {}; "
-           "valid types include: {}").format(
-               feature.dtype, set_type, set_name, feature_name, feature.dtype,
-               ", ".join(map(str, VALID_DTYPES))))
+          (
+              "Invalid 'dtype' field {} on {} set '{}' feature '{}': {}; "
+              "valid types include: {}"
+          ).format(
+              feature.dtype,
+              set_type,
+              set_name,
+              feature_name,
+              feature.dtype,
+              su.get_printable_supported_dtypes(),
+          )
+      )
 
 
 def _validate_schema_shapes(schema: schema_pb2.GraphSchema):

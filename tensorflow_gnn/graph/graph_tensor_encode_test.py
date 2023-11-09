@@ -43,15 +43,21 @@ class TestWriteExample(tf.test.TestCase, parameterized.TestCase):
   # TODO(blais,aferludin): Replace this with graph_tensor_test_utils
   def _compare_graph_tensors(self, rfeatures: gc.Field, pfeatures: gc.Field):
     self.assertEqual(rfeatures.shape.as_list(), pfeatures.shape.as_list())
+    if rfeatures.dtype in (tf.float64,):
+      # float64 => float32 conversions.
+      cmp = self.assertAllClose
+    else:
+      cmp = self.assertAllEqual
+
     if isinstance(rfeatures, tf.RaggedTensor):
-      self.assertAllEqual(rfeatures.flat_values, pfeatures.flat_values)
+      cmp(rfeatures.flat_values, pfeatures.flat_values)
       rlist = rfeatures.nested_row_lengths()
       plist = pfeatures.nested_row_lengths()
       self.assertEqual(len(rlist), len(plist))
       for rlengths, plengths in zip(rlist, plist):
         self.assertAllEqual(rlengths, plengths)
     else:
-      self.assertAllEqual(rfeatures, pfeatures)
+      cmp(rfeatures, pfeatures)
 
   @parameterized.parameters((None, True),
                             (None, False),
@@ -84,33 +90,49 @@ class TestWriteExample(tf.test.TestCase, parameterized.TestCase):
 
   def _roundtrip_test(self, shape, create_tensor):
     # Produce random tensors of various shapes, serialize them, and then run
-    # them back through our parser and finally check that the shapes are
+    # them back through our parser and finally check that values are
     # identical.
-    dtype = tf.float32
-    shape = tf.TensorShape(shape)
-    if shape[1:].is_fully_defined():
-      tensor_spec = tf.TensorSpec(shape, dtype)
-    else:
-      ragged_rank = shape.rank - 1
-      for dim in reversed(shape.as_list()):
-        if dim is None:
-          break
-        ragged_rank -= 1
+    for dtype in (
+        tf.bool,
+        tf.int8,
+        tf.uint8,
+        tf.int16,
+        tf.uint16,
+        tf.int32,
+        tf.uint32,
+        tf.int32,
+        tf.uint32,
+        tf.int64,
+        tf.uint64,
+        tf.bfloat16,
+        tf.float16,
+        tf.float32,
+        tf.float64,
+        tf.string,
+    ):
+      shape = tf.TensorShape(shape)
+      if shape[1:].is_fully_defined():
+        tensor_spec = tf.TensorSpec(shape, dtype)
+      else:
+        ragged_rank = shape.rank - 1
+        for dim in reversed(shape.as_list()):
+          if dim is None:
+            break
+          ragged_rank -= 1
 
-      tensor_spec = tf.RaggedTensorSpec(shape, dtype, ragged_rank=ragged_rank)
+        tensor_spec = tf.RaggedTensorSpec(shape, dtype, ragged_rank=ragged_rank)
+      spec = create_tensor(tensor_spec)
+      spec = spec.relax(num_nodes=True, num_edges=True)
+      rgraph = gr.random_graph_tensor(spec)
+      example = ge.write_example(rgraph)
+      serialized = tf.constant(example.SerializeToString())
+      pgraph = io.parse_single_example(spec, serialized, validate=True)
 
-    spec = create_tensor(tensor_spec)
-    spec = spec.relax(num_nodes=True, num_edges=True)
-    rgraph = gr.random_graph_tensor(spec)
-    example = ge.write_example(rgraph)
-    serialized = tf.constant(example.SerializeToString())
-    pgraph = io.parse_single_example(spec, serialized, validate=True)
-
-    # Find the available tensor.
-    # TODO(blais): Replaced these with self.assertGraphTensorEq(rgraph, pgraph).
-    rfeatures = _find_first_available_tensor(rgraph)
-    pfeatures = _find_first_available_tensor(pgraph)
-    self._compare_graph_tensors(rfeatures, pfeatures)
+      # Find the available tensor.
+      rfeatures = _find_first_available_tensor(rgraph)
+      pfeatures = _find_first_available_tensor(pgraph)
+      with self.subTest(dtype=dtype):
+        self._compare_graph_tensors(rfeatures, pfeatures)
 
   @parameterized.parameters(
       (shape,)
@@ -158,6 +180,17 @@ class TestWriteExample(tf.test.TestCase, parameterized.TestCase):
               sizes_spec=tf.TensorSpec([1], tf.int64),
               features_spec={'wings': tensor_spec})})
     self._roundtrip_test(shape, create_tensor)
+
+  def testUInt64MaxRoundtrip(self):
+    feat = tf.constant(tf.uint64.max, tf.uint64, shape=[1])
+    rgraph = gt.GraphTensor.from_pieces(
+        context=gt.Context.from_fields(features={'f': feat})
+    )
+    example = ge.write_example(rgraph)
+    serialized = tf.constant(example.SerializeToString())
+    pgraph = io.parse_single_example(rgraph.spec, serialized, validate=True)
+
+    self.assertAllEqual(pgraph.context.features['f'], feat)
 
 
 if __name__ == '__main__':
