@@ -92,6 +92,7 @@ pytype_strict_library(
         ":adjacency",
         ":graph_constants",
         ":graph_tensor",
+        ":tensor_utils",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -310,6 +311,7 @@ tf_py_test(
     data = ["@tensorflow_gnn//testdata:feature_repr"],
     python_version = "PY3",
     deps = [
+        ":adjacency",
         ":graph_tensor",
         ":graph_tensor_random",
         ":schema_utils",

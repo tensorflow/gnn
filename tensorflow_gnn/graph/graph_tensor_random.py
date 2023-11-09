@@ -23,6 +23,7 @@ import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as gc
 from tensorflow_gnn.graph import graph_tensor as gt
+from tensorflow_gnn.graph import tensor_utils as tu
 
 
 def random_ragged_tensor(
@@ -144,43 +145,62 @@ def random_graph_tensor(
     spec: gt.GraphTensorSpec,
     sample_dict: Optional[SampleDict] = None,
     row_lengths_range: Tuple[int, int] = (2, 8),
-    validate: bool = True) -> gt.GraphTensor:
-  """Generate a graph tensor from a schema, with random features.
+    validate: bool = True,
+    num_components_range: Tuple[int, int] = (1, 1),
+) -> gt.GraphTensor:
+  """Generate a graph tensor from a spec, with random features.
 
   NOTE: This function does not (yet?) support the generation of the auxiliary
   node set for `tfgnn.structured_readout()`. It should not be included in the
   `spec`, and if needed, should be added separately in a later step.
 
   Args:
-    spec: A GraphTensorSpec instance that describes the graph tensor.
+    spec: A GraphTensorSpec instance that describes the graph tensor. The result
+      random graph tensors are generated for the relaxed number of items, as
+      `spec.relax(num_components=True, num_nodes=True, num_edges=True)`.
     sample_dict: A dict of (set-type, set-name, field-name) to list-of-values to
       sample from. The intended purpose is to generate random values that are
       more realistic, more representative of what the actual dataset will
       contain. You can provide such if the values aren't provided for a feature,
       random features are inserted of the right type.
-    row_lengths_range: Minimum and maximum values for each row lengths in a
-      ragged range.
+    row_lengths_range: Minimum (included) and maximum (included) values for each
+      row lengths in a ragged range.
     validate: If true, then use assertions to check that the arguments form a
       valid RaggedTensor. Note: these assertions incur a runtime cost, since
       they must be checked for each tensor value.
+    num_components_range: Minimum (included) and maximum (included) values for
+      the number of graph components. Overrides the number of components
+      from spec.
 
   Returns:
-    An instance of a GraphTensor.
-
+    A GraphTensor compatible with the given spec with relaxed number of graph
+    items. The size of each node set and edge set is random within
+    `row_lengths_range`. The number of components is random within
+    `num_components_range`.
   """
+  gt.check_scalar_graph_tensor(spec, "random_graph_tensor()")
+  spec = spec.relax(num_components=True, num_nodes=True, num_edges=True)
+
   if sample_dict is None:
     sample_dict = {}
+  if not 0 <= row_lengths_range[0] <= row_lengths_range[1]:
+    raise ValueError(
+        "Expected 0 <= row_lengths_range[0] <= row_lengths_range[1], got"
+        f" {row_lengths_range}"
+    )
 
-  def _gen_features(set_type: gc.SetType,
-                    set_name: Optional[gc.SetName],
-                    features_spec: gc.Fields,
-                    prefix: Optional[tf.Tensor]):
-    """Generate a random feature tensor dict with a possible shape prefix."""
+  def _gen_features(
+      set_type: gc.SetType,
+      set_name: Optional[gc.SetName],
+      features_spec: gc.FieldsSpec,
+      num_items: tf.Tensor,
+  ):
+    """Generate a random feature tensor dict."""
     tensors = {}
     for fname, feature_spec in features_spec.items():
       shape = feature_spec.shape.as_list()
-      if prefix is not None and shape[0] is None:
-        shape[0] = prefix
+      if shape[0] is None:
+        shape[0] = num_items
       key = (set_type, set_name, fname)
       sample_values = sample_dict.get(key, None)
       tensors[fname] = random_ragged_tensor(
@@ -192,54 +212,81 @@ def random_graph_tensor(
       )
     return tensors
 
+  num_components = _get_num_components(spec, num_components_range)
+
   # Create random context features.
   context = gt.Context.from_fields(
-      features=_gen_features(gc.CONTEXT, None,
-                             spec.context_spec.features_spec, None))
+      features=_gen_features(
+          gc.CONTEXT, None, spec.context_spec.features_spec, num_components
+      )
+  )
 
   # Create random node-set features.
-  min_nodes, max_nodes = row_lengths_range
   node_sets = {}
   for set_name, node_set_spec in spec.node_sets_spec.items():
-    sizes = tf.random.uniform([1], min_nodes, max_nodes, spec.indices_dtype)
+    min_nodes, max_nodes = row_lengths_range
+    sizes = _random_sizes(
+        num_components, min_nodes, max_nodes, spec.indices_dtype
+    )
     node_sets[set_name] = gt.NodeSet.from_fields(
         sizes=sizes,
-        features=_gen_features(gc.NODES, set_name,
-                               node_set_spec.features_spec, sizes[0]))
+        features=_gen_features(
+            gc.NODES,
+            set_name,
+            node_set_spec.features_spec,
+            tf.math.reduce_sum(sizes),
+        ),
+    )
 
   # Create random edge-set features.
   edge_sets = {}
   for set_name, edge_set_spec in spec.edge_sets_spec.items():
-    # Generate a reasonable number of edges.
+    # Choose the number of edges for each component at random.
+    # To keep it reasonable, we stay within a small constant factor of
+    # the number of nodes (unless there are zero nodes on one side).
     adj_spec = edge_set_spec.adjacency_spec
-    source_size = node_sets[adj_spec.source_name].sizes
-    target_size = node_sets[adj_spec.target_name].sizes
-    sum_sizes = tf.cast(source_size[0] + target_size[0], tf.float32)
+    source_sizes = node_sets[adj_spec.source_name].sizes
+    target_sizes = node_sets[adj_spec.target_name].sizes
+
+    has_edges = tf.math.logical_and(source_sizes > 0, target_sizes > 0)
+    sum_sizes = source_sizes + target_sizes
+    sum_sizes = tf.where(has_edges, sum_sizes, tf.zeros_like(sum_sizes))
+    sum_sizes = tf.cast(sum_sizes, tf.float32)
     min_edges = tf.cast(sum_sizes / 1.5, spec.indices_dtype)
     max_edges = tf.cast(sum_sizes * 2.25, spec.indices_dtype)
-    sizes = tf.random.uniform(
-        [1], min_edges, max_edges, dtype=spec.indices_dtype
+    sizes = _random_sizes(
+        num_components, min_edges, max_edges, spec.indices_dtype
     )
 
-    # Generate a random matching.
-    source_indices = tf.random.uniform(sizes, 0, source_size[0],
-                                       dtype=spec.indices_dtype)
-    target_indices = tf.random.uniform(sizes, 0, target_size[0],
-                                       dtype=spec.indices_dtype)
+    # Randomly generate the actual node indices.
+    source_indices = _random_edge_indices(sizes, source_sizes)
+    target_indices = _random_edge_indices(sizes, target_sizes)
     adjacency = adj.Adjacency.from_indices(
         source=(adj_spec.source_name, source_indices),
-        target=(adj_spec.target_name, target_indices))
+        target=(adj_spec.target_name, target_indices),
+    )
 
     # Create the edge set.
     edge_sets[set_name] = gt.EdgeSet.from_fields(
         sizes=sizes,
-        features=_gen_features(gc.EDGES, set_name,
-                               edge_set_spec.features_spec, sizes[0]),
-        adjacency=adjacency)
+        features=_gen_features(
+            gc.EDGES,
+            set_name,
+            edge_set_spec.features_spec,
+            tf.math.reduce_sum(sizes),
+        ),
+        adjacency=adjacency,
+    )
 
-  return gt.GraphTensor.from_pieces(context=context,
-                                    node_sets=node_sets,
-                                    edge_sets=edge_sets)
+  result = gt.GraphTensor.from_pieces(
+      context=context, node_sets=node_sets, edge_sets=edge_sets
+  )
+  if not result.spec.is_compatible_with(spec):
+    raise ValueError(
+        f"Internal error: result {result.spec} is not compatible with relaxed"
+        f" spec {spec}."
+    )
+  return result
 
 
 def _get_feature_values(feature: tf.train.Feature) -> Union[List[str],
@@ -259,3 +306,50 @@ def _assert_rank0_int(t: tf.Tensor, tensor_name: Text) -> None:
   if t.shape.rank != 0 or t.dtype not in (tf.int32, tf.int64):
     raise ValueError(f"Expected `{tensor_name}` as rank-1 integer tensor,"
                      f" got rank={t.shape.rank}, dtype={t.dtype.name}")
+
+
+def _random_edge_indices(
+    num_edges: tf.Tensor, num_nodes: tf.Tensor
+) -> tf.Tensor:
+  """Random edge indices for the number of edges and nodes in each component."""
+  assert num_edges.dtype == num_nodes.dtype
+  dtype = num_edges.dtype
+  offsets = tf.cumsum(num_nodes, exclusive=True)
+  indices = tu.repeat(tf.stack([offsets, num_nodes], axis=-1), num_edges)
+  offsets, lengths = tf.unstack(indices, axis=-1)
+  alpha = tf.random.uniform(tf.shape(lengths), dtype=tf.float64)
+  return offsets + tf.cast(alpha * tf.cast(lengths, tf.float64), dtype)
+
+
+def _random_sizes(
+    num_components: Union[int, tf.Tensor],
+    num_items_min: Union[int, tf.Tensor],
+    num_items_max: Union[int, tf.Tensor],
+    dtype: tf.DType,
+) -> tf.Tensor:
+  """Random sizes with constraints on the number of items in each component."""
+  minval = tf.convert_to_tensor(num_items_min, dtype)
+  length = tf.convert_to_tensor(num_items_max + 1 - num_items_min, dtype)
+  alpha = tf.random.uniform([num_components], dtype=tf.float64)
+  return minval + tf.cast(alpha * tf.cast(length, tf.float64), dtype)
+
+
+def _get_num_components(
+    spec: gt.GraphTensorSpec, num_components_range: Tuple[int, int]
+) -> Union[int, tf.Tensor]:
+  """Chooses the number of components based on spec and allowed range."""
+  if not 0 <= num_components_range[0] <= num_components_range[1]:
+    raise ValueError(
+        "Expected 0 <= num_components_range[0] <= num_components_range[1],"
+        f" got {num_components_range}"
+    )
+
+  if num_components_range[0] == num_components_range[1]:
+    return num_components_range[0]
+  else:
+    return tf.random.uniform(
+        (),
+        num_components_range[0],
+        num_components_range[1] + 1,
+        dtype=spec.indices_dtype,
+    )

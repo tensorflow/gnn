@@ -16,11 +16,15 @@ from absl.testing import parameterized
 import numpy
 import tensorflow as tf
 
+from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_random as gr
 from tensorflow_gnn.graph import schema_utils
 from tensorflow_gnn.proto import graph_schema_pb2 as schema_pb2
 from tensorflow_gnn.utils import test_utils
+
+dt = tf.convert_to_tensor
+rt = tf.ragged.constant
 
 
 class TestRandomRaggedTensor(tf.test.TestCase, parameterized.TestCase):
@@ -79,6 +83,64 @@ class TestRandomRaggedTensor(tf.test.TestCase, parameterized.TestCase):
     self.assertIs(dtype, tensor.row_splits.dtype)
 
 
+class TestRandomEdgeIndicesTensor(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.parameters(tf.int32, tf.int64)
+  def test_empty(self, dtype):
+    empty = tf.convert_to_tensor([], dtype)
+    result = gr._random_edge_indices(empty, empty)
+    self.assertAllEqual(result, empty)
+
+  @parameterized.parameters(
+      dict(num_edges=[0]), dict(num_edges=[0, 0]), dict(num_edges=[0, 0, 0])
+  )
+  def test_no_edges(self, num_edges):
+    num_edges = tf.convert_to_tensor(num_edges, tf.int64)
+    num_nodes = tf.ones_like(num_edges)
+    result = gr._random_edge_indices(num_edges, num_nodes)
+    self.assertAllEqual(result, tf.convert_to_tensor([], tf.int64))
+
+  def test_single_node(self):
+    self.assertAllEqual(
+        gr._random_edge_indices(dt([1]), dt([1])),
+        dt([0], tf.int64),
+    )
+    self.assertAllEqual(
+        gr._random_edge_indices(dt([1, 1]), dt([1, 1])),
+        dt([0, 1], tf.int64),
+    )
+    self.assertAllEqual(
+        gr._random_edge_indices(dt([2]), dt([1])),
+        dt([0, 0], tf.int64),
+    )
+    self.assertAllEqual(
+        gr._random_edge_indices(dt([3, 2, 1]), dt([1, 1, 1])),
+        dt([0, 0, 0, 1, 1, 2], tf.int64),
+    )
+    self.assertAllEqual(
+        gr._random_edge_indices(dt([1, 0, 0, 1, 0, 1]), dt([1, 1, 1, 1, 1, 1])),
+        dt([0, 3, 5], tf.int64),
+    )
+
+  def test_components_split(self):
+    results = []
+    for _ in range(1_00):
+      results.append(gr._random_edge_indices(dt([1, 2]), dt([2, 3])))
+    result = tf.stack(results, axis=0)
+    c1, c2 = result[:, 0], result[:, 1:]
+    self.assertBetween(
+        tf.math.reduce_mean(tf.cast(c1 == 0, tf.float32)), 0.4, 0.6
+    )
+    self.assertBetween(
+        tf.math.reduce_mean(tf.cast(c1 == 1, tf.float32)), 0.4, 0.6
+    )
+    self.assertAllInRange(c1, 0, 2, open_upper_bound=True)
+    self.assertBetween(
+        tf.math.reduce_mean(tf.cast(c2 == 2, tf.float32)), 0.3, 0.5
+    )
+    self.assertAllInRange(c2, 2, 5, open_upper_bound=True)
+
+
 class TestRandomGraphTensor(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
@@ -130,6 +192,105 @@ class TestRandomGraphTensor(tf.test.TestCase, parameterized.TestCase):
 
     for graph in random_graph_tensor_generator(self.spec).take(4):
       self.assertIsInstance(graph, gt.GraphTensor)
+
+
+class TestSpecConstraints(tf.test.TestCase):
+  example = gt.GraphTensor.from_pieces(
+      context=gt.Context.from_fields(features={'label': dt(['X', 'Y'])}),
+      node_sets={
+          'a': gt.NodeSet.from_fields(
+              features={'f': rt([[1, 2], [3]])}, sizes=dt([1, 1])
+          ),
+          'b': gt.NodeSet.from_fields(
+              features={'f': dt([[1, 0], [2, 0], [3, 0]])}, sizes=dt([2, 1])
+          ),
+      },
+      edge_sets={
+          'a->b': gt.EdgeSet.from_fields(
+              sizes=dt([2, 1]),
+              adjacency=adj.Adjacency.from_indices(
+                  source=('a', dt([0, 0, 1])),
+                  target=('b', dt([0, 1, 2])),
+              ),
+          ),
+      },
+  )
+
+  def test_components_fixed(self):
+    a_sizes, b_sizes, ab_sizes = [], [], []
+    for _ in range(100):
+      spec = self.example.spec
+      result = gr.random_graph_tensor(
+          spec,
+          row_lengths_range=(0, 3),
+          num_components_range=(
+              spec.total_num_components,
+              spec.total_num_components,
+          ),
+      )
+      self.assertAllEqual(
+          result.spec.total_num_components, spec.total_num_components
+      )
+
+      self.assertTrue(
+          result.spec.is_compatible_with(
+              spec.relax(num_nodes=True, num_edges=True)
+          )
+      )
+      self.assertAllEqual(
+          tf.size(result.node_sets['a']['f'].row_lengths()),
+          tf.math.reduce_sum(result.node_sets['a'].sizes),
+      )
+      self.assertAllEqual(
+          tf.shape(result.node_sets['b']['f']),
+          [tf.math.reduce_sum(result.node_sets['b'].sizes), 2],
+      )
+      ab = result.edge_sets['a->b']
+      for node_set, index in [
+          (result.node_sets['a'], ab.adjacency.source),
+          (result.node_sets['b'], ab.adjacency.target),
+      ]:
+        self.assertLess(
+            tf.math.reduce_max(index[: ab.sizes[0]]),
+            node_set.sizes[0],
+        )
+        self.assertGreaterEqual(
+            tf.math.reduce_min(index[ab.sizes[0] :]),
+            node_set.sizes[0],
+        )
+        self.assertLess(
+            tf.math.reduce_max(index[ab.sizes[0] :]),
+            node_set.sizes[0] + node_set.sizes[1],
+        )
+
+      self.assertAllEqual(result.num_components, 2)
+      a_sizes.extend(result.node_sets['a'].sizes.numpy())
+      b_sizes.extend(result.node_sets['b'].sizes.numpy())
+      ab_sizes.extend(result.edge_sets['a->b'].sizes.numpy())
+    self.assertSetEqual({0, 1, 2, 3}, set(a_sizes))
+    self.assertSetEqual({0, 1, 2, 3}, set(b_sizes))
+    self.assertContainsSubset({0, 1, 2, 3, 4}, set(ab_sizes))
+
+  def test_components_relaxed(self):
+    num_components = []
+    for _ in range(100):
+      spec = self.example.spec
+      result = gr.random_graph_tensor(spec, num_components_range=(0, 2))
+      self.assertTrue(
+          result.spec.is_compatible_with(
+              spec.relax(num_components=True, num_nodes=True, num_edges=True)
+          )
+      )
+      self.assertAllEqual(
+          tf.size(result.node_sets['a']['f'].row_lengths()),
+          tf.math.reduce_sum(result.node_sets['a'].sizes),
+      )
+      self.assertAllEqual(
+          tf.shape(result.node_sets['b']['f']),
+          [tf.math.reduce_sum(result.node_sets['b'].sizes), 2],
+      )
+      num_components.append(result.num_components.numpy())
+    self.assertSetEqual({0, 1, 2}, set(num_components))
 
 
 if __name__ == '__main__':

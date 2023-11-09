@@ -38,20 +38,6 @@ def _find_first_available_tensor(gtensor: gt.GraphTensor) -> gc.Field:
       return feature
 
 
-TEST_SHAPES = [[4],
-               [4, 3],
-               [None, 4],
-               [None, 4, 3],
-               [None, None, 4],
-               [None, None, 4, 3],
-               [4, None],
-               [4, 3, None],
-               [4, None, None],
-               [4, 3, None, None],
-               [5, None, 4, None, 3],
-               [None, 4, None, 3, None]]
-
-
 class TestWriteExample(tf.test.TestCase, parameterized.TestCase):
 
   # TODO(blais,aferludin): Replace this with graph_tensor_test_utils
@@ -101,10 +87,20 @@ class TestWriteExample(tf.test.TestCase, parameterized.TestCase):
     # them back through our parser and finally check that the shapes are
     # identical.
     dtype = tf.float32
-    tensor_spec = (tf.TensorSpec(shape, dtype)
-                   if tf.TensorShape(shape).is_fully_defined()
-                   else tf.RaggedTensorSpec(shape, dtype))
+    shape = tf.TensorShape(shape)
+    if shape[1:].is_fully_defined():
+      tensor_spec = tf.TensorSpec(shape, dtype)
+    else:
+      ragged_rank = shape.rank - 1
+      for dim in reversed(shape.as_list()):
+        if dim is None:
+          break
+        ragged_rank -= 1
+
+      tensor_spec = tf.RaggedTensorSpec(shape, dtype, ragged_rank=ragged_rank)
+
     spec = create_tensor(tensor_spec)
+    spec = spec.relax(num_nodes=True, num_edges=True)
     rgraph = gr.random_graph_tensor(spec)
     example = ge.write_example(rgraph)
     serialized = tf.constant(example.SerializeToString())
@@ -116,15 +112,45 @@ class TestWriteExample(tf.test.TestCase, parameterized.TestCase):
     pfeatures = _find_first_available_tensor(pgraph)
     self._compare_graph_tensors(rfeatures, pfeatures)
 
-  @parameterized.parameters((shape,) for shape in TEST_SHAPES)
+  @parameterized.parameters(
+      (shape,)
+      for shape in [
+          [1],
+          [1, 2],
+          [1, None],
+          [1, 4, 3],
+          [1, 4, None],
+          [1, None, 4],
+          [1, None, None],
+      ]
+  )
   def test_write_various_shapes_as_context(self, shape):
     def create_tensor(tensor_spec):
       return gt.GraphTensorSpec.from_piece_specs(
           context_spec=gt.ContextSpec.from_field_specs(
-              features_spec={'wings': tensor_spec}))
+              features_spec={'wings': tensor_spec}
+          )
+      )
+
     self._roundtrip_test(shape, create_tensor)
 
-  @parameterized.parameters((shape,) for shape in TEST_SHAPES)
+  @parameterized.parameters(
+      (shape,)
+      for shape in [
+          [4],
+          [4, 3],
+          [None, 4],
+          [None, 4, 3],
+          [None, None, 4],
+          [None, None, 4, 3],
+          [4, None],
+          [4, 3, None],
+          [4, None, None],
+          [4, 3, None, None],
+          [5, None, 4, None, 3],
+          [None, 4, None, 3, None],
+      ]
+  )
   def test_write_various_shapes_as_node_set(self, shape):
     def create_tensor(tensor_spec):
       return gt.GraphTensorSpec.from_piece_specs(
