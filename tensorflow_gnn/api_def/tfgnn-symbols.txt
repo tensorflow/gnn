@@ -131,6 +131,7 @@ tfgnn.reverse_tag
 tfgnn.sampler.SamplingOp
 tfgnn.sampler.SamplingSpec
 tfgnn.sampler.SamplingSpecBuilder
+tfgnn.sampler.SamplingStrategy
 tfgnn.sampler.make_sampling_spec_tree
 tfgnn.satisfies_size_constraints
 tfgnn.satisfies_total_sizes
