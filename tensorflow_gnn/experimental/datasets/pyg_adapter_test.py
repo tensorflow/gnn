@@ -214,8 +214,6 @@ class PygAdapterHeterogeneousTest(PygAdapterTest):
     -with 2 edge types with edge attrs of dimention 11
     -node classification task
     """
-    # TODO: b/306424167 - Debug the cause of these failures and re-enable tests
-    self.skipTest('Skipping to unblock submissions elsewhere')
     dataset_synthetic = tg_datasets.FakeHeteroDataset(
         num_graphs=10,
         num_node_types=3,
@@ -250,8 +248,6 @@ class PygAdapterHeterogeneousTest(PygAdapterTest):
     -with 1 edge type with no edge_attrs
     -graph classification task
     """
-    # TODO: b/306424167 - Debug the cause of these failures and re-enable tests
-    self.skipTest('Skipping to unblock submissions elsewhere')
     dataset_synthetic = tg_datasets.FakeHeteroDataset(
         num_graphs=1,
         num_node_types=1,
@@ -284,8 +280,6 @@ class PygAdapterHeterogeneousTest(PygAdapterTest):
     -with 3 node types
     -with 2 edge types with no edge_attrs
     """
-    # TODO: b/306424167 - Debug the cause of these failures and re-enable tests
-    self.skipTest('Skipping to unblock submissions elsewhere')
     dataset_synthetic = tg_datasets.FakeHeteroDataset(
         num_graphs=1,
         num_node_types=3,
@@ -315,8 +309,6 @@ class PygAdapterHeterogeneousTest(PygAdapterTest):
     -with 5 edge types with edge attrs of dimension 4
     -graph classification task
     """
-    # TODO: b/306424167 - Debug the cause of these failures and re-enable tests
-    self.skipTest('Skipping to unblock submissions elsewhere')
     dataset_synthetic = tg_datasets.FakeHeteroDataset(
         num_graphs=3,
         num_node_types=4,

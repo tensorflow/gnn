@@ -199,13 +199,24 @@ def _extract_features_heterogeneous(
               edge_data[edge_piece].numpy()
           )
 
-    for context_feature in graph_map.keys():
-      if len(graph_map[context_feature]) == 1:
+    # The behavior of "HeteroData.to_dict" changes across PyG versions.
+    # Before 2.4.0, the output `dict` has node_types, edge_types, and
+    # whatever keys remain in '_global_store'.
+    # In 2.4.0 and later, the '_global_store' is itself an element in the
+    # returned dict.
+    # This switch is necessary to make this code compatible across versions.
+    if '_global_store' in graph_map:
+      context_dict = graph_map['_global_store']
+    else:
+      context_dict = graph_map
+
+    for context_feature in context_dict.keys():
+      if len(context_dict[context_feature]) == 1:
         context_features[context_feature].append(
-            graph_map[context_feature].numpy()
+            context_dict[context_feature].numpy()
         )
       else:
-        temp = graph_map[context_feature].numpy()
+        temp = context_dict[context_feature].numpy()
         context_features[context_feature].append(np.expand_dims(temp, axis=0))
 
   graph_info = GraphInfo(
