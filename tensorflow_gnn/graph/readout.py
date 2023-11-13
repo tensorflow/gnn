@@ -249,7 +249,7 @@ def structured_readout(
   # readout node set.
   # The code below uses sum-pooling along each edge set and adds the results,
   # which aligns with standard GNN operations but requires a numeric dtype.
-  # TODO(b/269076334): Support all dtypes, notably string. Options include:
+  # TODO(b/310589444): Support all dtypes, notably string. Options include:
   # - Concat target indices, argsort, and gather.
   # - Chain tf.tensor_scatter_nd_update() calls.
   dtypes = {value.dtype for value in broadcast_values.values()}
@@ -261,7 +261,7 @@ def structured_readout(
   dtype = dtypes.pop()
   if not (dtype.is_floating or dtype.is_integer):
     raise NotImplementedError(
-        "b/269076334: structured_readout() from multiple sources does not "
+        "b/310589444: structured_readout() from multiple sources does not "
         "support non-numeric dtypes yet, because it relies on sum-pooling.")
 
   pooled_values = [
