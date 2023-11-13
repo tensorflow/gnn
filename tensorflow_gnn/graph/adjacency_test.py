@@ -218,6 +218,29 @@ class HyperAdjacencyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(
         original.relax(num_edges=True).relax(num_edges=True), expected)
 
+  @parameterized.named_parameters([
+      dict(
+          testcase_name='rank-0', index=as_tensor([0, 1, 2]), expected_result=3
+      ),
+      dict(
+          testcase_name='rank-1',
+          index=tf.ragged.constant([[0, 1], [0], []]),
+          expected_result=[2, 1, 0],
+      ),
+      dict(
+          testcase_name='rank-2',
+          index=tf.RaggedTensor.from_uniform_row_length(
+              tf.ragged.constant([[0], [0, 1], [], [0], [], []]), 3
+          ),
+          expected_result=[[1, 2, 0], [1, 0, 0]],
+      ),
+  ])
+  def testNumItems(self, index, expected_result):
+    adj = adjacency.HyperAdjacency.from_indices(
+        {0: ('a', index), 1: ('b', index), 2: ('c', index)}
+    )
+    self.assertAllEqual(adj._get_num_items(), expected_result)
+
 
 class AdjacencyTest(tf.test.TestCase, parameterized.TestCase):
 
@@ -348,6 +371,28 @@ class AdjacencyTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(original.relax(num_edges=True), expected)
     self.assertEqual(
         original.relax(num_edges=True).relax(num_edges=True), expected)
+
+  @parameterized.named_parameters([
+      dict(testcase_name='rank-0', index=as_tensor([0, 1]), expected_result=2),
+      dict(
+          testcase_name='rank-1',
+          index=tf.ragged.constant([[0, 1], [0]]),
+          expected_result=[2, 1],
+      ),
+      dict(
+          testcase_name='rank-2',
+          index=tf.RaggedTensor.from_uniform_row_length(
+              tf.ragged.constant([[0], [0, 1], [], [0]]), 2
+          ),
+          expected_result=[[1, 2], [0, 1]],
+      ),
+  ])
+  def testNumItems(self, index, expected_result):
+    adj = adjacency.Adjacency.from_indices(
+        source=('a', index), target=('b', index)
+    )
+    self.assertAllEqual(adj._get_num_items(), expected_result)
+
 
 if __name__ == '__main__':
   tf.test.main()

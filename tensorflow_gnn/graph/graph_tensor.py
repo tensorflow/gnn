@@ -137,6 +137,7 @@ class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
   ) -> '_GraphPieceWithFeatures':
     """Constructs graph piece from features and component sizes."""
     assert isinstance(features, Mapping)
+
     sizes = gp.convert_to_tensor_or_ragged(sizes)
     gp.check_indices_dtype(sizes.dtype, what='`sizes`')
 
@@ -179,6 +180,38 @@ class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
       _static_check_sizes(result.sizes, result.shape.rank)
       _static_check_items_dim(result.features, result.shape.rank)
 
+    if validate and result.features and const.validate_graph_tensor_inputs:
+      # pylint: disable=protected-access
+      expected_num_items = result._get_num_items()
+      result_shape = tf.shape(expected_num_items, result.indices_dtype)
+      check_ops = []
+
+      for name, feat in result._get_features_ref.items():
+        check_ops.append(
+            tf.debugging.assert_equal(
+                utils.get_num_items(feat, result_shape),
+                expected_num_items,
+                message=(
+                    f'The number of graph items for feature {name} is'
+                    ' incompatible with piece `sizes`. The number of items for'
+                    ' each graph dimension must be equal to the'
+                    ' `tf.reduce_sum(sizes, -1)`'
+                ),
+            )
+        )
+      with tf.control_dependencies(check_ops):
+        result = tf.identity(result)
+
+    return result
+
+  def _get_num_items(self) -> tf.Tensor:
+    result = getattr(self, '_num_items', None)
+    if result is not None:
+      return result
+
+    result = tf.reduce_sum(self.sizes, axis=-1)
+    assert isinstance(result, tf.Tensor)
+    setattr(self, '_num_items', result)
     return result
 
   def get_features_dict(self) -> Dict[FieldName, Field]:
@@ -721,9 +754,34 @@ class EdgeSet(_NodeOrEdgeSet):
 
     if features is None:
       features = {}
-    return cls._from_features_and_sizes(
+
+    result = cls._from_features_and_sizes(
         features=features, sizes=sizes, adjacency=adjacency, validate=validate
     )
+
+    if validate and const.validate_graph_tensor_inputs:
+      expected_num_items = result._get_num_items()  # pylint: disable=protected-access
+      # NOTE: we cast number of items in adjacency to expected_num_items.dtype
+      # for the case when `const.allow_indices_auto_casting` is disabled. This
+      # results in no-op if actual types are the same.
+      check_ops = [
+          tf.debugging.assert_equal(
+              tf.cast(
+                  result.adjacency._get_num_items(),  # pylint: disable=protected-access
+                  expected_num_items.dtype,
+              ),
+              expected_num_items,
+              message=(
+                  'Adjacency has number of edges which is incompatible with'
+                  ' EdgeSet `sizes`. The number of edges for each graph'
+                  ' dimension must be equal to the `tf.reduce_sum(sizes, -1)`'
+              ),
+          )
+      ]
+      with tf.control_dependencies(check_ops):
+        result = tf.identity(result)
+
+    return result
 
   @property
   def adjacency(self) -> Adjacency:
@@ -1113,10 +1171,8 @@ class GraphTensor(gp.GraphPieceBase):
       return self
 
     def num_elements(node_or_edge_set) -> tf.Tensor:
-      sizes = node_or_edge_set.sizes
-      sizes = tf.math.reduce_sum(sizes, axis=-1)
-      assert isinstance(sizes, tf.Tensor)
-      return tf.reshape(sizes, [-1])
+      # pylint: disable=protected-access
+      return tf.reshape(node_or_edge_set._get_num_items(), [-1])
 
     def edge_set_merge_batch_to_components(edge_set: EdgeSet) -> EdgeSet:
       return edge_set._merge_batch_to_components(  # pylint: disable=protected-access

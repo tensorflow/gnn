@@ -525,6 +525,59 @@ def short_repr(value: Value) -> str:
     return repr(value)
 
 
+def get_num_items(field: Value, graph_shape: tf.Tensor) -> tf.Tensor:
+  """Returns the number of items for each graph in a GraphTensor.
+
+  Args:
+    field: tensor with shape `[*graph_shape, num_items, *feature_shape]`,
+      possibly ragged.
+    graph_shape: rank-1 tensor with the graph shape.
+
+  Returns:
+    The number of items in `field` for each graph in its GraphTensor,
+    as dense tensor with a shape `[*graph_shape]`.
+  """
+  if graph_shape.shape.rank != 1:
+    raise ValueError(
+        f'graph_shape must have rank=1, got {graph_shape.shape.rank}'
+    )
+
+  graph_rank = graph_shape.shape[0]
+  if graph_rank is None:
+    raise ValueError('graph_shape tensor must have fully defined shape')
+
+  if field.shape.rank <= graph_rank:
+    raise ValueError(
+        f'Expected that value rank={field.shape.rank} is greater than'
+        f' graph rank={graph_rank}'
+    )
+
+  def _get_num_items_flat(value, dim, dtype) -> tf.Tensor:
+    """Retuns num items, as a scalar if uniform or a flat vector if not."""
+    if is_dense_tensor(value):
+      return tf.shape(value, out_type=dtype)[dim]
+    elif is_ragged_tensor(value):
+      if dim == 0:
+        return tf.size(value.row_splits, out_type=dtype) - tf.constant(
+            1, dtype=dtype
+        )
+      elif dim == 1:
+        if value.uniform_row_length is not None:
+          return tf.cast(value.uniform_row_length, dtype=dtype)
+        else:
+          return tf.cast(value.row_lengths(), dtype=dtype)
+      else:
+        return _get_num_items_flat(value.values, dim - 1, dtype=dtype)
+    else:
+      raise ValueError(f'Unsupported type {type(value).__name__}')
+
+  num_items = _get_num_items_flat(field, graph_rank, dtype=graph_shape.dtype)
+  if num_items.shape.rank == 0:
+    return tf.fill(graph_shape, num_items)
+  else:
+    return tf.reshape(num_items, graph_shape)
+
+
 def short_features_repr(features: Mapping[str, Value]) -> str:
   return ('{' + ', '.join(f"'{key}': {short_repr(value)}"
                           for key, value in features.items()) + '}')

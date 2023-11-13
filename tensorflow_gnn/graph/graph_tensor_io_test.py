@@ -507,6 +507,9 @@ class TfExampleParsingFromSchemaTest(TfExampleParsingTestBase):
                 'nodes/node.b': tf.train.Feature(
                     int64_list=tf.train.Int64List(value=[value])
                 ),
+                'nodes/node.#size': tf.train.Feature(
+                    int64_list=tf.train.Int64List(value=[1])
+                ),
             }
         )
     )

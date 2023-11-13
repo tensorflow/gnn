@@ -351,5 +351,83 @@ class RaggedShuffleTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(distr[5:], [0., 0., 0., 0.])
 
 
+class NumItemsTest(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      (
+          'EmptyScalar',
+          as_tensor([], tf.float32),
+          as_tensor([], tf.int32),
+          as_tensor(0, tf.int32),
+      ),
+      (
+          'EmptyVector',
+          tf.constant([], dtype=tf.int32, shape=[0, 2]),
+          as_tensor([], tf.int32),
+          as_tensor(0, tf.int32),
+      ),
+      (
+          'EmptyRagged',
+          as_ragged([], dtype=tf.float32, ragged_rank=1),
+          as_tensor([], tf.int32),
+          as_tensor(0, tf.int32),
+      ),
+      (
+          'Rank0Scalar',
+          as_tensor([1.0, 2.0, 3.0]),
+          as_tensor([], tf.int32),
+          as_tensor(3, tf.int32),
+      ),
+      (
+          'Rank0Vector',
+          as_tensor([[1, 0], [2, 0], [3, 0], [4, 0]]),
+          as_tensor([], tf.int32),
+          as_tensor(4, tf.int32),
+      ),
+      (
+          'Rank0Ragged',
+          as_ragged([[], [[1, 2], [3]], [[4]]]),
+          as_tensor([], tf.int64),
+          as_tensor(3, tf.int64),
+      ),
+      (
+          'Rank1Dense',
+          tf.zeros([3, 4, 5]),
+          as_tensor([3], tf.int64),
+          as_tensor([4, 4, 4], tf.int64),
+      ),
+      (
+          'Rank1Ragged',
+          as_ragged([[1, 2], [3, 4, 5], [], [6]]),
+          as_tensor([4], tf.int64),
+          as_tensor([2, 3, 0, 1], tf.int64),
+      ),
+      (
+          'Rank1Ragged2',
+          as_ragged([[[1], [2]], [[3], [], [4]]]),
+          as_tensor([2], tf.int64),
+          as_tensor([2, 3], tf.int64),
+      ),
+      (
+          'Rank2Dense',
+          tf.zeros([3, 2, 5]),
+          as_tensor([3, 2], tf.int64),
+          as_tensor([[5, 5], [5, 5], [5, 5]], tf.int64),
+      ),
+      (
+          'Rank2Ragged',
+          tf.RaggedTensor.from_uniform_row_length(
+              as_ragged([[], [0], [], [0, 1], [], [0, 1, 2]]), 2
+          ),
+          as_tensor([3, 2], tf.int64),
+          as_tensor([[0, 1], [0, 2], [0, 3]], tf.int64),
+      ),
+  )
+  def test(self, value, shape, expected_result):
+    actual_result = utils.get_num_items(value, shape)
+    self.assertEqual(actual_result.dtype, expected_result.dtype)
+    self.assertAllEqual(actual_result, expected_result)
+
+
 if __name__ == '__main__':
   tf.test.main()

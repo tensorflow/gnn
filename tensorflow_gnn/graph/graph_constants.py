@@ -125,12 +125,19 @@ DEFAULT_STATE_NAME = HIDDEN_STATE
 
 
 def disable_graph_tensor_inputs_validation():
-  """Disables validation of `GraphTensor` inputs."""
+  """Workaround that disables some constitency checks for graph tensor inputs.
+
+  This is temporary workaround for the legacy code (before TF-GNN 1.0 release)
+  that may rely on the inconsistent number of graph tensor items and allowed
+  edges with adjaceny indices for non-existing nodes.
+
+  DO NOT USE.
+  """
   global validate_graph_tensor_inputs
   validate_graph_tensor_inputs = False
 
 
 def enable_graph_tensor_inputs_validation():
-  """Enables validation for `GraphTensor` inputs."""
+  """Reverts `disable_graph_tensor_inputs_validation()`."""
   global validate_graph_tensor_inputs
   validate_graph_tensor_inputs = True

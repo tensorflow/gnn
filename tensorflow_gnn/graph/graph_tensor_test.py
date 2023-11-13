@@ -674,6 +674,152 @@ class ReplaceFeaturesTest(tu.GraphTensorTestBase):
       })
 
 
+class NumItemsTest(tu.GraphTensorTestBase):
+
+  def testContext(self):
+    self.assertAllEqual(
+        gt.Context.from_fields(
+            features={'a': as_tensor([1, 2, 3, 4])}
+        )._get_num_items(),
+        4,
+    )
+    self.assertAllEqual(
+        gt.Context.from_fields(
+            sizes=as_tensor([[1], [1]])
+        )._get_num_items(),
+        [1, 1],
+    )
+
+  def testNodeSet(self):
+    self.assertAllEqual(
+        gt.NodeSet.from_fields(
+            features={'a': as_tensor([1.0, 2.0])}, sizes=as_tensor([2])
+        )._get_num_items(),
+        2,
+    )
+
+    self.assertAllEqual(
+        gt.NodeSet.from_fields(
+            features={'r': as_ragged([[1.0, 2.0], [3.0]])},
+            sizes=as_ragged([[1, 1], [1]]),
+        )._get_num_items(),
+        [2, 1],
+    )
+
+  def testEdgeSet(self):
+    self.assertAllEqual(
+        gt.EdgeSet.from_fields(
+            sizes=tf.constant([2]),
+            adjacency=adj.Adjacency.from_indices(
+                source=(const.NODES, tf.constant([0, 3])),
+                target=(const.NODES, tf.constant([1, 2])),
+            ),
+        )._get_num_items(),
+        2,
+    )
+
+    self.assertAllEqual(
+        gt.EdgeSet.from_fields(
+            features={'weight': as_ragged([[1.0, 2.0], [3.0]])},
+            sizes=as_tensor([[2], [1]]),
+            adjacency=adj.Adjacency.from_indices(
+                source=('a', as_ragged([[0, 1], [0]])),
+                target=('b', as_ragged([[1, 2], [0]])),
+            ),
+        )._get_num_items(),
+        [2, 1],
+    )
+
+  @parameterized.parameters(
+      (as_tensor([1]), as_tensor([1, 2])),
+      (as_tensor([1]), as_tensor([], dtype=tf.int32)),
+      (as_tensor([2]), as_tensor([1])),
+  )
+  def testRaisesOnInvalidContextInput(self, sizes, feat):
+    @tf.function(
+        input_signature=[
+            tf.TensorSpec(shape=[None], dtype=tf.int32),
+            tf.TensorSpec(shape=[None], dtype=tf.int32),
+        ]
+    )
+    def create(sizes, feat):
+      return gt.Context.from_fields(features={'foo': feat}, sizes=sizes)
+
+    with self.assertRaisesRegex(
+        tf.errors.InvalidArgumentError,
+        'The number of graph items for feature foo is incompatible with piece'
+        ' `sizes`',
+    ):
+      create(sizes, feat)
+
+  @parameterized.parameters(
+      (as_tensor([1]), as_ragged([[1.0, 2.0], [3.0]])),
+      (as_tensor([2]), as_ragged([[]])),
+  )
+  def testRaisesOnInvalidRank0NodeSetInput(self, sizes, feat):
+    @tf.function(
+        input_signature=[
+            tf.TensorSpec(shape=[None], dtype=tf.int32),
+            tf.RaggedTensorSpec(shape=[None, None], dtype=tf.float32),
+        ]
+    )
+    def create(sizes, feat):
+      return gt.NodeSet.from_fields(features={'bar': feat}, sizes=sizes)
+
+    with self.assertRaisesRegex(
+        tf.errors.InvalidArgumentError,
+        'The number of graph items for feature bar is incompatible with piece'
+        ' `sizes`',
+    ):
+      create(sizes, feat)
+
+  @parameterized.parameters(
+      (as_tensor([[1], [1]]), as_ragged([[1.0, 2.0], [3.0]])),
+      (as_tensor([[2], [1]]), as_ragged([[1.0], [2.0]])),
+  )
+  def testRaisesOnInvalidRank1NodeSetInput(self, sizes, feat):
+    @tf.function(
+        input_signature=[
+            tf.TensorSpec(shape=[None, 1], dtype=tf.int32),
+            tf.RaggedTensorSpec(shape=[None, None], dtype=tf.float32),
+        ]
+    )
+    def create(sizes, feat):
+      return gt.NodeSet.from_fields(features={'bar': feat}, sizes=sizes)
+
+    with self.assertRaisesRegex(
+        tf.errors.InvalidArgumentError,
+        'The number of graph items for feature bar is incompatible with piece'
+        ' `sizes`',
+    ):
+      create(sizes, feat)
+
+  @parameterized.parameters(
+      (as_tensor([1], tf.int64), as_tensor([1, 2, 3], tf.int64)),
+      (as_tensor([3], tf.int64), as_tensor([1], tf.int64)),
+      (as_tensor([0], tf.int64), as_tensor([1], tf.int64)),
+  )
+  def testRaisesOnInvalidRank0EdgeSetInput(self, sizes, indices):
+    @tf.function(
+        input_signature=[
+            tf.TensorSpec(shape=[None], dtype=tf.int64),
+            tf.TensorSpec(shape=[None], dtype=tf.int64),
+        ]
+    )
+    def create(szies, indices):
+      return gt.EdgeSet.from_fields(
+          sizes=szies,
+          adjacency=adj.Adjacency.from_indices(('a', indices), ('b', indices)),
+      )
+
+    with self.assertRaisesRegex(
+        tf.errors.InvalidArgumentError,
+        'Adjacency has number of edges which is incompatible with EdgeSet'
+        ' `sizes`',
+    ):
+      create(sizes, indices)
+
+
 class RemoveFeaturesTest(tu.GraphTensorTestBase):
   """Tests for remove_features()."""
 

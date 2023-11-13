@@ -201,6 +201,18 @@ class HyperAdjacency(gp.GraphPieceBase):
     }
     return self.__class__(new_data, flat_adj.spec)
 
+  def _get_num_items(self) -> tf.Tensor:
+    result = getattr(self, '_num_items', None)
+    if result is not None:
+      return result
+
+    indicative_index_tensor = _get_indicative_index(self._data)
+    result = utils.get_num_items(
+        indicative_index_tensor, gp.get_shape_tensor(self)
+    )
+    setattr(self, '_num_items', result)
+    return result
+
   @staticmethod
   def _type_spec_cls():
     return HyperAdjacencySpec
