@@ -612,11 +612,20 @@ class ConstraintsForStaticBatchTest(ConstraintsTestBase):
 
     def generator(index) -> gt.GraphTensor:
       num_edges = index % (1 + max_ab_edges) if var_num_edges else max_ab_edges
+      min_num_nodes = tf.where(
+          num_edges > 0,
+          tf.constant(1, index.dtype),
+          tf.constant(0, index.dtype),
+      )
+      num_a_nodes = (min_a_nodes + (index * 17 + 53) % (max_a_var + 1))
+      num_a_nodes = tf.maximum(num_a_nodes, min_num_nodes)
+      num_b_nodes = (min_b_nodes + (index * 53 + 19) % (max_b_var + 1))
+      num_b_nodes = tf.maximum(num_b_nodes, min_num_nodes)
       return _gt_from_sizes(
           SizeConstraints(
               1, {
-                  'a': (min_a_nodes + (index * 17 + 53) % (max_a_var + 1)),
-                  'b': (min_b_nodes + (index * 53 + 19) % (max_b_var + 1)),
+                  'a': num_a_nodes,
+                  'b': num_b_nodes,
               }, {'a->b': num_edges}))
 
     ds = tf.data.Dataset.range(sample_size).shuffle(sample_size)

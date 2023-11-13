@@ -1201,23 +1201,23 @@ class EdgeMaskingTest(tf.test.TestCase, parameterized.TestCase):
   def testNonExistent(self):
     graph = gt.GraphTensor.from_pieces(
         node_sets={
-            'nodes':
-                gt.NodeSet.from_fields(
-                    features={'f': as_tensor([1., 2.])}, sizes=as_tensor([2])),
+            'a': gt.NodeSet.from_fields(sizes=as_tensor([2])),
+            'b': gt.NodeSet.from_fields(sizes=as_tensor([5])),
         },
         edge_sets={
-            'edges':
-                gt.EdgeSet.from_fields(
-                    features={
-                        'f': as_tensor([1., 2., 3.]),
-                        'r': as_ragged([[4., 5.], [], [1., 2., 3.]])
-                    },
-                    sizes=as_tensor([3]),
-                    adjacency=adj.Adjacency.from_indices(
-                        ('a', as_tensor([0, 1, 1])),
-                        ('b', as_tensor([0, 1, 3])),
-                    )),
-        })
+            'edges': gt.EdgeSet.from_fields(
+                features={
+                    'f': as_tensor([1.0, 2.0, 3.0]),
+                    'r': as_ragged([[4.0, 5.0], [], [1.0, 2.0, 3.0]]),
+                },
+                sizes=as_tensor([3]),
+                adjacency=adj.Adjacency.from_indices(
+                    ('a', as_tensor([0, 1, 1])),
+                    ('b', as_tensor([0, 1, 3])),
+                ),
+            ),
+        },
+    )
     with self.assertRaisesRegex(
         ValueError,
         r'Please ensure edge_set_name: a->b exists as an edge-set.*'):
@@ -1226,23 +1226,25 @@ class EdgeMaskingTest(tf.test.TestCase, parameterized.TestCase):
   def testError(self):
     graph = gt.GraphTensor.from_pieces(
         node_sets={
-            'nodes':
-                gt.NodeSet.from_fields(
-                    features={'f': as_tensor([1., 2.])}, sizes=as_tensor([2])),
+            'a': gt.NodeSet.from_fields(
+                features={'f': as_tensor([1.0, 2.0])}, sizes=as_tensor([2])
+            ),
+            'b': gt.NodeSet.from_fields(sizes=as_tensor([4])),
         },
         edge_sets={
-            'edges':
-                gt.EdgeSet.from_fields(
-                    features={
-                        'f': as_tensor([1., 2., 3.]),
-                        'r': as_ragged([[4., 5.], [], [1., 2., 3.]])
-                    },
-                    sizes=as_tensor([3]),
-                    adjacency=adj.Adjacency.from_indices(
-                        ('a', as_tensor([0, 1, 1])),
-                        ('b', as_tensor([0, 1, 3])),
-                    )),
-        })
+            'edges': gt.EdgeSet.from_fields(
+                features={
+                    'f': as_tensor([1.0, 2.0, 3.0]),
+                    'r': as_ragged([[4.0, 5.0], [], [1.0, 2.0, 3.0]]),
+                },
+                sizes=as_tensor([3]),
+                adjacency=adj.Adjacency.from_indices(
+                    ('a', as_tensor([0, 1, 1])),
+                    ('b', as_tensor([0, 1, 3])),
+                ),
+            ),
+        },
+    )
     with self.assertRaisesRegex(
         tf.errors.InvalidArgumentError,
         r'boolean_edge_mask should have the same shape with the adjacency.*'):
@@ -1579,6 +1581,7 @@ class LineGraphTest(tf.test.TestCase, parameterized.TestCase):
         context=graph_tensor.context,
         node_sets=node_sets,
         edge_sets=graph_tensor.edge_sets,
+        validate=False
     )
     with self.assertRaises(ValueError):
       ops.convert_to_line_graph(graph_tensor)
