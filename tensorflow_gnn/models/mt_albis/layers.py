@@ -254,12 +254,9 @@ def MtAlbisGraphUpdate(  # To be called like a class initializer.  pylint: disab
     edge_dropout_rate: float = 0.0,
     l2_regularization: float = 0.0,
     kernel_initializer: Any = "glorot_uniform",
-    # TODO(b/265755923): Should normalization_type apply to Convs, too?
-    # TODO(b/265755923): Relative order of relu, dropout and normalization.
     normalization_type: Literal["layer", "batch", "none"] = "layer",
     batch_normalization_momentum: float = 0.99,
     next_state_type: Literal["dense", "residual"] = "dense",
-    # TODO(b/265755968): Support "mean", maybe retire "sum".
     edge_set_combine_type: Literal["concat", "sum"] = "concat"
     # LINT.ThenChange(./config_dict.py:graph_update_get_config_dict)
 ) -> tf.keras.layers.Layer:
