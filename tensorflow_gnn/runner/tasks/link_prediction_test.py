@@ -27,6 +27,7 @@ def _get_graph_tensor(
     readout_ns_name='_readout',
     readout_src_es_names=('_readout/source', 'nodes1', '_readout'),
     readout_tgt_es_names=('_readout/target', 'nodes2', '_readout'),
+    validate=True
     ) -> tfgnn.GraphTensor:
   return tfgnn.GraphTensor.from_pieces(
       node_sets={
@@ -87,7 +88,7 @@ def _get_graph_tensor(
                   target=(readout_tgt_es_names[2], [0, 1]))
               #           ^ should be "_readout"
           ),
-      })
+      }, validate=validate)
 
 
 class LinkPredictionTest(tf.test.TestCase, parameterized.TestCase):
@@ -146,7 +147,7 @@ class LinkPredictionTest(tf.test.TestCase, parameterized.TestCase):
   ])
   def test_preprocess_fails_on_invalid_input(self, **kwargs):
     task = link_prediction.DotProductLinkPrediction()
-    gt = _get_graph_tensor(**kwargs)
+    gt = _get_graph_tensor(**kwargs, validate=False)
     self.assertRaises(ValueError, functools.partial(task.preprocess, gt))
 
 
