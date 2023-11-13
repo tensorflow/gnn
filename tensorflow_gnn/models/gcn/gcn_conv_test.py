@@ -193,9 +193,19 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
             tfgnn.NODES: tfgnn.NodeSet.from_fields(
                 sizes=[2],
                 features={
-                    tfgnn.HIDDEN_STATE: tf.constant([[1.0, 0, 0], [0, 1, 0]])
+                    tfgnn.HIDDEN_STATE: tf.constant(
+                        [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]
+                    )
                 },
-            )
+            ),
+            'antinodes': tfgnn.NodeSet.from_fields(
+                sizes=[2],
+                features={
+                    tfgnn.HIDDEN_STATE: tf.constant(
+                        [[0.0, 1.0, 1.0], [1.0, 0.0, 1.0]]
+                    )
+                },
+            ),
         },
         edge_sets={
             tfgnn.EDGES: tfgnn.EdgeSet.from_fields(
