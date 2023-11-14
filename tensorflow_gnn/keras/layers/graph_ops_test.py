@@ -651,7 +651,7 @@ class _MakeGraphTensorStructuredReadout(tf.keras.layers.Layer):
             sizes=tf.constant([2]),
             adjacency=adj.Adjacency.from_indices(
                 ("users", tf.constant([1, 2])),
-                ("items", tf.constant([0, 3]))))}
+                ("items", tf.constant([0, 2]))))}
 
     if self.readout_node_set is not None:
       node_sets[self.readout_node_set] = gt.NodeSet.from_fields(

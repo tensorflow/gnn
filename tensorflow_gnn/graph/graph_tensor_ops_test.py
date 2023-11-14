@@ -1561,31 +1561,6 @@ class LineGraphTest(tf.test.TestCase, parameterized.TestCase):
         graph_tensor.edge_sets['ba'].adjacency[const.TARGET],
     )
 
-  def testAuxiliaryNodeSetError(self):
-    graph_tensor = self._make_test_graph(add_readout=True)
-    edge_sets = dict(graph_tensor.edge_sets)
-    del edge_sets['_readout/testE']
-    graph_tensor = gt.GraphTensor.from_pieces(
-        context=graph_tensor.context,
-        node_sets=graph_tensor.node_sets,
-        edge_sets=edge_sets,
-    )
-    with self.assertRaises(ValueError):
-      ops.convert_to_line_graph(graph_tensor)
-
-  def testAuxiliaryEdgeSetError(self):
-    graph_tensor = self._make_test_graph(add_readout=True)
-    node_sets = dict(graph_tensor.node_sets)
-    del node_sets['_readout']
-    graph_tensor = gt.GraphTensor.from_pieces(
-        context=graph_tensor.context,
-        node_sets=node_sets,
-        edge_sets=graph_tensor.edge_sets,
-        validate=False
-    )
-    with self.assertRaises(ValueError):
-      ops.convert_to_line_graph(graph_tensor)
-
   def testNoAuxiliaryLineGraph(self):
     graph_tensor = self._make_test_graph(add_readout=True)
     line_graph = ops.convert_to_line_graph(
@@ -1669,6 +1644,41 @@ class LineGraphTest(tf.test.TestCase, parameterized.TestCase):
     signature_runner = interpreter.get_signature_runner('serving_default')
     obtained = signature_runner(**test_graph_dict)['final_edge_adjacency']
     self.assertAllEqual(expected, obtained)
+
+
+class LineGraphValidationTest(tf.test.TestCase, parameterized.TestCase):
+
+  def testAuxiliaryNodeSetError(self):
+    graph_tensor = _MakeGraphTensor()({'fa': tf.range(10)})
+    graph_tensor = gt.GraphTensor.from_pieces(
+        context=graph_tensor.context,
+        node_sets={
+            **{'_readout': gt.NodeSet.from_fields(sizes=[1, 1])},
+            **graph_tensor.node_sets},
+        edge_sets=graph_tensor.edge_sets,
+    )
+    with self.assertRaises(ValueError):
+      ops.convert_to_line_graph(graph_tensor)
+
+  def testAuxiliaryEdgeSetError(self):
+    graph_tensor = _MakeGraphTensor()({'fa': tf.range(10)})
+    graph_tensor = gt.GraphTensor.from_pieces(
+        context=graph_tensor.context,
+        node_sets=graph_tensor.node_sets,
+        edge_sets={
+            **{
+                '_aux': gt.EdgeSet.from_fields(
+                    sizes=[1, 1],
+                    adjacency=adj.Adjacency.from_indices(
+                        ('a', [0, 0]), ('b', [0, 0])
+                    ),
+                )
+            },
+            **graph_tensor.edge_sets,
+        },
+    )
+    with self.assertRaises(ValueError):
+      ops.convert_to_line_graph(graph_tensor)
 
 
 class PoolNeighborsToNodeTest(tf.test.TestCase, parameterized.TestCase):

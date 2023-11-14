@@ -690,6 +690,8 @@ class TfExampleParsingFromSchemaTest(TfExampleParsingTestBase):
       dict(
           description='context dense features parsing',
           schema_pbtxt=r"""
+          node_sets { key: "node.a" }
+          node_sets { key: "node.b" }
           edge_sets {
             key: "edge"
             value {
@@ -707,12 +709,16 @@ class TfExampleParsingFromSchemaTest(TfExampleParsingTestBase):
           features {
           }""", r"""
           features {
+            feature {key: "nodes/node.a.#size" value {int64_list {value: [1] } } }
+            feature {key: "nodes/node.b.#size" value {int64_list {value: [1] } } }
             feature {key: "edges/edge.#size" value {int64_list {value: [1] } } }
             feature {key: "edges/edge.#source" value {int64_list {value: [0] } } }
             feature {key: "edges/edge.#target" value {int64_list {value: [0] } } }
             feature {key: "edges/edge.id" value {bytes_list {value: ['e.2.1'] } } }
           }""", r"""
           features {
+            feature {key: "nodes/node.a.#size" value {int64_list {value: [3] } } }
+            feature {key: "nodes/node.b.#size" value {int64_list {value: [3] } } }
             feature {key: "edges/edge.#size" value {int64_list {value: [2] } } }
             feature {key: "edges/edge.#source" value {int64_list {value: [0, 1] } } }
             feature {key: "edges/edge.#target" value {int64_list {value: [1, 0] } } }

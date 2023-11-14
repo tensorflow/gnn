@@ -476,16 +476,21 @@ class GraphConstraintsTest(tf.test.TestCase):
             'n': gt.NodeSet.from_fields(
                 features={'f': as_tensor(['a', 'b', 'c', 'd'])},
                 sizes=as_tensor([4]),
-                validate=False)},
+                validate=False,
+            )
+        },
         edge_sets={
             'e': gt.EdgeSet.from_fields(
                 features={'w': as_tensor([3, 4, 5])},
                 sizes=as_tensor([2]),
                 adjacency=adj.Adjacency.from_indices(
-                    ('n', as_tensor(source)),
-                    ('n', as_tensor(target))),
-                validate=False
-                )})
+                    ('n', as_tensor(source)), ('n', as_tensor(target))
+                ),
+                validate=False,
+            )
+        },
+        validate=False,
+    )
 
   def test_assert_constraints_edge_indices_range_valid(self):
     testgraph = self._create_test_graph_with_indices([0, 3], [0, 3])

@@ -240,10 +240,10 @@ class CreationTest(tu.GraphTensorTestBase):
         node_sets={
             'a':
                 gt.NodeSet.from_fields(
-                    features={}, sizes=as_tensor([[1], [1]])),
+                    features={}, sizes=as_tensor([[2], [1]])),
             'b':
                 gt.NodeSet.from_fields(
-                    features={}, sizes=as_tensor([[2], [1]])),
+                    features={}, sizes=as_tensor([[3], [1]])),
         },
         edge_sets={
             'a->b':
@@ -268,8 +268,8 @@ class CreationTest(tu.GraphTensorTestBase):
     self.assertEqual(result.node_sets['b'].shape, [2])
 
     self.assertAllEqual(result.context['label'], [['X'], ['Y']])
-    self.assertAllEqual(result.node_sets['a'].sizes, [[1], [1]])
-    self.assertAllEqual(result.node_sets['b'].sizes, [[2], [1]])
+    self.assertAllEqual(result.node_sets['a'].sizes, [[2], [1]])
+    self.assertAllEqual(result.node_sets['b'].sizes, [[3], [1]])
     self.assertAllEqual(result.edge_sets['a->b'].sizes, [[2], [1]])
     self.assertAllEqual(result.edge_sets['a->b']['weight'],
                         as_ragged([[1., 2.], [3.]]))
@@ -306,7 +306,7 @@ class CreationTest(tu.GraphTensorTestBase):
         node_sets={
             'n': gt.NodeSet.from_fields(
                 features={},
-                sizes=as_tensor([[1], [1]], dtype=indices_dtype),
+                sizes=as_tensor([[3], [1]], dtype=indices_dtype),
             ).with_row_splits_dtype(row_splits_dtype),
         },
         edge_sets={
@@ -314,7 +314,7 @@ class CreationTest(tu.GraphTensorTestBase):
                 sizes=as_tensor([[2], [1]], dtype=indices_dtype),
                 adjacency=adj.Adjacency.from_indices(
                     source=(
-                        'a',
+                        'n',
                         as_ragged(
                             [[0, 1], [0]],
                             dtype=indices_dtype,
@@ -322,7 +322,7 @@ class CreationTest(tu.GraphTensorTestBase):
                         ),
                     ),
                     target=(
-                        'b',
+                        'n',
                         as_ragged(
                             [[1, 2], [0]],
                             dtype=indices_dtype,
@@ -608,10 +608,10 @@ class ReplaceFeaturesTest(tu.GraphTensorTestBase):
         node_sets={
             'a':
                 gt.NodeSet.from_fields(
-                    features={}, sizes=as_tensor([[1], [1]])),
+                    features={}, sizes=as_tensor([[2], [1]])),
             'b':
                 gt.NodeSet.from_fields(
-                    features={}, sizes=as_tensor([[2], [1]])),
+                    features={}, sizes=as_tensor([[3], [1]])),
         },
         edge_sets={
             'a->b':
@@ -647,12 +647,12 @@ class ReplaceFeaturesTest(tu.GraphTensorTestBase):
 
     result3 = source.replace_features(
         node_sets={'a': {
-            'f': as_ragged([[0.], [0.]])
+            'f': as_ragged([[0., 0.], [0.]])
         }})
     self.assertAllEqual(list(result3.node_sets.keys()), ['a', 'b'])
     self.assertAllEqual(list(result3.edge_sets.keys()), ['a->b'])
     self.assertFieldsEqual(result3.node_sets['a'].features,
-                           {'f': as_ragged([[0.], [0.]])})
+                           {'f': as_ragged([[0., 0.], [0.]])})
     self.assertEmpty(result1.node_sets['b'].features)
 
     with self.assertRaisesWithLiteralMatch(
@@ -1158,7 +1158,13 @@ class TfFunctionTest(tf.test.TestCase, parameterized.TestCase):
     def concat(graph_a, graph_b):
       a, b = graph_a.edge_sets['edge'], graph_b.edge_sets['edge']
       join = lambda a, b: tf.concat([a, b], 0)
+      node_sizes = tf.maximum(graph_a.node_sets['node'].sizes,
+                              graph_b.node_sets['node'].sizes)
       return gt.GraphTensor.from_pieces(
+          node_sets={
+              'node':
+                  gt.NodeSet.from_fields(sizes=node_sizes)
+          },
           edge_sets={
               'edge':
                   gt.EdgeSet.from_fields(
@@ -1178,6 +1184,10 @@ class TfFunctionTest(tf.test.TestCase, parameterized.TestCase):
     def gen_graph(features):
       features = as_tensor(features)
       return gt.GraphTensor.from_pieces(
+          node_sets={
+              'node':
+                  gt.NodeSet.from_fields(sizes=[2])
+          },
           edge_sets={
               'edge':
                   gt.EdgeSet.from_fields(
@@ -1578,41 +1588,71 @@ class NumComponentsTest(tu.GraphTensorTestBase):
 
   @parameterized.parameters([
       dict(
-          features={},
-          sizes=as_tensor([2]),
-          adjacency=adj.HyperAdjacency.from_indices({
-              const.SOURCE: ('node', as_tensor([0, 1])),
-              const.TARGET: ('node', as_tensor([1, 2])),
-          }),
-          expected=1),
+          graph_tensor=gt.GraphTensor.from_pieces(
+              node_sets={
+                  'node': gt.NodeSet.from_fields(
+                      sizes=as_tensor([3]),
+                  )
+              },
+              edge_sets={
+                  'edge': gt.EdgeSet.from_fields(
+                      features={},
+                      sizes=as_tensor([2]),
+                      adjacency=adj.HyperAdjacency.from_indices({
+                          const.SOURCE: ('node', as_tensor([0, 1])),
+                          const.TARGET: ('node', as_tensor([1, 2])),
+                      }),
+                  )
+              },
+          ),
+          expected=1,
+      ),
       dict(
-          features={'a': as_ragged([[1., 2.], [3.]])},
-          sizes=as_ragged([[1, 1], [1]]),
-          adjacency=adj.HyperAdjacency.from_indices({
-              const.SOURCE: ('node.a', as_ragged([[0, 1], [0]])),
-              const.TARGET: ('node.b', as_ragged([[1, 2], [0]])),
-          }),
-          expected=[2, 1]),
+          graph_tensor=gt.GraphTensor.from_pieces(
+              node_sets={
+                  'node.a': gt.NodeSet.from_fields(
+                      sizes=as_ragged([[5, 5], [5]]),
+                  ),
+                  'node.b': gt.NodeSet.from_fields(
+                      sizes=as_ragged([[7, 7], [7]]),
+                  ),
+              },
+              edge_sets={
+                  'edge': gt.EdgeSet.from_fields(
+                      features={'a': as_ragged([[1.0, 2.0], [3.0]])},
+                      sizes=as_ragged([[1, 1], [1]]),
+                      adjacency=adj.HyperAdjacency.from_indices({
+                          const.SOURCE: (
+                              'node.a',
+                              as_ragged([[0, 1], [0]]),
+                          ),
+                          const.TARGET: (
+                              'node.b',
+                              as_ragged([[1, 2], [0]]),
+                          ),
+                      }),
+                  )
+              },
+          ),
+          expected=[2, 1],
+      ),
   ])
-  def testEdgeAndNodeSets(self, features, sizes, adjacency, expected):
-    node_set = gt.NodeSet.from_fields(features=features, sizes=sizes)
-    edge_set = gt.EdgeSet.from_fields(
-        features=features, sizes=sizes, adjacency=adjacency)
-
+  def testEdgeAndNodeSets(self, graph_tensor, expected):
     expected = as_tensor(expected)
     for case_index, piece in enumerate([
-        node_set, edge_set,
-        gt.GraphTensor.from_pieces(edge_sets={'edge': edge_set}),
-        gt.GraphTensor.from_pieces(node_sets={'node': node_set}),
-        gt.GraphTensor.from_pieces(
-            node_sets={'node': node_set}, edge_sets={'edge': edge_set})
+        *graph_tensor.node_sets.values(),
+        *graph_tensor.edge_sets.values(),
+        gt.GraphTensor.from_pieces(node_sets=graph_tensor.node_sets),
+        graph_tensor,
     ]):
       self.assertAllEqual(
-          piece.num_components, expected, msg=f'case_index={case_index}')
+          piece.num_components, expected, msg=f'case_index={case_index}'
+      )
       self.assertAllEqual(
           piece.total_num_components,
           tf.reduce_sum(expected),
-          msg=f'case_index={case_index}')
+          msg=f'case_index={case_index}',
+      )
 
   @parameterized.parameters([
       dict(features={}, sizes=as_tensor([], dtype=tf.int32), expected=0),
@@ -1882,15 +1922,15 @@ class AttributesSettersTest(tf.test.TestCase):
           features={'label': as_tensor([['X'], ['Y']])}
       ),
       node_sets={
-          'n': gt.NodeSet.from_fields(features={}, sizes=as_tensor([[1], [1]])),
+          'n': gt.NodeSet.from_fields(features={}, sizes=as_tensor([[3], [1]])),
       },
       edge_sets={
           'e': gt.EdgeSet.from_fields(
               features={'weight': as_ragged([[1.0, 2.0], [3.0]])},
               sizes=as_tensor([[2], [1]]),
               adjacency=adj.Adjacency.from_indices(
-                  source=('a', as_ragged([[0, 1], [0]])),
-                  target=('b', as_ragged([[1, 2], [0]])),
+                  source=('n', as_ragged([[0, 1], [0]])),
+                  target=('n', as_ragged([[1, 2], [0]])),
               ),
           ),
       },

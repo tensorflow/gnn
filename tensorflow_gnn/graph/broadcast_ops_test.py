@@ -201,7 +201,10 @@ class BroadcastXToYTest(tf.test.TestCase, parameterized.TestCase):
                                expected_edge_fields: Mapping[str, const.Field]):
     del description
     graph = gt.GraphTensor.from_pieces(
-        context=context, edge_sets={"edge": edge_set})
+        context=context,
+        node_sets={"node": gt.NodeSet.from_fields(sizes=as_tensor([1_000]))},
+        edge_sets={"edge": edge_set},
+    )
 
     for fname, expected in expected_edge_fields.items():
       self.assertAllEqual(
