@@ -342,17 +342,37 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     _ = layer(graph_with_both)
     _ = layer(graph_without)
 
-  @parameterized.named_parameters(
-      ("EdgeSet", "edge_sets_fn", dict(edges=False), dict(edges=True)),
-      ("NodeSet", "node_sets_fn",
-       dict(nodes=False, edges=False), dict(nodes=True, edges=False)))
-  def testCheckUnexpected(self, kwarg_to_test, make_without, make_with):
-    graph_without = _make_scalar_test_graph(**make_without)
-    graph_with_readout = _make_scalar_test_graph(**make_without, readout=True)
-    graph_with_unexpected = _make_scalar_test_graph(**make_with)
+  def testCheckUnexpectedEdgeSet(self):
+    graph_without = _make_scalar_test_graph(edges=False)
+    graph_with_readout = _make_scalar_test_graph(edges=False, readout=True)
+    graph_with_unexpected = _make_scalar_test_graph(edges=True)
     def keep_all(graph_piece, **_):
       return graph_piece.features
-    layer = map_features.MapFeatures(**{kwarg_to_test: keep_all})
+    layer = map_features.MapFeatures(edge_sets_fn=keep_all)
+    _ = layer(graph_without)  # First call defines the known graph pieces.
+    _ = layer(graph_without)  # OK to call again.
+    _ = layer(graph_with_readout)  # OK to call with new aux pieces.
+    with self.assertRaisesRegex(KeyError, r"Unexpected"):
+      _ = layer(graph_with_unexpected)
+
+  def testCheckUnexpectedNodeSet(self):
+    graph_without = _make_scalar_test_graph(nodes=True, edges=False)
+    graph_with_readout = _make_scalar_test_graph(
+        nodes=True, edges=False, readout=True
+    )
+    graph_with_unexpected = gt.GraphTensor.from_pieces(
+        context=graph_without.context,
+        edge_sets=graph_without.edge_sets,
+        node_sets={
+            **graph_without.node_sets,
+            "unexpected": gt.NodeSet.from_fields(sizes=[1]),
+        },
+    )
+
+    def keep_all(graph_piece, **_):
+      return graph_piece.features
+
+    layer = map_features.MapFeatures(node_sets_fn=keep_all)
     _ = layer(graph_without)  # First call defines the known graph pieces.
     _ = layer(graph_without)  # OK to call again.
     _ = layer(graph_with_readout)  # OK to call with new aux pieces.
