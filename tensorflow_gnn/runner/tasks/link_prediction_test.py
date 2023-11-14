@@ -27,8 +27,7 @@ def _get_graph_tensor(
     readout_ns_name='_readout',
     readout_src_es_names=('_readout/source', 'nodes1', '_readout'),
     readout_tgt_es_names=('_readout/target', 'nodes2', '_readout'),
-    validate=True
-    ) -> tfgnn.GraphTensor:
+) -> tfgnn.GraphTensor:
   return tfgnn.GraphTensor.from_pieces(
       node_sets={
           'nodes1': tfgnn.NodeSet.from_fields(
@@ -88,7 +87,7 @@ def _get_graph_tensor(
                   target=(readout_tgt_es_names[2], [0, 1]))
               #           ^ should be "_readout"
           ),
-      }, validate=validate)
+      })
 
 
 class LinkPredictionTest(tf.test.TestCase, parameterized.TestCase):
@@ -128,6 +127,19 @@ class LinkPredictionTest(tf.test.TestCase, parameterized.TestCase):
                      tfgnn.write_example(output_gt))
     self.assertAllClose(label, tf.constant([[1.0], [0.0]]))
 
+
+class LinkPredictionValidationTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    # Allows to construct invalid `GraphTensor`s, e.g with edge sets that
+    # connect non-existent node sets.
+    tfgnn.disable_graph_tensor_inputs_validation()
+    super().setUp()
+
+  def tearDown(self):
+    super().tearDown()
+    tfgnn.enable_graph_tensor_inputs_validation()
+
   @parameterized.named_parameters([
       dict(
           testcase_name='mal_named_readout_nodeset_name',
@@ -147,7 +159,7 @@ class LinkPredictionTest(tf.test.TestCase, parameterized.TestCase):
   ])
   def test_preprocess_fails_on_invalid_input(self, **kwargs):
     task = link_prediction.DotProductLinkPrediction()
-    gt = _get_graph_tensor(**kwargs, validate=False)
+    gt = _get_graph_tensor(**kwargs)
     self.assertRaises(ValueError, functools.partial(task.preprocess, gt))
 
 
