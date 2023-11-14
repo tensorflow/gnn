@@ -240,6 +240,38 @@ class HyperAdjacencyTest(tf.test.TestCase, parameterized.TestCase):
         {0: ('a', index), 1: ('b', index), 2: ('c', index)}
     )
     self.assertAllEqual(adj._get_num_items(), expected_result)
+    # Test caching:
+    self.assertAllEqual(adj._get_num_items(), expected_result)
+
+  @parameterized.named_parameters([
+      dict(
+          testcase_name='Empty',
+          index=as_tensor([], dtype=tf.int64),
+          expected_result=tf.int64.min,
+      ),
+      dict(
+          testcase_name='Rank0',
+          index=as_tensor([2, 1]),
+          expected_result=2,
+      ),
+      dict(
+          testcase_name='Rank1',
+          index=tf.ragged.constant([[0, 1], [0]]),
+          expected_result=[1, 0],
+      ),
+      dict(
+          testcase_name='Rank2',
+          index=tf.RaggedTensor.from_uniform_row_length(
+              tf.ragged.constant([[0], [0, 3], [], []]), 2
+          ),
+          expected_result=[[0, 3], [tf.int32.min, tf.int32.min]],
+      ),
+  ])
+  def testMaxIndex(self, index, expected_result):
+    adj = adjacency.HyperAdjacency.from_indices({0: ('a', index)})
+    self.assertAllEqual(adj._get_max_index('a'), expected_result)
+    # Test caching:
+    self.assertAllEqual(adj._get_max_index('a'), expected_result)
 
 
 class AdjacencyTest(tf.test.TestCase, parameterized.TestCase):
@@ -373,14 +405,14 @@ class AdjacencyTest(tf.test.TestCase, parameterized.TestCase):
         original.relax(num_edges=True).relax(num_edges=True), expected)
 
   @parameterized.named_parameters([
-      dict(testcase_name='rank-0', index=as_tensor([0, 1]), expected_result=2),
+      dict(testcase_name='Rank0', index=as_tensor([0, 1]), expected_result=2),
       dict(
-          testcase_name='rank-1',
+          testcase_name='Rank1',
           index=tf.ragged.constant([[0, 1], [0]]),
           expected_result=[2, 1],
       ),
       dict(
-          testcase_name='rank-2',
+          testcase_name='Rank2',
           index=tf.RaggedTensor.from_uniform_row_length(
               tf.ragged.constant([[0], [0, 1], [], [0]]), 2
           ),
@@ -392,7 +424,69 @@ class AdjacencyTest(tf.test.TestCase, parameterized.TestCase):
         source=('a', index), target=('b', index)
     )
     self.assertAllEqual(adj._get_num_items(), expected_result)
+    # Checks with caching.
+    self.assertAllEqual(adj._get_num_items(), expected_result)
 
+  @parameterized.named_parameters([
+      dict(
+          testcase_name='Empty',
+          source=as_tensor([], dtype=tf.int64),
+          expected_source=tf.int64.min,
+          target=as_tensor([], dtype=tf.int64),
+          expected_target=tf.int64.min,
+      ),
+      dict(
+          testcase_name='Rank0',
+          source=as_tensor([0, 1]),
+          expected_source=1,
+          target=as_tensor([2, 1]),
+          expected_target=2,
+      ),
+      dict(
+          testcase_name='Rank1',
+          source=tf.ragged.constant([[0, 1], [0]]),
+          expected_source=[1, 0],
+          target=tf.ragged.constant([[3, 0], [1]]),
+          expected_target=[3, 1],
+      ),
+      dict(
+          testcase_name='Rank2',
+          source=tf.RaggedTensor.from_uniform_row_length(
+              tf.ragged.constant([[0], [0, 1], [], [0]]), 2
+          ),
+          expected_source=[[0, 1], [tf.int32.min, 0]],
+          target=tf.RaggedTensor.from_uniform_row_length(
+              tf.ragged.constant([[3], [1, 0], [], [1]]), 2
+          ),
+          expected_target=[[3, 1], [tf.int32.min, 1]],
+      ),
+      dict(
+          testcase_name='Rank3',
+          source=tf.RaggedTensor.from_uniform_row_length(
+              tf.RaggedTensor.from_uniform_row_length(
+                  tf.ragged.constant([[], [0, 1]]), 2
+              ),
+              1,
+          ),
+          expected_source=[[[tf.int32.min, 1]]],
+          target=tf.RaggedTensor.from_uniform_row_length(
+              tf.RaggedTensor.from_uniform_row_length(
+                  tf.ragged.constant([[], [1, 0]]), 2
+              ),
+              1,
+          ),
+          expected_target=[[[tf.int32.min, 1]]],
+      ),
+  ])
+  def testMaxIndex(self, source, target, expected_source, expected_target):
+    adj = adjacency.Adjacency.from_indices(
+        source=('a', source), target=('b', target)
+    )
+    self.assertAllEqual(adj._get_max_index('a'), expected_source)
+    self.assertAllEqual(adj._get_max_index('b'), expected_target)
+    # Checks with caching:
+    self.assertAllEqual(adj._get_max_index('a'), expected_source)
+    self.assertAllEqual(adj._get_max_index('b'), expected_target)
 
 if __name__ == '__main__':
   tf.test.main()

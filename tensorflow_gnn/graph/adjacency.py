@@ -210,7 +210,26 @@ class HyperAdjacency(gp.GraphPieceBase):
     result = utils.get_num_items(
         indicative_index_tensor, gp.get_shape_tensor(self)
     )
+    assert result.dtype is self.indices_dtype
     setattr(self, '_num_items', result)
+    return result
+
+  def _get_max_index(self, node_set_name: NodeSetName) -> tf.Tensor:
+    cache = getattr(self, '_max_indices', None)
+    if cache is None:
+      cache = {}
+      setattr(self, '_max_indices', cache)
+    if node_set_name in cache:
+      return cache[node_set_name]
+
+    for name, index in self.get_indices_dict().values():
+      if name == node_set_name:
+        break
+    else:
+      raise ValueError(f'Incident node set {node_set_name} does not exist')
+
+    result = _get_max_index(index)
+    cache[node_set_name] = result
     return result
 
   @staticmethod
@@ -642,3 +661,27 @@ def _max_index_dtype(nest) -> tf.dtypes.DType:
   dtypes = [index.dtype for index in tf.nest.flatten(nest)]
   assert all(dtype in (tf.int32, tf.int64) for dtype in dtypes)
   return tf.int64 if tf.int64 in dtypes else tf.int32
+
+
+def _get_max_index(index):
+  """Finds max index along the edges dimension."""
+  result = tf.math.reduce_max(index, axis=-1)
+  if not utils.is_ragged_tensor(result):
+    return result
+
+  # TODO(b/232914703): workaround for the bug in the ragged reduce ops,
+  # when reduction on the single ragged dimension results in the ragged
+  # tensor, although the dense tensor is expected.
+  result_dense = result.to_tensor()
+  check_ops = []
+  if const.validate_internal_results:
+    check_ops.append(
+        tf.debugging.assert_equal(
+            tf.size(result),
+            tf.size(result_dense),
+            message='Internal error: ragged batch dimensions are not supported',
+        )
+    )
+    with tf.control_dependencies(check_ops):
+      result = tf.identity(result_dense)
+  return result
