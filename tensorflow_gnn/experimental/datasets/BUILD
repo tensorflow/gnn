@@ -22,6 +22,7 @@ py_strict_test(
         "//testing/pybase",
         "//third_party/py/absl/testing:absltest",
         "//:expect_absl_installed",
+        "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
     ],

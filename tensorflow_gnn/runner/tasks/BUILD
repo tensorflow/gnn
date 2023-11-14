@@ -27,6 +27,7 @@ py_strict_test(
     deps = [
         ":classification",
         "//:expect_absl_installed",
+        "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
         "//tensorflow_gnn/runner:interfaces",
@@ -52,6 +53,7 @@ py_strict_test(
     deps = [
         ":link_prediction",
         "//:expect_absl_installed",
+        "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
     ],
@@ -76,6 +78,7 @@ py_strict_test(
     deps = [
         ":regression",
         "//:expect_absl_installed",
+        "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
         "//tensorflow_gnn/runner:interfaces",

@@ -93,6 +93,7 @@ py_strict_test(
     srcs_version = "PY3",
     deps = [
         ":attribution",
+        "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
         "//tensorflow_gnn/runner:interfaces",
@@ -106,6 +107,7 @@ py_strict_test(
     deps = [
         ":model_export",
         "//:expect_absl_installed",
+        "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/runner:interfaces",
     ],
@@ -118,6 +120,7 @@ py_strict_test(
     deps = [
         ":parsing",
         "//:expect_absl_installed",
+        "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
     ],
