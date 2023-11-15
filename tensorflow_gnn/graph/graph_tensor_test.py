@@ -2157,5 +2157,155 @@ class SpecsInitializationTest(tu.GraphTensorTestBase):
     self.assertEqual(rebuilt, rebuilt)
 
 
+class GraphTensorValidationTest(tf.test.TestCase, parameterized.TestCase):
+
+  def testRaisesOnMissingNodeSet(self):
+    with self.assertRaisesWithPredicateMatch(
+        ValueError,
+        'The edge set n->n is incident to the non-existent node set node',
+    ):
+      gt.GraphTensor.from_pieces(
+          edge_sets={
+              'n->n': gt.EdgeSet.from_fields(
+                  features={},
+                  sizes=tf.constant([2]),
+                  adjacency=adj.Adjacency.from_indices(
+                      source=('node', tf.constant([0, 3])),
+                      target=('node', tf.constant([1, 2])),
+                  ),
+              )
+          }
+      )
+    with self.assertRaisesWithPredicateMatch(
+        ValueError,
+        'The edge set A->B is incident to the non-existent node set B',
+    ):
+      gt.GraphTensor.from_pieces(
+          node_sets={
+              'A': gt.NodeSet.from_fields(sizes=tf.constant([1])),
+          },
+          edge_sets={
+              'A->B': gt.EdgeSet.from_fields(
+                  features={},
+                  sizes=tf.constant([1]),
+                  adjacency=adj.Adjacency.from_indices(
+                      source=('A', tf.constant([0])),
+                      target=('B', tf.constant([0])),
+                  ),
+              )
+          },
+      )
+
+  @parameterized.parameters(tf.int32, tf.int64)
+  def testNoItemsIsAllowedRank0(self, indices_dtype):
+    result = gt.GraphTensor.from_pieces(
+        node_sets={
+            'A': gt.NodeSet.from_fields(
+                sizes=tf.constant([0], dtype=indices_dtype)
+            ),
+            'B': gt.NodeSet.from_fields(
+                sizes=tf.constant([0], dtype=indices_dtype)
+            ),
+        },
+        edge_sets={
+            'A->B': gt.EdgeSet.from_fields(
+                sizes=tf.constant([0], dtype=indices_dtype),
+                adjacency=adj.Adjacency.from_indices(
+                    source=('A', tf.constant([], dtype=indices_dtype)),
+                    target=('B', tf.constant([], dtype=indices_dtype)),
+                ),
+            )
+        },
+    )
+    self.assertAllEqual(result.node_sets['A'].sizes, [0])
+    self.assertAllEqual(result.node_sets['B'].sizes, [0])
+    self.assertAllEqual(result.edge_sets['A->B'].sizes, [0])
+
+  @parameterized.parameters(tf.int32, tf.int64)
+  def testNoItemsIsAllowedRank1(self, indices_dtype):
+    result = gt.GraphTensor.from_pieces(
+        node_sets={
+            'node': gt.NodeSet.from_fields(
+                sizes=tf.constant([[0], [0]], dtype=indices_dtype)
+            ),
+        },
+        edge_sets={
+            'edge': gt.EdgeSet.from_fields(
+                sizes=tf.constant([[0], [0]], dtype=indices_dtype),
+                adjacency=adj.Adjacency.from_indices(
+                    source=('node', as_ragged([[], []], dtype=indices_dtype)),
+                    target=('node', as_ragged([[], []], dtype=indices_dtype)),
+                ),
+            )
+        },
+    )
+    self.assertAllEqual(result.node_sets['node'].sizes, [[0], [0]])
+    self.assertAllEqual(result.edge_sets['edge'].sizes, [[0], [0]])
+
+  @parameterized.parameters(0, 1, 2)
+  def testRaisesOnInvalidIndicesRank0(self, num_b_nodes):
+    with self.assertRaisesRegex(
+        tf.errors.InvalidArgumentError,
+        'The edge set A->B adjacency indices for the node set B must be less'
+        ' than the number of nodes',
+    ):
+      gt.GraphTensor.from_pieces(
+          node_sets={
+              'A': gt.NodeSet.from_fields(
+                  sizes=tf.constant([1], dtype=tf.int32)
+              ),
+              'B': gt.NodeSet.from_fields(
+                  sizes=tf.constant([num_b_nodes], dtype=tf.int32)
+              ),
+          },
+          edge_sets={
+              'A->B': gt.EdgeSet.from_fields(
+                  features={},
+                  sizes=tf.constant([1]),
+                  adjacency=adj.Adjacency.from_indices(
+                      source=('A', tf.constant([0])),
+                      target=('B', tf.constant([2])),
+                  ),
+              )
+          },
+      )
+
+  @parameterized.parameters([
+      dict(num_nodes=[[0], [10, 10]]),
+      dict(num_nodes=[[10], [10, 0]]),
+      dict(num_nodes=[[10], [0, 10]]),
+      dict(num_nodes=[[10], [0, 0]]),
+      dict(num_nodes=[[0], [0, 0]]),
+      dict(num_nodes=[[10], [2, 10]]),
+      dict(num_nodes=[[10], [10, 2]]),
+      dict(num_nodes=[[10], [1, 10]]),
+      dict(num_nodes=[[10], [10, 1]]),
+  ])
+  def testRaisesOnInvalidIndicesRank1(self, num_nodes):
+    with self.assertRaisesRegex(
+        tf.errors.InvalidArgumentError,
+        'The edge set edge adjacency indices for the node set node must be less'
+        ' than the number of nodes',
+    ):
+      n0 = num_nodes[0][0]
+      gt.GraphTensor.from_pieces(
+          node_sets={
+              'node': gt.NodeSet.from_fields(
+                  sizes=as_ragged(num_nodes),
+              ),
+          },
+          edge_sets={
+              'edge': gt.EdgeSet.from_fields(
+                  features={},
+                  sizes=as_ragged([[1], [2, 1]]),
+                  adjacency=adj.Adjacency.from_indices(
+                      source=('node', as_ragged([[0], [n0, n0 + 1, n0 + 2]])),
+                      target=('node', as_ragged([[0], [n0, n0 + 1, n0 + 3]])),
+                  ),
+              )
+          },
+      )
+
+
 if __name__ == '__main__':
   tf.test.main()

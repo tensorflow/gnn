@@ -1096,13 +1096,49 @@ class GraphTensor(gp.GraphPieceBase):
       # TODO(b/285269757): check that indices are consistent.
       raise NotImplementedError
 
-    return cls._from_data(
+    result = cls._from_data(
         data=data,
         shape=context.shape,
         indices_dtype=indices_dtype,
         row_splits_dtype=row_splits_dtype,
         validate=validate,
     )
+
+    if const.validate_graph_tensor_inputs:
+      check_ops = []
+      for edge_set_name, edge_set in result.edge_sets.items():
+        adjacency = edge_set.adjacency
+        for tag, _ in adjacency.get_indices_dict().items():
+          node_set_name = adjacency.node_set_name(tag)
+          node_set = result.node_sets.get(node_set_name, None)
+          if node_set is None:
+            raise ValueError(
+                f'The edge set {edge_set_name} is incident to the non-existent'
+                f' node set {node_set_name}'
+            )
+
+          if not validate:
+            continue
+
+          max_index = adjacency._get_max_index(node_set_name)  # pylint: disable=protected-access
+          check_ops.append(
+              tf.debugging.assert_less(
+                  max_index,
+                  node_set._get_num_items(),  # pylint: disable=protected-access
+                  message=(
+                      f'The edge set {edge_set_name} adjacency indices for the'
+                      f' node set {node_set_name} must be less than the number'
+                      ' of nodes, as `tf.math.reduce_max(adjacency_indices, -1)'
+                      '  < tf.math.reduce_sum(node_set_sizes, -1)`'
+                  ),
+              )
+          )
+
+      if check_ops:
+        with tf.control_dependencies(check_ops):
+          result = tf.identity(result)
+
+    return result
 
   def merge_batch_to_components(self) -> 'GraphTensor':
     """Merges all contained graphs into one contiguously indexed graph.
