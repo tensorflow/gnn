@@ -123,7 +123,7 @@ def _parallel_vee_example_graph():
   )
 
 
-class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
+class HgtTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
@@ -186,6 +186,45 @@ class HgtConvTest(tf.test.TestCase, parameterized.TestCase):
     )
     got = conv(test_graph).node_sets["target"]["hidden_state"]
     self.assertAllClose(tf.zeros((3, 3)), got)  # Feature depth is non-zero now.
+
+  def test_aux_graph_pieces_ignored(self):
+    """Tests that HGT ignores _readout and other aux graph pieces."""
+    test_graph = tfgnn.GraphTensor.from_pieces(
+        node_sets={
+            "nodes": tfgnn.NodeSet.from_fields(
+                sizes=[3], features={tfgnn.HIDDEN_STATE: tf.zeros((3, 0))}),
+            "_readout": tfgnn.NodeSet.from_fields(sizes=[1]),
+            "_bla": tfgnn.NodeSet.from_fields(sizes=[2]),
+        },
+        edge_sets={
+            "edges": tfgnn.EdgeSet.from_fields(
+                sizes=[3],
+                adjacency=tfgnn.Adjacency.from_indices(
+                    source=("nodes", [0, 1, 2]),
+                    target=("nodes", [1, 2, 0]))),
+            "_readout/seed": tfgnn.EdgeSet.from_fields(
+                sizes=[1],
+                adjacency=tfgnn.Adjacency.from_indices(
+                    source=("nodes", [1]),
+                    target=("_readout", [0]))),
+            "_blabla": tfgnn.EdgeSet.from_fields(
+                sizes=[1],
+                adjacency=tfgnn.Adjacency.from_indices(
+                    source=("nodes", [0]),
+                    target=("nodes", [2]))),
+        },
+    )
+    conv = layers.HGTGraphUpdate(
+        num_heads=1,
+        per_head_channels=2,
+        receiver_tag=tfgnn.TARGET,
+        dropout_rate=0,
+    )
+    got = conv(test_graph).node_sets["nodes"]["hidden_state"]
+    self.assertAllClose(tf.zeros((3, 2)), got)  # Feature depth is non-zero now.
+    self.assertCountEqual(["nodes"], conv._key_projections.keys())
+    self.assertCountEqual(["nodes"], conv._query_projections.keys())
+    self.assertCountEqual(["edges"], conv._edge_type_message_projections.keys())
 
   def test_wrong_size_receiver(self):
     """Tests that HGT throws an error with wrong-sized receiver features."""
