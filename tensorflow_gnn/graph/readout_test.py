@@ -218,6 +218,51 @@ class StructuredReadoutTest(tf.test.TestCase):
         readout.structured_readout(test_graph, "target",
                                    feature_name=const.HIDDEN_STATE))
 
+  def testReadoutNodeSetName(self):
+    test_graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            "objects": gt.NodeSet.from_fields(
+                sizes=tf.constant([3]),
+                features={const.HIDDEN_STATE: tf.constant([1., 2., 3.])}),
+            "_readout": gt.NodeSet.from_fields(sizes=tf.constant([1])),
+            "_readout:alt": gt.NodeSet.from_fields(sizes=tf.constant([2]))},
+        edge_sets={
+            "relations": gt.EdgeSet.from_fields(
+                sizes=tf.constant([2]),
+                adjacency=adj.Adjacency.from_indices(
+                    ("objects", tf.constant([1, 0])),
+                    ("objects", tf.constant([0, 2])))),
+            "_readout/seed": gt.EdgeSet.from_fields(
+                sizes=tf.constant([1]),
+                adjacency=adj.Adjacency.from_indices(
+                    ("objects", tf.constant([0])),
+                    ("_readout", tf.constant([0])))),
+            "_readout:alt/feed": gt.EdgeSet.from_fields(
+                sizes=tf.constant([2]),
+                adjacency=adj.Adjacency.from_indices(
+                    ("objects", tf.constant([1, 2])),
+                    ("_readout:alt", tf.constant([0, 1]))))})
+
+    readout.validate_graph_tensor_spec_for_readout(
+        test_graph.spec, readout_node_set="_readout")
+    readout.validate_graph_tensor_for_readout(
+        test_graph, ["seed"], readout_node_set="_readout")
+    self.assertAllEqual(
+        [1.],
+        readout.structured_readout(
+            test_graph, "seed", feature_name=const.HIDDEN_STATE,
+            readout_node_set="_readout"))
+
+    readout.validate_graph_tensor_spec_for_readout(
+        test_graph.spec, readout_node_set="_readout:alt")
+    readout.validate_graph_tensor_for_readout(
+        test_graph, ["feed"], readout_node_set="_readout:alt")
+    self.assertAllEqual(
+        [2., 3.],
+        readout.structured_readout(
+            test_graph, "feed", feature_name=const.HIDDEN_STATE,
+            readout_node_set="_readout:alt"))
+
   def testBadReadoutIndicesUnsorted(self):
     test_graph = _make_test_graph_from_three_readout_indices([1, 0, 2])
     with self.assertRaisesRegex(tf.errors.InvalidArgumentError,
@@ -312,9 +357,6 @@ def _make_test_graph_from_three_readout_indices(readout_indices):
                   ("objects", tf.constant([0, 1, 2], tf.int32)),
                   ("_readout",
                    tf.convert_to_tensor(readout_indices, tf.int32))))})
-
-
-# TODO(b/269076334): Test alternative values of readout_node_set.
 
 
 class StructuredReadoutIntoFeatureTest(tf.test.TestCase,
