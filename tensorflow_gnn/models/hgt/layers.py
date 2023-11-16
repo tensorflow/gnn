@@ -38,6 +38,9 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
   also assumes that the paper's notion of "edge type" is equivalent to
   TFGNN "edge_set_name". Edge features are ignored as in the paper.
 
+  This layer can be saved and loaded as part of a Keras model model using
+  `save_format="tf"`.
+
   Init args:
     num_heads: The number of attention heads.
     per_head_channels: The dimensionality of each attention head
@@ -58,7 +61,7 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     use_bias: If True, bias terms are added to the transformations of query,
       key, message, and aggregation inputs.
     name: Optionally, a name for the layer returned.
-    **kwargs: Any optional arguments to HgtGraphUpdate.
+    **kwargs: Arguments for the Layer base class.
   """
 
   def __init__(
@@ -79,7 +82,6 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
       # LINT.ThenChange(./config_dict.py:graph_update_get_config_dict)
   ):
     super().__init__(**kwargs)
-    self._is_initialized = False
     self._num_heads = num_heads
     self._per_head_channels = per_head_channels
     self._receiver_tag = receiver_tag
@@ -91,6 +93,22 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     self._use_bias = use_bias
     self._activation = tf.keras.activations.get(activation)
     self._feature_name = feature_name
+    # The following attributes are initialized by _maybe_init_from_spec().
+    # See comments there for why they are already created here.
+    self._edge_set_names = None
+    self._receivers = None
+    self._senders = None
+    self._is_state_size_constant = None
+    self._key_projections = None
+    self._message_projections = None
+    self._query_projections = None
+    self._aggr_projections = None
+    self._skip_connection_weights = None
+    self._norms = None
+    self._dropout = None
+    self._edge_type_attention_projections = None
+    self._edge_type_message_projections = None
+    self._edge_type_priors = None
 
   def get_config(self):
     return dict(
@@ -108,19 +126,88 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
         **super().get_config(),
     )
 
-  def _init_from_spec(self, spec: tfgnn.GraphTensorSpec):
-    units = self._num_heads * self._per_head_channels
+  # HOW THIS LAYER IS INITIALIZED
+  #
+  # If this Layer gets created from scratch, __init__() sets a bunch of
+  # attributes to capture the caller-supplied hyperparameters, but __init__()
+  # cannot create the weights, because it does not see the GraphTensorSpec
+  # of the input and hence cannot know the various NodeSets and EdgeSets.
+  # Keras allows to defer this initialization to the very first call().
+  #
+  # If this layer gets restored by tf.keras.models.load_model() from a
+  # Model that was saved with save_format="tf", the story is more complex
+  # and largely undocumented. Here is how we think it works:
+  #
+  #  * First, __init__() is called with the args from the config.
+  #  * Then, load_model() restores all trackable sub-objects into all attributes
+  #    that __init__() has created. Notice the trackable sub-objects of this
+  #    Layer are mostly dicts of sub-Layers or weights. It is enough for
+  #    __init__() to set them to None, as long as the attribute exists.
+  #  * Apparently, load_model() restores dicts item by item. Attributes that
+  #    are initialized to None but were saved as dicts of non-trackable
+  #    sub-objects seem to be restored as an empty dict, overwriting None.
+  #  * The first call() must take care to initialize the non-trackable
+  #    attributes like it would when the Layer is created from scratch,
+  #    but it must leave the trackable attributes alone to preserve their
+  #    restored weights.
+  #
+  # Consequently, we have two pairs of helper functions for initializaton
+  # during the first call(), one for non-trackable attribues and one for
+  # trackable attributes.
+  #
+  # Restoring this layer from a Model that was saved with save_format="keras"
+  # uses different code paths in Keras. We did not test these.
+
+  def call(self, graph: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
+    tfgnn.check_scalar_graph_tensor(graph, 'HGTGraphUpdate')
+    if self._need_init_nontrackables():
+      self._do_init_nontrackables(graph.spec)
+    assert not self._need_init_nontrackables()
+    if self._need_init_trackables():
+      with tf.init_scope():
+        self._do_init_trackables()
+    assert not self._need_init_trackables()
+    return self._graph_update(graph)
+
+  def _need_init_nontrackables(self):
+    # Arbitrarily test one of the non-trackable attributes.
+    # The _do_init function will test that they are indeed all uninitialized.
+    return not self._receivers  # True if empty or None.
+
+  def _need_init_trackables(self):
+    # Arbitrarily test one of the trackable attributes.
+    # The _do_init function will test that they are indeed all uninitialized.
+    return self._key_projections is None
+
+  def _do_init_nontrackables(self, spec: tfgnn.GraphTensorSpec):
     receiver_tag = self._receiver_tag
     sender_tag = tfgnn.reverse_tag(receiver_tag)
+    units = self._num_heads * self._per_head_channels
 
     edge_sets_spec = {k: v for k, v in spec.edge_sets_spec.items()
                       if not tfgnn.get_aux_type_prefix(k)}
+    if not edge_sets_spec:
+      # Zero edge sets are a useless edge case that would lead to zero senders
+      # and receivers and hence disturb the logic of _need_init_nontrackables().
+      raise ValueError('HGT needs a GraphTensor with at least one edge set')
+
+    # NOTE: Every attribute initialization below is written as
+    #     assert not self._foo
+    #     self._foo = ...
+    # to double-check that all attributes actually needed initialization,
+    # not just the one tested in _need_init_nontrackables(). The assertion
+    # treats None (from __init__) and an empty dict (from restoring) the same.
+    assert not self._edge_set_names
+    self._edge_set_names = list(edge_sets_spec.keys())
+    assert not self._receivers
     self._receivers = {
         edge_set_spec.adjacency_spec.node_set_name(receiver_tag)
         for edge_set_spec in edge_sets_spec.values()}
+    assert not self._senders
     self._senders = {
         edge_set_spec.adjacency_spec.node_set_name(sender_tag)
         for edge_set_spec in edge_sets_spec.values()}
+
     bad_node_set_names = {
         name for name in list(self._receivers) + list(self._receivers)
         if tfgnn.get_aux_type_prefix(name)}
@@ -129,9 +216,41 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
           f'Auxiliary node sets {bad_node_set_names} '
           f'are incident to non-auxiliary edge sets.')
 
+    assert not self._is_state_size_constant
+    self._is_state_size_constant = {}
+    for node_set_name in self._receivers:
+      input_shape = spec.node_sets_spec[
+          node_set_name][self._feature_name].shape
+      output_shape = tf.TensorShape([*input_shape[:-1], units])
+      is_constant = input_shape.is_compatible_with(output_shape)
+      if not is_constant:
+        if input_shape[1:].num_elements() != 0:
+          raise ValueError(
+              'The input features need to either be empty or the '
+              f'same shape as the output. However, inputs are {input_shape} '
+              f'and outputs will be {output_shape} for NodeSet {node_set_name}.'
+          )
+      self._is_state_size_constant[node_set_name] = is_constant
+
+  def _do_init_trackables(self):
+    assert not self._need_init_nontrackables(), 'First _do_init_nontrackables()'
+    units = self._num_heads * self._per_head_channels
+
+    # NOTE: Every attribute initialization below is written as
+    #     assert self._foo is None
+    #     self._foo = ...
+    # to verify three properties:
+    #  * All attributes need initialization, not just the one tested in
+    #    _need_init_trackables().
+    #  * __init__ did not forget to create any attribute (required for
+    #    restoring).
+    #  * Initializing the attribute here does not discard a restored trackable.
+    assert self._dropout is None
     self._dropout = tf.keras.layers.Dropout(self._dropout_rate)
 
+    assert self._key_projections is None
     self._key_projections = {}
+    assert self._message_projections is None
     self._message_projections = {}
     for node_set_name in self._senders:
       self._key_projections[node_set_name] = tf.keras.layers.Dense(
@@ -147,11 +266,14 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
           use_bias=self._use_bias,
           name=f'message_node_{node_set_name}')
 
+    assert self._query_projections is None
     self._query_projections = {}
+    assert self._aggr_projections is None
     self._aggr_projections = {}
+    assert self._skip_connection_weights is None
     self._skip_connection_weights = {}
+    assert self._norms is None
     self._norms = {}
-    self._is_state_size_constant = {}
     for node_set_name in self._receivers:
       self._query_projections[node_set_name] = tf.keras.layers.Dense(
           units,
@@ -174,15 +296,6 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
         self._norms[node_set_name] = tf.keras.layers.Layer(
             name='no_normalization'
         )
-      feature_shape = spec.node_sets_spec[
-          node_set_name][self._feature_name].shape
-      output_shape = tf.TensorShape([
-          *feature_shape[:-1],
-          self._num_heads * self._per_head_channels,
-      ])
-      self._is_state_size_constant[node_set_name] = (
-          feature_shape.is_compatible_with(output_shape)
-      )
       if self._is_state_size_constant[node_set_name]:
         if self._use_weighted_skip:
           self._skip_connection_weights[node_set_name] = self.add_weight(
@@ -191,19 +304,16 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
               trainable=True,
               name=f'skip_{node_set_name}',
           )
-      elif feature_shape[1:].num_elements() != 0:
-        raise ValueError(
-            'The input features need to either be empty or the '
-            f'same shape as the output. However, inputs are {feature_shape} '
-            f'and outputs will be {output_shape} for NodeSet {node_set_name}.'
-        )
 
     # This code treats each EdgeSet as a distinct edge type (see docstring)
     # and hence uses edge_set_name as the key here.
+    assert self._edge_type_attention_projections is None
     self._edge_type_attention_projections = {}
+    assert self._edge_type_message_projections is None
     self._edge_type_message_projections = {}
+    assert self._edge_type_priors is None
     self._edge_type_priors = {}
-    for edge_set_name in edge_sets_spec:
+    for edge_set_name in self._edge_set_names:
       self._edge_type_attention_projections[
           edge_set_name] = tf.keras.layers.EinsumDense(
               equation='...jk,jkl->...jl',
@@ -371,12 +481,3 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
       updated_node_features[node_set_name] = features
 
     return graph.replace_features(node_sets=updated_node_features)
-
-  def call(self, graph: tfgnn.GraphTensor) -> tfgnn.GraphTensor:
-    tfgnn.check_scalar_graph_tensor(graph, 'HGTGraphUpdate')
-    if not self._is_initialized:
-      with tf.init_scope():
-        self._init_from_spec(graph.spec)
-        self._is_initialized = True
-    assert self._is_initialized
-    return self._graph_update(graph)

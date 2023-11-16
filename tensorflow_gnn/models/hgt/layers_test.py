@@ -735,10 +735,6 @@ class HgtTest(tf.test.TestCase, parameterized.TestCase):
     got_gt = model(_heterogeneous_example_graph())
     got = got_gt.node_sets["engine"][tfgnn.HIDDEN_STATE]
     self.assertAllEqual(got.shape, (3, 2))
-    # TODO(b/269492127) Re-enable these tests when Keras load issue is resolved.
-    if reload_model == ReloadModel.KERAS and (isinstance(
-        kernel_initializer, str) or kernel_initializer is None):
-      self.skipTest("Bad Test: Known issue in Keras model reloading")
     self.assertAllEqual(got, layer_before_engine_state)
 
   @parameterized.named_parameters(("baseline", False), ("", True))
