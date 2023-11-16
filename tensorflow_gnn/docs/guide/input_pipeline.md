@@ -70,9 +70,18 @@ for i, graph in enumerate(dataset.take(3)):
   print(f"Input {i}: {graph}")
 ```
 
-Like tf.Example, `tfgnn.GraphSchema` supports tf.float32, tf.int64 and tf.string
-as data types of features. In-process GraphTensors can hold features of any
-dtype.
+The features in the parsed `graph` have the shape and dtype declared for them
+in the GraphSchema. It supports `tf.bool`, (non-quantized) integer types,
+(non-quantized, non-complex) floating-point types and `tf.string`.
+
+<!-- TODO(b/226098194): Address the following sentence. -->
+Be wary of `tf.float64`, though: serialization as `tf.Example` coerces all
+floats to `tf.float32`. Parsing a `tf.float64` feature from `tf.Example` yields
+a `tf.float64` tensor representing the possibly truncated values.
+
+More advanced dtypes like complex numbers and dtypes for quantization can be
+held in features of in-process GraphTensors but cannot be declared in a
+GraphSchema and cannot be directly deserialized from a `tf.Example`.
 
 For datasets that have more than one GraphTensor in each example and/or combine
 serialized GraphTensor(s) with other data, we recommend to distinguish each

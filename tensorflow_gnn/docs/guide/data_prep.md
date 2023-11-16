@@ -86,6 +86,23 @@ edges/<set_name>.<feature_name>
 `<set_name>` is the name of the node set or edge set. These should correspond
 directly to the features declared in the [`GraphSchema`](./schema.md) message.
 
+### Feature dtypes
+
+The [graph schema](./schema.md) supports a variety of TensorFlow dtypes while
+`tf.train.Feature` supports only three
+[protobuf types](https://protobuf.dev/programming-guides/proto3/#scalar):
+
+  * `int64` for all integer types and the boolean type,
+  * `float` for all floating-point types,
+  * `bytes` for strings.
+
+Values are automatically converted between the schema-defined dtype in the
+`GraphTensor` and the matching dtype in `tf.train.Feature` using `tf.cast()`.
+
+<!-- TODO(b/226098194): Address the following sentence. -->
+WARNING: Beware of `DT_DOUBLE` in the `GraphSchema`. It gets stored as a
+`DT_FLOAT`; better to declare it as `DT_FLOAT` then.
+
 ### Special Features
 
 Three of the features are implicitly defined:
@@ -152,7 +169,7 @@ of each value for those dimensions. For example, for a feature of the following
 declared shape:
 
 ```
-shape { dim { size: -1 }
+shape { dim { size: -1 } }
 dtype: DT_INT64
 ```
 
@@ -221,9 +238,9 @@ of the ragged dimensions as its own feature. And for context features, do take
 into account the fact that the shape includes an initial `[1]` dimension.
 
 Finally, note that our parser is a thin wrapper onto the regular TensorFlow
-feature specs for parsing ragged tensors::
-[tf.io.RaggedFeature](https://www.tensorflow.org/api_docs/python/tf/io/RaggedFeature)
-. If you’re familiar with those, you can generate the parsing spec using our
+feature specs for parsing ragged tensors:
+[tf.io.RaggedFeature](https://www.tensorflow.org/api_docs/python/tf/io/RaggedFeature).
+If you’re familiar with those, you can generate the parsing spec using our
 `tfgnn.get_io_spec()` utility function.
 
 ### Empty Features
@@ -312,7 +329,7 @@ schema = tfgnn.parse_schema("""
         key: "scores"
         value {
           shape { dim { size: 3 }}
-          dtype: DT_FLOAT
+          dtype: DT_INT32
         }
       }
     }
@@ -338,19 +355,19 @@ features {
   feature {
     key: "nodes/students.scores"
     value {
-      float_list {
-        value: 0.2121654748916626
-        value: 0.5609347820281982
-        value: 0.4877915382385254
-        value: 0.1555272340774536
-        value: 0.2997016906738281
-        value: 0.8022844791412354
-        value: 0.033922433853149414
-        value: 0.3420950174331665
-        value: 0.7682920694351196
-        value: 0.49579453468322754
-        value: 0.03295755386352539
-        value: 0.4508802890777588
+      int64_list {
+        value: 36
+        value: 34
+        value: 65
+        value: 67
+        value: 51
+        value: 71
+        value: 83
+        value: 19
+        value: 91
+        value: 84
+        value: 79
+        value: 79
       }
     }
   }

@@ -47,13 +47,23 @@ def write_example(graph: gt.GraphTensor,
   (using the spec deserialized from the schema) and have the same contents
   (up to the choice of indices_dtype).
 
+  All features stored on the `graph` must have dtypes that are supported by
+  the graph schema. For the following dtypes, special caveats apply to their
+  representation in `tf.train.Example`:
+
+    * `tf.float64` features are serialized as `tf.float32`, which truncates
+      them (perhaps fatally to 0 or +/- inf, if exceeding the exponent range).
+    * `tf.uint64` features are serialized as `tf.int64` values with the same
+      bit pattern. Deserializing from `tf.train.Example` recovers the original
+      value.
+
   Args:
     graph: An eager instance of `GraphTensor` to write out.
     prefix: An optional prefix string over all the features. You may use
       this if you are encoding other data in the same protocol buffer.
+
   Returns:
-    A reference to `result`, if provided, or a to a freshly created instance
-    of `tf.train.Example`.
+    A `tf.train.Example` with the serialized `graph`.
   """
   result = tf.train.Example()
   if prefix is None:

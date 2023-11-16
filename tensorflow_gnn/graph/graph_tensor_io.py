@@ -67,9 +67,9 @@ def parse_example(spec: gt.GraphTensorSpec,
   all container tensors, including ragged tensors, from a batched sequence of
   `tf.train.Example` protocol buffer messages.
 
-  The encoded examples shapes and features are expected to conform to the
-  encoding defined by `get_io_spec()`. The `validate` flag exists to implement
-  verifications of this encoding.
+  Parsed feature values are converted to their dtype declared in the `spec`
+  using `tf.cast()`. Note that `tf.float64` features are converted from a
+  `tf.float32` representation in `tf.train.Example`.
 
   Args:
     spec: A graph tensor type specification of a single serialized graph tensor

@@ -24,8 +24,12 @@ Each of the features is defined by
 
   * A name, unique among the features of the same graph piece.
   * A plain-text description (optional).
-  * A data type: one of `DT_STRING`, `DT_INT64`, `DT_FLOAT`. These are the types
-    available for serialization in a `tf.Example`.
+  * A data type that can be stored in a `tf.Example`:
+      * integers `DT_<INT|UINT><8|16|32|64>` or boolean `DT_BOOL`,
+        stored as `int64`;
+      * floating-point real numbers `DT_<FLOAT|DOUBLE|HALF|BFLOAT16>`,
+        stored as `float32`;
+      * raw string `DT_STRING`, stored as `bytes`.
   * A feature shape: `[]` or unset for scalars (a single number or string),
     `[size]` for vectors (e.g., a vector of 64 floats with shape `[64]`),
     and so on. The special value `-1` denotes a ragged dimension, which can
@@ -46,8 +50,7 @@ real-world objects.
 
 TF-GNN stores the graph schema in a
 [tfgnn.GraphSchema](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/proto/graph_schema.proto)
-protocol message.
-Recall that [Protocol Buffers](https://developers.google.com/protocol-buffers)
+protocol message. Recall that [Protocol Buffers](https://protobuf.dev/)
 are a language-neutral serialization format, which makes the graph schema
 available both to the [tools that generate training data](data_prep.md) for GNNs
 and to the TensorFlow program that [consumes this input for GNN
@@ -61,8 +64,8 @@ the tokenized video title.
 feature {
   key: "thumbnail_image"
   value {
-    description: "Thumbnail image: 32x32 pixels of RGB values in range [0,1]."
-    dtype: DT_FLOAT
+    description: "Thumbnail image: 32x32 pixels of 8-bit RGB values."
+    dtype: DT_UINT8
     shape { dim { size: 32 } dim { size: 32 } dim { size: 3 } }
   }
 }
@@ -192,10 +195,19 @@ encourage you to fill in these fields, as these act as documentation and will
 help other people reading your model code to understand the meaning of your
 model's inputs.
 
-Each of the features must provide their data type; at the moment we support
-types `DT_INT64`, `DT_STRING` and `DT_FLOAT` and their shapes. In this example
+Each of the features must provide its shape and data type. In this example
 node set, the shapes are left empty, and the default behavior is used to specify
 scalar features (a single value per node).
+
+For the data types, we recommend to start simple and pick one of `DT_INT64`,
+`DT_BOOL`, `DT_FLOAT`, or `DT_STRING`, unless there is an overarching need to
+get a particular more narrow datatype in your TF-GNN program. The tf.Example
+serialization format for graphs anyways represents all integers and booleans
+as `int64` and all floating-point numbers as `float32`.
+
+<!-- TODO(b/226098194): Address the following sentence. -->
+WARNING: Beware of `DT_DOUBLE`: The serialized representation as tf.Example
+will truncate it to `DT_FLOAT`. Better to declare it as `DT_FLOAT` then.
 
 Note that in the previously defined node set, and in all node and edge sets, a
 special tensor is implicitly maintained to track the number of items (that is,

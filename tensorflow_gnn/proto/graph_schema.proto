@@ -74,6 +74,8 @@ message Feature {
   // Data type. Supported types are boolean, (non-quantized) integer types,
   // (non-quantized, non-complex) floating-point types and `string`.
   //
+  // WARNING: Avoid DT_DOUBLE. It gets truncated when saving to tf.Example.
+  //
   // Note that we support arbitrary shaped tensors, including variable shaped
   // ones, so you do NOT need to preprocess your data to encode all your
   // features to a fixed-size float tensors ahead of time... If you have

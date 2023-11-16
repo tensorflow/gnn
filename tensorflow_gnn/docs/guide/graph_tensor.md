@@ -180,7 +180,7 @@ node_sets {
    }
    features {
      key: "year"
-     value: { dtype: DT_INT64  shape: { } }
+     value: { dtype: DT_INT32  shape: { } }
    }
  }
 }
@@ -214,13 +214,15 @@ edge_sets {
 
 The guide on [describing your graph](schema.md) introduces the GraphSchema
 in greater detail.
-The [input pipeline](input_pipeline.md) shows how to load a graph schema
-and use it for parsing GraphTensors from files of tf.Example records.
-Notice that a GraphTensor and hence a GraphTensorSpec can contain features of
-arbitrary data type while the GraphSchema can only declare feature dtypes that
-are directly supported by the tf.Example format: `DT_FLOAT32`, `DT_INT64` and
-`DT_STRING`. Conversely, it has some extra information (like the description
-fields) not present in the GraphTensorSpec.
+The [input pipeline](input_pipeline.md) guide shows how to load a GraphSchema,
+convert it to a GraphTensorSpec, and use that for parsing GraphTensors from
+files of tf.Example records.
+
+The GraphSchema has some extra information (like the description fields seen
+above) that are not present in the GraphTensorSpec. On the other hand, the
+GraphSchema proto can only describe what gets stored in a tf.Example proto,
+namely a single graph, while the GraphTensorSpec can also describe the results
+of batching and merging multiple GraphTensors later on in the input pipeline.
 
 
 ## What to read next?
