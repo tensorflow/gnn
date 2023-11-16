@@ -152,6 +152,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":adjacency",
+        ":batching_utils",
         ":graph_constants",
         ":graph_tensor",
         ":graph_tensor_ops",

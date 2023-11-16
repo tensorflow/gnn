@@ -17,6 +17,7 @@
 from absl.testing import parameterized
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
+from tensorflow_gnn.graph import batching_utils
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_ops as ops
@@ -217,28 +218,102 @@ class StructuredReadoutTest(tf.test.TestCase):
         readout.structured_readout(test_graph, "target",
                                    feature_name=const.HIDDEN_STATE))
 
-  def testBadReadoutIndices(self):
-    test_graph = gt.GraphTensor.from_pieces(
-        node_sets={
-            "objects": gt.NodeSet.from_fields(
-                sizes=tf.constant([1, 1]),
-                features={const.HIDDEN_STATE: tf.constant(
-                    [[1., 1.], [2., 2.]])}),
-            "_readout": gt.NodeSet.from_fields(
-                sizes=tf.constant([1, 1]))},
-        edge_sets={
-            "_readout/seed": gt.EdgeSet.from_fields(
-                sizes=tf.constant([1, 1]),
-                adjacency=adj.Adjacency.from_indices(
-                    ("objects", tf.constant([0, 1], tf.int32)),
-                    ("_readout", tf.constant([1, 0], tf.int32))))})
+  def testBadReadoutIndicesUnsorted(self):
+    test_graph = _make_test_graph_from_three_readout_indices([1, 0, 2])
     with self.assertRaisesRegex(tf.errors.InvalidArgumentError,
-                                "Not strictly sorted by target"):
+                                r"Not strictly sorted by target"):
       _ = readout.structured_readout(test_graph, "seed",
                                      feature_name=const.HIDDEN_STATE)
 
-# TODO(b/269076334): Test error detection more completely: all cases,
-# also from within Dataset.map().
+  def testBadReadoutIndicesUnsortedInDataset(self):
+    def ds_generator():
+      yield _make_test_graph_from_three_readout_indices([0, 1, 2])  # Good.
+      yield _make_test_graph_from_three_readout_indices([1, 0, 2])  # Bad.
+      yield _make_test_graph_from_three_readout_indices([0, 1, 2])  # Good.
+    ds = batching_utils.dataset_from_generator(ds_generator)
+    fn = lambda graph: readout.structured_readout(
+        graph, "seed", feature_name=const.HIDDEN_STATE)
+    ds = ds.map(fn)
+    with self.assertRaisesRegex(tf.errors.InvalidArgumentError,
+                                r"Not strictly sorted by target"):
+      _ = [x for x in ds]
+
+  def testBadReadoutIndicesNotRange(self):
+    test_graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            "a": gt.NodeSet.from_fields(
+                sizes=tf.constant([2]),
+                features={const.HIDDEN_STATE: tf.constant(
+                    [[1., 1.], [2., 2.]])}),
+            "b": gt.NodeSet.from_fields(
+                sizes=tf.constant([2]),
+                features={const.HIDDEN_STATE: tf.constant(
+                    [[3., 3.], [4., 4.]])}),
+            "_readout": gt.NodeSet.from_fields(
+                sizes=tf.constant([3]))},
+        edge_sets={
+            "_readout/seed/1": gt.EdgeSet.from_fields(
+                sizes=tf.constant([2]),
+                adjacency=adj.Adjacency.from_indices(
+                    ("a", tf.constant([0, 1], tf.int32)),
+                    ("_readout", tf.constant([0, 2], tf.int32)))),
+            "_readout/seed/2": gt.EdgeSet.from_fields(
+                sizes=tf.constant([1]),
+                adjacency=adj.Adjacency.from_indices(
+                    ("b", tf.constant([0], tf.int32)),
+                    ("_readout", tf.constant([2], tf.int32))))})  # Must be [1].
+    with self.assertRaisesRegex(tf.errors.InvalidArgumentError,
+                                r"Target indices not equal to range"):
+      _ = readout.structured_readout(test_graph, "seed",
+                                     feature_name=const.HIDDEN_STATE)
+
+  def testBadShadowNodeSetSize(self):
+    test_graph = gt.GraphTensor.from_pieces(
+        node_sets={
+            "items": gt.NodeSet.from_fields(sizes=tf.constant([3, 2])),
+            "_readout": gt.NodeSet.from_fields(sizes=tf.constant([1, 1])),
+            "_shadow/links": gt.NodeSet.from_fields(
+                sizes=tf.constant([2, 3]))},  # Wrong, must match "links".
+        edge_sets={
+            "links": gt.EdgeSet.from_fields(
+                sizes=tf.constant([2, 2]),
+                features={const.HIDDEN_STATE: tf.constant(
+                    [[1., 11.],
+                     [1., 12.],
+                     [2., 22.],
+                     [2., 23.]])},
+                adjacency=adj.Adjacency.from_indices(
+                    ("items", tf.constant([0, 1, 3, 4])),
+                    ("items", tf.constant([1, 2, 4, 3])))),
+            "_readout/seed_edge": gt.EdgeSet.from_fields(
+                sizes=tf.constant([1, 1]),
+                adjacency=adj.Adjacency.from_indices(
+                    ("_shadow/links", tf.constant([1, 2])),
+                    ("_readout", tf.constant([0, 1]))))})
+    with self.assertRaisesRegex(tf.errors.InvalidArgumentError,
+                                r"does not have the same sizes"):
+      _ = readout.structured_readout(test_graph, "seed_edge",
+                                     feature_name=const.HIDDEN_STATE)
+
+
+def _make_test_graph_from_three_readout_indices(readout_indices):
+  return gt.GraphTensor.from_pieces(
+      node_sets={
+          "objects": gt.NodeSet.from_fields(
+              sizes=tf.constant([1, 1, 1]),
+              features={const.HIDDEN_STATE: tf.constant(
+                  [[1., 1.], [2., 2.], [3., 3.]])}),
+          "_readout": gt.NodeSet.from_fields(
+              sizes=tf.constant([1, 1, 1]))},
+      edge_sets={
+          "_readout/seed": gt.EdgeSet.from_fields(
+              sizes=tf.constant([1, 1, 1]),
+              adjacency=adj.Adjacency.from_indices(
+                  ("objects", tf.constant([0, 1, 2], tf.int32)),
+                  ("_readout",
+                   tf.convert_to_tensor(readout_indices, tf.int32))))})
+
+
 # TODO(b/269076334): Test alternative values of readout_node_set.
 
 

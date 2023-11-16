@@ -129,8 +129,10 @@ def validate_graph_tensor_for_readout(
       if set_type == const.EDGES:
         source_edge_set = graph.edge_sets[set_name]
         shadow_node_set = graph.node_sets[_SHADOW_PREFIX + set_name]
-        assert_ops.append(tf.debugging.assert_equal(source_edge_set.sizes,
-                                                    shadow_node_set.sizes))
+        assert_ops.append(tf.debugging.assert_equal(
+            shadow_node_set.sizes, source_edge_set.sizes,
+            f"Shadow node set '{_SHADOW_PREFIX + set_name}' does not have "
+            f"the same sizes as shadowed edge set '{set_name}'."))
 
   with tf.control_dependencies(assert_ops):
     return tf.identity(graph)
