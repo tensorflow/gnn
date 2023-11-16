@@ -14,8 +14,11 @@
 # ==============================================================================
 """ConfigDict for Multi-Head Attention."""
 
+from typing import Collection, Optional
+
 from ml_collections import config_dict
 import tensorflow as tf
+import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models.multi_head_attention import layers
 
 
@@ -38,7 +41,10 @@ def graph_update_get_config_dict() -> config_dict.ConfigDict:
 
 
 def graph_update_from_config_dict(
-    cfg: config_dict.ConfigDict) -> tf.keras.layers.Layer:
+    cfg: config_dict.ConfigDict,
+    *,
+    node_set_names: Optional[Collection[tfgnn.NodeSetName]] = None,
+) -> tf.keras.layers.Layer:
   """Returns a MultiHeadAttentionMPNNGraphUpdate initialized from `cfg`.
 
   Args:
@@ -48,6 +54,8 @@ def graph_update_from_config_dict(
       `MultiHeadAttentionMPNNGraphUpdate` object. For the required arguments of
       `MultiHeadAttentionMPNNGraphUpdate.__init__`, users must set a value in
       `cfg` before passing it here.
+    node_set_names: Optionally, the names of NodeSets to update; forwarded to
+      `MultiHeadAttentionMPNNGraphUpdate.__init__`.
 
   Returns:
     A new `MultiHeadAttentionMPNNGraphUpdate` object.
@@ -57,4 +65,5 @@ def graph_update_from_config_dict(
     `MultiHeadAttentionMPNNGraphUpdate.__init__`.
   """
   kwargs = {k: v for k, v in cfg.items() if v is not None}
-  return layers.MultiHeadAttentionMPNNGraphUpdate(**kwargs)
+  return layers.MultiHeadAttentionMPNNGraphUpdate(node_set_names=node_set_names,
+                                                  **kwargs)

@@ -75,6 +75,7 @@ pytype_strict_library(
         ":layers",
         "//third_party/py/ml_collections/config_dict",
         "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
     ],
 )
 

@@ -15,7 +15,7 @@
 """An e2e training example for OGBN-MAG."""
 
 import functools
-from typing import Any, Callable, Mapping, Optional, Sequence
+from typing import Any, Callable, Collection, Mapping, Optional, Sequence
 
 from absl import app
 from absl import flags
@@ -192,19 +192,25 @@ _CONFIG = config_flags.DEFINE_config_dict("config", get_config_dict())
 
 
 def _graph_update_from_config(
-    cfg: config_dict.ConfigDict) -> tf.keras.layers.Layer:
+    cfg: config_dict.ConfigDict,
+    node_set_names: Optional[Collection[tfgnn.NodeSetName]] = None,
+) -> tf.keras.layers.Layer:
   """Returns one instance of the configured GraphUpdate layer."""
   if cfg.gnn.type == "gat_v2":
-    return gat_v2.graph_update_from_config_dict(cfg.gnn.gat_v2)
+    return gat_v2.graph_update_from_config_dict(
+        cfg.gnn.gat_v2, node_set_names=node_set_names)
   elif cfg.gnn.type == "hgt":
+    # Always updates all node sets, can't pass node_set_names.
     return hgt.graph_update_from_config_dict(cfg.gnn.hgt)
   elif cfg.gnn.type == "mt_albis":
-    return mt_albis.graph_update_from_config_dict(cfg.gnn.mt_albis)
+    return mt_albis.graph_update_from_config_dict(
+        cfg.gnn.mt_albis, node_set_names=node_set_names)
   elif cfg.gnn.type == "multi_head_attention":
     return multi_head_attention.graph_update_from_config_dict(
-        cfg.gnn.multi_head_attention)
+        cfg.gnn.multi_head_attention, node_set_names=node_set_names)
   elif cfg.gnn.type == "vanilla_mpnn":
-    return vanilla_mpnn.graph_update_from_config_dict(cfg.gnn.vanilla_mpnn)
+    return vanilla_mpnn.graph_update_from_config_dict(
+        cfg.gnn.vanilla_mpnn, node_set_names=node_set_names)
   else:
     raise ValueError(f"Unknown gnn.type: {cfg.gnn.type}")
 
@@ -367,9 +373,13 @@ def main(
     model_inputs = tf.keras.layers.Input(type_spec=gtspec)
     graph = gnn_inputs = tfgnn.keras.layers.MapFeatures(
         node_sets_fn=set_initial_node_states)(model_inputs)
-    for _ in range(4):
-      graph_update = _graph_update_from_config(_CONFIG.value)
-      graph = graph_update(graph)
+    # Do 4 rounds of graph updates, each time with fresh weights.
+    # The last round before readout only needs to update "papers";
+    # updates to other node sets wouldn't make it into the readout anyways.
+    for _ in range(3):
+      graph = _graph_update_from_config(_CONFIG.value)(graph)
+    graph = _graph_update_from_config(_CONFIG.value,
+                                      node_set_names=["paper"])(graph)
     if _READOUT_USE_SKIP_CONNECTION.value:
       # TODO(b/234563300): Allow `graph = MapFeatures(...)(graph, gnn_inputs)`.
       initial_features = gnn_inputs.node_sets[task_node_set_name].features

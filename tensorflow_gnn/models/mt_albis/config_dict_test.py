@@ -41,6 +41,33 @@ class ConfigDictTest(tf.test.TestCase):
 
     self.assertEqual(to_model_config(actual), to_model_config(expected))
 
+  def test_graph_update_custom(self):
+    units = 64
+    message_dim = 32
+    receiver_tag = tfgnn.TARGET
+    attention_type = "multi_head"
+    attention_edge_set_names = ("cites",)
+    node_set_names = ("paper",)
+
+    cfg = mt_albis_config_dict.graph_update_get_config_dict()
+    cfg.units = units
+    cfg.message_dim = message_dim
+    cfg.receiver_tag = receiver_tag
+    cfg.attention_type = attention_type
+    cfg.attention_edge_set_names = attention_edge_set_names
+    actual = mt_albis_config_dict.graph_update_from_config_dict(
+        cfg, node_set_names=node_set_names)
+
+    expected = layers.MtAlbisGraphUpdate(
+        units=units,
+        message_dim=message_dim,
+        receiver_tag=receiver_tag,
+        attention_type=attention_type,
+        attention_edge_set_names=attention_edge_set_names,
+        node_set_names=node_set_names,
+    )
+    self.assertEqual(to_model_config(actual), to_model_config(expected))
+
 
 # TODO(b/265776928): De-duplicate the multiple copies of this test helper.
 def to_model_config(layer: tf.keras.layers.Layer):
@@ -68,15 +95,25 @@ def _make_test_graph_loop():
   """Returns a scalar GraphTensor with one node and one egde."""
   return tfgnn.GraphTensor.from_pieces(
       node_sets={
-          "nodes": tfgnn.NodeSet.from_fields(
+          "paper": tfgnn.NodeSet.from_fields(
               sizes=tf.constant([1]),
-              features={tfgnn.HIDDEN_STATE: tf.constant([[1.]])})},
+              features={tfgnn.HIDDEN_STATE: tf.constant([[1.]])}),
+          "author": tfgnn.NodeSet.from_fields(
+              sizes=tf.constant([1]),
+              features={tfgnn.HIDDEN_STATE: tf.constant([[1.]])}),
+      },
       edge_sets={
-          "edges": tfgnn.EdgeSet.from_fields(
+          "writes": tfgnn.EdgeSet.from_fields(
               sizes=tf.constant([1]),
               adjacency=tfgnn.Adjacency.from_indices(
-                  ("nodes", tf.constant([0])),
-                  ("nodes", tf.constant([0]))))})
+                  ("author", tf.constant([0])),
+                  ("paper", tf.constant([0])))),
+          "cites": tfgnn.EdgeSet.from_fields(
+              sizes=tf.constant([1]),
+              adjacency=tfgnn.Adjacency.from_indices(
+                  ("paper", tf.constant([0])),
+                  ("paper", tf.constant([0])))),
+      })
 
 
 if __name__ == "__main__":

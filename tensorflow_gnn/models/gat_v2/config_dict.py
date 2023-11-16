@@ -14,8 +14,11 @@
 # ==============================================================================
 """ConfigDict for GAT v2."""
 
+from typing import Collection, Optional
+
 from ml_collections import config_dict
 import tensorflow as tf
+import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models.gat_v2 import layers
 
 
@@ -40,7 +43,10 @@ def graph_update_get_config_dict() -> config_dict.ConfigDict:
 
 
 def graph_update_from_config_dict(
-    cfg: config_dict.ConfigDict) -> tf.keras.layers.Layer:
+    cfg: config_dict.ConfigDict,
+    *,
+    node_set_names: Optional[Collection[tfgnn.NodeSetName]] = None,
+) -> tf.keras.layers.Layer:
   """Returns a GATv2MPNNGraphUpdate initialized from `cfg`.
 
   Args:
@@ -50,6 +56,8 @@ def graph_update_from_config_dict(
       `GATv2MPNNGraphUpdate` object. For the required arguments of
       `GATv2MPNNGraphUpdate.__init__`, users must set a value in
       `cfg` before passing it here.
+    node_set_names: Optionally, the names of NodeSets to update; forwarded to
+      `GATv2MPNNGraphUpdate.__init__`.
 
   Returns:
     A new `GATv2MPNNGraphUpdate` object.
@@ -59,4 +67,4 @@ def graph_update_from_config_dict(
     `GATv2MPNNGraphUpdate.__init__`.
   """
   kwargs = {k: v for k, v in cfg.items() if v is not None}
-  return layers.GATv2MPNNGraphUpdate(**kwargs)
+  return layers.GATv2MPNNGraphUpdate(node_set_names=node_set_names, **kwargs)

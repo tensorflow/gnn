@@ -14,8 +14,11 @@
 # ==============================================================================
 """ConfigDict for VanillaMPNN."""
 
+from typing import Collection, Optional
+
 from ml_collections import config_dict
 import tensorflow as tf
+import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models.vanilla_mpnn import layers
 
 
@@ -36,7 +39,10 @@ def graph_update_get_config_dict() -> config_dict.ConfigDict:
 
 
 def graph_update_from_config_dict(
-    cfg: config_dict.ConfigDict) -> tf.keras.layers.Layer:
+    cfg: config_dict.ConfigDict,
+    *,
+    node_set_names: Optional[Collection[tfgnn.NodeSetName]] = None,
+) -> tf.keras.layers.Layer:
   """Returns a VanillaMPNNGraphUpdate initialized from `cfg`.
 
   Args:
@@ -46,6 +52,8 @@ def graph_update_from_config_dict(
       `VanillaMPNNGraphUpdate` object. For the required arguments of
       `VanillaMPNNGraphUpdate.__init__`, users must set a value in `cfg` before
       passing it here.
+    node_set_names: Optionally, the names of NodeSets to update; forwarded to
+      `MtAlbisGraphUpdate.__init__`.
 
   Returns:
     A new `VanillaMPNNGraphUpdate` object.
@@ -55,4 +63,4 @@ def graph_update_from_config_dict(
     `VanillaMPNNGraphUpdate.__init__`.
   """
   kwargs = {k: v for k, v in cfg.items() if v is not None}
-  return layers.VanillaMPNNGraphUpdate(**kwargs)
+  return layers.VanillaMPNNGraphUpdate(node_set_names=node_set_names, **kwargs)

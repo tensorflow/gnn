@@ -14,21 +14,24 @@
 # ==============================================================================
 """ConfigDict for MtAlbis."""
 
+from typing import Collection, Optional
+
 from ml_collections import config_dict
 import tensorflow as tf
+import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models.mt_albis import layers
 
 
 def graph_update_get_config_dict() -> config_dict.ConfigDict:
   """Returns ConfigDict for graph_update_from_config_dict() with defaults."""
   # LINT.IfChange(graph_update_get_config_dict)
-  # TODO(b/261835577): What about node_set_names, attention_edge_set_names?
   cfg = config_dict.ConfigDict()
   cfg.units = config_dict.placeholder(int)  # Sets type to Optional[int].
   cfg.message_dim = config_dict.placeholder(int)
   cfg.receiver_tag = config_dict.placeholder(int)
   cfg.edge_feature_name = config_dict.placeholder(str)
   cfg.attention_type = "none"
+  cfg.attention_edge_set_names = config_dict.placeholder(tuple)
   cfg.attention_num_heads = 4
   cfg.simple_conv_reduce_type = "mean"
   cfg.simple_conv_use_receiver_state = True
@@ -45,7 +48,9 @@ def graph_update_get_config_dict() -> config_dict.ConfigDict:
 
 
 def graph_update_from_config_dict(
-    cfg: config_dict.ConfigDict) -> tf.keras.layers.Layer:
+    cfg: config_dict.ConfigDict,
+    node_set_names: Optional[Collection[tfgnn.NodeSetName]] = None,
+) -> tf.keras.layers.Layer:
   """Constructs a MtAlbisGraphUpdate from a ConfigDict.
 
   Args:
@@ -55,6 +60,8 @@ def graph_update_from_config_dict(
       `MtAlbisGraphUpdate` object. For the required arguments of
       `MtAlbisGraphUpdate.__init__`, users must set a value in `cfg` before
       passing it here.
+    node_set_names: Optionally, the names of NodeSets to update; forwarded to
+      `MtAlbisGraphUpdate.__init__`.
 
   Returns:
     A new Layer object as returned by `MtAlbisGraphUpdate()`.
@@ -67,4 +74,4 @@ def graph_update_from_config_dict(
   # so we omit them here, and leave it to the called function to catch
   # missing required arguments.
   kwargs = {k: v for k, v in cfg.items() if v is not None}
-  return layers.MtAlbisGraphUpdate(**kwargs)
+  return layers.MtAlbisGraphUpdate(node_set_names=node_set_names, **kwargs)
