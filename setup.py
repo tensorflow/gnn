@@ -130,7 +130,7 @@ with open('README.md') as fp:
 
 console_scripts = [
     'tensorflow_gnn.converters.ogb.convert_ogb_dataset',
-    'tensorflow_gnn.sampler.graph_sampler',
+    'tensorflow_gnn.sampler.unsupported.graph_sampler',
     # copybara:uncomment_begin(NetworkX utils)
     # 'tensorflow_gnn.sampler.nx_converter',
     # 'tensorflow_gnn.sampler.nx_generator',

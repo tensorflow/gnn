@@ -26,10 +26,11 @@ import networkx as nx
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.proto import examples_pb2
-from tensorflow_gnn.sampler import graph_sampler as sampler
+
 from tensorflow_gnn.sampler import sampling_spec_pb2
-from tensorflow_gnn.sampler import subgraph
-from tensorflow_gnn.sampler import subgraph_pb2
+from tensorflow_gnn.sampler.unsupported import graph_sampler as sampler
+from tensorflow_gnn.sampler.unsupported import subgraph
+from tensorflow_gnn.sampler.unsupported import subgraph_pb2
 from tensorflow_gnn.utils import test_utils
 
 from google.protobuf import text_format

@@ -21,8 +21,8 @@ from absl.testing import parameterized
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
-from tensorflow_gnn.sampler import subgraph
-from tensorflow_gnn.sampler import subgraph_pb2
+from tensorflow_gnn.sampler.unsupported import subgraph
+from tensorflow_gnn.sampler.unsupported import subgraph_pb2
 
 from google.protobuf import text_format
 

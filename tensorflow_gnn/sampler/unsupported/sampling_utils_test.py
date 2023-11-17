@@ -18,7 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import apache_beam as beam
 from apache_beam.testing import util
-from tensorflow_gnn.sampler import sampling_utils as utils
+from tensorflow_gnn.sampler.unsupported import sampling_utils as utils
 
 PCollection = beam.PCollection
 

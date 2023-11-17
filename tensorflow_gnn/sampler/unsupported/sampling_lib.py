@@ -24,8 +24,8 @@ import apache_beam as beam
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.sampler import sampling_spec_pb2
-from tensorflow_gnn.sampler import sampling_utils as utils
-from tensorflow_gnn.sampler import subgraph_pb2
+from tensorflow_gnn.sampler.unsupported import sampling_utils as utils
+from tensorflow_gnn.sampler.unsupported import subgraph_pb2
 
 PCollection = beam.pvalue.PCollection
 NodeId = bytes

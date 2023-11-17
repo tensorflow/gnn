@@ -22,9 +22,10 @@ import apache_beam as beam
 from apache_beam.testing import util
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
-from tensorflow_gnn.sampler import sampling_lib as lib
+
 from tensorflow_gnn.sampler import sampling_spec_pb2
-from tensorflow_gnn.sampler import subgraph_pb2
+from tensorflow_gnn.sampler.unsupported import sampling_lib as lib
+from tensorflow_gnn.sampler.unsupported import subgraph_pb2
 
 from google.protobuf import text_format
 
