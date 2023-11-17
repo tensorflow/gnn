@@ -531,8 +531,6 @@ class FunctionalModelTest(_TestBase):
     )
     self.assertIsInstance(adjacency_input.get_indices_dict(), dict)
 
-  # TODO(b/283404258): Remove {broadcast,pool}_*() support for KeradGraphTensor.
-  # Users are meant to call tfgnn.keras.layers.Broadcast and Pool instead.
   def testGraphTensorOps(self):
     example = gt.GraphTensor.from_pieces(
         gt.Context.from_fields(features={'f': as_tensor([1])}),
