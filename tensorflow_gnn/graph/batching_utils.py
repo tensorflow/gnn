@@ -644,7 +644,6 @@ def _make_room_for_padding(
   # sets with a static total number of nodes (`node_set_spec.total_size` is
   # always False). A side effect of this is that this function always reserves
   # space for a fake graph component (`total_num_components` increased by 1).
-  # TODO(b/217538005): remove this comment after fixing.
   extra_num_components = int(
       graph_tensor_spec.total_num_components is None
       or any(n.total_size is None

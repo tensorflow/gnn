@@ -358,8 +358,6 @@ def _call_model(model, graph_piece, *, logging_name):
   return model(graph_piece)
 
 
-# TODO(b/217538005): When fixed, update the paragraph on TPU compatibility
-# and the the matching explanations in gnn_modeling.md.
 @tf.keras.utils.register_keras_serializable(package="GNN")
 class MakeEmptyFeature(tf.keras.layers.Layer):
   """Returns an empty feature with a shape that fits the input graph piece.
