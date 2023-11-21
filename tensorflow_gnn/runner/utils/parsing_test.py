@@ -64,6 +64,10 @@ def random_serialized_graph_tensor() -> str:
 
 class ParsingTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   def _assert_fields_equal(self, a: Fields, b: Fields):
     self.assertCountEqual(a.keys(), b.keys())
     for k, v in a.items():

@@ -26,6 +26,9 @@ from tensorflow_gnn.runner.tasks import classification
 GraphTensor = tfgnn.GraphTensor
 Field = tfgnn.Field
 
+# Enables tests for graph pieces that are members of test classes.
+tfgnn.enable_graph_tensor_validation_at_runtime()
+
 TEST_GRAPH_TENSOR = GraphTensor.from_pieces(
     context=tfgnn.Context.from_fields(
         features={"labels": tf.constant((8, 1, 9, 1))}
@@ -59,6 +62,10 @@ def with_readout(num_labels: int, gt: GraphTensor) -> GraphTensor:
 
 
 class Classification(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters([
       dict(

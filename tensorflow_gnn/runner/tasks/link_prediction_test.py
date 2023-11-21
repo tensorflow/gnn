@@ -92,6 +92,10 @@ def _get_graph_tensor(
 
 class LinkPredictionTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   def test_predict_on_dot_product_link_prediction(self):
     task = link_prediction.DotProductLinkPrediction()
     similarities = task.predict(_get_graph_tensor())

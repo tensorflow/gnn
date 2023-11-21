@@ -21,8 +21,15 @@ from tensorflow_gnn.runner.utils import attribution
 
 IntegratedGradientsExporter = attribution.IntegratedGradientsExporter
 
+# Enables tests for graph pieces that are members of test classes.
+tfgnn.enable_graph_tensor_validation_at_runtime()
+
 
 class AttributionTest(tf.test.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   gt = tfgnn.GraphTensor.from_pieces(
       context=tfgnn.Context.from_fields(features={

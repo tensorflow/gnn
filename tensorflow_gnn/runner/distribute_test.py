@@ -167,6 +167,10 @@ class DatasetProvider(interfaces.DatasetProvider):
 
 class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   @tfdistribute.combinations.generate(
       tftest.combinations.times(
           _all_eager_strategy_combinations(),

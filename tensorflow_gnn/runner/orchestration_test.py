@@ -279,6 +279,10 @@ class SentinelTask(interfaces.Task):
 
 class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   @parameterized.named_parameters([
       dict(
           testcase_name="GraphTensors",

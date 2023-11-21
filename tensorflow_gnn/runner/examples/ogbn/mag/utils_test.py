@@ -23,6 +23,10 @@ as_tensor = tf.convert_to_tensor
 
 class MaskPaperLabelsTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   def test(self):
     graph = tfgnn.GraphTensor.from_pieces(
         node_sets={
@@ -58,6 +62,10 @@ class MaskPaperLabelsTest(tf.test.TestCase, parameterized.TestCase):
 
 
 class MakeCausalMaskTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   def test(self):
     graph = tfgnn.GraphTensor.from_pieces(
