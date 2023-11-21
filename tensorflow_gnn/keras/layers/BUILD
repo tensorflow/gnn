@@ -234,6 +234,7 @@ tf_py_test(
         ":padding_ops",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:adjacency",
+        "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
         "//tensorflow_gnn/graph:preprocessing_common",
         "//tensorflow_gnn/keras:keras_tensors",

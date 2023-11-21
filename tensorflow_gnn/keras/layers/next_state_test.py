@@ -22,6 +22,10 @@ from tensorflow_gnn.keras.layers import next_state as next_state_lib
 
 class NextStateFromConcatTest(tf.test.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def test(self):
     init_double = tf.keras.initializers.Identity(gain=2.0)
     next_state = next_state_lib.NextStateFromConcat(
@@ -40,6 +44,10 @@ class NextStateFromConcatTest(tf.test.TestCase):
 
 
 class ResidualNextStateTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(
       ("SoleFeature",),
@@ -130,6 +138,10 @@ class ResidualNextStateTest(tf.test.TestCase, parameterized.TestCase):
 
 
 class SingleInputNextStateTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def test_single_input(self):
     next_state = next_state_lib.SingleInputNextState()

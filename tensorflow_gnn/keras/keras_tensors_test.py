@@ -29,6 +29,8 @@ from tensorflow_gnn.graph import graph_tensor_ops
 from tensorflow_gnn.graph import pool_ops
 from tensorflow_gnn.keras import keras_tensors as kt
 
+# Enables tests for graph pieces that are members of test classes.
+const.enable_graph_tensor_validation_at_runtime()
 
 as_tensor = tf.convert_to_tensor
 as_ragged = tf.ragged.constant
@@ -170,6 +172,10 @@ _OPS_TEST_CASES = [
 
 class _TestBase(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def assertFieldsEqual(self, actual: const.Fields, expected: const.Fields):
     self.assertIsInstance(actual, Mapping)
     self.assertAllEqual(actual.keys(), expected.keys())
@@ -178,6 +184,10 @@ class _TestBase(tf.test.TestCase, parameterized.TestCase):
 
 
 class _SaveAndLoadTestBase(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def _save_and_load_keras_model(
       self, model: tf.keras.Model, save_format, **save_args

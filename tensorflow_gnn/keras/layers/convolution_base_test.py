@@ -34,6 +34,10 @@ from tensorflow_gnn.keras.layers import graph_update
 @tf.keras.utils.register_keras_serializable(package="GNNtesting")
 class ExampleConvolution(convolution_base.AnyToAnyConvolutionBase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def __init__(self, units, **kwargs):
     super().__init__(**kwargs)
     self._message_fn = tf.keras.layers.Dense(units, "relu")
@@ -64,6 +68,10 @@ def ExampleEdgePool(*args, sender_feature=const.HIDDEN_STATE, **kwargs):  # To b
 
 
 class SoftmaxBySumConvolution(convolution_base.AnyToAnyConvolutionBase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def __init__(self, **kwargs):
     super().__init__(sender_edge_feature=None, receiver_feature=None,
@@ -99,6 +107,10 @@ class ReloadModel(int, enum.Enum):
 
 
 class AnyToAnyConvolutionBaseTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(
       ("", False, False, False),
@@ -377,6 +389,10 @@ def _drop_prefix_re(prefix_re, string):
 
 @tf.keras.utils.register_keras_serializable(package="GNNtesting")
 class NextStateFromSingleInput(tf.keras.layers.Layer):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def call(self, inputs):
     unused_old_state, main_input, third_input = inputs

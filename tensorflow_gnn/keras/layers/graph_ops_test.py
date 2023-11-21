@@ -27,6 +27,10 @@ from tensorflow_gnn.keras.layers import graph_ops
 
 class ReadoutTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def testFeatureName(self):
     red_values = tf.constant([[11., 12.]])
     blue_values = tf.constant([[21., 22.]])
@@ -215,6 +219,10 @@ class _MakeGraphTensor(tf.keras.layers.Layer):
 
 class ReadoutFirstNodeTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   @parameterized.named_parameters(
       ("Dense", "dense", [[11.], [13.]]),
       ("Ragged", "ragged", tf.ragged.constant([[110., 111.], [130.]])))
@@ -331,6 +339,10 @@ class _MakeGraphTensorNodesOnly(tf.keras.layers.Layer):
 
 class StructuredReadoutTest(tf.test.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def testBasic(self):
     test_graph = _MakeGraphTensorStructuredReadout()(
         {"users.hidden_state": tf.constant(
@@ -427,6 +439,10 @@ class StructuredReadoutTest(tf.test.TestCase):
 
 
 class StructuredReadoutIntoFeatureTest(tf.test.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def testBasic(self):
     test_graph = _MakeGraphTensorStructuredReadout()(
@@ -558,6 +574,10 @@ class StructuredReadoutIntoFeatureTest(tf.test.TestCase):
 
 class AddReadoutFromFirstNodeTest(tf.test.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def testBasic(self):
     input_graph = _MakeGraphTensorStructuredReadout(readout_node_set=None)(
         {"users.hidden_state": tf.constant(
@@ -682,6 +702,10 @@ class _MakeGraphTensorStructuredReadout(tf.keras.layers.Layer):
 class AddSelfLoopsTest(tf.test.TestCase, parameterized.TestCase):
   """Ensures that AddSelfLoops invokes well-tested function add_self_loops."""
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def testAddSelfLoopLayerCallAddSelfLoopsFnReturningItsValue(self):
     mock.MagicMock()
     with mock.patch.object(
@@ -733,6 +757,10 @@ class AddSelfLoopsTest(tf.test.TestCase, parameterized.TestCase):
 
 
 class BroadcastTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def testFeatureName(self):
     red_values = [[11., 12.]]
@@ -982,6 +1010,10 @@ class MakeTestGraphY(tf.keras.layers.Layer):
 
 
 class PoolTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def testFeatureName(self):
     red_values = [[11., 12.], [13., 14]]

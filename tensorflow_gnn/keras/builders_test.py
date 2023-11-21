@@ -33,6 +33,10 @@ IdentityLayer = tf.keras.layers.Layer
 
 class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def testHomogeneousCase(self):
     input_graph = _make_test_graph_with_singleton_node_sets(
         [("node", [1.])], [("node", "node", [100.])])

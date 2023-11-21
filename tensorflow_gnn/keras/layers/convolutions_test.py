@@ -35,6 +35,10 @@ class ReloadModel(int, enum.Enum):
 
 class SimpleConvTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   @parameterized.named_parameters(
       ("Forward", False, False, ReloadModel.SKIP),
       ("ForwardWithEdgeFeatureRestoredKeras", True, False, ReloadModel.KERAS),

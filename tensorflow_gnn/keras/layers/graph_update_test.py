@@ -37,6 +37,10 @@ class ReloadModel(int, enum.Enum):
 
 class GraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   @parameterized.named_parameters(
       ("InstantInit", False),
       ("DeferredInit", True))

@@ -27,6 +27,10 @@ as_tensor = tf.convert_to_tensor
 class ExportedKerasNamesTest(tf.test.TestCase):
   """Tests symbols exist in tfgnn.keras.*."""
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   def assertIsSubclass(self, first, second, msg=None):
     if msg is None:
       msg = f'{repr(first)} is not a subclass of {repr(second)}'
@@ -70,6 +74,10 @@ class ExportedKerasNamesTest(tf.test.TestCase):
 # An example of a custom Keras layer used by tests below.
 class AddWeightedSwappedInEdges(tf.keras.layers.Layer):
   """Adds weighted sum of coordinate-swapped neighbor states to each node."""
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   def __init__(self, supports_get_config=True, supports_from_config=True,
                **kwargs):
@@ -153,6 +161,10 @@ def add_weighted_swapped_in_edges(graph, use_deferred_init):
 
 
 class GraphTensorKerasModelTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   def _create_graph_tensor(self, static_shapes, factor):
     """Returns a graph with one component, as depicted below.

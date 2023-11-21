@@ -18,12 +18,17 @@ from absl.testing import parameterized
 import google.protobuf.text_format as pbtext
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
+from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.keras.layers import parse_example
 
 
 class ParseExampleTest(tf.test.TestCase, parameterized.TestCase):
   """Tests the wrapping of tfgnn.parse_example() in a Keras layer."""
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def pbtxt_to_dataset(self, examples_pbtxt) -> tf.data.Dataset:
     serialized = []

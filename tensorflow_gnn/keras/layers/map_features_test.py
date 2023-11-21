@@ -42,6 +42,10 @@ class ReloadModel(int, enum.Enum):
 
 class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   @parameterized.named_parameters(
       ("All", True, True, True),
       ("Context", True, False, False),
@@ -547,6 +551,10 @@ def _make_batched_test_graph(all_node_sizes, *, add_ragged_ids=False):
 
 # TODO(b/297180246): Test mixed precision initialization of `MakeEmptyFeature`.
 class MakeEmptyFeatureTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(
       ("Basic", ReloadModel.SKIP),

@@ -20,6 +20,7 @@ import os
 from absl.testing import parameterized
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
+from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import preprocessing_common
 from tensorflow_gnn.keras import keras_tensors  # For registration. pylint: disable=unused-import
@@ -34,6 +35,10 @@ class ReloadModel(int, enum.Enum):
 
 
 class PadToTotalSizesTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def _make_test_graph(self):
     return gt.GraphTensor.from_pieces(
@@ -88,6 +93,10 @@ class PadToTotalSizesTest(tf.test.TestCase, parameterized.TestCase):
 
 
 class PadToTotalSizesTFLiteTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def testBasic(self):
     test_graph_1_dict = {
