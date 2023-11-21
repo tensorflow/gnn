@@ -183,6 +183,10 @@ class _TestNodeFeatureAccessor(
 
 class SubgraphPipelineTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   def test_sample_edge_sets(self):
     (eats_edges, sampler, graph_schema,
      sampling_spec) = _get_test_edges_sampler_schema_spec()
@@ -399,6 +403,10 @@ def _get_test_link_edges_sampler_schema_spec():
 
 
 class LinkSamplingPipelineTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   # TODO: b/301427603 - Test this parametrically on int64 and int32 seeds.
   def test_link_sampling_pipeline(self):

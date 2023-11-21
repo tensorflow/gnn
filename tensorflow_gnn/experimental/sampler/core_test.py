@@ -23,6 +23,9 @@ from tensorflow_gnn.experimental.sampler import core
 
 rt = tf.ragged.constant
 
+# Enables tests for graph pieces that are members of test classes.
+tfgnn.enable_graph_tensor_validation_at_runtime()
+
 CITATION_GRAPH = tfgnn.GraphTensor.from_pieces(
     node_sets={
         'author': tfgnn.NodeSet.from_fields(sizes=[2, 2], features={}),
@@ -127,6 +130,10 @@ class ResetIfTraining(core.CompositeLayer):
 
 
 class CompositeLayerTest(tf.test.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   def testLvl1(self):
     def check(adder):
@@ -1142,6 +1149,10 @@ class InMemIndexToFeaturesAccessor(tf.test.TestCase):
 
 class GraphTensorBuilderTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   def testContext(self):
     graph = core.build_graph_tensor(context={'label': [['G'], ['B']]})
     self.assertAllEqual(graph.shape, tf.TensorShape([2]))
@@ -1521,6 +1532,10 @@ class GraphTensorBuilderTest(tf.test.TestCase, parameterized.TestCase):
 
 
 class ParallelEdgesRemovalTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   def testNoEdges(self):
     graph = core.build_graph_tensor(

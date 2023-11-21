@@ -24,6 +24,8 @@ from tensorflow_gnn.experimental.sampler import eval_dag as lib
 from tensorflow_gnn.experimental.sampler import eval_dag_pb2 as pb
 from tensorflow_gnn.experimental.sampler import interfaces
 
+# Enables tests for graph pieces that are members of test classes.
+tfgnn.enable_graph_tensor_validation_at_runtime()
 
 rt = tf.ragged.constant  # ragged tensor
 dt = tf.convert_to_tensor  # dense tensor
@@ -59,6 +61,10 @@ aa_graph = tfgnn.GraphTensor.from_pieces(
 
 
 class EvalDagSimpleTest(tf.test.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   def testPassthrough1(self):
     seeds = tf.keras.Input(
@@ -201,6 +207,10 @@ class Add3(core.CompositeLayer):
 
 class EvalDagExecutionTest(tf.test.TestCase):
   """Checks if running eval dag matches its sampling model outputs."""
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   def _run(
       self,
@@ -707,6 +717,10 @@ class HelpersTest(tf.test.TestCase, parameterized.TestCase):
 
 class ModelServingTest(tf.test.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   def _save_and_load(self, model: tf.keras.Model) -> tf.keras.Model:
     temp_dir = self.create_tempdir().full_path
     lib.save_model(model, temp_dir)
@@ -783,6 +797,10 @@ class ModelServingTest(tf.test.TestCase):
 
 
 class AdaptForIOTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters([
       (

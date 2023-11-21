@@ -86,6 +86,10 @@ _module = 'tensorflow_gnn.experimental.sampler.link_samplers'
 
 class LinkSamplersIntegrationTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   def test_create_link_prediction_sampling_model(self):
     toy_data = ToyDataset()
     sampler = ia_sampler.GraphSampler(toy_data)
@@ -166,6 +170,10 @@ class LinkSamplersIntegrationTest(tf.test.TestCase, parameterized.TestCase):
 
 class LinkSamplersUnitTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   def test_uniqify_featureless_nodes(self):
     graph_tensor = _make_graph_tensor(
         node_sets={
@@ -236,6 +244,8 @@ class MergeGraphsIntoOneComponentTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
     self.contexts = [
         tf.constant([[1, 2, 3]]),
         tf.constant([[10, 20, 30]]),
