@@ -26,6 +26,10 @@ as_ragged = tf.ragged.constant
 
 class NetworkxTest(tf.test.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def test_two_node_sets(self):
     tf_gnn_graph = gt.GraphTensor.from_pieces(
         node_sets={

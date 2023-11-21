@@ -15,10 +15,15 @@
 # limitations under the License.
 # ==============================================================================
 import tensorflow as tf
+import tensorflow_gnn as tfgnn
 from tensorflow_gnn.converters import triples
 
 
 class TriplesTest(tf.test.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   def test_triples_from_array(self):
     spos = [["gnns", "are", "awesome"], ["tfgnn", "is", "awesome"],
