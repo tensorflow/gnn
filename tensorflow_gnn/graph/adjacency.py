@@ -56,7 +56,7 @@ class HyperAdjacency(gp.GraphPieceBase):
   def from_indices(cls,
                    indices: Indices,
                    *_,
-                   validate: bool = True) -> 'HyperAdjacency':
+                   validate: Optional[bool] = None) -> 'HyperAdjacency':
     """Constructs a new instance from the `indices` tensors.
 
     Example 1:
@@ -111,7 +111,9 @@ class HyperAdjacency(gp.GraphPieceBase):
     return cls._from_indices(indices, validate=validate)
 
   @classmethod
-  def _from_indices(cls, indices: Indices, validate: bool) -> 'HyperAdjacency':
+  def _from_indices(
+      cls, indices: Indices, validate: Optional[bool]
+  ) -> 'HyperAdjacency':
     """Implements `from_indices` without TF dispatching."""
 
     # NOTE: all derived classes that want to call `super().from_indices` *must*
@@ -124,8 +126,14 @@ class HyperAdjacency(gp.GraphPieceBase):
         for key, (name, index) in indices.items()
     }
 
-    if validate or const.validate_internal_results:
-      indices = _validate_indices(indices)
+    if validate is None:
+      validate = const.validate_graph_tensor_at_runtime
+
+    if const.validate_graph_tensor:
+      indices = _validate_indices(
+          indices,
+          allow_tf_assertions=validate,
+      )
 
     data = {
         _node_tag_to_index_key(tag): index
@@ -391,7 +399,7 @@ class Adjacency(HyperAdjacency):
                    source: Index,
                    target: Index,
                    *_,
-                   validate: bool = True) -> 'Adjacency':
+                   validate: Optional[bool] = None) -> 'Adjacency':
     """Constructs a new instance from the `source` and `target` node indices.
 
     Example 1:
@@ -541,7 +549,7 @@ class AdjacencySpec(HyperAdjacencySpec):
         index_spec=utils.with_undefined_outer_dimension(self.source))
 
 
-def _validate_indices(indices: Indices) -> Indices:
+def _validate_indices(indices: Indices, allow_tf_assertions: bool) -> Indices:
   """Checks that indices have compatible shapes."""
   if not indices:
     raise ValueError('`indices` must contain at least one entry.')
@@ -566,25 +574,28 @@ def _validate_indices(indices: Indices) -> Indices:
         raise ValueError(err_message)
 
       if isinstance(index_0, tf.Tensor) and isinstance(index_i, tf.Tensor):
-        assert_ops.append(
-            tf.assert_equal(
-                tf.shape(index_0), tf.shape(index_i), message=err_message))
+        if allow_tf_assertions:
+          assert_ops.append(
+              tf.assert_equal(
+                  tf.shape(index_0), tf.shape(index_i), message=err_message))
         return
 
       if isinstance(index_0, tf.RaggedTensor) and isinstance(
           index_i, tf.RaggedTensor):
         if index_0.ragged_rank != index_i.ragged_rank:
           raise ValueError(err_message)
-        for partition_0, partition_i in zip(index_0.nested_row_splits,
-                                            index_i.nested_row_splits):
-          assert_ops.append(
-              tf.assert_equal(partition_0, partition_i, message=err_message))
 
-        assert_ops.append(
-            tf.assert_equal(
-                tf.shape(index_0.flat_values),
-                tf.shape(index_i.flat_values),
-                message=err_message))
+        if allow_tf_assertions:
+          for partition_0, partition_i in zip(index_0.nested_row_splits,
+                                              index_i.nested_row_splits):
+            assert_ops.append(
+                tf.assert_equal(partition_0, partition_i, message=err_message))
+
+          assert_ops.append(
+              tf.assert_equal(
+                  tf.shape(index_0.flat_values),
+                  tf.shape(index_i.flat_values),
+                  message=err_message))
         return
     except:
       raise ValueError(err_message) from None
@@ -600,12 +611,19 @@ def _validate_indices(indices: Indices) -> Indices:
 
   # Apply identity operations to all index tensors to ensure that assertions are
   # executed in the graph mode.
-  with tf.control_dependencies(assert_ops):
-    result = {}
-    for node_tag, (node_set, index) in indices:
-      result[node_tag] = (node_set, tf.identity(index))
+  if not assert_ops:
+    result = {
+        node_tag: (node_set, index) for node_tag, (node_set, index) in indices
+    }
+  else:
+    assert allow_tf_assertions
+    with tf.control_dependencies(assert_ops):
+      result = {
+          node_tag: (node_set, tf.identity(index))
+          for node_tag, (node_set, index) in indices
+      }
 
-    return result
+  return result
 
 
 def _node_tag_to_index_key(node_tag: IncidentNodeTag) -> str:

@@ -21,8 +21,15 @@ from tensorflow_gnn.graph import graph_constants as const
 
 as_tensor = tf.convert_to_tensor
 
+# Enables tests for graph pieces that are members of test classes.
+const.enable_graph_tensor_validation_at_runtime()
+
 
 class HyperAdjacencyTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters([
       dict(
@@ -275,6 +282,10 @@ class HyperAdjacencyTest(tf.test.TestCase, parameterized.TestCase):
 
 
 class AdjacencyTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters([
       dict(

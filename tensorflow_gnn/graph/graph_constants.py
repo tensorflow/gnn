@@ -99,8 +99,13 @@ validate_internal_results = True
 allow_indices_auto_casting = True
 
 # If set, validates `GraphTensor` and its pieces and raises exception on an
-# attempt to construct invalid graph tensors.
-validate_graph_tensor_inputs = True
+# attempt to construct invalid graph tensors. If this flag is False, the
+# validate_graph_tensor_at_runtime is also False.
+validate_graph_tensor = True
+# If set, checks inputs of `GraphTensor` and its pieces at runtime using
+# `tf.debugging.assert_*` ops. If this flag is True, the
+# validate_graph_tensor is also True.
+validate_graph_tensor_at_runtime = False
 
 # The default choice for `indices_dtype`.
 # Can be either tf.int32 or tf.int64.
@@ -124,8 +129,8 @@ default_row_splits_dtype = tf.int64
 DEFAULT_STATE_NAME = HIDDEN_STATE
 
 
-def disable_graph_tensor_inputs_validation():
-  """Workaround that disables some constitency checks for graph tensor inputs.
+def disable_graph_tensor_validation():
+  """Disables both static and runtime checks of graph tensors.
 
   This is temporary workaround for the legacy code (before TF-GNN 1.0 release)
   that may rely on the inconsistent number of graph tensor items and allowed
@@ -133,11 +138,29 @@ def disable_graph_tensor_inputs_validation():
 
   DO NOT USE.
   """
-  global validate_graph_tensor_inputs
-  validate_graph_tensor_inputs = False
+  disable_graph_tensor_validation_at_runtime()
+
+  global validate_graph_tensor
+  validate_graph_tensor = False
 
 
-def enable_graph_tensor_inputs_validation():
-  """Reverts `disable_graph_tensor_inputs_validation()`."""
-  global validate_graph_tensor_inputs
-  validate_graph_tensor_inputs = True
+def disable_graph_tensor_validation_at_runtime():
+  """Disables runtime checks (`tf.debugging.Assert`) of graph tensor."""
+  global validate_graph_tensor_at_runtime
+  validate_graph_tensor_at_runtime = False
+
+
+def enable_graph_tensor_validation():
+  """Enables static checks of graph tensor."""
+  global validate_graph_tensor
+  validate_graph_tensor = True
+
+
+def enable_graph_tensor_validation_at_runtime():
+  """Enables both static and runtime checks of graph tensor."""
+  enable_graph_tensor_validation()
+
+  global validate_graph_tensor_at_runtime
+  validate_graph_tensor_at_runtime = True
+
+

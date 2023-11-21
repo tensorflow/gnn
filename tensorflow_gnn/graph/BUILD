@@ -215,6 +215,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":adjacency",
+        ":graph_constants",
         ":graph_tensor",
         ":schema_validation",
         "//:expect_tensorflow_installed",
@@ -315,6 +316,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":adjacency",
+        ":graph_constants",
         ":graph_tensor",
         ":graph_tensor_random",
         ":schema_utils",
@@ -448,6 +450,7 @@ tf_py_test(
     srcs = ["preprocessing_common_test.py"],
     python_version = "PY3",
     deps = [
+        ":graph_constants",
         ":graph_tensor",
         ":preprocessing_common",
         "//:expect_absl_installed",
@@ -478,6 +481,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":adjacency",
+        ":graph_constants",
         ":graph_tensor",
         ":graph_tensor_test_utils",
         ":padding_ops",
@@ -588,6 +592,7 @@ tf_py_test(
     deps = [
         ":adjacency",
         ":batching_utils",
+        ":graph_constants",
         ":graph_tensor",
         ":graph_tensor_test_utils",
         ":preprocessing_common",

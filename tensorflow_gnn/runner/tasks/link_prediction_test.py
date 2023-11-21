@@ -133,12 +133,12 @@ class LinkPredictionValidationTest(tf.test.TestCase, parameterized.TestCase):
   def setUp(self):
     # Allows to construct invalid `GraphTensor`s, e.g with edge sets that
     # connect non-existent node sets.
-    tfgnn.disable_graph_tensor_inputs_validation()
+    tfgnn.disable_graph_tensor_validation()
     super().setUp()
 
   def tearDown(self):
     super().tearDown()
-    tfgnn.enable_graph_tensor_inputs_validation()
+    tfgnn.enable_graph_tensor_validation()
 
   @parameterized.named_parameters([
       dict(

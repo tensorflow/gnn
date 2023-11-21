@@ -31,9 +31,16 @@ from tensorflow.python.framework import type_spec
 as_tensor = tf.convert_to_tensor
 as_ragged = tf.ragged.constant
 
+# Enables tests for graph pieces that are members of test classes.
+const.enable_graph_tensor_validation_at_runtime()
+
 
 class CreationTest(tu.GraphTensorTestBase):
   """Tests for context, node sets and edge sets creation."""
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def assertFieldsEqual(self, actual: const.Fields, expected: const.Fields):
     self.assertIsInstance(actual, Mapping)
@@ -72,10 +79,10 @@ class CreationTest(tu.GraphTensorTestBase):
 
   def testValidationOnOff(self):
     invalid_features = {'a': [1, 2], 'b': [1, 2, 3]}
-    const.disable_graph_tensor_inputs_validation()
+    const.disable_graph_tensor_validation()
     _ = gt.Context.from_fields(features=invalid_features)
 
-    const.enable_graph_tensor_inputs_validation()
+    const.enable_graph_tensor_validation()
     with self.assertRaises(ValueError):
       gt.Context.from_fields(features=invalid_features)
 
@@ -341,6 +348,10 @@ class CreationTest(tu.GraphTensorTestBase):
 class HomogeneousTest(tu.GraphTensorTestBase):
   """Tests for homogeneous(...)."""
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def testNodeSizesIfNotEdges(self):
     src = tf.constant([0, 3])
     tgt = tf.constant([1, 2])
@@ -557,6 +568,10 @@ class HomogeneousTest(tu.GraphTensorTestBase):
 class ReplaceFeaturesTest(tu.GraphTensorTestBase):
   """Tests for replace_features()."""
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   @parameterized.parameters([
       dict(features={'a': as_tensor([2])}),
       dict(features={
@@ -675,6 +690,10 @@ class ReplaceFeaturesTest(tu.GraphTensorTestBase):
 
 
 class NumItemsTest(tu.GraphTensorTestBase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def testContext(self):
     self.assertAllEqual(
@@ -806,9 +825,9 @@ class NumItemsTest(tu.GraphTensorTestBase):
             tf.TensorSpec(shape=[None], dtype=tf.int64),
         ]
     )
-    def create(szies, indices):
+    def create(sizes, indices):
       return gt.EdgeSet.from_fields(
-          sizes=szies,
+          sizes=sizes,
           adjacency=adj.Adjacency.from_indices(('a', indices), ('b', indices)),
       )
 
@@ -822,6 +841,10 @@ class NumItemsTest(tu.GraphTensorTestBase):
 
 class RemoveFeaturesTest(tu.GraphTensorTestBase):
   """Tests for remove_features()."""
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def _make_test_graph(self):
     return gt.GraphTensor.from_pieces(
@@ -939,6 +962,10 @@ class RemoveFeaturesTest(tu.GraphTensorTestBase):
 class ResolveValueTest(tu.GraphTensorTestBase):
   """Tests for resolve_value()."""
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   @parameterized.named_parameters(
       ('Context', gt.Context.from_fields(
           sizes=as_tensor([1, 1]),
@@ -978,6 +1005,10 @@ class ResolveValueTest(tu.GraphTensorTestBase):
 
 
 class ElementsCountsTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def testEmpty(self):
     graph = gt.GraphTensor.from_pieces()
@@ -1099,6 +1130,10 @@ class ElementsCountsTest(tf.test.TestCase, parameterized.TestCase):
 class TfFunctionTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for GraphTensor and TfFunction interaction."""
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def testTfFunctionForNodeSets(self):
 
     @tf.function
@@ -1202,20 +1237,24 @@ class TfFunctionTest(tf.test.TestCase, parameterized.TestCase):
                           }))
           })
 
-    graph = concat(gen_graph([1, 2]), gen_graph([3, 4]))
+    _ = concat(gen_graph([1, 2]), gen_graph([3, 4]))
     self.assertEqual(concat.experimental_get_tracing_count(), 1)
     graph = concat(gen_graph([5, 6]), gen_graph([7, 8]))
     self.assertEqual(concat.experimental_get_tracing_count(), 1)
     graph = concat(graph, graph)
     self.assertEqual(concat.experimental_get_tracing_count(), 2)
-    graph = concat(graph, graph)
+    _ = concat(graph, graph)
     self.assertEqual(concat.experimental_get_tracing_count(), 3)
-    graph = concat(gen_graph([2, 1]), gen_graph([4, 3]))
+    _ = concat(gen_graph([2, 1]), gen_graph([4, 3]))
     self.assertEqual(concat.experimental_get_tracing_count(), 3)
 
 
 class BatchingUnbatchingMergingTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for Graph Tensor specification."""
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.parameters(tf.int32, tf.int64)
   def testVarSizeBatching(self, row_splits_dtype: tf.DType):
@@ -1550,6 +1589,10 @@ class _MakeGraphTensorMerged(tf.keras.layers.Layer):
 class NumComponentsTest(tu.GraphTensorTestBase):
   """Tests for GraphTensor tranformations."""
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   @parameterized.parameters([
       dict(features={}, shape=[], expected=0),
       dict(features={'a': as_tensor([2])}, shape=[], expected=1),
@@ -1694,6 +1737,10 @@ class NodeSetSizesToTestResults(tf.keras.layers.Layer):
 
 class SizesTFLiteTest(tf.test.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def testTFLite(self):
     test_tensor = tf.constant([2, 2])
     inputs = tf.keras.Input([], None, 'node_sizes', tf.int32)
@@ -1714,6 +1761,10 @@ class SizesTFLiteTest(tf.test.TestCase):
 
 class CheckScalarGraphTensorTest(tf.test.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def testSuccess(self):
     graph_tensor = gt.GraphTensor.from_pieces(node_sets={
         'nodes': gt.NodeSet.from_fields(sizes=[1], features={'f': [[1.]]})
@@ -1730,6 +1781,10 @@ class CheckScalarGraphTensorTest(tf.test.TestCase):
 
 
 class GetAuxTypePrefixTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.parameters(
       ('_readout', '_readout'),
@@ -1759,6 +1814,10 @@ class GetAuxTypePrefixTest(tf.test.TestCase, parameterized.TestCase):
 
 
 class CheckHomogeneousGraphTensorTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(('', False), ('WithReadout', True))
   def testSuccess(self, add_readout):
@@ -1917,6 +1976,11 @@ class SpecRelaxationTest(tu.GraphTensorTestBase):
 
 
 class AttributesSettersTest(tf.test.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   rank1 = gt.GraphTensor.from_pieces(
       context=gt.Context.from_fields(
           features={'label': as_tensor([['X'], ['Y']])}
@@ -2113,6 +2177,10 @@ class AttributesSettersTest(tf.test.TestCase):
 
 class SpecsInitializationTest(tu.GraphTensorTestBase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def testSerialization(self):
     # pylint: disable=protected-access
     graph_without_edges = gt.GraphTensor.from_pieces(
@@ -2158,6 +2226,10 @@ class SpecsInitializationTest(tu.GraphTensorTestBase):
 
 
 class GraphTensorValidationTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def testRaisesOnMissingNodeSet(self):
     with self.assertRaisesWithPredicateMatch(

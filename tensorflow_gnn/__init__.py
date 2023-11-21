@@ -217,8 +217,15 @@ is_ragged_tensor = tensor_utils.is_ragged_tensor
 is_graph_tensor = graph_tensor_ops.is_graph_tensor
 
 # Global state flags that controls GraphPieces checks.
-enable_graph_tensor_inputs_validation = graph_constants.enable_graph_tensor_inputs_validation
-disable_graph_tensor_inputs_validation = graph_constants.disable_graph_tensor_inputs_validation
+# Deprecated. Use `enable_graph_tensor_validation`.
+enable_graph_tensor_inputs_validation = graph_constants.enable_graph_tensor_validation
+# Deprecated. Use `disable_graph_tensor_validation`.
+disable_graph_tensor_inputs_validation = graph_constants.disable_graph_tensor_validation
+
+enable_graph_tensor_validation = graph_constants.enable_graph_tensor_validation
+enable_graph_tensor_validation_at_runtime = graph_constants.enable_graph_tensor_validation_at_runtime
+disable_graph_tensor_validation = graph_constants.disable_graph_tensor_validation
+disable_graph_tensor_validation_at_runtime = graph_constants.disable_graph_tensor_validation_at_runtime
 
 # Remove all names added by module imports, unless explicitly allowed here.
 api_utils.remove_submodules_except(__name__, [

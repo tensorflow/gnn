@@ -16,6 +16,7 @@
 from absl.testing import parameterized
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
+from tensorflow_gnn.graph import graph_constants as gc
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_test_utils as tu
 from tensorflow_gnn.graph import padding_ops as ops
@@ -24,9 +25,17 @@ from tensorflow_gnn.graph import preprocessing_common as preprocessing
 as_tensor = tf.convert_to_tensor
 as_ragged = tf.ragged.constant
 
+# Enables tests for graph pieces that are members of test classes.
+gc.enable_graph_tensor_validation_at_runtime()
+
 
 class PaddingToTotalSizesTest(tu.GraphTensorTestBase):
   """Tests for context, node sets and edge sets creation."""
+
+  def setUp(self):
+    super().setUp()
+    gc.enable_graph_tensor_validation_at_runtime()
+
   test_2_a2b4_ab3_graph = gt.GraphTensor.from_pieces(
       context=gt.Context.from_fields(features={'f': as_tensor(['X', 'Y'])}),
       node_sets={

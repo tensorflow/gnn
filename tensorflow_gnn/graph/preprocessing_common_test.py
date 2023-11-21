@@ -18,13 +18,21 @@ import math
 from typing import List
 from absl.testing import parameterized
 import tensorflow as tf
+from tensorflow_gnn.graph import graph_constants as gc
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import preprocessing_common
 
 as_tensor = tf.convert_to_tensor
 
+# Enables tests for graph pieces that are members of test classes.
+gc.enable_graph_tensor_validation_at_runtime()
+
 
 class ReduceMeanTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    gc.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(
       ('Tensor', as_tensor([1., 2.])),
@@ -88,6 +96,10 @@ class ReduceMeanTest(tf.test.TestCase, parameterized.TestCase):
 
 
 class DatasetFilterWithSummaryTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    gc.enable_graph_tensor_validation_at_runtime()
 
   def assertSummary(self,
                     events_dir: str,

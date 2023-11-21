@@ -31,9 +31,16 @@ as_ragged = tf.ragged.constant
 
 GraphPiece = Union[gt.Context, gt.NodeSet, gt.EdgeSet]
 
+# Enables tests for graph pieces that are members of test classes.
+const.enable_graph_tensor_validation_at_runtime()
+
 
 class FirstNodeOpsTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for operations on first nodes per component (e.g., root nodes)."""
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.parameters([
       dict(
@@ -90,6 +97,10 @@ class FirstNodeOpsTest(tf.test.TestCase, parameterized.TestCase):
 
 
 class ShuffleOpsTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.parameters([
       dict(
@@ -301,6 +312,10 @@ def as_ragged_list(l):
 
 class CombineFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   @parameterized.named_parameters(
       ('Concat', as_tensor_list([[[1.]], [[2.]], [[3.]]]), 'concat',
        [[1., 2., 3.]]),
@@ -338,6 +353,10 @@ class CombineFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
 
 class SelfLoopsTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def testWithEmptyComponents(self):
     node_sizes = [0, 5]
@@ -477,6 +496,11 @@ class _ReorderNodes(tf.keras.layers.Layer):
 
 
 class ReorderNodesTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   _heterogeneous = gt.GraphTensor.from_pieces(
       node_sets={
           'A':
@@ -627,6 +651,10 @@ _SEED = 42
 
 
 class ShuffleNodesTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters([('adjacency',
                                     adj.Adjacency.from_indices(
@@ -806,6 +834,10 @@ class ShuffleNodesTest(tf.test.TestCase, parameterized.TestCase):
 class NodeDegreeTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for computing degree of each node w.r.t. one side of an edge set."""
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   @parameterized.parameters([
       dict(
           description='varying degrees for receiver nodes',
@@ -876,6 +908,10 @@ class _MaskEdges(tf.keras.layers.Layer):
 
 class EdgeMaskingTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for edge-masking operations over a scalar GraphTensor."""
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(
       dict(
@@ -1289,6 +1325,10 @@ class _MakeLineGraphTargetToSource(tf.keras.layers.Layer):
 
 class LineGraphTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def _make_test_graph(self, add_readout=False):
     return _MakeGraphTensor()(
         {'fa': tf.range(10)},
@@ -1648,6 +1688,10 @@ class LineGraphTest(tf.test.TestCase, parameterized.TestCase):
 
 class LineGraphValidationTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def testAuxiliaryNodeSetError(self):
     graph_tensor = _MakeGraphTensor()({'fa': tf.range(10)})
     graph_tensor = gt.GraphTensor.from_pieces(
@@ -1682,6 +1726,10 @@ class LineGraphValidationTest(tf.test.TestCase, parameterized.TestCase):
 
 
 class PoolNeighborsToNodeTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters([
       ('scalar', 'sum', as_tensor([1.0, 3.0]), as_tensor([1.0 + 3.0, 1.0])),

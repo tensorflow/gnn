@@ -22,9 +22,16 @@ from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import pool_ops
 
+# Enables tests for graph pieces that are members of test classes.
+const.enable_graph_tensor_validation_at_runtime()
+
 
 class PoolWrappersTest(tf.test.TestCase, parameterized.TestCase):
   """Tests forwarding from pool_*_to_*() to pool()."""
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def testPoolNodesToContext(self):
     input_graph = _get_test_graph_abc_efx()
@@ -74,6 +81,10 @@ class PoolWrappersTest(tf.test.TestCase, parameterized.TestCase):
 
 class PoolTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for pool(), excluding specifics of indivdual reduce_types."""
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def testPoolNodesToContext(self):
     input_graph = _get_test_graph_abc_efx()
@@ -244,6 +255,10 @@ def _get_test_graph_abc_efx():
 # to tensorflow_gnn/keras/layers/graph_ops_test.py.
 class PoolReduceTypesTest(tf.test.TestCase, parameterized.TestCase):
   """Tests GraphPieceReducer and MultiReducer for *all* reduce_types."""
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(
       ("Sum", "sum", tf.constant([0., 10., 20.+30.])),

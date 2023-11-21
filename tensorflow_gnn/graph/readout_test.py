@@ -30,6 +30,10 @@ class StructuredReadoutTest(tf.test.TestCase):
   TFLite integration is tested with tfgnn.keras.layers.StructuredReadout.
   """
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def testHomNodeClassification(self):
     test_graph = gt.GraphTensor.from_pieces(
         node_sets={
@@ -367,6 +371,10 @@ class StructuredReadoutIntoFeatureTest(tf.test.TestCase,
   tfgnn.keras.layers.StructuredReadoutIntoFeature.
   """
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   @parameterized.named_parameters(
       ("KeepInput", False),
       ("RemoveInput", True))
@@ -457,6 +465,10 @@ class AddReadoutFromFirstNodeTest(tf.test.TestCase):
   TFLite integration is tested with tfgnn.keras.layers.AddReadoutFromFirstNode.
   """
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def test(self):
     test_graph = gt.GraphTensor.from_pieces(
         node_sets={
@@ -482,6 +494,10 @@ class AddReadoutFromFirstNodeTest(tf.test.TestCase):
 
 class ContextReadoutIntoFeatureTest(tf.test.TestCase, parameterized.TestCase):
   """Tests context_readout_into_feature()."""
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(
       ("KeepInput", False),

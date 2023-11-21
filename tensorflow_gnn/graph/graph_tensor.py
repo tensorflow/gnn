@@ -173,14 +173,14 @@ class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
         validate=validate,
     )
 
-    if const.validate_graph_tensor_inputs:
+    if const.validate_graph_tensor:
       # NOTE: The batch dimensions are already validated by the
       # `GraphPieceBase._from_data()`. At this point we are checking only
       # invariants specific to the `_GraphPieceWithFeatures`.
       _static_check_sizes(result.sizes, result.shape.rank)
       _static_check_items_dim(result.features, result.shape.rank)
 
-    if validate and result.features and const.validate_graph_tensor_inputs:
+    if validate and result.features and const.validate_graph_tensor:
       # pylint: disable=protected-access
       expected_num_items = result._get_num_items()
       result_shape = tf.shape(expected_num_items, result.indices_dtype)
@@ -303,7 +303,7 @@ class _GraphPieceWithFeaturesSpec(gp.GraphPieceSpecBase):
         row_splits_dtype=row_splits_dtype,
     )
 
-    if const.validate_graph_tensor_inputs:
+    if const.validate_graph_tensor:
       _static_check_sizes(result.sizes_spec, result.rank)
       _static_check_items_dim(result.features_spec, result.rank)
 
@@ -360,7 +360,7 @@ class Context(_GraphPieceWithFeatures):
                   sizes: Optional[Field] = None,
                   shape: Optional[ShapeLike] = None,
                   indices_dtype: Optional[tf.dtypes.DType] = None,
-                  validate: bool = True) -> 'Context':
+                  validate: Optional[bool] = None) -> 'Context':
     """Constructs a new instance from context fields.
 
     Example:
@@ -388,7 +388,9 @@ class Context(_GraphPieceWithFeatures):
         used as `row_splits_dtype` when batching potentially ragged fields. If
         `sizes` are specified they are casted to that type.
       validate: If true, use tf.assert ops to inspect the shapes of each field
-        and check at runtime that they form a valid Context.
+        and check at runtime that they form a valid Context. The default
+        behavior is set by the `disable_graph_tensor_validation_at_runtime()`
+        and `enable_graph_tensor_validation_at_runtime()`.
 
     Returns:
       A `Context` composite tensor.
@@ -399,6 +401,9 @@ class Context(_GraphPieceWithFeatures):
 
     if indices_dtype is not None:
       gp.check_indices_dtype(indices_dtype)
+
+    if validate is None:
+      validate = const.validate_graph_tensor_at_runtime
 
     if shape is not None:
       shape = shape if isinstance(shape,
@@ -580,7 +585,7 @@ class NodeSet(_NodeOrEdgeSet):
                   *_,
                   features: Optional[Fields] = None,
                   sizes: Field,
-                  validate: bool = True) -> 'NodeSet':
+                  validate: Optional[bool] = None) -> 'NodeSet':
     """Constructs a new instance from node set fields.
 
     Example:
@@ -608,7 +613,9 @@ class NodeSet(_NodeOrEdgeSet):
         `[*graph_shape, num_components]`, where `num_components` is the number
         of graph components (could be ragged).
       validate: If true, use tf.assert ops to inspect the shapes of each field
-        and check at runtime that they form a valid NodeSet.
+        and check at runtime that they form a valid NodeSet.  The default
+        behavior is set by the `disable_graph_tensor_validation_at_runtime()`
+        and `enable_graph_tensor_validation_at_runtime()`.
 
     Returns:
       A `NodeSet` composite tensor.
@@ -618,6 +625,10 @@ class NodeSet(_NodeOrEdgeSet):
 
     if features is None:
       features = {}
+
+    if validate is None:
+      validate = const.validate_graph_tensor_at_runtime
+
     return cls._from_features_and_sizes(
         features=features, sizes=sizes, validate=validate
     )
@@ -710,7 +721,7 @@ class EdgeSet(_NodeOrEdgeSet):
                   features: Optional[Fields] = None,
                   sizes: Field,
                   adjacency: Adjacency,
-                  validate: bool = True) -> 'EdgeSet':
+                  validate: Optional[bool] = None) -> 'EdgeSet':
     """Constructs a new instance from edge set fields.
 
     Example 1:
@@ -744,7 +755,9 @@ class EdgeSet(_NodeOrEdgeSet):
         of graph components (could be ragged).
       adjacency: One of the supported adjacency types (see adjacency.py).
       validate: If true, use tf.assert ops to inspect the shapes of each field
-        and check at runtime that they form a valid EdgeSet.
+        and check at runtime that they form a valid EdgeSet. The default
+        behavior is set by the `disable_graph_tensor_validation_at_runtime()`
+        and `enable_graph_tensor_validation_at_runtime()`.
 
     Returns:
       An `EdgeSet` composite tensor.
@@ -755,11 +768,14 @@ class EdgeSet(_NodeOrEdgeSet):
     if features is None:
       features = {}
 
+    if validate is None:
+      validate = const.validate_graph_tensor_at_runtime
+
     result = cls._from_features_and_sizes(
         features=features, sizes=sizes, adjacency=adjacency, validate=validate
     )
 
-    if validate and const.validate_graph_tensor_inputs:
+    if validate and const.validate_graph_tensor:
       expected_num_items = result._get_num_items()  # pylint: disable=protected-access
       # NOTE: we cast number of items in adjacency to expected_num_items.dtype
       # for the case when `const.allow_indices_auto_casting` is disabled. This
@@ -1037,7 +1053,7 @@ class GraphTensor(gp.GraphPieceBase):
       context: Optional[Context] = None,
       node_sets: Optional[Mapping[NodeSetName, NodeSet]] = None,
       edge_sets: Optional[Mapping[EdgeSetName, EdgeSet]] = None,
-      validate: bool = True,
+      validate: Optional[bool] = None
   ) -> 'GraphTensor':
     """Constructs a new `GraphTensor` from context, node sets and edge sets."""
     node_sets = _ifnone(node_sets, dict()).copy()
@@ -1096,6 +1112,9 @@ class GraphTensor(gp.GraphPieceBase):
       # TODO(b/285269757): check that indices are consistent.
       raise NotImplementedError
 
+    if validate is None:
+      validate = const.validate_graph_tensor_at_runtime
+
     result = cls._from_data(
         data=data,
         shape=context.shape,
@@ -1104,7 +1123,7 @@ class GraphTensor(gp.GraphPieceBase):
         validate=validate,
     )
 
-    if const.validate_graph_tensor_inputs:
+    if const.validate_graph_tensor:
       check_ops = []
       for edge_set_name, edge_set in result.edge_sets.items():
         adjacency = edge_set.adjacency

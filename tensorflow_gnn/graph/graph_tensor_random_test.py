@@ -16,6 +16,7 @@ from absl.testing import parameterized
 import tensorflow as tf
 
 from tensorflow_gnn.graph import adjacency as adj
+from tensorflow_gnn.graph import graph_constants as gc
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_random as gr
 from tensorflow_gnn.graph import schema_utils
@@ -27,6 +28,10 @@ rt = tf.ragged.constant
 
 
 class TestRandomRaggedTensor(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    gc.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.parameters([
       tf.bool,
@@ -101,6 +106,10 @@ class TestRandomRaggedTensor(tf.test.TestCase, parameterized.TestCase):
 
 class TestRandomEdgeIndicesTensor(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    gc.enable_graph_tensor_validation_at_runtime()
+
   @parameterized.parameters(tf.int32, tf.int64)
   def test_empty(self, dtype):
     empty = tf.convert_to_tensor([], dtype)
@@ -161,6 +170,7 @@ class TestRandomGraphTensor(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
+    gc.enable_graph_tensor_validation_at_runtime()
     self.schema = test_utils.get_proto_resource(
         'testdata/feature_repr.pbtxt', schema_pb2.GraphSchema())
     self.spec = schema_utils.create_graph_spec_from_schema_pb(self.schema)
@@ -231,6 +241,10 @@ class TestSpecConstraints(tf.test.TestCase):
           ),
       },
   )
+
+  def setUp(self):
+    super().setUp()
+    gc.enable_graph_tensor_validation_at_runtime()
 
   def test_components_fixed(self):
     a_sizes, b_sizes, ab_sizes = [], [], []

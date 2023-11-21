@@ -24,8 +24,15 @@ from tensorflow_gnn.graph import normalization_ops
 ct = tf.constant
 rt = tf.ragged.constant
 
+# Enables tests for graph pieces that are members of test classes.
+const.enable_graph_tensor_validation_at_runtime()
+
 
 class NormalizationOpsTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(
       ('simple',

@@ -33,8 +33,15 @@ ResultFn = Callable[[gt.GraphTensor], ResultValue]
 as_tensor = tf.convert_to_tensor
 as_ragged = tf.ragged.constant
 
+# Enables tests for graph pieces that are members of test classes.
+gc.enable_graph_tensor_validation_at_runtime()
+
 
 class TfExampleParsingTestBase(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    gc.enable_graph_tensor_validation_at_runtime()
 
   def pbtxt_to_dataset(self, examples_pbtxt: List[str]) -> tf.data.Dataset:
     serialized = []
@@ -60,6 +67,10 @@ class TfExampleParsingTestBase(tf.test.TestCase, parameterized.TestCase):
 
 class TfExampleParsingFromSpecTest(TfExampleParsingTestBase):
   """Tests for TF Example to Graph Tensor parsing from the GraphTensorSpec."""
+
+  def setUp(self):
+    super().setUp()
+    gc.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.parameters([
       dict(
@@ -400,6 +411,10 @@ class TfExampleParsingFromSpecTest(TfExampleParsingTestBase):
 
 class TfExampleParsingFromSchemaTest(TfExampleParsingTestBase):
   """Tests for TF Example to Graph Tensor parsing from the GraphSchema."""
+
+  def setUp(self):
+    super().setUp()
+    gc.enable_graph_tensor_validation_at_runtime()
 
   def _test_impl(self, schema_pb: schema_pb2.GraphSchema, examples: List[str],
                  expected_value: ResultValue, result_map_fn: ResultFn, *,

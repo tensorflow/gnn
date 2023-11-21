@@ -20,6 +20,7 @@ from absl.testing import parameterized
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import batching_utils
+from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_test_utils as tu
 from tensorflow_gnn.graph import preprocessing_common as preprocessing
@@ -28,9 +29,16 @@ as_tensor = tf.convert_to_tensor
 as_ragged = tf.ragged.constant
 SizeConstraints = preprocessing.SizeConstraints
 
+# Enables tests for graph pieces that are members of test classes.
+const.enable_graph_tensor_validation_at_runtime()
+
 
 class DynamicBatchTest(tu.GraphTensorTestBase):
   """Tests for context, node sets and edge sets creation."""
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.parameters([
       dict(target_num_components=100, features={
@@ -440,6 +448,10 @@ def _gt_from_sizes(sizes: SizeConstraints) -> gt.GraphTensor:
 
 class ConstraintsTestBase(tu.GraphTensorTestBase):
 
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
+
   def assertContraintsEqual(self, actual, expected):
     tf.nest.map_structure(
         functools.partial(
@@ -448,6 +460,10 @@ class ConstraintsTestBase(tu.GraphTensorTestBase):
 
 
 class FindTightSizeConstraintsTest(ConstraintsTestBase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def testEmptyDataset(self):
     ds = tf.data.Dataset.from_tensors(
@@ -538,6 +554,10 @@ class FindTightSizeConstraintsTest(ConstraintsTestBase):
 
 
 class ConstraintsForStaticBatchTest(ConstraintsTestBase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def assertContraintsEqual(self, actual, expected):
     tf.nest.map_structure(
@@ -762,6 +782,10 @@ class ConstraintsForStaticBatchTest(ConstraintsTestBase):
 
 
 class FromGenerator(tu.GraphTensorTestBase):
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(('single_value', [
       gt.NodeSet.from_fields(features={'a': [1]}, sizes=[1]),

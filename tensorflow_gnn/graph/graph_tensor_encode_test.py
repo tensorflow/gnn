@@ -25,6 +25,9 @@ from tensorflow_gnn.graph import schema_utils as su
 import tensorflow_gnn.proto.graph_schema_pb2 as schema_pb2
 from tensorflow_gnn.utils import test_utils
 
+# Enables tests for graph pieces that are members of test classes.
+gc.enable_graph_tensor_validation_at_runtime()
+
 
 # TODO(blais): Move this to graph_tensor_test_utils once ported.
 def _find_first_available_tensor(gtensor: gt.GraphTensor) -> gc.Field:
@@ -39,6 +42,10 @@ def _find_first_available_tensor(gtensor: gt.GraphTensor) -> gc.Field:
 
 
 class TestWriteExample(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    gc.enable_graph_tensor_validation_at_runtime()
 
   # TODO(blais,aferludin): Replace this with graph_tensor_test_utils
   def _compare_graph_tensors(self, rfeatures: gc.Field, pfeatures: gc.Field):

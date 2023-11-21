@@ -22,6 +22,7 @@ import mock
 import tensorflow as tf
 
 from tensorflow_gnn.graph import adjacency as adj
+from tensorflow_gnn.graph import graph_constants as gc
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import schema_validation as sv
 import tensorflow_gnn.proto.graph_schema_pb2 as schema_pb2
@@ -30,6 +31,9 @@ from google.protobuf import text_format
 
 
 as_tensor = tf.convert_to_tensor
+
+# Enables tests for graph pieces that are members of test classes.
+gc.enable_graph_tensor_validation_at_runtime()
 
 
 class GraphValidationTest(tf.test.TestCase):
@@ -408,6 +412,10 @@ class SchemaTests(tf.test.TestCase):
 # everything using dicts. Eventually they could find their way into the
 # GraphTensor constructor itself.
 class GraphConstraintsTest(tf.test.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    gc.enable_graph_tensor_validation_at_runtime()
 
   def test_assert_constraints_feature_shape_prefix_nodes(self):
     # Check valid.

@@ -27,6 +27,9 @@ from tensorflow_gnn.graph import graph_tensor as gt
 as_tensor = tf.convert_to_tensor
 as_ragged = tf.ragged.constant
 
+# Enables tests for graph pieces that are members of test classes.
+const.enable_graph_tensor_validation_at_runtime()
+
 
 # NOTE: Testing with TFLite requires a Keras wrapper and therefore is delegated
 # to tensorflow_gnn/keras/layers/graph_ops_test.py.
@@ -36,6 +39,10 @@ class BroadcastXToYTest(tf.test.TestCase, parameterized.TestCase):
   For consistency, some tests run the corresponging call to the generic
   broadcast_v2() function as well, but see BroadcastV2Test for more on that.
   """
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(
       ("WithAdjacency", False),
@@ -223,6 +230,10 @@ class BroadcastV2Test(tf.test.TestCase, parameterized.TestCase):
   These tests assume correctness of the underlying broadcast_*_to_*() ops;
   see BroadcastXtoYTest for these.
   """
+
+  def setUp(self):
+    super().setUp()
+    const.enable_graph_tensor_validation_at_runtime()
 
   def testOneEdgeSetFromTag(self):
     input_graph = _get_test_graph_broadcast()
