@@ -316,18 +316,16 @@ def mask_edges(
       masked_adj = adj.Adjacency.from_indices(
           source=masked_indices_update[const.SOURCE],
           target=masked_indices_update[const.TARGET],
-          validate=const.validate_internal_results,
       )
       masked_info_adj = adj.Adjacency.from_indices(
           source=masked_info_indices_update[const.SOURCE],
           target=masked_info_indices_update[const.TARGET],
-          validate=const.validate_internal_results,
       )
     else:
-      masked_adj = adj.HyperAdjacency.from_indices(
-          masked_indices_update, validate=const.validate_internal_results)
+      masked_adj = adj.HyperAdjacency.from_indices(masked_indices_update)
       masked_info_adj = adj.HyperAdjacency.from_indices(
-          masked_info_indices_update, validate=const.validate_internal_results)
+          masked_info_indices_update
+      )
     new_edge_sets[edge_set_name] = gt.EdgeSet.from_fields(
         sizes=num_remaining_edges,
         features=masked_features,
@@ -534,20 +532,14 @@ def reorder_nodes(graph_tensor: GraphTensor,
       adj_indices.update(indices_update)
       if isinstance(edge_set.adjacency, adj.Adjacency):
         adjacency = adj.Adjacency.from_indices(
-            source=adj_indices[const.SOURCE],
-            target=adj_indices[const.TARGET],
-            validate=const.validate_internal_results)
+            source=adj_indices[const.SOURCE], target=adj_indices[const.TARGET]
+        )
       else:
-        adjacency = adj.HyperAdjacency.from_indices(
-            adj_indices, validate=const.validate_internal_results)
+        adjacency = adj.HyperAdjacency.from_indices(adj_indices)
       edge_sets[edge_set_name] = gt.EdgeSet.from_fields(
           features=edge_set.features, sizes=edge_set.sizes, adjacency=adjacency)
 
-  result = GraphTensor.from_pieces(graph_tensor.context, node_sets, edge_sets)
-
-  if const.validate_internal_results:
-    result.spec.is_compatible_with(graph_tensor.spec)
-  return result
+  return GraphTensor.from_pieces(graph_tensor.context, node_sets, edge_sets)
 
 
 @kt.delegate_keras_tensors
@@ -614,7 +606,10 @@ def shuffle_nodes(graph_tensor: GraphTensor,
   }
 
   return reorder_nodes(
-      graph_tensor, node_indices, validate=const.validate_internal_results)
+      graph_tensor,
+      node_indices,
+      validate=const.validate_graph_tensor_at_runtime,
+  )
 
 
 @kt.delegate_keras_tensors

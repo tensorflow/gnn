@@ -98,16 +98,16 @@ class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
     if utils.is_ragged_tensor(result):
       # TODO(b/232914703): reconsider if ragged batch dimensions are supported.
       result_dense = result.to_tensor()
-      check_ops = []
-      if const.validate_internal_results:
-        check_ops.append(
+      if const.validate_graph_tensor_at_runtime:
+        check_ops = [
             tf.debugging.assert_equal(
                 tf.size(result),
                 tf.size(result_dense),
-                message='`sizes` shape is incompatible with the piece shape'))
-
-      with tf.control_dependencies(check_ops):
-        result = tf.identity(result_dense)
+                message='`sizes` shape is incompatible with the piece shape',
+            )
+        ]
+        with tf.control_dependencies(check_ops):
+          result = tf.identity(result_dense)
     return result
 
   @property
@@ -1616,7 +1616,7 @@ class GraphTensorSpec(gp.GraphPieceSpecBase):
                 num_components=num_components, num_edges=num_edges)
             for name, spec in self.edge_sets_spec.items()
         })
-    if const.validate_internal_results:
+    if const.validate_graph_tensor:
       assert self.is_compatible_with(
           result), f'{result} is not compatible with {self}.'
     return result
@@ -1719,7 +1719,7 @@ def _fast_alternative(use_fast_path: bool,
   if not use_fast_path:
     return default_eval_path_fn()
 
-  if not const.validate_internal_results:
+  if not const.validate_graph_tensor_at_runtime:
     return fast_eval_path_fn()
 
   fast_result = fast_eval_path_fn()

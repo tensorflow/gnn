@@ -142,7 +142,7 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
     assert data is not None
     assert spec is not None
     assert isinstance(spec, GraphPieceSpecBase), type(spec).__name__
-    if const.validate_internal_results:
+    if const.validate_graph_tensor:
       tf.nest.assert_same_structure(data, spec._data_spec)
       tf.nest.map_structure(_assert_value_compatible_with_spec, data,
                             spec._data_spec)
@@ -472,7 +472,7 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
     #  - call `_from_data_spec` below, which enables checking.
     super().__init__()
 
-    if const.validate_internal_results:
+    if const.validate_graph_tensor:
       if not shape[1:].is_fully_defined():
         raise ValueError(
             'All shape dimensions except the outermost must be fully defined,'
@@ -940,12 +940,12 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
           result = tf.RaggedTensor.from_row_splits(
               result,
               empty_row_splits,
-              validate=const.validate_internal_results)
+              validate=const.validate_graph_tensor_at_runtime)
         else:
           result = tf.RaggedTensor.from_uniform_row_length(
               result,
               tf.convert_to_tensor(dim, dtype=spec.row_splits_dtype),
-              validate=const.validate_internal_results)
+              validate=const.validate_graph_tensor_at_runtime)
       return result
 
     def create_empty_field(spec):
@@ -965,7 +965,7 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
     cls = self.value_type
     assert issubclass(cls, GraphPieceBase), cls
     result = self.value_type(dummy_fields, self)
-    if const.validate_internal_results:
+    if const.validate_graph_tensor:
       assert self.is_compatible_with(result)
     return result
 

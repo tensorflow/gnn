@@ -82,14 +82,6 @@ FieldOrFields = Union[Field, Fields]
 FieldsNest = Union[Field, List[Any], Tuple[Any], Mapping[str, Any]]
 
 # CONFIGURATION CONSTANTS
-# TODO(aferludin): Make them configurable for users.
-
-# If set, enables validation for objects constructed within the library. This
-# flag does not interfere with validation flags controlled by user. It is used
-# to better control library self-consistency.
-#
-# TODO(aferludin): disable in prod as those checks may be expensive.
-validate_internal_results = True
 
 # If set, allows to construct GraphPieces from sub-GraphPieces that are
 # inconsistent in their values of .row_splits_dtype, or of .indices_dtype:
@@ -162,5 +154,3 @@ def enable_graph_tensor_validation_at_runtime():
 
   global validate_graph_tensor_at_runtime
   validate_graph_tensor_at_runtime = True
-
-

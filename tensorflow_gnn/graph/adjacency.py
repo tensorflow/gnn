@@ -691,15 +691,14 @@ def _get_max_index(index):
   # when reduction on the single ragged dimension results in the ragged
   # tensor, although the dense tensor is expected.
   result_dense = result.to_tensor()
-  check_ops = []
-  if const.validate_internal_results:
-    check_ops.append(
+  if const.enable_graph_tensor_validation_at_runtime:
+    check_ops = [
         tf.debugging.assert_equal(
             tf.size(result),
             tf.size(result_dense),
             message='Internal error: ragged batch dimensions are not supported',
         )
-    )
+    ]
     with tf.control_dependencies(check_ops):
       result = tf.identity(result_dense)
   return result
