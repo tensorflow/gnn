@@ -248,10 +248,11 @@ def build_converter_from_schema(features: FeatureSet) -> Converters:
   """Build a converters map from a GraphSchema's features schema of a set."""
   converters = {}
   for fname, feature in features.items():
+    dtype = tf.dtypes.as_dtype(feature.dtype)
     if feature.HasField("dtype"):
-      if feature.dtype == tf.float32.as_datatype_enum:
+      if dtype.is_floating:
         converters[fname] = float_converter
-      elif feature.dtype == tf.int64.as_datatype_enum:
+      elif dtype.is_bool or dtype.is_integer:
         converters[fname] = int64_converter
   return converters
 

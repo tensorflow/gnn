@@ -32,6 +32,7 @@ pytype_strict_contrib_test(
     srcs_version = "PY3ONLY",
     deps = [
         ":unigraph",
+        "//:expect_absl_installed",
         "//third_party/py/apache_beam",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",

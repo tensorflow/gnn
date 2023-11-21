@@ -16,6 +16,8 @@ import os
 from os import path
 import tempfile
 
+from absl.testing import parameterized
+
 import apache_beam as beam
 from apache_beam.testing import test_pipeline
 from apache_beam.testing import util
@@ -76,6 +78,48 @@ _OWNS_CARDS_TGT_IDS = b"""
   11290312140467510 12948957000457930 3549061668422198 9991040399813057
   18362223127059380 1238474857489384 18569067217418250 18526138896540830
 """.split()
+
+
+class TestCsvConverters(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.parameters(["DT_FLOAT", "DT_DOUBLE", "DT_BFLOAT16", "DT_HALF"])
+  def testFloatingTypes(self, type_str: str):
+    feature = text_format.Parse(f"dtype: {type_str}", tfgnn.proto.Feature())
+    converters = unigraph.build_converter_from_schema({"feat": feature})
+    self.assertIn("feat", converters)
+    converter = converters["feat"]
+    target = tf.train.Feature()
+    converter(target, "0.5")
+    self.assertAllEqual(target.float_list.value, [0.5])
+
+  @parameterized.parameters([
+      "DT_INT8",
+      "DT_UINT8",
+      "DT_INT16",
+      "DT_UINT16",
+      "DT_INT32",
+      "DT_UINT32",
+      "DT_INT64",
+      "DT_UINT64",
+  ])
+  def testIntegerTypes(self, type_str: str):
+    feature = text_format.Parse(f"dtype: {type_str}", tfgnn.proto.Feature())
+    converters = unigraph.build_converter_from_schema({"feat": feature})
+    self.assertIn("feat", converters)
+    converter = converters["feat"]
+    target = tf.train.Feature()
+    converter(target, "3")
+    self.assertAllEqual(target.int64_list.value, [3])
+
+  @parameterized.parameters([True, False])
+  def testBooleanType(self, value):
+    feature = text_format.Parse("dtype: DT_BOOL", tfgnn.proto.Feature())
+    converters = unigraph.build_converter_from_schema({"feat": feature})
+    self.assertIn("feat", converters)
+    converter = converters["feat"]
+    target = tf.train.Feature()
+    converter(target, value)
+    self.assertAllEqual(target.int64_list.value, [value])
 
 
 class TestReadGraph(tf.test.TestCase):
