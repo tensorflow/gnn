@@ -95,6 +95,10 @@ class ReloadModel(int, enum.Enum):
 
 class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   @parameterized.named_parameters(("MaxPooling", "max"),
                                   ("MaxNoInfPooling", "max_no_inf"),
                                   ("MeanPooling", "mean"))

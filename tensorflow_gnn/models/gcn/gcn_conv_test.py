@@ -34,6 +34,10 @@ class ReloadModel(int, enum.Enum):
 class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for GCNConv layer."""
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   @parameterized.named_parameters(
       dict(
           testcase_name='noSelfLoops',
@@ -841,6 +845,10 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
 
 
 class GCNTFLiteTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(
       ('Simplest', False, None),

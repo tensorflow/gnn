@@ -33,6 +33,10 @@ class ReloadModel(int, enum.Enum):
 
 class GATv2Test(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   def testBasic(self):
     """Tests that a single-headed GAT is correct given predefined weights."""
     # NOTE: Many following tests use minor variations of the explicit
@@ -638,6 +642,10 @@ def _get_test_bidi_cycle_graph(node_state, edge_state=None):
 # The components of GATv2MPNNGraphUpdate have been tested elsewhere.
 class GATv2MPNNGraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   def testBasic(self):
     input_graph = _make_test_graph_abc()
     message_dim = 6
@@ -671,6 +679,10 @@ class GATv2MPNNGraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
 
 
 class GATv2TFLiteTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   def testBasic(self):
     test_graph_1_dict = {

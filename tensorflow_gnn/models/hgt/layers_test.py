@@ -129,6 +129,7 @@ class HgtTest(tf.test.TestCase, parameterized.TestCase):
     super().setUp()
     # tf.test.TestCase neglects to reset this between tests.
     tf.keras.mixed_precision.set_global_policy("float32")
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   # TODO(b/269076334): Test with "_readout" node set.
   def test_ndim_input(self):
@@ -772,6 +773,10 @@ class HgtTest(tf.test.TestCase, parameterized.TestCase):
 
 
 class HGTTFLiteTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   def testBasic(self):
     test_graph_1_dict = {

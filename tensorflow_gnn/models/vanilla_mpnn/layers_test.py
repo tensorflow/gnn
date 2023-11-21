@@ -22,6 +22,10 @@ from tensorflow_gnn.models import vanilla_mpnn
 # The components of VanillaMPNNGraphUpdate have been tested elsewhere.
 class VanillaMPNNTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   def testVanillaMPNNGraphUpdate(self):
     input_graph = _make_test_graph_abc()
     units = 2
@@ -74,6 +78,10 @@ class VanillaMPNNTest(tf.test.TestCase, parameterized.TestCase):
 
 
 class VanillaMPNNTFLiteTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(("WithoutLayerNorm", False),
                                   ("WithLayerNorm", True))

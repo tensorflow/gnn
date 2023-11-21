@@ -23,6 +23,10 @@ from tensorflow_gnn.models.contrastive_losses import utils
 
 class UtilsTest(tf.test.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   def assertFieldsEqual(self, actual: tfgnn.Fields, expected: tfgnn.Fields):
     self.assertIsInstance(actual, Mapping)
     self.assertAllEqual(actual.keys(), expected.keys())

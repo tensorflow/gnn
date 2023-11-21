@@ -171,6 +171,10 @@ def bad_parameters_inputs() -> Sequence[dict[str, Any]]:
 
 class ContrastiveTasksSharedTests(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   @parameterized.named_parameters(bad_parameters_inputs())
   def test_bad_parameters(
       self, inputs: Sequence[Any], task: runner.Task, expected_error: str
@@ -256,6 +260,10 @@ class ContrastiveTasksSharedTests(tf.test.TestCase, parameterized.TestCase):
 class DeepGraphInfomaxTaskTest(tf.test.TestCase):
   task = tasks.DeepGraphInfomaxTask("node", seed=8191)
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   def test_pseudolabels(self):
     # See `test_preprocess` for tests of the first part of `preprocess` fn.
     _, pseudolabels = self.task.preprocess(graph_tensor())
@@ -303,6 +311,10 @@ class DeepGraphInfomaxTaskTest(tf.test.TestCase):
 class BarlowTwinsTaskTest(tf.test.TestCase):
   task = tasks.BarlowTwinsTask("node", seed=8191)
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   def test_pseudolabels(self):
     # See `test_preprocess` for tests of the first part of `preprocess` fn.
     _, pseudolabels = self.task.preprocess(graph_tensor())
@@ -345,6 +357,10 @@ class BarlowTwinsTaskTest(tf.test.TestCase):
 
 class VicRegTaskTest(tf.test.TestCase):
   task = tasks.VicRegTask("node", seed=8191)
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   def test_pseudolabels(self):
     # See `test_preprocess` for tests of the first part of `preprocess` fn.
@@ -406,6 +422,10 @@ def bad_parameters_inputs_triplet() -> Sequence[dict[str, Any]]:
 
 class TripletTaskTests(tf.test.TestCase, parameterized.TestCase):
   task = tasks.TripletLossTask("node", seed=8191)
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(bad_parameters_inputs_triplet())
   def test_bad_parameters(self, inputs: Sequence[Any], expected_error: str):

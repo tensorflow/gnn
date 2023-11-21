@@ -26,6 +26,10 @@ from tensorflow_gnn.models.contrastive_losses import layers
 
 class LayersTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   @parameterized.named_parameters([
       {
           "testcase_name": "ShuffleEverything",

@@ -126,6 +126,10 @@ class DatasetProviderFromTensors(runner.DatasetProvider):
 # TODO(b/265776928): Consider deduplication of distribute testing boilerplate.
 class DistributeTests(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   @tfdistribute.combinations.generate(
       _all_eager_strategy_and_task_combinations()
   )

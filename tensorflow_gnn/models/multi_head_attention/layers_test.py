@@ -39,6 +39,7 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     super().setUp()
     # tf.test.TestCase neglects to reset this between tests.
     tf.keras.mixed_precision.set_global_policy("float32")
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(
       ("", False),
@@ -1243,6 +1244,10 @@ def _get_test_bidi_cycle_graph(node_state, edge_state=None):
 class MultiHeadAttentionMPNNGraphUpdateTest(tf.test.TestCase,
                                             parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   def testBasic(self):
     input_graph = _make_test_graph_abc()
     message_dim = 6
@@ -1273,6 +1278,10 @@ class MultiHeadAttentionMPNNGraphUpdateTest(tf.test.TestCase,
 
 class MultiHeadAttentionMPNNTFLiteTest(tf.test.TestCase,
                                        parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(("Simplest", "none", False, False),
                                   ("TransformedKeys", "rsqrt_dim", True, False),

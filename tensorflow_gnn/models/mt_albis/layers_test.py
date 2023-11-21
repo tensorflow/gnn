@@ -34,6 +34,10 @@ class ReloadModel(int, enum.Enum):
 
 class MtAlbisNextNodeStateTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   @parameterized.named_parameters(
       ("Basic", "concat", "none", "dense", "linear", False, ReloadModel.SKIP),
       ("BasicRestored", "concat", "none", "dense", "linear", False,
@@ -227,6 +231,10 @@ def _normalize(x):
 
 class MtAlbisGraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
+
   def testConvType(self):
     """Tests the selection of convolution type."""
     input_graph = _make_test_graph_abuv()
@@ -317,6 +325,10 @@ def _make_test_graph_ones(*, node_dim, edge_dim, context_dim):
 
 
 class MtAlbisTFLiteTest(tf.test.TestCase, parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    tfgnn.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(
       ("SumDenseNoNorm", "sum", "dense", "none"),
