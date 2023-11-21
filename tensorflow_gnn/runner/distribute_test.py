@@ -238,7 +238,6 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
     kwargs = {"examples": next(iter(dataset.batch(2)))}
 
     saved_model = tf.saved_model.load(os.path.join(model_dir, "export"))
-    saved_model.signatures["serving_default"](**kwargs)
 
     results = saved_model.signatures["serving_default"](**kwargs)
     self.assertLen(results, 1)  # The task has a single output.

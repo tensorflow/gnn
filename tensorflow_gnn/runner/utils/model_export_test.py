@@ -19,6 +19,7 @@ from typing import Any
 
 from absl.testing import parameterized
 import tensorflow as tf
+import tensorflow_gnn as tfgnn
 
 from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner.utils import model_export
@@ -280,6 +281,28 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, expected_error):
       run_result = interfaces.RunResult(None, None, model)
       exporter.save(run_result, self.create_tempdir())
+
+  def test_simple_graph_piece(self):
+    export_dir = self.create_tempdir()
+
+    inputs = tf.keras.Input([6, 4], name="inputs")
+    node_set = tfgnn.NodeSet.from_fields(
+        features={tfgnn.HIDDEN_STATE: inputs},
+        sizes=[6])
+    node_set = node_set.replace_features({
+        tfgnn.HIDDEN_STATE: node_set[tfgnn.HIDDEN_STATE] * 2
+    })
+    model = tf.keras.Model(inputs, node_set[tfgnn.HIDDEN_STATE])
+
+    model_export.export_model(model, export_dir)
+    saved_model = tf.saved_model.load(export_dir)
+
+    inputs = tf.random.uniform([6, 4])
+    results = saved_model.signatures["serving_default"](inputs=inputs)
+    self.assertLen(results, 1)
+
+    [actual] = results.values()
+    self.assertAllClose(actual, inputs * 2)
 
 
 if __name__ == "__main__":

@@ -70,6 +70,7 @@ RootNodeLabelFn = label_fns.RootNodeLabelFn
 incrementing_model_dir = model_dir.incrementing_model_dir
 
 # Model export
+export_model = model_export.export_model
 IntegratedGradientsExporter = attribution.IntegratedGradientsExporter
 KerasModelExporter = model_export.KerasModelExporter
 SubmoduleExporter = model_export.SubmoduleExporter

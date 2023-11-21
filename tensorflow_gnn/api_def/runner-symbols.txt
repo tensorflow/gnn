@@ -37,6 +37,7 @@ runner.RootNodeMeanSquaredLogarithmicError
 runner.RootNodeMulticlassClassification
 runner.RunResult
 runner.SampleTFRecordDatasetsProvider
+runner.export_model
 runner.SimpleDatasetProvider
 runner.SimpleSampleDatasetsProvider
 runner.SubmoduleExporter

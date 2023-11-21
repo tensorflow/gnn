@@ -84,13 +84,13 @@ class KerasModelExporter(interfaces.ModelExporter):
     elif not model.built:
       raise ValueError("`model` is expected to have been built")
 
-    _save_model(export_dir,
-                preprocess_model,
-                model,
-                self._include_preprocessing,
-                self._output_names,
-                self._subdirectory,
-                self._options)
+    _export_model(export_dir,
+                  preprocess_model,
+                  model,
+                  self._include_preprocessing,
+                  self._output_names,
+                  self._subdirectory,
+                  self._options)
 
 
 class SubmoduleExporter(interfaces.ModelExporter):
@@ -164,23 +164,55 @@ class SubmoduleExporter(interfaces.ModelExporter):
     [layer] = layers
     submodule = tf.keras.Model(model.input, layer.output)
 
-    _save_model(export_dir,
-                preprocess_model,
-                submodule,
-                self._include_preprocessing,
-                self._output_names,
-                self._subdirectory,
-                self._options)
+    _export_model(export_dir,
+                  preprocess_model,
+                  submodule,
+                  self._include_preprocessing,
+                  self._output_names,
+                  self._subdirectory,
+                  self._options)
 
 
-def _save_model(export_dir: str,
-                preprocess_model: tf.keras.Model,
-                model: tf.keras.Model,
-                include_preprocessing: bool,
-                output_names: Optional[Any] = None,
-                subdirectory: Optional[str] = None,
-                options: Optional[tf.saved_model.SaveOptions] = None):
-  """Saves a Keras model."""
+def export_model(model: tf.keras.Model,
+                 export_dir: str,
+                 options: Optional[tf.saved_model.SaveOptions] = None) -> None:
+  """Exports a Keras model without traces s.t. it is loadable without TF-GNN.
+
+  Args:
+    model: Keras model instance to be saved.
+    export_dir: Path where to save the model.
+    options: An optional `SaveOptions`.
+  """
+  nested_arg_specs, nested_kwarg_specs = model.save_spec()
+  flat_arg_specs = tf.nest.flatten((nested_arg_specs, nested_kwarg_specs))
+
+  @tf.function(input_signature=flat_arg_specs)
+  def serving_default(*flat_args):
+    nested_args, nested_kwargs = tf.nest.pack_sequence_as(
+        (nested_arg_specs, nested_kwarg_specs),
+        flat_args)
+    nested_outputs = model(*nested_args, **nested_kwargs)
+    return dict(zip(model.output_names, tf.nest.flatten(nested_outputs)))
+
+  model.save(
+      export_dir,
+      save_format="tf",
+      include_optimizer=False,
+      save_traces=False,
+      signatures={
+          tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY: serving_default
+      },
+      options=options)
+
+
+def _export_model(export_dir: str,
+                  preprocess_model: tf.keras.Model,
+                  model: tf.keras.Model,
+                  include_preprocessing: bool,
+                  output_names: Optional[Any] = None,
+                  subdirectory: Optional[str] = None,
+                  options: Optional[tf.saved_model.SaveOptions] = None):
+  """Exports a Keras model."""
   if preprocess_model and include_preprocessing:
     xs, *_ = preprocess_model.output
     model = tf.keras.Model(preprocess_model.input, model(xs))
@@ -189,4 +221,4 @@ def _save_model(export_dir: str,
     model = tf.keras.Model(model.input, output)
   if subdirectory:
     export_dir = os.path.join(export_dir, subdirectory)
-  tf.keras.models.save_model(model, export_dir, options=options)
+  export_model(model, export_dir, options)
