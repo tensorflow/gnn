@@ -44,7 +44,9 @@ tf_py_test(
     srcs_version = "PY3",
     deps = [
         ":gcn_conv",
+        "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//tensorflow_gnn/utils:tf_test_utils",
     ],
 )

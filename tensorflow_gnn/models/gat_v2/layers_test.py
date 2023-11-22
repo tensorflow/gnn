@@ -14,21 +14,11 @@
 # ==============================================================================
 """Tests for GATv2."""
 
-import enum
-import os
-
 from absl.testing import parameterized
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models import gat_v2
-
-
-class ReloadModel(int, enum.Enum):
-  """Controls how to reload a model for further testing after saving."""
-
-  SKIP = 0
-  SAVED_MODEL = 1
-  KERAS = 2
+from tensorflow_gnn.utils import tf_test_utils as tftu
 
 
 class GATv2Test(tf.test.TestCase, parameterized.TestCase):
@@ -212,11 +202,11 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(got, want, atol=0.0001)
 
   @parameterized.named_parameters(
-      ("", ReloadModel.SKIP),
-      ("Restored", ReloadModel.SAVED_MODEL),
-      ("RestoredKeras", ReloadModel.KERAS),
+      ("", tftu.ModelReloading.SKIP),
+      ("Restored", tftu.ModelReloading.SAVED_MODEL),
+      ("RestoredKeras", tftu.ModelReloading.KERAS),
   )
-  def testFullModel(self, reload_model):
+  def testFullModel(self, model_reloading):
     """Tests GATv2HomGraphUpdate in Model (incl. saving) with edge input."""
     # The same example as in the testBasic above, but with extra inputs
     # from edges.
@@ -288,25 +278,14 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
     inputs = tf.keras.layers.Input(type_spec=gt_input.spec)
     outputs = layer(inputs)
     model = tf.keras.Model(inputs, outputs)
-
-    if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(), "edge-input-model")
-      model.save(export_dir, include_optimizer=False)
-      if reload_model == ReloadModel.KERAS:
-        model = tf.keras.models.load_model(export_dir)
-        # Check that from_config() worked, no fallback to a function trace, see
-        # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-        self.assertIsInstance(
-            model.get_layer(index=1), tfgnn.keras.layers.GraphUpdate
-        )
-      else:
-        model = tf.saved_model.load(export_dir)  # Gives _UserObject
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "edge-input-model")
 
     got_gt = model(gt_input)
     got = got_gt.node_sets["nodes"][tfgnn.HIDDEN_STATE]
 
     # Verify kernel regularization is attached on model kernel variables.
-    if not reload_model or reload_model == ReloadModel.KERAS:
+    if tftu.is_keras_model_reloading(model_reloading):
       # Model.losses only works on Keras models. tf.saved_model.load(), however,
       # does not return a Keras model. See:
       # https://www.tensorflow.org/api_docs/python/tf/saved_model/load
@@ -524,11 +503,11 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(got_targets, want, atol=0.0001)
 
   @parameterized.named_parameters(
-      ("", ReloadModel.SKIP),
-      ("Restored", ReloadModel.SAVED_MODEL),
-      ("RestoredKeras", ReloadModel.KERAS),
+      ("", tftu.ModelReloading.SKIP),
+      ("Restored", tftu.ModelReloading.SAVED_MODEL),
+      ("RestoredKeras", tftu.ModelReloading.KERAS),
   )
-  def testEdgeDropout(self, reload_model):
+  def testEdgeDropout(self, model_reloading):
     """Tests dropout, esp. the switch between training and inference modes."""
     # Avoid flakiness.
     tf.random.set_seed(42)
@@ -587,18 +566,8 @@ class GATv2Test(tf.test.TestCase, parameterized.TestCase):
     inputs = tf.keras.layers.Input(type_spec=gt_input.spec)
     outputs = layer(inputs)
     model = tf.keras.Model(inputs, outputs)
-    if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(), "dropout-model")
-      model.save(export_dir, include_optimizer=False)
-      if reload_model == ReloadModel.KERAS:
-        model = tf.keras.models.load_model(export_dir)
-        # Check that from_config() worked, no fallback to a function trace, see
-        # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-        self.assertIsInstance(
-            model.get_layer(index=1), tfgnn.keras.layers.GraphUpdate
-        )
-      else:
-        model = tf.saved_model.load(export_dir)
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "dropout-model")
 
     # The output is a one-hot encoding of the nodes that have been attended to.
     # For inference without dropout, it's an all-ones vector, so min = max = 1.

@@ -80,6 +80,7 @@ tf_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//tensorflow_gnn/utils:tf_test_utils",
     ],
 )
 

@@ -14,15 +14,14 @@
 # ==============================================================================
 """Tests for graph_sage."""
 
-import enum
 import math
-import os
 
 from absl.testing import parameterized
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
-
 from tensorflow_gnn.models.graph_sage import layers as graph_sage
+from tensorflow_gnn.utils import tf_test_utils as tftu
+
 
 _FEATURE_NAME = "f"
 
@@ -84,13 +83,6 @@ def _get_test_graph():
       },
   )
   return graph
-
-
-class ReloadModel(int, enum.Enum):
-  """Controls how to reload a model for further testing after saving."""
-  SKIP = 0
-  SAVED_MODEL = 1
-  KERAS = 2
 
 
 class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
@@ -169,11 +161,11 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(expected_output, actual)
 
   @parameterized.named_parameters(
-      ("NoDropoutMeanAggKeras", 0.0, ReloadModel.KERAS),
-      ("NoDropoutMeanAggSavedModel", 0.0, ReloadModel.SAVED_MODEL),
-      ("DropoutMeanAggKeras", 0.9, ReloadModel.KERAS),
-      ("DropoutMeanAggSavedModel", 0.9, ReloadModel.SAVED_MODEL))
-  def testDropoutFullModel(self, dropout_rate, reload_model):
+      ("NoDropoutMeanAggKeras", 0.0, tftu.ModelReloading.KERAS),
+      ("NoDropoutMeanAggSavedModel", 0.0, tftu.ModelReloading.SAVED_MODEL),
+      ("DropoutMeanAggKeras", 0.9, tftu.ModelReloading.KERAS),
+      ("DropoutMeanAggSavedModel", 0.9, tftu.ModelReloading.SAVED_MODEL))
+  def testDropoutFullModel(self, dropout_rate, model_reloading):
     tf.random.set_seed(0)
     graph = _get_test_graph()
     out_units = 30
@@ -202,17 +194,8 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
     inputs = tf.keras.layers.Input(type_spec=graph.spec)
     outputs = layer(inputs)
     model = tf.keras.Model(inputs, outputs)
-    if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(), "dropout-model")
-      model.save(export_dir, include_optimizer=False)
-      if reload_model == ReloadModel.KERAS:
-        model = tf.keras.models.load_model(export_dir)
-        # Check that from_config() worked, no fallback to a function trace, see
-        # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-        self.assertIsInstance(model.get_layer(index=1),
-                              tfgnn.keras.layers.GraphUpdate)
-      else:
-        model = tf.saved_model.load(export_dir)
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "dropout-model")
 
     # Actual value returns all 1s without dropout for both of the topic node
     # vectors. One of the nodes don't have any incoming edges, hence dropout is
@@ -255,18 +238,19 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
                           [v.shape.as_list() for v in layer.trainable_weights])
 
   @parameterized.named_parameters(
-      ("E2ENormalizeNoConcatPooling", True, "sum", True, ReloadModel.SKIP),
-      ("E2ENormalizeNoConcatAgg", True, "sum", False, ReloadModel.SKIP),
-      ("E2ENormalizeConcatPooling", True, "concat", True, ReloadModel.SKIP),
-      ("E2ENormalizeConcatAgg", True, "concat", False, ReloadModel.SKIP),
-      ("E2ENoNormalizeConcatPooling", False, "concat", True, ReloadModel.SKIP),
-      ("E2ENoNormalizeConcatAgg", False, "concat", False, ReloadModel.SKIP),
-      ("E2ENoNormalizeNoConcatPooling", False, "sum", True, ReloadModel.SKIP),
-      ("E2ENoNormalizeNoConcatAgg", False, "sum", False, ReloadModel.SKIP),
-      ("E2ELoadKerasPooling", True, "concat", True, ReloadModel.KERAS),
+      ("E2ENormalizeNoConcatPooling", True, "sum", True),
+      ("E2ENormalizeNoConcatAgg", True, "sum", False),
+      ("E2ENormalizeConcatPooling", True, "concat", True),
+      ("E2ENormalizeConcatAgg", True, "concat", False),
+      ("E2ENoNormalizeConcatPooling", False, "concat", True),
+      ("E2ENoNormalizeConcatAgg", False, "concat", False),
+      ("E2ENoNormalizeNoConcatPooling", False, "sum", True),
+      ("E2ENoNormalizeNoConcatAgg", False, "sum", False),
+      ("E2ELoadKerasPooling", True, "concat", True, tftu.ModelReloading.KERAS),
       ("E2ELoadSavedModelPooling", True, "concat", True,
-       ReloadModel.SAVED_MODEL))
-  def testFullModel(self, normalize, combine_type, use_pooling, reload_model):
+       tftu.ModelReloading.SAVED_MODEL))
+  def testFullModel(self, normalize, combine_type, use_pooling,
+                    model_reloading=tftu.ModelReloading.SKIP):
     graph = _get_test_graph()
     out_units = 1
     layer = graph_sage.GraphSAGEGraphUpdate(
@@ -328,17 +312,7 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
     inputs = tf.keras.layers.Input(type_spec=graph.spec)
     outputs = layer(inputs)
     model = tf.keras.Model(inputs, outputs)
-    if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(), "gsage-model")
-      model.save(export_dir, include_optimizer=False)
-      if reload_model == ReloadModel.KERAS:
-        model = tf.keras.models.load_model(export_dir)
-        # Check that from_config() worked, no fallback to a function trace, see
-        # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-        self.assertIsInstance(model.get_layer(index=1),
-                              tfgnn.keras.layers.GraphUpdate)
-      else:
-        model = tf.saved_model.load(export_dir)
+    model = tftu.maybe_reload_model(self, model, model_reloading, "full-model")
 
     actual_graph = model(graph)
     actual = actual_graph.node_sets["author"][_FEATURE_NAME]
@@ -393,20 +367,27 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
       _ = layer(graph)
 
   @parameterized.named_parameters(
-      ("E2ELoadKerasMeanPool", "mean", True, ReloadModel.KERAS),
-      ("E2ELoadKerasMeanAgg", "mean", False, ReloadModel.KERAS),
-      ("E2ELoadKerasMaxPool", "max", True, ReloadModel.KERAS),
-      ("E2ELoadKerasMaxAgg", "max", False, ReloadModel.KERAS),
-      ("E2ELoadKerasMaxNoInfPool", "max_no_inf", True, ReloadModel.KERAS),
-      ("E2ELoadKerasMaxNoInfAgg", "max_no_inf", False, ReloadModel.KERAS),
-      ("E2ELoadSavedModelMaxPool", "max", True, ReloadModel.SAVED_MODEL),
-      ("E2ELoadSavedModelMaxAgg", "max", False, ReloadModel.SAVED_MODEL),
-      ("E2ELoadSavedModelMaxNoInfPool", "max_no_inf", True,
-       ReloadModel.SAVED_MODEL), ("E2ELoadSavedModelMaxNoInfAgg", "max_no_inf",
-                                  False, ReloadModel.SAVED_MODEL),
-      ("E2ELoadSavedModelMeanPool", "mean", True, ReloadModel.SAVED_MODEL),
-      ("E2ELoadSavedModelMeanAgg", "mean", False, ReloadModel.SAVED_MODEL))
-  def testModelLoad(self, reduce_operation, use_pooling, reload_model):
+      ("E2ELoadKerasMeanPool", "mean", True, tftu.ModelReloading.KERAS),
+      ("E2ELoadKerasMeanAgg", "mean", False, tftu.ModelReloading.KERAS),
+      ("E2ELoadKerasMaxPool", "max", True, tftu.ModelReloading.KERAS),
+      ("E2ELoadKerasMaxAgg", "max", False, tftu.ModelReloading.KERAS),
+      ("E2ELoadKerasMaxNoInfPool",
+       "max_no_inf", True, tftu.ModelReloading.KERAS),
+      ("E2ELoadKerasMaxNoInfAgg",
+       "max_no_inf", False, tftu.ModelReloading.KERAS),
+      ("E2ELoadSavedModelMaxPool",
+       "max", True, tftu.ModelReloading.SAVED_MODEL),
+      ("E2ELoadSavedModelMaxAgg",
+       "max", False, tftu.ModelReloading.SAVED_MODEL),
+      ("E2ELoadSavedModelMaxNoInfPool",
+       "max_no_inf", True, tftu.ModelReloading.SAVED_MODEL),
+      ("E2ELoadSavedModelMaxNoInfAgg",
+       "max_no_inf", False, tftu.ModelReloading.SAVED_MODEL),
+      ("E2ELoadSavedModelMeanPool",
+       "mean", True, tftu.ModelReloading.SAVED_MODEL),
+      ("E2ELoadSavedModelMeanAgg",
+       "mean", False, tftu.ModelReloading.SAVED_MODEL))
+  def testModelLoad(self, reduce_operation, use_pooling, model_reloading):
     graph = _get_test_graph()
     out_units = 1
     layer = graph_sage.GraphSAGEGraphUpdate(
@@ -466,13 +447,7 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
     inputs = tf.keras.layers.Input(type_spec=graph.spec)
     outputs = layer(inputs)
     model = tf.keras.Model(inputs, outputs)
-    if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(), "gsage-model")
-      model.save(export_dir, include_optimizer=False)
-      if reload_model == ReloadModel.KERAS:
-        model = tf.keras.models.load_model(export_dir)
-      else:
-        model = tf.saved_model.load(export_dir)
+    model = tftu.maybe_reload_model(self, model, model_reloading, "gsage-model")
 
     actual_graph = model(graph)
     actual = actual_graph.node_sets["author"][_FEATURE_NAME]
@@ -498,9 +473,9 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(actual, expected)
 
   @parameterized.named_parameters(
-      ("E2ELoadKerasGCNConv", ReloadModel.KERAS),
-      ("E2ELoadSavedModelGCNConv", ReloadModel.SAVED_MODEL))
-  def testGCNConvolutionModelLoad(self, reload_model):
+      ("E2ELoadKerasGCNConv", tftu.ModelReloading.KERAS),
+      ("E2ELoadSavedModelGCNConv", tftu.ModelReloading.SAVED_MODEL))
+  def testGCNConvolutionModelLoad(self, model_reloading):
     graph = _get_test_graph()
     message_units = 1
     conv = graph_sage.GCNGraphSAGENodeSetUpdate(
@@ -527,13 +502,8 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
     inputs = tf.keras.layers.Input(type_spec=graph.spec)
     outputs = layer(inputs)
     model = tf.keras.Model(inputs, outputs)
-    if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(), "gsage-model")
-      model.save(export_dir, include_optimizer=False)
-      if reload_model == ReloadModel.KERAS:
-        model = tf.keras.models.load_model(export_dir)
-      else:
-        model = tf.saved_model.load(export_dir)
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "gcnconv-model")
     actual_graph = model(graph)
     actual = actual_graph.node_sets["author"]
     expected_output = tf.constant([[4.3333335], [4.6666665], [3.5],

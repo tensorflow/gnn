@@ -14,22 +14,14 @@
 # ==============================================================================
 """Tests for Model Template "Albis"."""
 
-import enum
 import json
-import os
 
 from absl.testing import parameterized
 import numpy as np
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models.mt_albis import layers
-
-
-class ReloadModel(int, enum.Enum):
-  """Controls how to reload a model for further testing after saving."""
-  SKIP = 0
-  SAVED_MODEL = 1
-  KERAS = 2
+from tensorflow_gnn.utils import tf_test_utils as tftu
 
 
 class MtAlbisNextNodeStateTest(tf.test.TestCase, parameterized.TestCase):
@@ -39,27 +31,31 @@ class MtAlbisNextNodeStateTest(tf.test.TestCase, parameterized.TestCase):
     tfgnn.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(
-      ("Basic", "concat", "none", "dense", "linear", False, ReloadModel.SKIP),
+      ("Basic", "concat", "none", "dense", "linear", False,
+       tftu.ModelReloading.SKIP),
       ("BasicRestored", "concat", "none", "dense", "linear", False,
-       ReloadModel.SAVED_MODEL),
+       tftu.ModelReloading.SAVED_MODEL),
       ("BasicRestoredKeras", "concat", "none", "dense", "linear", False,
-       ReloadModel.KERAS),
-      ("EdgeSum", "sum", "none", "dense", "linear", False, ReloadModel.SKIP),
+       tftu.ModelReloading.KERAS),
+      ("EdgeSum", "sum", "none", "dense", "linear", False,
+       tftu.ModelReloading.SKIP),
       ("LayerNorm", "concat", "layer", "dense", "linear", False,
-       ReloadModel.SKIP),
+       tftu.ModelReloading.SKIP),
       ("Residual", "concat", "none", "residual", "linear", False,
-       ReloadModel.SKIP),
-      ("Relu", "concat", "none", "dense", "relu", False, ReloadModel.SKIP),
-      ("Context", "concat", "none", "dense", "linear", True, ReloadModel.SKIP),
+       tftu.ModelReloading.SKIP),
+      ("Relu", "concat", "none", "dense", "relu", False,
+       tftu.ModelReloading.SKIP),
+      ("Context", "concat", "none", "dense", "linear", True,
+       tftu.ModelReloading.SKIP),
       ("AllOptions", "sum", "layer", "residual", "relu", True,
-       ReloadModel.SKIP),
+       tftu.ModelReloading.SKIP),
       ("AllOptionsRestored", "sum", "layer", "residual", "relu", True,
-       ReloadModel.SAVED_MODEL),
+       tftu.ModelReloading.SAVED_MODEL),
       ("AllOptionsRestoredKeras", "sum", "layer", "residual", "relu", True,
-       ReloadModel.KERAS),
+       tftu.ModelReloading.KERAS),
   )
   def test(self, edge_set_combine_type, normalization_type, next_state_type,
-           activation, use_context, reload_model):
+           activation, use_context, model_reloading):
     """Tests computation of MtAlbisNextNodeState."""
     input_graph = _make_test_graph_abuv()
 
@@ -113,7 +109,8 @@ class MtAlbisNextNodeStateTest(tf.test.TestCase, parameterized.TestCase):
       ].assign([1., 1., 1., 1.])
 
     # Optionally test with a round-trip through serialization.
-    model = self._maybe_reload_model(model, reload_model, "basic-next-state")
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "basic-next-state")
 
     expected = np.array([[6. if not use_context else 6.5,
                           7. if edge_set_combine_type == "concat" else 5.,
@@ -133,11 +130,11 @@ class MtAlbisNextNodeStateTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(expected, model(input_graph), rtol=rtol)
 
   @parameterized.named_parameters(
-      ("", ReloadModel.SKIP),
-      ("Restored", ReloadModel.SAVED_MODEL),
-      ("RestoredKeras", ReloadModel.KERAS),
+      ("", tftu.ModelReloading.SKIP),
+      ("Restored", tftu.ModelReloading.SAVED_MODEL),
+      ("RestoredKeras", tftu.ModelReloading.KERAS),
   )
-  def testDropout(self, reload_model):
+  def testDropout(self, model_reloading):
     """Tests dropout, esp. the switch between training and inference modes."""
     tf.random.set_seed(42)  # See discussion below why most values will work.
 
@@ -167,7 +164,8 @@ class MtAlbisNextNodeStateTest(tf.test.TestCase, parameterized.TestCase):
     model = tf.keras.models.Model(inputs, outputs)
     _ = model(input_graph)  # Trigger the actual building.
 
-    model = self._maybe_reload_model(model, reload_model, "dropout-next-state")
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "dropout-next-state")
 
     def min_max(x):
       return [tf.reduce_min(x), tf.reduce_max(x)]
@@ -207,20 +205,6 @@ class MtAlbisNextNodeStateTest(tf.test.TestCase, parameterized.TestCase):
     # the probability of *not* seeing it anywhere is (1-p)^32. The smallest
     # such p in this set-up is p = 1/3, for which this failure probability is
     # 2/3^32 < 2e-15.
-
-  # TODO(b/265776928): Maybe refactor to share.
-  def _maybe_reload_model(self, model: tf.keras.Model,
-                          reload_model: ReloadModel, subdir_name: str):
-    if reload_model == ReloadModel.SKIP:
-      return model
-    export_dir = os.path.join(self.get_temp_dir(), subdir_name)
-    model.save(export_dir, include_optimizer=False,
-               save_traces=(reload_model == ReloadModel.SAVED_MODEL)
-               )
-    if reload_model == ReloadModel.SAVED_MODEL:
-      return tf.saved_model.load(export_dir)
-    elif reload_model == ReloadModel.KERAS:
-      return tf.keras.models.load_model(export_dir)
 
 
 def _normalize(x):

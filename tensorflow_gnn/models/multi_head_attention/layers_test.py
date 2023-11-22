@@ -15,22 +15,14 @@
 # ==============================================================================
 """Tests for Multi-Head Attention."""
 
-import enum
 import math
-import os
 
 from absl.testing import parameterized
 import numpy as np
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models import multi_head_attention
-
-
-class ReloadModel(int, enum.Enum):
-  """Controls how to reload a model for further testing after saving."""
-  SKIP = 0
-  SAVED_MODEL = 1
-  KERAS = 2
+from tensorflow_gnn.utils import tf_test_utils as tftu
 
 
 class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
@@ -645,12 +637,13 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(got, want, atol=.0001)
 
   @parameterized.named_parameters(
-      ("", ReloadModel.SKIP, False), ("TransformAfter", ReloadModel.SKIP, True),
-      ("Restored", ReloadModel.SAVED_MODEL, False),
-      ("RestoredTransformAfter", ReloadModel.SAVED_MODEL, True),
-      ("RestoredKeras", ReloadModel.KERAS, False),
-      ("RestoredKerasTransformAfter", ReloadModel.KERAS, True))
-  def testFullModel(self, reload_model, transform_values_after_pooling):
+      ("", tftu.ModelReloading.SKIP, False),
+      ("TransformAfter", tftu.ModelReloading.SKIP, True),
+      ("Restored", tftu.ModelReloading.SAVED_MODEL, False),
+      ("RestoredTransformAfter", tftu.ModelReloading.SAVED_MODEL, True),
+      ("RestoredKeras", tftu.ModelReloading.KERAS, False),
+      ("RestoredKerasTransformAfter", tftu.ModelReloading.KERAS, True))
+  def testFullModel(self, model_reloading, transform_values_after_pooling):
     """Tests MultiHeadAttentionHomGraphUpdate in a Model with edge input."""
     # The same example as in the testBasic above, but with extra inputs
     # from edges.
@@ -798,17 +791,8 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     inputs = tf.keras.layers.Input(type_spec=gt_input.spec)
     outputs = layer(inputs)
     model = tf.keras.Model(inputs, outputs)
-    if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(), "edge-input-model")
-      model.save(export_dir, include_optimizer=False)
-      if reload_model == ReloadModel.KERAS:
-        model = tf.keras.models.load_model(export_dir)
-        # Check that from_config() worked, no fallback to a function trace, see
-        # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-        self.assertIsInstance(
-            model.get_layer(index=1), tfgnn.keras.layers.GraphUpdate)
-      else:
-        model = tf.saved_model.load(export_dir)
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "edge-input-model")
 
     got_gt = model(gt_input)
     got = got_gt.node_sets["nodes"][tfgnn.HIDDEN_STATE]
@@ -829,7 +813,7 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     # Check the L2 regularization.
     want = 0.05 * (4 * 1.0**2 + 3 * (inverse_scaling_factor * log20)**2 + 3 *
                    (inverse_scaling_factor * log2)**2 + 2 * 1.1**2)
-    if reload_model != ReloadModel.SAVED_MODEL:
+    if tftu.is_keras_model_reloading(model_reloading):
       self.assertAllClose(tf.add_n(model.losses), want)
 
   def testConvolutionReceivers(self):
@@ -1036,10 +1020,10 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(got_context, want, atol=.0001)
     self.assertAllClose(got_targets, want, atol=.0001)
 
-  @parameterized.named_parameters(("", ReloadModel.SKIP),
-                                  ("Restored", ReloadModel.SAVED_MODEL),
-                                  ("RestoredKeras", ReloadModel.KERAS))
-  def testEdgeDropout(self, reload_model):
+  @parameterized.named_parameters(("", tftu.ModelReloading.SKIP),
+                                  ("Restored", tftu.ModelReloading.SAVED_MODEL),
+                                  ("RestoredKeras", tftu.ModelReloading.KERAS))
+  def testEdgeDropout(self, model_reloading):
     """Tests dropout, esp. the switch between training and inference modes."""
     # Avoid flakiness.
     tf.random.set_seed(42)
@@ -1095,17 +1079,8 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     inputs = tf.keras.layers.Input(type_spec=gt_input.spec)
     outputs = layer(inputs)
     model = tf.keras.Model(inputs, outputs)
-    if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(), "dropout-model")
-      model.save(export_dir, include_optimizer=False)
-      if reload_model == ReloadModel.KERAS:
-        model = tf.keras.models.load_model(export_dir)
-        # Check that from_config() worked, no fallback to a function trace, see
-        # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-        self.assertIsInstance(
-            model.get_layer(index=1), tfgnn.keras.layers.GraphUpdate)
-      else:
-        model = tf.saved_model.load(export_dir)
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "dropout-model")
 
     # The output is a one-hot encoding of the nodes that have been attended to.
     # For inference without dropout, it's an all-ones vector, so min = max = 1.

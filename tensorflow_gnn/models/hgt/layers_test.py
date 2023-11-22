@@ -14,22 +14,12 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for hgt."""
-import enum
-import os
-
 from absl.testing import parameterized
 import numpy as np
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models.hgt import layers
-
-
-class ReloadModel(int, enum.Enum):
-  """Controls how to reload a model for further testing after saving."""
-
-  SKIP = 0
-  SAVED_MODEL = 1
-  KERAS = 2
+from tensorflow_gnn.utils import tf_test_utils as tftu
 
 
 def _homogeneous_cycle_graph(node_state, edge_state=None):
@@ -690,23 +680,27 @@ class HgtTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(expected, actual)
 
   @parameterized.named_parameters(
-      ("NoneInitializer", ReloadModel.SKIP, None),
-      ("NoneInitializerRestored", ReloadModel.SAVED_MODEL, None),
-      ("NoneInitializerRestoredKeras", ReloadModel.KERAS, None),
-      ("StrInitializerRestored", ReloadModel.SAVED_MODEL, "glorot_uniform"),
-      ("StrInitializerRestoredKeras", ReloadModel.KERAS, "glorot_uniform"),
+      ("NoneInitializer", tftu.ModelReloading.SKIP, None),
+      ("NoneInitializerRestored",
+       tftu.ModelReloading.SAVED_MODEL, None),
+      ("NoneInitializerRestoredKeras",
+       tftu.ModelReloading.KERAS, None),
+      ("StrInitializerRestored",
+       tftu.ModelReloading.SAVED_MODEL, "glorot_uniform"),
+      ("StrInitializerRestoredKeras",
+       tftu.ModelReloading.KERAS, "glorot_uniform"),
       (
           "ObjInitializerRestored",
-          ReloadModel.SAVED_MODEL,
+          tftu.ModelReloading.SAVED_MODEL,
           tf.keras.initializers.Constant(4.3),
       ),
       (
           "ObjInitializerRestoredKeras",
-          ReloadModel.KERAS,
+          tftu.ModelReloading.KERAS,
           tf.keras.initializers.Constant(4.3),
       ),
   )
-  def test_hgtconv_saving(self, reload_model, kernel_initializer):
+  def test_hgtconv_saving(self, model_reloading, kernel_initializer):
     # Build a Model around the Layer, possibly saved and restored.
     inputs = tf.keras.layers.Input(
         type_spec=_heterogeneous_example_graph().spec)
@@ -722,16 +716,7 @@ class HgtTest(tf.test.TestCase, parameterized.TestCase):
     layer_before_engine_state = layer(
         _heterogeneous_example_graph()).node_sets["engine"][tfgnn.HIDDEN_STATE]
     model = tf.keras.Model(inputs, outputs)
-    if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(), "hgt-model")
-      model.save(export_dir, include_optimizer=False)
-      if reload_model == ReloadModel.KERAS:
-        model = tf.keras.models.load_model(export_dir)
-        # Check that from_config() worked, no fallback to a function trace, see
-        # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-        self.assertIsInstance(model.get_layer(index=1), layers.HGTGraphUpdate)
-      else:
-        model = tf.saved_model.load(export_dir)
+    model = tftu.maybe_reload_model(self, model, model_reloading, "hgt-model")
 
     got_gt = model(_heterogeneous_example_graph())
     got = got_gt.node_sets["engine"][tfgnn.HIDDEN_STATE]

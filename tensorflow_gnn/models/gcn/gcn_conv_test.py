@@ -13,22 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for gcn_conv."""
-import enum
 import math
-import os
 
 from absl.testing import parameterized
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models.gcn import gcn_conv
-
-
-class ReloadModel(int, enum.Enum):
-  """Controls how to reload a model for further testing after saving."""
-
-  SKIP = 0
-  SAVED_MODEL = 1
-  KERAS = 2
+from tensorflow_gnn.utils import tf_test_utils as tftu
 
 
 class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
@@ -691,11 +682,11 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
     )
 
   @parameterized.named_parameters(
-      ('', ReloadModel.SKIP),
-      ('Restored', ReloadModel.SAVED_MODEL),
-      ('RestoredKeras', ReloadModel.KERAS),
+      ('', tftu.ModelReloading.SKIP),
+      ('Restored', tftu.ModelReloading.SAVED_MODEL),
+      ('RestoredKeras', tftu.ModelReloading.KERAS),
   )
-  def test_full_model(self, reload_model):
+  def test_full_model(self, model_reloading):
     """Tests GCNGraphUpdate in a full Model (incl. saving) with edge input."""
     gt_input = tfgnn.GraphTensor.from_pieces(
         node_sets={
@@ -736,20 +727,9 @@ class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
     inputs = tf.keras.layers.Input(type_spec=gt_input.spec)
     outputs = layer(inputs)
     model = tf.keras.Model(inputs, outputs)
-    if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(), 'gcn')
-      model.save(export_dir, include_optimizer=False)
-      if reload_model == ReloadModel.KERAS:
-        model = tf.keras.models.load_model(export_dir)
-        # Check that from_config() worked, no fallback to a function trace, see
-        # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-        self.assertIsInstance(
-            model.get_layer(index=1), tfgnn.keras.layers.GraphUpdate
-        )
-      else:
-        model = tf.saved_model.load(export_dir)
+    model = tftu.maybe_reload_model(self, model, model_reloading, 'gcn')
 
-    if not reload_model or reload_model == ReloadModel.KERAS:
+    if tftu.is_keras_model_reloading(model_reloading):
       # Model.losses only works on Keras models. tf.saved_model.load(), however,
       # does not return a Keras model. See:
       # https://www.tensorflow.org/api_docs/python/tf/saved_model/load
