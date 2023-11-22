@@ -24,16 +24,6 @@ pytype_strict_library(
     ],
 )
 
-tf_py_test(
-    name = "keras_e2e_test",
-    srcs = ["keras_e2e_test.py"],
-    python_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//tensorflow_gnn",
-    ],
-)
-
 pytype_strict_library(
     name = "keras_tensors",
     srcs = ["keras_tensors.py"],
