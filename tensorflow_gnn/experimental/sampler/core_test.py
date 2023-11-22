@@ -337,7 +337,7 @@ class CompositeLayerTest(tf.test.TestCase):
     self.assertEqual(lvl2_model.layers[1].name, 'add_value')
 
 
-class TfExamplesParserTest(tf.test.TestCase):
+class TfExamplesParserTest(tf.test.TestCase, parameterized.TestCase):
 
   def testWithoutDefault(self):
     serialized = [
@@ -440,6 +440,65 @@ class TfExamplesParserTest(tf.test.TestCase):
     self.assertAllEqual(
         result['v'], rt([[[1, 2]], [], [[3, 4], [-1, -1]]], ragged_rank=1)
     )
+
+  @parameterized.product(
+      int_type=[tf.int32, tf.uint32, tf.int64, tf.uint64],
+      float_type=[tf.bfloat16, tf.float16, tf.float32, tf.float64],
+  )
+  def testTypesConversion(self, int_type: tf.DType, float_type: tf.DType):
+    serialized = [
+        pbtext.Merge(
+            r"""
+            features {
+              feature {key: "s" value {bytes_list {value: ['1']} } }
+              feature {key: "i" value {int64_list {value: [3]} } }
+              feature {key: "f" value {float_list {value: [0.5]} } }
+            }""",
+            tf.train.Example(),
+        ).SerializeToString(),
+    ]
+    serialized = tf.convert_to_tensor(serialized)
+    layer = core.TfExamplesParser(
+        {
+            's': tf.TensorSpec([], tf.string),
+            'i': tf.TensorSpec([], int_type),
+            'f': tf.TensorSpec([], float_type),
+        },
+    )
+    result = layer(serialized)
+    self.assertAllEqual(result['s'], ['1'])
+    self.assertAllEqual(result['i'].dtype, int_type)
+    self.assertAllEqual(result['i'], [3])
+    self.assertAllEqual(result['f'].dtype, float_type)
+    self.assertAllEqual(result['f'], [0.5])
+
+  @parameterized.product(
+      int_type=[tf.int32, tf.uint32, tf.int64, tf.uint64],
+      float_type=[tf.bfloat16, tf.float16, tf.float32, tf.float64],
+  )
+  def testTypesConversionWithDefaults(
+      self, int_type: tf.DType, float_type: tf.DType
+  ):
+    empty = tf.convert_to_tensor([tf.train.Example().SerializeToString()])
+    values = {
+        's': '1',
+        'i': 3,
+        'f': [0.0, 0.5, 1.0],
+    }
+    layer = core.TfExamplesParser(
+        {
+            's': tf.TensorSpec([], tf.string),
+            'i': tf.TensorSpec([], int_type),
+            'f': tf.TensorSpec([3], float_type),
+        },
+        default_values=values,
+    )
+    result = layer(empty)
+    self.assertAllEqual(result['s'], [values['s']])
+    self.assertAllEqual(result['i'].dtype, int_type)
+    self.assertAllEqual(result['i'], [values['i']])
+    self.assertAllEqual(result['f'].dtype, float_type)
+    self.assertAllEqual(result['f'], [values['f']])
 
 
 class LookupLayersTest(tf.test.TestCase):

@@ -891,7 +891,8 @@ class TfExamplesParser(tf.keras.layers.Layer):
     if isinstance(serialized, tf.Tensor):
       shape = tf.shape(serialized)
 
-      def reshape(value):
+      def restore_shape_and_dtype(value, value_spec):
+        value = tf.cast(value, value_spec.dtype)
         if isinstance(value, tf.Tensor):
           return tf.reshape(
               value, tf.concat([shape, tf.shape(value)[1:]], axis=0)
@@ -904,7 +905,9 @@ class TfExamplesParser(tf.keras.layers.Layer):
           return value
         raise ValueError(f'Unsupported type {type(value).__name__}')
 
-      return tf.nest.map_structure(reshape, flat_features)
+      return tf.nest.map_structure(
+          restore_shape_and_dtype, flat_features, self._features_spec
+      )
 
     raise ValueError(f'Unsupported type {type(serialized).__name__}')
 
@@ -1240,9 +1243,15 @@ def _get_io_spec(
     default_value=None,
 ):
   """Returns TF IO features parsing spec from value type spec."""
+  io_dtype = _get_io_type(spec.dtype)
+  if default_value is not None:
+    default_value = tf.cast(default_value, io_dtype)
+
   if isinstance(spec, tf.TensorSpec) and spec.shape.is_fully_defined():
     return tf.io.FixedLenFeature(
-        shape=spec.shape, dtype=spec.dtype, default_value=default_value
+        shape=spec.shape,
+        dtype=io_dtype,
+        default_value=default_value,
     )
 
   partitions = []
@@ -1254,10 +1263,20 @@ def _get_io_spec(
 
   return tf.io.RaggedFeature(
       value_key=name,
-      dtype=spec.dtype,
+      dtype=io_dtype,
       partitions=partitions,
       row_splits_dtype=tf.int64,
   )
+
+
+def _get_io_type(dtype: tf.DType) -> tf.DType:
+  if dtype.is_floating:
+    return tf.float32
+  elif dtype.is_integer or dtype.is_bool:
+    return tf.int64
+  elif dtype == tf.string:
+    return tf.string
+  raise ValueError(f'Unsupported IO dtype: {dtype}')
 
 
 def _type_default(spec: tf.TypeSpec) -> Optional[tf.Tensor]:
