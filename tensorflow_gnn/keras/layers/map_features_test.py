@@ -15,9 +15,7 @@
 """Tests for MapFeatures."""
 
 import collections
-import enum
 import functools
-import os
 
 from absl.testing import parameterized
 import tensorflow as tf
@@ -26,18 +24,12 @@ from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.keras import keras_tensors  # For registration. pylint: disable=unused-import
 from tensorflow_gnn.keras.layers import map_features
+from tensorflow_gnn.utils import tf_test_utils as tftu
 
 
 def double_fn(inputs, **_):
   """Returns twice the value of each input feature."""
   return {k: tf.add(v, v) for k, v in inputs.features.items()}
-
-
-class ReloadModel(int, enum.Enum):
-  """Controls how to reload a model for further testing after saving."""
-  SKIP = 0
-  SAVED_MODEL = 1
-  KERAS = 2
 
 
 class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
@@ -168,10 +160,10 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEmpty(edges.features)
 
   @parameterized.named_parameters(
-      ("", ReloadModel.SKIP),
-      ("Restored", ReloadModel.SAVED_MODEL),
-      ("RestoredKeras", ReloadModel.KERAS))
-  def testNewFeature(self, reload_model):
+      ("", tftu.ModelReloading.SKIP),
+      ("Restored", tftu.ModelReloading.SAVED_MODEL),
+      ("RestoredKeras", tftu.ModelReloading.KERAS))
+  def testNewFeature(self, model_reloading):
     input_graph = _make_scalar_test_graph()
 
     # Replaces all features by hidden state [1., 1., 1.] for each node/edge.
@@ -193,17 +185,8 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
     # Do an optional round-trip through SavedModel before testing the layer's
     # behavior.
-    if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(), "new-features-model")
-      model.save(export_dir, include_optimizer=False)
-      if reload_model == ReloadModel.KERAS:
-        model = tf.keras.models.load_model(export_dir)
-        # Check that from_config() worked, no fallback to a function trace, see
-        # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-        self.assertIsInstance(model.get_layer(index=1),
-                              map_features.MapFeatures)
-      else:
-        model = tf.saved_model.load(export_dir)
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "new-features-model")
 
     graph = model(input_graph)
     self.assertAllEqual(
@@ -240,10 +223,10 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
       _ = layer(input_graph)  # Trigger building.
 
   @parameterized.named_parameters(
-      ("Basic", ReloadModel.SKIP),
-      ("Restored", ReloadModel.SAVED_MODEL),
-      ("RestoredKeras", ReloadModel.KERAS))
-  def testEmbeddingTable(self, reload_model):
+      ("Basic", tftu.ModelReloading.SKIP),
+      ("Restored", tftu.ModelReloading.SAVED_MODEL),
+      ("RestoredKeras", tftu.ModelReloading.KERAS))
+  def testEmbeddingTable(self, model_reloading):
     input_graph = _make_scalar_test_graph()
 
     # Replaces the "[cne]_ragged" feature with embeddings of its values.
@@ -281,17 +264,8 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
     # Do an optional round-trip through SavedModel before testing the layer's
     # behavior. In particular, this restores the checkpointed embedding tables.
-    if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(), "embedding-model")
-      model.save(export_dir, include_optimizer=False)
-      if reload_model == ReloadModel.KERAS:
-        model = tf.keras.models.load_model(export_dir)
-        # Check that from_config() worked, no fallback to a function trace, see
-        # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-        self.assertIsInstance(model.get_layer(index=1),
-                              map_features.MapFeatures)
-      else:
-        model = tf.saved_model.load(export_dir)
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "embedding-model")
 
     graph = model(input_graph)
     context = graph.context
@@ -557,10 +531,10 @@ class MakeEmptyFeatureTest(tf.test.TestCase, parameterized.TestCase):
     const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(
-      ("Basic", ReloadModel.SKIP),
-      ("Restored", ReloadModel.SAVED_MODEL),
-      ("RestoredKeras", ReloadModel.KERAS))
-  def testNodesScalar(self, reload_model):
+      ("Basic", tftu.ModelReloading.SKIP),
+      ("Restored", tftu.ModelReloading.SAVED_MODEL),
+      ("RestoredKeras", tftu.ModelReloading.KERAS))
+  def testNodesScalar(self, model_reloading):
     input_graph = _make_scalar_test_graph(dense=False, ragged=False)
 
     def node_sets_fn(node_set, node_set_name):
@@ -572,28 +546,18 @@ class MakeEmptyFeatureTest(tf.test.TestCase, parameterized.TestCase):
     # Trigger building.
     _ = model(input_graph)
 
-    if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(),
-                                "nodes-scalar-empty-features")
-      model.save(export_dir, include_optimizer=False)
-      if reload_model == ReloadModel.KERAS:
-        model = tf.keras.models.load_model(export_dir)
-        # Check that from_config() worked, no fallback to a function trace, see
-        # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-        self.assertIsInstance(model.get_layer(index=1),
-                              map_features.MapFeatures)
-      else:
-        model = tf.saved_model.load(export_dir)
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "nodes-scalar-empty-features")
 
     empty_feature = model(input_graph).node_sets["nodes"]["empty"]
     self.assertIsInstance(empty_feature, tf.Tensor)  # Not ragged.
     self.assertAllEqual(empty_feature.shape, [2, 0])
 
   @parameterized.named_parameters(
-      ("Basic", ReloadModel.SKIP),
-      ("Restored", ReloadModel.SAVED_MODEL),
-      ("RestoredKeras", ReloadModel.KERAS))
-  def testNodesBatched(self, reload_model):
+      ("Basic", tftu.ModelReloading.SKIP),
+      ("Restored", tftu.ModelReloading.SAVED_MODEL),
+      ("RestoredKeras", tftu.ModelReloading.KERAS))
+  def testNodesBatched(self, model_reloading):
     # The test input has six graphs, with variable sizes per component.
     all_node_sizes = [[4, 3], [3], [2, 1, 2], [4, 1, 2, 3], [11], [4, 5, 3]]
     input_graph = _make_batched_test_graph(all_node_sizes)
@@ -608,17 +572,8 @@ class MakeEmptyFeatureTest(tf.test.TestCase, parameterized.TestCase):
     # Trigger building.
     _ = model(input_graph)
 
-    if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(), "batched-empty-features")
-      model.save(export_dir, include_optimizer=False)
-      if reload_model == ReloadModel.KERAS:
-        model = tf.keras.models.load_model(export_dir)
-        # Check that from_config() worked, no fallback to a function trace, see
-        # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-        self.assertIsInstance(model.get_layer(index=1),
-                              map_features.MapFeatures)
-      else:
-        model = tf.saved_model.load(export_dir)
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "batched-empty-features")
 
     empty_feature = model(input_graph).node_sets["nodes"]["empty"]
     self.assertIsInstance(empty_feature, tf.RaggedTensor)

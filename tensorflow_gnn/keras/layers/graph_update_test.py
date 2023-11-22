@@ -14,9 +14,6 @@
 # ==============================================================================
 """Tests for graph_update Keras layers."""
 
-import enum
-import os
-
 from absl.testing import parameterized
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
@@ -26,13 +23,7 @@ from tensorflow_gnn.keras.layers import convolutions
 from tensorflow_gnn.keras.layers import graph_ops
 from tensorflow_gnn.keras.layers import graph_update
 from tensorflow_gnn.keras.layers import next_state as next_state_lib
-
-
-class ReloadModel(int, enum.Enum):
-  """Controls how to reload a model for further testing after saving."""
-  SKIP = 0
-  SAVED_MODEL = 1
-  KERAS = 2
+from tensorflow_gnn.utils import tf_test_utils as tftu
 
 
 class GraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
@@ -104,13 +95,15 @@ class GraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual([[100.]], edge_state("b->a"))
 
   @parameterized.named_parameters(
-      ("InstantInit", False, ReloadModel.SKIP),
-      ("InstantInitRestored", False, ReloadModel.SAVED_MODEL),
-      ("InstantInitRestoredKeras", False, ReloadModel.KERAS),
-      ("DeferredInit", True, ReloadModel.SKIP),
-      ("DeferredInitRestored", True, ReloadModel.SAVED_MODEL),
-      ("DeferredInitRestoredKeras", True, ReloadModel.KERAS))
-  def testEndToEndInModelWithEdgeStates(self, use_deferred_init, reload_model):
+      ("InstantInit", False, tftu.ModelReloading.SKIP),
+      ("InstantInitRestored", False, tftu.ModelReloading.SAVED_MODEL),
+      ("InstantInitRestoredKeras", False, tftu.ModelReloading.KERAS),
+      ("DeferredInit", True, tftu.ModelReloading.SKIP),
+      ("DeferredInitRestored", True, tftu.ModelReloading.SAVED_MODEL),
+      ("DeferredInitRestoredKeras", True, tftu.ModelReloading.KERAS))
+  def testEndToEndInModelWithEdgeStates(
+      self, use_deferred_init, model_reloading
+  ):
     input_graph = _make_test_graph_with_singleton_node_sets(
         [("a", [1.]), ("b", [2.]), ("c", [4.])],
         [("a", "c", [100.]), ("b", "c", [100.]),
@@ -179,17 +172,8 @@ class GraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
     outputs = update(inputs)
     model = tf.keras.Model(inputs, outputs)
     _ = model(input_graph)  # Trigger building.
-    if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(), "edge-update-model")
-      model.save(export_dir, include_optimizer=False)
-      if reload_model == ReloadModel.KERAS:
-        model = tf.keras.models.load_model(export_dir)
-        # Check that from_config() worked, no fallback to a function trace, see
-        # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-        self.assertIsInstance(model.get_layer(index=1),
-                              graph_update.GraphUpdate)
-      else:
-        model = tf.saved_model.load(export_dir)
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "edge-update-model")
 
     graph = model(input_graph)
 

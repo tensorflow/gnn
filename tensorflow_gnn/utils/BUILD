@@ -17,3 +17,11 @@ pytype_strict_library(
     name = "api_utils",
     srcs = ["api_utils.py"],
 )
+
+pytype_strict_library(
+    name = "tf_test_utils",
+    srcs = ["tf_test_utils.py"],
+    deps = [
+        "//:expect_tensorflow_installed",
+    ],
+)

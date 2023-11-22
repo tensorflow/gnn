@@ -28,18 +28,13 @@ from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_ops
 from tensorflow_gnn.graph import pool_ops
 from tensorflow_gnn.keras import keras_tensors as kt
+from tensorflow_gnn.utils import tf_test_utils as tftu
 
 # Enables tests for graph pieces that are members of test classes.
 const.enable_graph_tensor_validation_at_runtime()
 
 as_tensor = tf.convert_to_tensor
 as_ragged = tf.ragged.constant
-
-_KERAS_SAVING_TEST_CASES = (
-    dict(save_format='tf', include_optimizer=False, save_traces=False),
-    dict(save_format='tf', include_optimizer=True, save_traces=True),
-    dict(save_format='keras_v3'),
-)
 
 _TEST_GRAPH_TENSOR = gt.GraphTensor.from_pieces(
     gt.Context.from_fields(features={'f': as_tensor([1])}),
@@ -188,22 +183,6 @@ class _SaveAndLoadTestBase(tf.test.TestCase, parameterized.TestCase):
   def setUp(self):
     super().setUp()
     const.enable_graph_tensor_validation_at_runtime()
-
-  def _save_and_load_keras_model(
-      self, model: tf.keras.Model, save_format, **save_args
-  ) -> tf.keras.Model:
-    if (
-        any(tf.__version__.startswith(f'2.{v}') for v in [10, 11, 12])
-        and save_format == 'keras_v3'
-    ):
-      self.skipTest(
-          f'Skipping test for Keras V3 format for TF {tf.__version__} < 2.13'
-      )
-
-    ext = '.keras' if save_format == 'keras_v3' else ''
-    path = os.path.join(self.get_temp_dir(), f'model.{ext}')
-    model.save(path, save_format=save_format, **save_args)
-    return tf.keras.models.load_model(path)
 
   def _save_and_load_inference_model(
       self, model: tf.keras.Model, use_saved_model: bool
@@ -387,11 +366,17 @@ class ClassMethodsSavingTest(_SaveAndLoadTestBase):
 
     return tf.keras.Model([source, target, num_nodes], graph)
 
-  @parameterized.parameters(*_KERAS_SAVING_TEST_CASES)
-  def testKerasModelSaving(self, save_format, **save_args):
+  @parameterized.named_parameters(
+      ('Baseline', tftu.ModelReloading.SKIP),
+      ('SavedModel', tftu.ModelReloading.SAVED_MODEL),
+      ('Keras', tftu.ModelReloading.KERAS),
+      ('KerasV3', tftu.ModelReloading.KERAS_V3))
+  def testKerasModelSaving(self, model_reloading):
     model = self._get_test_model()
-    model = self._save_and_load_keras_model(model, save_format, **save_args)
-    graph = model([as_tensor([0, 1]), as_tensor([0, 0]), as_tensor(2)])
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    'class-methods-model')
+    graph = model([as_tensor([0, 1], tf.int64), as_tensor([0, 0], tf.int64),
+                   as_tensor(2, tf.int64)])
     self.assertAllEqual(graph.node_sets['node'].sizes, [2])
     adjacency = graph.edge_sets['edge'].adjacency
     self.assertAllEqual(adjacency.source, [0, 1])
@@ -642,8 +627,13 @@ class FunctionalModelTest(_TestBase):
     self.assertFieldsEqual(result.node_sets['node'].features, {'f': [2, 3]})
     self.assertFieldsEqual(result.edge_sets['edge'].features, {'f': [4]})
 
-  @parameterized.parameters([True, False])
-  def testModelSaving(self, static_shapes):
+  @parameterized.named_parameters(
+      ('Baseline', tftu.ModelReloading.SKIP, False),
+      ('SavedModel', tftu.ModelReloading.SAVED_MODEL, False),
+      ('SavedModelStatic', tftu.ModelReloading.SAVED_MODEL, True),
+      ('Keras', tftu.ModelReloading.KERAS, False),
+      ('KerasStatic', tftu.ModelReloading.KERAS, True))
+  def testModelSaving(self, model_reloading, static_shapes):
     # A GraphTensorSpec for a homogeneous graph with an indeterminate number
     # of components flattened into a scalar graph (suitable for model
     # computations). Each node has a state of shape [2] and each edge has a
@@ -653,34 +643,18 @@ class FunctionalModelTest(_TestBase):
     #           /--  0.5 -->>
     #    [10, 0]             [12, 0]
     #           <<-- -0.5 --/
-    def create_graph_tensor(factor):
-      factor = tf.cast(factor, tf.int32)
-
-      def tile(tensor, factor):
-        assert tensor.shape.rank in (1, 2)
-        return tf.tile(
-            tensor, [factor] if tensor.shape.rank == 1 else [factor, 1]
-        )
-
+    def create_graph_tensor():
       return gt.GraphTensor.from_pieces(
           edge_sets={
               'edge': gt.EdgeSet.from_fields(
                   features={
-                      'edge_weight': tile(
-                          as_tensor([[0.5], [-0.5]], tf.float32), factor
-                      )
+                      'edge_weight': as_tensor([[0.5], [-0.5]], tf.float32)
                   },
-                  sizes=as_tensor([2]) * factor,
+                  sizes=as_tensor([2]),
                   adjacency=adj.HyperAdjacency.from_indices(
                       indices={
-                          const.SOURCE: (
-                              'node',
-                              tile(as_tensor([0, 1]), factor),
-                          ),
-                          const.TARGET: (
-                              'node',
-                              tile(as_tensor([1, 0]), factor),
-                          ),
+                          const.SOURCE: ('node', as_tensor([0, 1])),
+                          const.TARGET: ('node', as_tensor([1, 0])),
                       }
                   ),
               )
@@ -688,33 +662,24 @@ class FunctionalModelTest(_TestBase):
           node_sets={
               'node': gt.NodeSet.from_fields(
                   features={
-                      'state': tile(
-                          as_tensor([[10, 0.0], [12.0, 0.0]], tf.float32),
-                          factor,
-                      )
+                      'state': as_tensor([[10, 0.0], [12.0, 0.0]], tf.float32)
                   },
-                  sizes=as_tensor([2]) * factor,
+                  sizes=as_tensor([2]),
               )
           },
       )
 
     def get_input_spec():
+      spec = create_graph_tensor().spec
       if static_shapes:
-        spec = create_graph_tensor(1).spec
-        # Check that dataset spec has static component dimensions.
         self.assertAllEqual(
             spec.edge_sets_spec['edge']['edge_weight'],
-            tf.TensorSpec(tf.TensorShape([2, 1]), tf.float32),
-        )
-        return spec
-
-      ds = tf.data.Dataset.range(1, 3).map(create_graph_tensor)
-      spec = ds.element_spec
-      # Check that dataset spec has relaxed component dimensions.
-      self.assertAllEqual(
-          spec.edge_sets_spec['edge']['edge_weight'],
-          tf.TensorSpec(tf.TensorShape([None, 1]), tf.float32),
-      )
+            tf.TensorSpec(tf.TensorShape([2, 1]), tf.float32))
+      else:
+        spec = spec.relax(num_nodes=True, num_edges=True)
+        self.assertAllEqual(
+            spec.edge_sets_spec['edge']['edge_weight'],
+            tf.TensorSpec(tf.TensorShape([None, 1]), tf.float32))
       return spec
 
     # A Keras Model that inputs and outputs such a GraphTensor.
@@ -744,18 +709,11 @@ class FunctionalModelTest(_TestBase):
     outputs = graph.replace_features(node_sets={'node': {'state': node_state}})
     model = tf.keras.Model(inputs, outputs)
     # Save and restore the model.
-    export_dir = os.path.join(self.get_temp_dir(), 'graph-model')
-    tf.saved_model.save(model, export_dir)
-    restored_model = tf.saved_model.load(export_dir)
+    model = tftu.maybe_reload_model(self, model, model_reloading, 'graph-model')
 
-    @tf.function
-    def readout(graph):
-      return graph.node_sets['node']['state']
-
-    expected_1 = as_tensor([[10.0, -6.0], [12.0, 5.0]], tf.float32)
-    graph_1 = create_graph_tensor(1)
-    self.assertAllClose(readout(model(graph_1)), expected_1)
-    self.assertAllClose(readout(restored_model(graph_1)), expected_1)
+    graph_1 = create_graph_tensor()
+    self.assertAllClose([[10.0, -6.0], [12.0, 5.0]],
+                        model(graph_1).node_sets['node']['state'])
 
 
 @kt.delegate_keras_tensors
@@ -864,22 +822,30 @@ class WrappedOpsSavingTest(_SaveAndLoadTestBase):
 
     return tf.keras.Model(inputs, outputs)
 
-  @parameterized.parameters(*_KERAS_SAVING_TEST_CASES)
-  def testSimpleKerasModelSaving(self, save_format, **save_args):
+  @parameterized.named_parameters(
+      ('Baseline', tftu.ModelReloading.SKIP),
+      ('SavedModel', tftu.ModelReloading.SAVED_MODEL),
+      ('Keras', tftu.ModelReloading.KERAS),
+      ('KerasV3', tftu.ModelReloading.KERAS_V3))
+  def testSimpleKerasModelSaving(self, model_reloading):
     t = i = tf.keras.Input([])
     t = as_dict_v2(t, key='t')
     model = tf.keras.Model(i, t)
-    restored_model = self._save_and_load_keras_model(
-        model, save_format, **save_args
-    )
-    self.assertEqual(restored_model.layers[1].name, 'as_dict')
-    self.assertIsInstance(restored_model.layers[1], kt.TFGNNOpLambda)
-    result = restored_model(tf.convert_to_tensor(1.0))
+    restored_model = tftu.maybe_reload_model(self, model, model_reloading,
+                                             'wrapped-ops-simple-model')
+    if tftu.is_keras_model_reloading(model_reloading):
+      self.assertEqual(restored_model.layers[1].name, 'as_dict')
+      self.assertIsInstance(restored_model.layers[1], kt.TFGNNOpLambda)
+    result = restored_model(tf.convert_to_tensor([1.0]))
     self.assertIn('t', result)
-    self.assertEqual(result['t'], 1.0)
+    self.assertEqual(result['t'], [1.0])
 
-  @parameterized.parameters(*_KERAS_SAVING_TEST_CASES)
-  def testKerasModelSaving(self, save_format, **save_args):
+  @parameterized.named_parameters(
+      ('Baseline', tftu.ModelReloading.SKIP),
+      ('SavedModel', tftu.ModelReloading.SAVED_MODEL),
+      ('Keras', tftu.ModelReloading.KERAS),
+      ('KerasV3', tftu.ModelReloading.KERAS_V3))
+  def testKerasModelSaving(self, model_reloading):
     def run_test(transformation, layer_name, msg: str):
       tf.keras.backend.clear_session()
       model = self._get_test_model(transformation)
@@ -888,12 +854,14 @@ class WrappedOpsSavingTest(_SaveAndLoadTestBase):
           kt.TFGNNOpLambda,
           msg=msg,
       )
-      model = self._save_and_load_keras_model(model, save_format, **save_args)
-      self.assertIsInstance(
-          model.get_layer(layer_name),
-          kt.TFGNNOpLambda,
-          msg=msg,
-      )
+      model = tftu.maybe_reload_model(self, model, model_reloading,
+                                      'wrapped-ops-model')
+      if tftu.is_keras_model_reloading(model_reloading):
+        self.assertIsInstance(
+            model.get_layer(layer_name),
+            kt.TFGNNOpLambda,
+            msg=msg,
+        )
       self.assertAllClose(
           model(tf.nest.flatten(_TEST_GRAPH_TENSOR, expand_composites=True)),
           transformation(_TEST_GRAPH_TENSOR),

@@ -14,7 +14,6 @@
 # ==============================================================================
 """Tests for GraphPiece extension type."""
 
-import os
 from typing import Mapping, Tuple, Union
 
 from absl.testing import parameterized
@@ -22,6 +21,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow_gnn.graph import graph_piece as gp
 from tensorflow_gnn.graph import tf_internal
+from tensorflow_gnn.utils import tf_test_utils as tftu
 
 TestValue = Union[np.ndarray, tf.RaggedTensor, tf.Tensor, 'TestPiece']
 
@@ -905,6 +905,7 @@ class MergeBatchToComponentsTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(result.value['field'].value, ['a', 'b', 'c', 'd', 'e'])
 
 
+@tf.keras.utils.register_keras_serializable(package='GNNtesting')
 class SwapXY(tf.keras.layers.Layer):
   """[x, y] -> [y, x]."""
 
@@ -914,12 +915,11 @@ class SwapXY(tf.keras.layers.Layer):
 
 class KerasModelSavingLoadingTest(tf.test.TestCase, parameterized.TestCase):
 
-  def _save_and_restore_model(self, model: tf.keras.Model) -> tf.keras.Model:
-    export_dir = os.path.join(self.get_temp_dir(), 'graph-model')
-    tf.saved_model.save(model, export_dir)
-    return tf.saved_model.load(export_dir)
-
-  def testTrivialModelSaving(self):
+  @parameterized.parameters(
+      (tftu.ModelReloading.SKIP,),
+      (tftu.ModelReloading.SAVED_MODEL,),
+      (tftu.ModelReloading.KERAS,))
+  def testTrivialModelSaving(self, model_reloading):
 
     def add1(p: TestPiece) -> TestPiece:
       return TestPiece.from_value(p.value + 1)
@@ -928,7 +928,8 @@ class KerasModelSavingLoadingTest(tf.test.TestCase, parameterized.TestCase):
     inputs = tf.keras.layers.Input(type_spec=value.spec)
     outputs = tf.keras.layers.Lambda(add1)(inputs)
     model = tf.keras.Model(inputs, outputs)
-    restored_model = self._save_and_restore_model(model)
+    restored_model = tftu.maybe_reload_model(self, model, model_reloading,
+                                             'trivial-model')
 
     def readout_x(piece):
       return piece.value
@@ -937,19 +938,24 @@ class KerasModelSavingLoadingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(readout_x(model(value)), expected)
     self.assertAllClose(readout_x(restored_model(value)), expected)
 
-  @parameterized.parameters([
-      (np.array([0]), np.array([1])),
-      (np.array([0, 1]), np.array([1, 2])),
-      (np.array([[0], [1]]), np.array([[1], [2], [3]])),
-      (tf.ragged.constant([[1, 2], [3]]), tf.ragged.constant([[1], [], []])),
-  ])
-  def testModelSaving(self, x, y):
+  @parameterized.product(
+      [dict(x=np.array([0]), y=np.array([1])),
+       dict(x=np.array([0, 1]), y=np.array([1, 2])),
+       dict(x=np.array([[0], [1]]), y=np.array([[1], [2], [3]])),
+       dict(x=tf.ragged.constant([[1, 2], [3]]),
+            y=tf.ragged.constant([[1], [], []]))],
+      model_reloading=[
+          tftu.ModelReloading.SAVED_MODEL,
+          tftu.ModelReloading.KERAS],
+  )
+  def testFlatModelSaving(self, x, y, model_reloading):
 
     value = TestPiece.from_value({'x': x, 'y': y})
     inputs = tf.keras.layers.Input(type_spec=value.spec)
     outputs = SwapXY()(inputs)
     model = tf.keras.Model(inputs, outputs)
-    restored_model = self._save_and_restore_model(model)
+    restored_model = tftu.maybe_reload_model(self, model, model_reloading,
+                                             'flat-model')
 
     def readout_x(piece):
       return piece.value['x']
@@ -957,13 +963,17 @@ class KerasModelSavingLoadingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(readout_x(model(value)), y)
     self.assertAllClose(readout_x(restored_model(value)), y)
 
-  @parameterized.parameters([
-      (np.array([0]), np.array([1])),
-      (np.array([0, 1]), np.array([1, 2])),
-      (np.array([[0], [1]]), np.array([[1], [2], [3]])),
-      (tf.ragged.constant([[1, 2], [3]]), tf.ragged.constant([[1], [], []])),
-  ])
-  def testNestedModelSaving(self, x, y):
+  @parameterized.product(
+      [dict(x=np.array([0]), y=np.array([1])),
+       dict(x=np.array([0, 1]), y=np.array([1, 2])),
+       dict(x=np.array([[0], [1]]), y=np.array([[1], [2], [3]])),
+       dict(x=tf.ragged.constant([[1, 2], [3]]),
+            y=tf.ragged.constant([[1], [], []]))],
+      model_reloading=[
+          tftu.ModelReloading.SAVED_MODEL,
+          tftu.ModelReloading.KERAS],
+  )
+  def testNestedModelSaving(self, x, y, model_reloading):
 
     value = TestPiece.from_value({
         'x': TestPiece.from_value(TestPiece.from_value(x)),
@@ -972,7 +982,8 @@ class KerasModelSavingLoadingTest(tf.test.TestCase, parameterized.TestCase):
     inputs = tf.keras.layers.Input(type_spec=value.spec)
     outputs = SwapXY()(inputs)
     model = tf.keras.Model(inputs, outputs)
-    restored_model = self._save_and_restore_model(model)
+    restored_model = tftu.maybe_reload_model(self, model, model_reloading,
+                                             'nested-model')
 
     def readout_x(piece):
       return piece.value['x'].value.value
@@ -981,9 +992,14 @@ class KerasModelSavingLoadingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(readout_x(restored_model(value)), y)
 
   @parameterized.product(
-      indices_dtype=[tf.int32, tf.int64], row_splits_dtype=[tf.int32, tf.int64]
-  )
-  def testAttributesSaving(self, indices_dtype, row_splits_dtype):
+      indices_dtype=[tf.int32, tf.int64],
+      row_splits_dtype=[tf.int32, tf.int64],
+      model_reloading=[
+          tftu.ModelReloading.SAVED_MODEL,
+          tftu.ModelReloading.KERAS])
+  def testAttributesSaving(
+      self, indices_dtype, row_splits_dtype, model_reloading
+  ):
     value = TestPiece.from_value(
         TestPiece.from_value(
             TestPiece.from_value(
@@ -1008,7 +1024,8 @@ class KerasModelSavingLoadingTest(tf.test.TestCase, parameterized.TestCase):
 
     inputs = tf.keras.layers.Input(type_spec=value.spec)
     model = tf.keras.Model(inputs, inputs)
-    restored_model = self._save_and_restore_model(model)
+    restored_model = tftu.maybe_reload_model(self, model, model_reloading,
+                                             'attribute-saving')
 
     result = restored_model(value)
     self.assertEqual(result.spec.indices_dtype, indices_dtype)
@@ -1246,11 +1263,10 @@ class BackwardInconsistentIndexSupportTest(
   def _save_and_load(self, piece: TestPiece) -> tf.keras.Model:
     inputs = tf.keras.Input(shape=())
     outputs = tf.keras.layers.Lambda(lambda _: piece)(inputs)
-    export_dir = os.path.join(self.get_temp_dir(), 'test-model')
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
-    model.save(export_dir)
+    restored_model = tftu.maybe_reload_model(
+        self, model, tftu.ModelReloading.KERAS, 'test-piece-model')
 
-    restored_model = tf.keras.models.load_model(export_dir)
     return restored_model(tf.convert_to_tensor([0.0]))
 
   def _flatten_unflatten(self, piece: TestPiece) -> TestPiece:

@@ -363,6 +363,7 @@ tf_py_test(
         ":tf_internal",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
+        "//tensorflow_gnn/utils:tf_test_utils",
     ],
 )
 

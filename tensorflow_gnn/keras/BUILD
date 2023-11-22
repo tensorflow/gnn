@@ -52,8 +52,8 @@ tf_py_test(
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
         "//tensorflow_gnn/graph:graph_tensor_ops",
-        "//tensorflow_gnn/graph:padding_ops",
         "//tensorflow_gnn/graph:pool_ops",
+        "//tensorflow_gnn/utils:tf_test_utils",
     ],
 )
 
@@ -85,6 +85,7 @@ tf_py_test(
         "//tensorflow_gnn/keras/layers:convolutions",
         "//tensorflow_gnn/keras/layers:graph_update",
         "//tensorflow_gnn/keras/layers:next_state",
+        "//tensorflow_gnn/utils:tf_test_utils",
     ],
 )
 

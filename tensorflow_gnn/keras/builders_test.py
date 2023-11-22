@@ -15,7 +15,6 @@
 """Tests for graph_update Keras layers."""
 
 import collections
-import os
 
 from absl.testing import parameterized
 import tensorflow as tf
@@ -27,6 +26,7 @@ from tensorflow_gnn.keras import builders
 from tensorflow_gnn.keras.layers import convolutions
 from tensorflow_gnn.keras.layers import graph_update as graph_update_lib
 from tensorflow_gnn.keras.layers import next_state as next_state_lib
+from tensorflow_gnn.utils import tf_test_utils as tftu
 
 IdentityLayer = tf.keras.layers.Layer
 
@@ -168,7 +168,17 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual([[100.]],  # Unchanged.
                         graph.edge_sets["a->b"][const.HIDDEN_STATE])
 
-  def testModelSaving(self):
+  @parameterized.named_parameters(
+      ("Baseline", tftu.ModelReloading.SKIP, False),
+      ("SavedModel", tftu.ModelReloading.SAVED_MODEL, False),
+      # ("Keras", tftu.ModelReloading.KERAS, False),  # Broken by b/312397856.
+      ("SavedModelFunctional", tftu.ModelReloading.SAVED_MODEL, True),
+      ("KerasFunctional", tftu.ModelReloading.KERAS, True))
+  def testModelSaving(self, model_reloading, use_functional_api):
+    input_graph = _make_test_graph_with_singleton_node_sets([("a", [1.]),
+                                                             ("b", [2.])],
+                                                            [("a", "b", [100.]),
+                                                             ("b", "a", [10.])])
 
     def sum_sources_conv(_):
       return convolutions.SimpleConv(
@@ -188,29 +198,23 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
               kernel_initializer=tf.keras.initializers.Ones()))
 
     gnn_builder = builders.ConvGNNBuilder(sum_sources_conv, add_edges_state)
-    gnn_layer = tf.keras.models.Sequential([
-        gnn_builder.Convolve({"a"}),
-        gnn_builder.Convolve({"b"}),
-    ])
-    input_graph = _make_test_graph_with_singleton_node_sets([("a", [1.]),
-                                                             ("b", [2.])],
-                                                            [("a", "b", [100.]),
-                                                             ("b", "a", [10.])])
+    graph_update_1 = gnn_builder.Convolve({"a"})
+    graph_update_2 = gnn_builder.Convolve({"b"})
 
-    inputs = tf.keras.layers.Input(type_spec=input_graph.spec)
-    outputs = gnn_layer(inputs)
-    model = tf.keras.Model(inputs, outputs)
+    if use_functional_api:
+      inputs = tf.keras.layers.Input(type_spec=input_graph.spec)
+      outputs = graph_update_2(graph_update_1(inputs))
+      model = tf.keras.Model(inputs, outputs)
+    else:
+      model = tf.keras.models.Sequential([graph_update_1, graph_update_2])
+    _ = model(input_graph)  # Trigger weight building.
+    model = tftu.maybe_reload_model(self, model, model_reloading, "builder")
 
-    export_dir = os.path.join(self.get_temp_dir(), "stdlayer-tf")
-    tf.saved_model.save(model, export_dir)
-    restored_model = tf.saved_model.load(export_dir)
-    graph = restored_model(input_graph)
-
-    def node_state(node_set_name):
-      return graph.node_sets[node_set_name][const.HIDDEN_STATE]
-
-    self.assertAllEqual([[2. + 1. + 10.]], node_state("a"))
-    self.assertAllEqual([[13. + 2. + 100.]], node_state("b"))
+    graph = model(input_graph)
+    self.assertAllEqual([[2. + 1. + 10.]],
+                        graph.node_sets["a"][const.HIDDEN_STATE])
+    self.assertAllEqual([[13. + 2. + 100.]],
+                        graph.node_sets["b"][const.HIDDEN_STATE])
 
   def testParallelUpdates(self):
     input_graph = _make_test_graph_with_singleton_node_sets(

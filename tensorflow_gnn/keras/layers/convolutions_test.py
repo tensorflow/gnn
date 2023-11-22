@@ -14,9 +14,6 @@
 # ==============================================================================
 """Tests for convolutions."""
 
-import enum
-import os
-
 from absl.testing import parameterized
 import numpy as np
 import tensorflow as tf
@@ -24,13 +21,7 @@ from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.keras.layers import convolutions
-
-
-class ReloadModel(int, enum.Enum):
-  """Controls how to reload a model for further testing after saving."""
-  SKIP = 0
-  SAVED_MODEL = 1
-  KERAS = 2
+from tensorflow_gnn.utils import tf_test_utils as tftu
 
 
 class SimpleConvTest(tf.test.TestCase, parameterized.TestCase):
@@ -40,11 +31,14 @@ class SimpleConvTest(tf.test.TestCase, parameterized.TestCase):
     const.enable_graph_tensor_validation_at_runtime()
 
   @parameterized.named_parameters(
-      ("Forward", False, False, ReloadModel.SKIP),
-      ("ForwardWithEdgeFeatureRestoredKeras", True, False, ReloadModel.KERAS),
-      ("BackwardRestoredKeras", False, True, ReloadModel.KERAS),
-      ("BackwardWithEdgeFeatureRestored", True, True, ReloadModel.SAVED_MODEL))
-  def testSourcesAndReceiver(self, include_edges, reverse, reload_model):
+      ("Forward", False, False, tftu.ModelReloading.SKIP),
+      ("ForwardWithEdgeFeatureRestoredKeras",
+       True, False, tftu.ModelReloading.KERAS),
+      ("BackwardRestoredKeras",
+       False, True, tftu.ModelReloading.KERAS),
+      ("BackwardWithEdgeFeatureRestored",
+       True, True, tftu.ModelReloading.SAVED_MODEL))
+  def testSourcesAndReceiver(self, include_edges, reverse, model_reloading):
     values = dict(edges=tf.constant([[1.], [2.]]),
                   nodes=tf.constant([[4.], [8.], [16.]]))
     input_graph = _make_test_graph_01into2(values)
@@ -69,17 +63,8 @@ class SimpleConvTest(tf.test.TestCase, parameterized.TestCase):
     outputs = conv(inputs, edge_set_name="edges")
     model = tf.keras.Model(inputs, outputs)
     _ = model(input_graph)  # Trigger building.
-    if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(), "simple-convolution")
-      model.save(export_dir, include_optimizer=False)
-      if reload_model == ReloadModel.KERAS:
-        model = tf.keras.models.load_model(export_dir)
-        # Check that from_config() worked, no fallback to a function trace, see
-        # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-        self.assertIsInstance(model.get_layer(index=1),
-                              convolutions.SimpleConv)
-      else:
-        model = tf.saved_model.load(export_dir)
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "simple-convolution")
 
     # combine_type="sum" uses the same kernel size for any number of inputs.
     self.assertEqual(tf.TensorShape([1, 1]),

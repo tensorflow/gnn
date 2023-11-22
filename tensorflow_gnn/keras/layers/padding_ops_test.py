@@ -14,9 +14,6 @@
 # ==============================================================================
 """Tests for padding_ops Keras layers."""
 
-import enum
-import os
-
 from absl.testing import parameterized
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
@@ -25,13 +22,7 @@ from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import preprocessing_common
 from tensorflow_gnn.keras import keras_tensors  # For registration. pylint: disable=unused-import
 from tensorflow_gnn.keras.layers import padding_ops
-
-
-class ReloadModel(int, enum.Enum):
-  """Controls how to reload a model for further testing after saving."""
-  SKIP = 0
-  SAVED_MODEL = 1
-  KERAS = 2
+from tensorflow_gnn.utils import tf_test_utils as tftu
 
 
 class PadToTotalSizesTest(tf.test.TestCase, parameterized.TestCase):
@@ -54,10 +45,10 @@ class PadToTotalSizesTest(tf.test.TestCase, parameterized.TestCase):
             features={"weight": tf.constant([1.0])})})
 
   @parameterized.named_parameters(
-      ("", ReloadModel.SKIP),
-      ("Restored", ReloadModel.SAVED_MODEL),
-      ("RestoredKeras", ReloadModel.KERAS))
-  def test(self, reload_model):
+      ("", tftu.ModelReloading.SKIP),
+      ("Restored", tftu.ModelReloading.SAVED_MODEL),
+      ("RestoredKeras", tftu.ModelReloading.KERAS))
+  def test(self, model_reloading):
     input_graph = self._make_test_graph()
     sc = preprocessing_common.SizeConstraints(
         total_num_components=2,
@@ -68,17 +59,8 @@ class PadToTotalSizesTest(tf.test.TestCase, parameterized.TestCase):
     inputs = tf.keras.layers.Input(type_spec=input_graph.spec)
     outputs = pad(inputs)
     model = tf.keras.Model(inputs, outputs)
-    if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(), "padding-model")
-      model.save(export_dir, include_optimizer=False)
-      if reload_model == ReloadModel.KERAS:
-        model = tf.keras.models.load_model(export_dir)
-        # Check that from_config() worked, no fallback to a function trace, see
-        # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-        self.assertIsInstance(model.get_layer(index=1),
-                              padding_ops.PadToTotalSizes)
-      else:
-        model = tf.saved_model.load(export_dir)
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "padding-model")
 
     graph, mask = model(input_graph)
     self.assertAllEqual([True, False], mask)

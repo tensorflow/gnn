@@ -14,8 +14,6 @@
 # ==============================================================================
 """Tests for AnyToAnyConvolutionBase."""
 
-import enum
-import os
 import re
 
 from absl.testing import parameterized
@@ -28,6 +26,7 @@ from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import normalization_ops
 from tensorflow_gnn.keras.layers import convolution_base
 from tensorflow_gnn.keras.layers import graph_update
+from tensorflow_gnn.utils import tf_test_utils as tftu
 
 
 # From AnyToAnyConvolutionBase.__init__.__doc__, except symbol `tfgnn.`.
@@ -97,13 +96,6 @@ class SoftmaxBySumConvolution(convolution_base.AnyToAnyConvolutionBase):
         inputs,  # [num_items, feature_depth]
         tf.expand_dims(multipliers, axis=-1))  # [num_items, 1]
     return pool_to_receiver(messages, reduce_type="sum")
-
-
-class ReloadModel(int, enum.Enum):
-  """Controls how to reload a model for further testing after saving."""
-  SKIP = 0
-  SAVED_MODEL = 1
-  KERAS = 2
 
 
 class AnyToAnyConvolutionBaseTest(tf.test.TestCase, parameterized.TestCase):
@@ -245,10 +237,10 @@ class AnyToAnyConvolutionBaseTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(expected, actual)
 
   @parameterized.named_parameters(
-      ("", ReloadModel.SKIP),
-      ("Restored", ReloadModel.SAVED_MODEL),
-      ("RestoredKeras", ReloadModel.KERAS))
-  def testExampleEndToEnd(self, reload_model):
+      ("", tftu.ModelReloading.SKIP),
+      ("Restored", tftu.ModelReloading.SAVED_MODEL),
+      ("RestoredKeras", tftu.ModelReloading.KERAS))
+  def testExampleEndToEnd(self, model_reloading):
     values = dict(nodes=tf.constant([[1.], [2.], [4.]]),
                   context=tf.constant([[1.]]))
     example_graph = _make_test_graph_01into2(values)
@@ -279,17 +271,8 @@ class AnyToAnyConvolutionBaseTest(tf.test.TestCase, parameterized.TestCase):
     inputs = tf.keras.layers.Input(type_spec=example_graph.spec)
     outputs = update(inputs)
     model = tf.keras.Model(inputs, outputs)
-    if reload_model:
-      export_dir = os.path.join(self.get_temp_dir(), "example-end2end-model")
-      model.save(export_dir, include_optimizer=False)
-      if reload_model == ReloadModel.KERAS:
-        model = tf.keras.models.load_model(export_dir)
-        # Check that from_config() worked, no fallback to a function trace, see
-        # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-        self.assertIsInstance(model.get_layer(index=1),
-                              graph_update.GraphUpdate)
-      else:
-        model = tf.saved_model.load(export_dir)
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "example-end2end-model")
 
     # Check expected values.
     example_output = model(example_graph)

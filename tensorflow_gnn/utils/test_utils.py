@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Test utilities.
+"""Basic test utilities (no TensorFlow dependency).
 """
 
 from os import path

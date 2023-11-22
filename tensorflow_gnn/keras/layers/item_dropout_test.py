@@ -14,31 +14,22 @@
 # ==============================================================================
 """Tests for item_dropout.py."""
 
-import enum
-import os
-
 from absl.testing import parameterized
 import tensorflow as tf
 from tensorflow_gnn.keras.layers import item_dropout
-
-
-class ReloadModel(int, enum.Enum):
-  """Controls how to reload a model for further testing after saving."""
-  SKIP = 0
-  SAVED_MODEL = 1
-  KERAS = 2
+from tensorflow_gnn.utils import tf_test_utils as tftu
 
 
 class ItemDropoutTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
-      ("Rank0", 0, ReloadModel.SKIP),
-      ("Rank1", 1, ReloadModel.SKIP),
-      ("Rank2", 2, ReloadModel.SKIP),
-      ("Rank1Restored", 1, ReloadModel.SAVED_MODEL),
-      ("Rank1RestoredKeras", 1, ReloadModel.KERAS),
-      ("Rank1Seeded", 1, ReloadModel.SKIP, 123))
-  def test(self, feature_rank, reload_model, seed=None):
+      ("Rank0", 0, tftu.ModelReloading.SKIP),
+      ("Rank1", 1, tftu.ModelReloading.SKIP),
+      ("Rank2", 2, tftu.ModelReloading.SKIP),
+      ("Rank1Restored", 1, tftu.ModelReloading.SAVED_MODEL),
+      ("Rank1RestoredKeras", 1, tftu.ModelReloading.KERAS),
+      ("Rank1Seeded", 1, tftu.ModelReloading.SKIP, 123))
+  def test(self, feature_rank, model_reloading, seed=None):
     # Avoid flakiness.
     tf.random.set_seed(42)
 
@@ -48,7 +39,8 @@ class ItemDropoutTest(tf.test.TestCase, parameterized.TestCase):
     outputs = item_dropout.ItemDropout(rate=rate, **seed_kwarg)(inputs)
     model = tf.keras.Model(inputs, outputs)
 
-    model = self._maybe_reload_model(model, reload_model, "item-dropout-model")
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "item-dropout-model")
 
     num_items = 30
     x = tf.ones([num_items] + [5] * feature_rank, dtype=tf.float32)
@@ -76,25 +68,8 @@ class ItemDropoutTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(1.5, global_max)
 
     # Seed arg is forwarded properly (after call and build).
-    if reload_model != ReloadModel.SAVED_MODEL:
+    if tftu.is_keras_model_reloading(model_reloading):
       self.assertEqual(seed, model.get_layer(index=1)._dropout.seed)
-
-  def _maybe_reload_model(self, model: tf.keras.Model,
-                          reload_model: ReloadModel, subdir_name: str):
-    if reload_model == ReloadModel.SKIP:
-      return model
-    export_dir = os.path.join(self.get_temp_dir(), subdir_name)
-    model.save(export_dir, include_optimizer=False)
-    if reload_model == ReloadModel.SAVED_MODEL:
-      return tf.saved_model.load(export_dir)
-    elif reload_model == ReloadModel.KERAS:
-      restored = tf.keras.models.load_model(export_dir)
-      # Check that from_config() worked, no fallback to a function trace, see
-      # https://www.tensorflow.org/guide/keras/save_and_serialize#how_savedmodel_handles_custom_objects
-      for i in range(len(model.layers)):
-        self.assertIsInstance(restored.get_layer(index=i),
-                              type(model.get_layer(index=i)))
-      return restored
 
 
 if __name__ == "__main__":

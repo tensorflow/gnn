@@ -48,10 +48,12 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":convolutions",
+        "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:adjacency",
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
+        "//tensorflow_gnn/utils:tf_test_utils",
     ],
 )
 
@@ -79,7 +81,11 @@ tf_py_test(
         ":graph_update",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
-        "//tensorflow_gnn",
+        "//tensorflow_gnn/graph:adjacency",
+        "//tensorflow_gnn/graph:graph_constants",
+        "//tensorflow_gnn/graph:graph_tensor",
+        "//tensorflow_gnn/graph:normalization_ops",
+        "//tensorflow_gnn/utils:tf_test_utils",
     ],
 )
 
@@ -135,10 +141,12 @@ tf_py_test(
         ":graph_ops",
         ":graph_update",
         ":next_state",
+        "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:adjacency",
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
+        "//tensorflow_gnn/utils:tf_test_utils",
     ],
 )
 
@@ -155,6 +163,7 @@ tf_py_test(
         ":item_dropout",
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
+        "//tensorflow_gnn/utils:tf_test_utils",
     ],
 )
 
@@ -176,11 +185,13 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":map_features",
+        "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:adjacency",
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
         "//tensorflow_gnn/keras:keras_tensors",
+        "//tensorflow_gnn/utils:tf_test_utils",
     ],
 )
 
@@ -232,12 +243,14 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":padding_ops",
+        "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:adjacency",
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
         "//tensorflow_gnn/graph:preprocessing_common",
         "//tensorflow_gnn/keras:keras_tensors",
+        "//tensorflow_gnn/utils:tf_test_utils",
     ],
 )
 
