@@ -39,6 +39,26 @@ pytype_strict_contrib_test(
     ],
 )
 
+pytype_strict_contrib_test(
+    name = "subgraph_pipeline_test",
+    srcs = ["subgraph_pipeline_test.py"],
+    python_version = "PY3",
+    srcs_version = "PY3ONLY",
+    deps = [
+        ":accessors",
+        ":edge_samplers",
+        ":executor_lib",
+        "//third_party/py/absl/testing:absltest",
+        "//:expect_absl_installed",
+        "//third_party/py/apache_beam",
+        "//third_party/py/apache_beam/utils",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+        "//tensorflow_gnn/experimental/sampler",
+    ],
+)
+
 pytype_strict_library(
     name = "accessors",
     srcs = ["accessors.py"],

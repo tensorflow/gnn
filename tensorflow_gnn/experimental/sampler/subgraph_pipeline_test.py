@@ -23,8 +23,10 @@ import tensorflow as tf
 
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.experimental.sampler import core
+from tensorflow_gnn.experimental.sampler import eval_dag
 from tensorflow_gnn.experimental.sampler import interfaces
 from tensorflow_gnn.experimental.sampler import subgraph_pipeline
+
 from tensorflow_gnn.sampler import sampling_spec_pb2
 
 
@@ -372,6 +374,67 @@ class EdgeFeaturesTest(tf.test.TestCase):
     edge_features = result.edge_sets['a->a'].get_features_dict()
     self.assertIn('f', edge_features)
     self.assertAllEqual(edge_features['f'], tf.ragged.constant([[2.0], [0.0]]))
+
+
+class EvalDagTest(tf.test.TestCase, parameterized.TestCase):
+
+  @parameterized.parameters([tf.string, tf.int32, tf.int64])
+  def test(self, ids_dtype: tf.DType):
+    graph_schema = tfgnn.GraphSchema()
+    graph_schema.node_sets['a'].description = 'node set a'
+    graph_schema.node_sets['a'].description = 'node set b'
+    graph_schema.edge_sets['a->b'].source = 'a'
+    graph_schema.edge_sets['a->b'].target = 'b'
+    graph_schema.edge_sets['a->a'].features['weights'].dtype = 1
+
+    sampling_spec = sampling_spec_pb2.SamplingSpec()
+    sampling_spec.seed_op.op_name = 'seed'
+    sampling_spec.seed_op.node_set_name = 'a'
+    sampling_spec.sampling_ops.add(
+        op_name='hop1', edge_set_name='a->b', sample_size=100
+    ).input_op_names.append('seed')
+
+    def edge_sampler_factory(sampling_op):
+      self.assertEqual(sampling_op.edge_set_name, 'a->b')
+      if ids_dtype == tf.string:
+        accessor = core.InMemStringKeyToBytesAccessor(
+            keys_to_values={b'a': b''}
+        )
+      else:
+        accessor = core.InMemIntegerKeyToBytesAccessor(keys_to_values={0: b''})
+      return core.UniformEdgesSampler(
+          sample_size=sampling_op.sample_size,
+          outgoing_edges_accessor=core.KeyToTfExampleAccessor(
+              accessor,
+              features_spec={
+                  tfgnn.TARGET_NAME: tf.TensorSpec([None], tf.string),
+                  'weights': tf.TensorSpec([None], tf.float32),
+              },
+          ),
+      )
+
+    sampling_model = subgraph_pipeline.create_sampling_model_from_spec(
+        graph_schema,
+        sampling_spec,
+        edge_sampler_factory,
+        seed_node_dtype=ids_dtype,
+    )
+    program, _ = eval_dag.create_program(sampling_model)
+    self.assertNotEmpty(program.eval_dag.stages)
+    self.assertNotEmpty(program.layers)
+    self.assertIn('Input', program.layers)
+    input_layer = program.layers['Input']
+    self.assertLen(input_layer.outputs, 1)
+    self.assertEqual(
+        input_layer.outputs[0].ragged_tensor.dtype, ids_dtype.as_datatype_enum
+    )
+
+    self.assertIn('uniform_edges_sampler', program.layers)
+    sampler_layer = program.layers['uniform_edges_sampler']
+    self.assertLen(sampler_layer.inputs, 1)
+    self.assertEqual(
+        sampler_layer.inputs[0].ragged_tensor.dtype, ids_dtype.as_datatype_enum
+    )
 
 
 def _get_test_link_edges_sampler_schema_spec():
