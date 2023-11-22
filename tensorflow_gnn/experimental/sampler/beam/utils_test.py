@@ -22,7 +22,7 @@ import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
 import tensorflow as tf
-from tensorflow_gnn.experimental.sampler import eval_dag_pb2 as pb
+from tensorflow_gnn.experimental.sampler import proto as pb
 from tensorflow_gnn.experimental.sampler.beam import utils
 
 from google.protobuf import text_format

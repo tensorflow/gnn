@@ -34,7 +34,7 @@ function tfgnn::move_generated_files() {
   fi
 
   FILES="
-    tensorflow_gnn/experimental/sampler/eval_dag_pb2.py
+    tensorflow_gnn/experimental/sampler/proto/eval_dag_pb2.py
     tensorflow_gnn/proto/graph_schema_pb2.py
     tensorflow_gnn/proto/examples_pb2.py
     tensorflow_gnn/sampler/sampling_spec_pb2.py

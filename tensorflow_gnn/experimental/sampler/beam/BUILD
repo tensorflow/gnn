@@ -19,7 +19,7 @@ pytype_strict_library(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/experimental/sampler",
-        "//tensorflow_gnn/experimental/sampler:eval_dag_py_proto",
+        "//tensorflow_gnn/experimental/sampler/proto",
     ],
 )
 
@@ -69,7 +69,7 @@ pytype_strict_library(
         "//third_party/py/apache_beam",
         "//third_party/py/apache_beam/utils",
         "//:expect_numpy_installed",
-        "//tensorflow_gnn/experimental/sampler:eval_dag_py_proto",
+        "//tensorflow_gnn/experimental/sampler/proto",
     ],
 )
 
@@ -102,7 +102,7 @@ pytype_strict_library(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-        "//tensorflow_gnn/experimental/sampler:eval_dag_py_proto",
+        "//tensorflow_gnn/experimental/sampler/proto",
     ],
 )
 
@@ -132,7 +132,7 @@ pytype_strict_library(
         "//third_party/py/apache_beam",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
-        "//tensorflow_gnn/experimental/sampler:eval_dag_py_proto",
+        "//tensorflow_gnn/experimental/sampler/proto",
     ],
 )
 
@@ -148,7 +148,7 @@ pytype_strict_contrib_test(
         "//third_party/py/apache_beam",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
-        "//tensorflow_gnn/experimental/sampler:eval_dag_py_proto",
+        "//tensorflow_gnn/experimental/sampler/proto",
     ],
 )
 

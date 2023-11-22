@@ -46,7 +46,7 @@ from apache_beam.utils import windowed_value
 import numpy as np
 import tensorflow as tf
 
-from tensorflow_gnn.experimental.sampler import eval_dag_pb2 as pb
+from tensorflow_gnn.experimental.sampler import proto as pb
 from tensorflow_gnn.experimental.sampler.beam import utils
 
 PCollection = beam.pvalue.PCollection

@@ -25,8 +25,8 @@ import networkx as nx
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
-from tensorflow_gnn.experimental.sampler import eval_dag_pb2
 from tensorflow_gnn.experimental.sampler import interfaces
+from tensorflow_gnn.experimental.sampler import proto as pb
 
 try:
   input_layer = tf._keras_internal.engine.input_layer  # pylint:disable=g-import-not-at-top # pytype: disable=import-error # pylint:disable=protected-access
@@ -56,7 +56,7 @@ class Artifacts:
 
 def create_program(
     model: tf.keras.Model,
-) -> Tuple[eval_dag_pb2.Program, Artifacts]:
+) -> Tuple[pb.Program, Artifacts]:
   """Converts Keras functional model into `Program` message plus artifacts.
 
   The `Program` contains directed acyclic graph of computation stages. Each
@@ -115,7 +115,7 @@ def create_program(
   artifacts = Artifacts(models={})
   layers = {}
   eval_dag = _create_eval_dag(model, layers, artifacts, root_dag=True)
-  result = eval_dag_pb2.Program()
+  result = pb.Program()
   result.eval_dag.CopyFrom(eval_dag)
   for layer_id, layer in layers.items():
     result.layers[layer_id].CopyFrom(layer)
@@ -270,11 +270,11 @@ class _Stage:
 
 def _create_eval_dag(
     model: tf.keras.Model,
-    layers: Dict[str, eval_dag_pb2.Layer],
+    layers: Dict[str, pb.Layer],
     artifacts: Artifacts,
     *,
     root_dag: bool,
-) -> eval_dag_pb2.EvalDAG:
+) -> pb.EvalDAG:
   """Helper to build `EvalDAG`s recursively."""
   output = model.output
   if not root_dag:
@@ -300,12 +300,12 @@ def _create_eval_dag(
 
 def _convert_stages_dag_to_eval_dag(
     stages_dag: nx.DiGraph,
-    layers: Dict[str, eval_dag_pb2.Layer],
+    layers: Dict[str, pb.Layer],
     artifacts: Artifacts,
-) -> eval_dag_pb2.EvalDAG:
+) -> pb.EvalDAG:
   """Converts stages DAG to eval dag proto updating artifacts."""
 
-  result = eval_dag_pb2.EvalDAG()
+  result = pb.EvalDAG()
   out_edges_spec = {}
   for stage in ordered_nodes(stages_dag):
     stage_pb = result.stages.add()
@@ -320,7 +320,7 @@ def _convert_stages_dag_to_eval_dag(
       stage_id, output = out_edges_spec[edge.ref()]
       stage_pb.input_matchers.add(stage_id=stage_id, output_index=output)
 
-    layer_pb = eval_dag_pb2.Layer()
+    layer_pb = pb.Layer()
     layer_pb.inputs.extend(tf.nest.map_structure(_get_spec_pb, in_edges))
     layer_pb.outputs.extend(tf.nest.map_structure(_get_spec_pb, out_edges))
 
@@ -782,7 +782,7 @@ def get_layer_config_pb(layer: Any, layer_node: Node) -> Any:
 
 @get_layer_config_pb.register
 def _(layer: interfaces.UniformEdgesSampler, layer_node: Node):
-  return eval_dag_pb2.EdgeSamplingConfig(
+  return pb.EdgeSamplingConfig(
       edge_set_name=layer.edge_set_name,
       sample_size=layer.sample_size,
       edge_target_feature_name=layer.edge_target_feature_name,
@@ -795,7 +795,7 @@ def _(layer: interfaces.UniformEdgesSampler, layer_node: Node):
 
 @get_layer_config_pb.register
 def _(layer: interfaces.TopKEdgesSampler, layer_node: Node):
-  return eval_dag_pb2.EdgeSamplingConfig(
+  return pb.EdgeSamplingConfig(
       edge_set_name=layer.edge_set_name,
       sample_size=layer.sample_size,
       edge_target_feature_name=layer.edge_target_feature_name,
@@ -814,26 +814,26 @@ def _(layer: interfaces.TopKEdgesSampler, layer_node: Node):
 def _(layer: Sink, *_):
   if not layer.io_config:
     return None
-  result = eval_dag_pb2.IOFeatures()
+  result = pb.IOFeatures()
   io_config = sorted(layer.io_config.items(), key=lambda kv: kv[1])
   for name, _ in io_config:
     result.feature_names.append(name)
   return result
 
 
-def _get_spec_pb(edge: Edge) -> eval_dag_pb2.ValueSpec:
-  """Maps edge on the value spec proto."""
-  result = eval_dag_pb2.ValueSpec()
+def _get_spec_pb(edge: Edge) -> pb.ValueSpec:
+  """Maps edge on the value spec pb."""
+  result = pb.ValueSpec()
   spec = edge.type_spec
   if isinstance(spec, tf.TensorSpec):
     result.tensor.CopyFrom(
-        eval_dag_pb2.TensorSpec(
+        pb.TensorSpec(
             dtype=spec.dtype.as_datatype_enum, shape=spec.shape.as_proto()
         )
     )
   elif isinstance(spec, tf.RaggedTensorSpec):
     result.ragged_tensor.CopyFrom(
-        eval_dag_pb2.RaggedTensorSpec(
+        pb.RaggedTensorSpec(
             dtype=spec.dtype.as_datatype_enum,
             shape=spec.shape.as_proto(),
             ragged_rank=spec.ragged_rank,
@@ -932,10 +932,10 @@ def _get_layer_pb_id_and_type(layer: tf.keras.layers.Layer) -> Tuple[str, str]:
 
 def _get_feature_names(
     layer_node: Node, names_map: Mapping[str, str]
-) -> eval_dag_pb2.IOFeatures:
+) -> pb.IOFeatures:
   feature_names = []
   assert isinstance(layer_node.outputs, (collections.abc.Mapping, Mapping))
   for k, v in layer_node.outputs.items():
     assert tfgnn.is_ragged_tensor(v) or tfgnn.is_dense_tensor(v), v
     feature_names.append(names_map.get(k, k))
-  return eval_dag_pb2.IOFeatures(feature_names=sorted(feature_names))
+  return pb.IOFeatures(feature_names=sorted(feature_names))

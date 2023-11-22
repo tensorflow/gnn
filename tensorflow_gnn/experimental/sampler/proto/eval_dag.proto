@@ -66,7 +66,7 @@
 
 syntax = "proto3";
 
-package tensorflow_gnn.sampler;
+package tensorflow_gnn.sampler.proto;
 
 import "google/protobuf/any.proto";
 import "tensorflow/core/framework/tensor_shape.proto";

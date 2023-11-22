@@ -21,8 +21,8 @@ import tensorflow_gnn as tfgnn
 
 from tensorflow_gnn.experimental.sampler import core
 from tensorflow_gnn.experimental.sampler import eval_dag as lib
-from tensorflow_gnn.experimental.sampler import eval_dag_pb2 as pb
 from tensorflow_gnn.experimental.sampler import interfaces
+from tensorflow_gnn.experimental.sampler import proto as pb
 
 # Enables tests for graph pieces that are members of test classes.
 tfgnn.enable_graph_tensor_validation_at_runtime()

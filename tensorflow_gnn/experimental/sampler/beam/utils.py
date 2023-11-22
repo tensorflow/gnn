@@ -20,7 +20,7 @@ from apache_beam import typehints
 from apache_beam.typehints import trivial_inference
 import numpy as np
 import tensorflow as tf
-from tensorflow_gnn.experimental.sampler import eval_dag_pb2 as pb
+from tensorflow_gnn.experimental.sampler import proto as pb
 
 PCollection = beam.pvalue.PCollection
 

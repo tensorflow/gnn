@@ -18,8 +18,8 @@ import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.experimental.sampler import core
 from tensorflow_gnn.experimental.sampler import eval_dag as lib
-from tensorflow_gnn.experimental.sampler import eval_dag_pb2 as pb
 from tensorflow_gnn.experimental.sampler import interfaces
+from tensorflow_gnn.experimental.sampler import proto as pb
 
 
 class EdgesSamplerTest(tf.test.TestCase, parameterized.TestCase):

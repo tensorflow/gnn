@@ -18,6 +18,7 @@ from tensorflow_gnn.experimental.sampler import core
 from tensorflow_gnn.experimental.sampler import eval_dag
 from tensorflow_gnn.experimental.sampler import ext_ops
 from tensorflow_gnn.experimental.sampler import interfaces
+from tensorflow_gnn.experimental.sampler import proto  # Exposed as submodule. pylint: disable=unused-import
 from tensorflow_gnn.experimental.sampler import subgraph_pipeline
 from tensorflow_gnn.utils import api_utils
 
@@ -63,5 +64,5 @@ KeyToFeaturesAccessor = interfaces.KeyToFeaturesAccessor
 KeyToBytesAccessor = interfaces.KeyToBytesAccessor
 
 # Remove all names added by module imports, unless explicitly allowed here.
-api_utils.remove_submodules_except(__name__, [])
+api_utils.remove_submodules_except(__name__, ['proto'])
 # LINT.ThenChange(../../api_def/sampler-symbols.txt)

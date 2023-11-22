@@ -20,3 +20,13 @@ sampler.ragged_lookup
 sampler.ragged_unique
 sampler.save_model
 sampler.set_ext_ops_implementation
+sampler.proto.Program
+sampler.proto.EvalDAG
+sampler.proto.Stage
+sampler.proto.Layer
+sampler.proto.ValueSpec
+sampler.proto.TensorSpec
+sampler.proto.RaggedTensorSpec
+sampler.proto.FlattenedSpec
+sampler.proto.EdgeSamplingConfig
+sampler.proto.IOFeatures

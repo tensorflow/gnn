@@ -19,7 +19,7 @@ from typing import Dict, Iterable, Iterator, Optional, Tuple, cast
 import apache_beam as beam
 from apache_beam import typehints as beam_typehints
 import numpy as np
-from tensorflow_gnn.experimental.sampler import eval_dag_pb2 as pb
+from tensorflow_gnn.experimental.sampler import proto as pb
 from tensorflow_gnn.experimental.sampler.beam import executor_lib
 from tensorflow_gnn.experimental.sampler.beam import utils
 
