@@ -95,19 +95,24 @@ class _GraphPieceWithFeatures(gp.GraphPieceBase, metaclass=abc.ABCMeta):
       A dense integer tensor with the same shape as the graph piece.
     """
     result = tf.reduce_sum(tf.ones_like(self.sizes), axis=self.rank)
-    if utils.is_ragged_tensor(result):
-      # TODO(b/232914703): reconsider if ragged batch dimensions are supported.
-      result_dense = result.to_tensor()
-      if const.validate_graph_tensor_at_runtime:
-        check_ops = [
-            tf.debugging.assert_equal(
-                tf.size(result),
-                tf.size(result_dense),
-                message='`sizes` shape is incompatible with the piece shape',
-            )
-        ]
-        with tf.control_dependencies(check_ops):
-          result = tf.identity(result_dense)
+    if not utils.is_ragged_tensor(result):
+      return result
+
+    # TODO(b/232914703): workaround for the bug in the ragged reduce ops,
+    # when reduction on the single ragged dimension results in the ragged
+    # tensor, although the dense tensor is expected.
+    result_dense = result.to_tensor()
+    if const.validate_graph_tensor_at_runtime:
+      check_ops = [
+          tf.debugging.assert_equal(
+              tf.size(result),
+              tf.size(result_dense),
+              message=('Internal error: '
+                       'ragged batch dimensions are not supported'),
+          )
+      ]
+      with tf.control_dependencies(check_ops):
+        result = tf.identity(result_dense)
     return result
 
   @property
