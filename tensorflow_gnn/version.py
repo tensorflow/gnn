@@ -15,7 +15,8 @@
 """Version info.
 
 Releases of the TF-GNN library use [Semantic Versioning](https://semver.org/)
-with the version string syntax of [PEP 440](https://peps.python.org/pep-0440/):
+with the version string syntax of from the [PyPA spec for Version
+specifiers](https://packaging.python.org/en/latest/specifications/version-specifiers/):
 
   * A release has a version MAJOR.MINOR.PATCH with three numeric parts
     and the conventional meaning regarding API stability. Recall that
@@ -41,4 +42,4 @@ with the version string syntax of [PEP 440](https://peps.python.org/pep-0440/):
 # IMPORANT: Right after branching rX.Y, bump the main branch to X.(Y+1).0.dev1.
 # (Submit a change to the Source of Truth, get it out on the main branch asap.)
 
-__version__ = "0.7.0.dev1"
+__version__ = "1.0.0.dev1"
