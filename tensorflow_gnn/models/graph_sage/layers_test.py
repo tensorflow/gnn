@@ -247,7 +247,10 @@ class GraphsageTest(tf.test.TestCase, parameterized.TestCase):
       ("E2ENoNormalizeNoConcatPooling", False, "sum", True),
       ("E2ENoNormalizeNoConcatAgg", False, "sum", False),
       ("E2ELoadKerasPooling", True, "concat", True, tftu.ModelReloading.KERAS),
+      ("E2ELoadKerasAgg", True, "concat", False, tftu.ModelReloading.KERAS),
       ("E2ELoadSavedModelPooling", True, "concat", True,
+       tftu.ModelReloading.SAVED_MODEL),
+      ("E2ELoadSavedModelAgg", True, "concat", False,
        tftu.ModelReloading.SAVED_MODEL))
   def testFullModel(self, normalize, combine_type, use_pooling,
                     model_reloading=tftu.ModelReloading.SKIP):

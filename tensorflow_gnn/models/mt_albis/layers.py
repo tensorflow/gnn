@@ -97,6 +97,9 @@ class MtAlbisNextNodeState(tf.keras.layers.Layer):
   node state with the pooled messages received by the NodeSet. (If the
   `NodeSetUpdate` provides a context input, that is used as well.)
 
+  This layer can be saved and loaded as part of a Keras model model using
+  `save_format="tf"`.
+
   Init args:
     units: The dimension of the computed node states.
     next_state_type: `"dense"` or `"residual"`. With the latter, a residual
@@ -264,6 +267,10 @@ def MtAlbisGraphUpdate(  # To be called like a class initializer.  pylint: disab
 
   The TF-GNN Model Template "Albis" provides a small selection of field-tested
   GNN architectures through the unified interface of this class.
+
+  The layer returned by this function can be restored from config by
+  `tf.keras.models.load_model()` when saved as part of a Keras model using
+  `save_format="tf"`.
 
   Args:
     units: The dimension of node states in the output GraphTensor.

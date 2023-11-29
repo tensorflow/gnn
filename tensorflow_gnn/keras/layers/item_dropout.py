@@ -27,6 +27,9 @@ class ItemDropout(tf.keras.layers.Layer):
   or node dropout (or "component dropout", which is rarely useful) on
   Tensors shaped like features of a **scalar** GraphTensor.
 
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
+
   Init args:
     rate: The dropout rate, forwarded to `tf.keras.layers.Dropout`.
     seed: The random seed, forwarded `tf.keras.layers.Dropout`.

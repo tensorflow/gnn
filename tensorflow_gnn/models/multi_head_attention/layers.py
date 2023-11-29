@@ -114,6 +114,9 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
         NOTE: The single projection matrix behaves differently in
         gradient-descent training than the product of two matrices.
 
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
+
   Init args:
     num_heads: The number of attention heads.
     per_head_channels: The number of channels for each attention head. This
@@ -585,6 +588,10 @@ def MultiHeadAttentionEdgePool(
   NOTE: This layer cannot pool node states.
         For that, use MultiHeadAttentionConv.
 
+  The layer returned by this function can be restored from config by
+  `tf.keras.models.load_model()` when saved as part of a Keras model using
+  `save_format="tf"`.
+
   Args:
     num_heads: The number of attention heads.
     per_head_channels: The number of channels for each attention head. This
@@ -642,6 +649,10 @@ def MultiHeadAttentionHomGraphUpdate(
   > IMPORTANT: This implementation of MultiHeadAttention attends only to edges
   > that are explicitly stored in the input GraphTensor. Attention of a node to
   > itself requires having an explicit loop in the edge set.
+
+  The layer returned by this function can be restored from config by
+  `tf.keras.models.load_model()` when saved as part of a Keras model using
+  `save_format="tf"`.
 
   Args:
     num_heads: The number of attention heads.
@@ -709,6 +720,10 @@ def MultiHeadAttentionMPNNGraphUpdate(  # To be called like a class initializer.
   node states from a concatenation of the old node state and all pooled
   messages, analogous to TF-GNN's `vanilla_mpnn.VanillaMPNNGraphUpdate` and
   `gat_v2.GATv2MPNNGraphUpdate`.
+
+  The layer returned by this function can be restored from config by
+  `tf.keras.models.load_model()` when saved as part of a Keras model using
+  `save_format="tf"`.
 
   Args:
     units: The dimension of output hidden states for each node.

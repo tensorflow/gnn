@@ -65,6 +65,9 @@ class GCNConv(tf.keras.layers.Layer):
   For symmetric graphs (as in the original GCN paper), `"in_out"` and `"in_in"`
   are equal, but the latter needs to compute degrees just once.
 
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
+
   Init arguments:
     units: Number of output units for this transformation applied to sender
       node features.
@@ -300,6 +303,10 @@ def GCNHomGraphUpdate(*,  # To be called like a class initializer.  pylint: disa
   > Including the old node state in the inputs for computing the new node state
   > requires having an explicit loop in the edge set, or setting
   > `add_self_loops=True`.
+
+  Thie layer returned by this function can be restored from config by
+  `tf.keras.models.load_model()` when saved as part of a Keras model using
+  `save_format="tf"`.
 
   Args:
     units: The dimension of output hidden states for each node.

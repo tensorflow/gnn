@@ -29,6 +29,8 @@ class PadToTotalSizes(tf.keras.layers.Layer):
   `sizes_constraints`, passed at initialization time. See that function
   for detailed documentation.
 
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
   Serialization to a Keras model config requires the `sizes_constraints` to
   contain Python integers or eager Tensors, not symbolic Tensors.
   """

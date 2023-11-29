@@ -38,8 +38,8 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
   also assumes that the paper's notion of "edge type" is equivalent to
   TFGNN "edge_set_name". Edge features are ignored as in the paper.
 
-  This layer can be saved and loaded as part of a Keras model model using
-  `save_format="tf"`.
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
 
   Init args:
     num_heads: The number of attention heads.

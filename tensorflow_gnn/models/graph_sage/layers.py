@@ -38,6 +38,9 @@ class GraphSAGEAggregatorConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
   This class supports the element-wise aggregations with different operator
   types besides "mean", see the reduce_type=... argument. For stateful
   transformation with a hidden layer, see `graph_sage.GraphSAGEPoolingConv`.
+
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
   """
 
   def __init__(
@@ -144,6 +147,9 @@ class GraphSAGEPoolingConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
   The name of this class reflects the terminology of the paper, where "pooling"
   involves the aforementioned hidden layer. For element-wise aggregation (as in
   `tfgnn.pool_edges_to_node()`), see `graph_sage.GraphSAGEAggregatorConv`.
+
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
   """
 
   def __init__(
@@ -299,6 +305,9 @@ class GCNGraphSAGENodeSetUpdate(tf.keras.layers.Layer):
   reduce operation, instead only the sender node states will be accumulated
   based on the reduce_type specified. If share_weights is set to True, then
   single weight matrix will be used in place of W_E and W_self.
+
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
   """
 
   def __init__(self,

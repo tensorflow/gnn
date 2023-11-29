@@ -141,11 +141,12 @@ class MapFeatures(tf.keras.layers.Layer):
   possible by sharing the Keras objects between the respective callback
   invocations.
 
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
+
   WARNING: Weight sharing fails in `tf.keras.models.load_model()`
   with an error message on weights missing from the checkpoint.
   (Most users don't need to re-load their models this way.)
-
-  TODO(b/285243815): Remove warning when fixed.
 
   Init args:
     context_fn: A callback to build a Keras model for transforming context
@@ -361,6 +362,9 @@ def _call_model(model, graph_piece, *, logging_name):
 @tf.keras.utils.register_keras_serializable(package="GNN")
 class MakeEmptyFeature(tf.keras.layers.Layer):
   """Returns an empty feature with a shape that fits the input graph piece.
+
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
 
   Init args:
     dtype: the tf.DType to use for the result, defaults to tf.float32.

@@ -53,6 +53,10 @@ class SimpleConv(convolution_base.AnyToAnyConvolutionBase):
   )(graph)
   ```
 
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`, provided that
+  the layers used in `message_fn` also support this. (Keras core layers do.)
+
   Init args:
     message_fn: A Keras layer that computes the individual messages from the
       combined input features (see combine_type).

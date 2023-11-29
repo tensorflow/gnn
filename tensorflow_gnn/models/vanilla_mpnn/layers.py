@@ -58,6 +58,10 @@ def VanillaMPNNGraphUpdate(  # To be called like a class initializer.  pylint: d
   $$h_v := \text{ReLU}(
       W_{\text{state}} (h_v || m_{E_1} || m_{E_2} || \ldots)).$$
 
+  The layer returned by this function can be restored from config by
+  `tf.keras.models.load_model()` when saved as part of a Keras model using
+  `save_format="tf"`.
+
   Args:
     units: The dimension of output hidden states for each node.
     message_dim: The dimension of messages computed on each edge.

@@ -72,6 +72,9 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
   will perform an identical computation on each of the `num_nodes * 2 * 4` input
   values.
 
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
+
   Init args:
     num_heads: The number of attention heads.
     per_head_channels: The number of channels for each attention head. This
@@ -386,6 +389,10 @@ def GATv2EdgePool(*,  # To be called like a class initializer.  pylint: disable=
 
   NOTE: This layer cannot pool node states. For that, use `gat_v2.GATv2Conv`.
 
+  The layer returned by this function can be restored from config by
+  `tf.keras.models.load_model()` when saved as part of a Keras model using
+  `save_format="tf"`.
+
   Args:
     num_heads: The number of attention heads.
     per_head_channels: The number of channels for each attention head. This
@@ -442,6 +449,10 @@ def GATv2HomGraphUpdate(
   > IMPORTANT: This implementation of GAT attends only to edges that are
   > explicitly stored in the input GraphTensor. Attention of a node to itself
   > requires having an explicit loop in the edge set.
+
+  The layer returned by this function can be restored from config by
+  `tf.keras.models.load_model()` when saved as part of a Keras model using
+  `save_format="tf"`.
 
   Args:
     num_heads: The number of attention heads.
@@ -516,6 +527,10 @@ def GATv2MPNNGraphUpdate(  # To be called like a class initializer.  pylint: dis
   messages and their pooling with attention, followed by a dense layer to
   compute the new node states from a concatenation of the old node state and
   all pooled messages.
+
+  The layer returned by this function can be restored from config by
+  `tf.keras.models.load_model()` when saved as part of a Keras model using
+  `save_format="tf"`.
 
   Args:
     units: The dimension of output hidden states for each node.

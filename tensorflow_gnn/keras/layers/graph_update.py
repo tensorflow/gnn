@@ -131,6 +131,9 @@ class GraphUpdate(tf.keras.layers.Layer):
   which allows advanced users to adjust the updates to the GraphTensorSpec
   of the input (which EdgeSets and NodeSets even exist).
 
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
+
   Init args:
     edge_sets: A dict `{edge_set_name: edge_set_update, ...}` of EdgeSetUpdate
       layers (or custom reimplementations). They are run on the input graph
@@ -262,6 +265,9 @@ class GraphUpdate(tf.keras.layers.Layer):
 class EdgeSetUpdate(tf.keras.layers.Layer):
   """Computes the new state of an EdgeSet from select input features.
 
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
+
   Init args:
     next_state: The NextState layer to apply.
     edge_input_feature: The feature name(s) of inputs from the edge set to
@@ -353,6 +359,9 @@ class EdgeSetUpdate(tf.keras.layers.Layer):
 @tf.keras.utils.register_keras_serializable(package="GNN")
 class NodeSetUpdate(tf.keras.layers.Layer):
   """A node state update with input from convolutions or other edge set inputs.
+
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
 
   Init args:
     edge_set_inputs: A dict `{edge_set_name: edge_set_input, ...}` of Keras
@@ -446,6 +455,9 @@ class NodeSetUpdate(tf.keras.layers.Layer):
 @tf.keras.utils.register_keras_serializable(package="GNN")
 class ContextUpdate(tf.keras.layers.Layer):
   """A context update with input from node sets and/or edge sets.
+
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
 
   Init args:
     node_set_inputs: A dict `{node_set_name: node_set_input, ...}` of Keras
