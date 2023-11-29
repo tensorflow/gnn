@@ -125,7 +125,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":tensor_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
     ],
@@ -157,7 +157,7 @@ tf_py_test(
         ":graph_tensor",
         ":graph_tensor_ops",
         ":readout",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -186,7 +186,7 @@ tf_py_test(
         ":adjacency",
         ":graph_tensor",
         ":schema_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//third_party/py/google/protobuf",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/proto:graph_schema_py_proto",
@@ -236,7 +236,7 @@ pytype_strict_library(
         ":graph_tensor_encode",
         ":graph_tensor_random",
         ":schema_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/proto:graph_schema_py_proto",
     ],
@@ -251,7 +251,7 @@ tf_py_test(
         ":graph_constants",
         ":graph_tensor",
         ":graph_tensor_test_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -268,7 +268,7 @@ tf_py_test(
         ":graph_tensor_ops",
         ":pool_ops",
         ":readout",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -283,7 +283,7 @@ tf_py_test(
         ":graph_tensor",
         ":graph_tensor_io",
         ":schema_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//third_party/py/google/protobuf",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/proto:graph_schema_py_proto",
@@ -302,7 +302,7 @@ tf_py_test(
         ":graph_tensor_io",
         ":graph_tensor_random",
         ":schema_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/proto:graph_schema_py_proto",
         "//tensorflow_gnn/utils:test_utils",
@@ -320,7 +320,7 @@ tf_py_test(
         ":graph_tensor",
         ":graph_tensor_random",
         ":schema_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/proto:graph_schema_py_proto",
         "//tensorflow_gnn/utils:test_utils",
@@ -361,7 +361,7 @@ tf_py_test(
     deps = [
         ":graph_piece",
         ":tf_internal",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/utils:tf_test_utils",
     ],
@@ -387,7 +387,7 @@ tf_py_test(
     deps = [
         ":adjacency",
         ":graph_constants",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -417,7 +417,7 @@ tf_py_test(
         ":graph_constants",
         ":graph_tensor",
         ":normalization_ops",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -454,7 +454,7 @@ tf_py_test(
         ":graph_constants",
         ":graph_tensor",
         ":preprocessing_common",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -487,7 +487,7 @@ tf_py_test(
         ":graph_tensor_test_utils",
         ":padding_ops",
         ":preprocessing_common",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -514,7 +514,7 @@ tf_py_test(
         ":graph_constants",
         ":graph_tensor",
         ":pool_ops",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -567,8 +567,6 @@ pytype_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//:expect_tf_keras_installed",
-        "//third_party/tensorflow/python/framework:composite_tensor",
-        "//third_party/tensorflow/python/framework:type_spec",
     ],
 )
 
@@ -580,7 +578,7 @@ pytype_strict_contrib_test(
         ":graph_constants",
         ":graph_tensor",
         ":tag_utils",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -597,7 +595,7 @@ tf_py_test(
         ":graph_tensor",
         ":graph_tensor_test_utils",
         ":preprocessing_common",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -610,7 +608,7 @@ tf_py_test(
         ":broadcast_ops",
         ":graph_constants",
         ":graph_tensor",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
     ],

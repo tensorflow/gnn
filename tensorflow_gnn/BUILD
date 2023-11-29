@@ -31,7 +31,6 @@ pytype_strict_library(
     visibility = ["//visibility:public"],
     deps = [
         ":version",
-        "//tensorflow_gnn/experimental",
         "//tensorflow_gnn/graph:adjacency",
         "//tensorflow_gnn/graph:batching_utils",
         "//tensorflow_gnn/graph:broadcast_ops",
@@ -53,7 +52,22 @@ pytype_strict_library(
         "//tensorflow_gnn/graph:tensor_utils",
         "//tensorflow_gnn/keras",
         "//tensorflow_gnn/proto",
-        "//tensorflow_gnn/sampler",
+        "//tensorflow_gnn/utils:api_utils",
+    ],
+)
+
+pytype_strict_library(
+    name = "lite",
+    srcs = ["lite.py"],
+    srcs_version = "PY3",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":version",
+        "//tensorflow_gnn/graph:adjacency",
+        "//tensorflow_gnn/graph:graph_constants",
+        "//tensorflow_gnn/graph:graph_tensor",
+        "//tensorflow_gnn/graph:tag_utils",
+        "//tensorflow_gnn/keras",
         "//tensorflow_gnn/utils:api_utils",
     ],
 )

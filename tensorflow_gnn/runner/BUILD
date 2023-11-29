@@ -35,11 +35,15 @@ pytype_strict_library(
     name = "interfaces",
     srcs = ["interfaces.py"],
     srcs_version = "PY3",
-    visibility = [":__subpackages__"],
+    visibility = [
+        "//tensorflow_gnn/runner:__subpackages__",
+        # To pass open source testing in the pip Kokoros.
+        "//bazel_pip/tensorflow_gnn/runner:__subpackages__",
+    ],
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-        "//third_party/py/typing_extensions",
+        "//:expect_typing_extensions_installed",
     ],
 )
 
@@ -86,7 +90,7 @@ py_strict_test(
     deps = [
         ":interfaces",
         ":orchestration",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
         "//tensorflow_gnn/models/vanilla_mpnn",

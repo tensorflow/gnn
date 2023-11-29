@@ -16,8 +16,8 @@ pytype_strict_library(
     ],
     deps = [
         ":utils",
-        "//third_party/py/absl:app",
-        "//third_party/py/absl/flags",
+        "//:expect_absl_installed_app",
+        "//:expect_absl_installed_flags",
         "//third_party/py/absl/logging",
         "//third_party/py/ml_collections/config_dict",
         "//third_party/py/ml_collections/config_flags",
