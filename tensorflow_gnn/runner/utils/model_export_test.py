@@ -15,7 +15,7 @@
 """Tests for model_export."""
 import itertools
 import os
-from typing import Any
+from typing import Any, Optional
 
 from absl.testing import parameterized
 import tensorflow as tf
@@ -89,6 +89,16 @@ def _tf_module_as_submodule(name: str) -> tf.keras.Model:
   return model
 
 
+def _named_inputs_outputs() -> tf.keras.Model:
+  left = tf.keras.Input(shape=(1,), name="left")
+  right = tf.keras.Input(
+      type_spec=tf.TensorSpec((None, 1), tf.float32, name="right"),
+      name="ignored")
+  summation = tf.keras.layers.Add(name="summation")([left, right])
+  subtraction = tf.keras.layers.Subtract(name="subtraction")([left, right])
+  return tf.keras.Model([left, right], [summation, subtraction])
+
+
 class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters([
@@ -113,38 +123,92 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
           output_names=["output_a", "output_b"],
       ),
       dict(
+          testcase_name="MultipleInputOutputLegacySave",
+          model=_no_submodule(2, 2, "abc123"),
+          output_names=["output_a", "output_b"],
+          use_legacy_model_save=True,
+      ),
+      dict(
+          testcase_name="MultipleInputOutputExport",
+          model=_no_submodule(2, 2, "abc123"),
+          output_names=["output_a", "output_b"],
+          use_legacy_model_save=False,
+      ),
+      dict(
           testcase_name="MappingOutput",
           model=_structure_like(None, {"x": None, "y": None}),
           output_names={"y": "output_b", "x": "output_a"},
+      ),
+      dict(
+          testcase_name="MappingOutputLegacySave",
+          model=_structure_like(None, {"x": None, "y": None}),
+          output_names={"y": "output_b", "x": "output_a"},
+          use_legacy_model_save=True,
+      ),
+      dict(
+          testcase_name="MappingOutputExport",
+          model=_structure_like(None, {"x": None, "y": None}),
+          output_names={"y": "output_b", "x": "output_a"},
+          use_legacy_model_save=False,
+      ),
+      dict(
+          testcase_name="NamedInputsOutputs",
+          model=_named_inputs_outputs(),
+          expected_input_names=["left", "right"],
+          expected_output_names=["summation", "subtraction"],
+          use_legacy_model_save=False,
+      ),
+      dict(
+          testcase_name="NamedInputsOutputsLegacySave",
+          model=_named_inputs_outputs(),
+          expected_input_names=["left", "right"],
+          expected_output_names=["summation", "subtraction"],
+          use_legacy_model_save=True,
       ),
   ])
   def test_keras_model_exporter(
       self,
       model: tf.keras.Model,
-      output_names: Any):
+      output_names: Any = None,
+      expected_output_names: Any = None,  # Defaults to flatten(output_names).
+      expected_input_names: Any = None,  # Defaults to model.input[*].name.
+      use_legacy_model_save: Optional[bool] = None):
+
+    if (use_legacy_model_save is False  # Don't trigger on None. pylint: disable=g-bool-id-comparison
+        and tf.__version__.startswith("2.12.")):
+      self.skipTest("Model.export() does not work for TF < 2.13")
+
     export_dir = self.create_tempdir()
-    exporter = model_export.KerasModelExporter(output_names=output_names)
+    exporter = model_export.KerasModelExporter(
+        output_names=output_names,
+        use_legacy_model_save=use_legacy_model_save)
     exporter.save(interfaces.RunResult(None, None, model), export_dir)
 
-    for load_fn in (tf.keras.models.load_model, tf.saved_model.load):
-      saved_model = load_fn(export_dir)
+    if expected_input_names is None:
+      expected_input_names = [i.name for i in tf.nest.flatten(model.input)]
+    func = lambda i: tf.random.uniform((1, *i.shape[1:]))
+    args = [func(i) for i in tf.nest.flatten(model.input)]
+    kwargs = dict(zip(expected_input_names, args))
 
-      names = [i.name for i in tf.nest.flatten(model.input)]
-      func = lambda i: tf.random.uniform((1, *i.shape[1:]))
-      args = [func(i) for i in tf.nest.flatten(model.input)]
-      kwargs = dict(zip(names, args))
+    model_output = model(args)
 
-      model_output = model(args)
-      saved_model_outputs = saved_model.signatures["serving_default"](**kwargs)
-
+    flat_model_outputs = tf.nest.flatten(model_output)
+    if expected_output_names is None:
       tf.nest.assert_same_structure(model_output, output_names)
-      zipped = zip(tf.nest.flatten(model_output), tf.nest.flatten(output_names))
+      expected_output_names = tf.nest.flatten(output_names)
+    else:
+      self.assertLen(flat_model_outputs, len(expected_output_names))
+    zipped = zip(flat_model_outputs, expected_output_names)
 
-      for output, name in zipped:
-        self.assertAllClose(
-            output,
-            saved_model_outputs[name],
-            msg=f"Testing {load_fn.__name__} with output {name}")
+    saved_model = tf.saved_model.load(export_dir)
+    saved_model_outputs = saved_model.signatures["serving_default"](**kwargs)
+
+    self.assertCountEqual(expected_output_names, saved_model_outputs.keys())
+    for output, name in zipped:
+      self.assertAllClose(
+          output,
+          saved_model_outputs[name],
+          msg=f"Testing output {name}")
 
   @parameterized.named_parameters([
       dict(

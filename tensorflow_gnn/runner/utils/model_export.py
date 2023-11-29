@@ -14,23 +14,12 @@
 # ==============================================================================
 """Model export helpers."""
 import os
-from typing import Any, Optional, Union
+from typing import Any, Optional, Sequence, Union
 
 import tensorflow as tf
 from tensorflow_gnn.runner import interfaces
 
 Field = Union[tf.Tensor, tf.RaggedTensor]
-
-
-# TODO(b/196880966) Move to `model.py` and add unit tests.
-def _rename_output(output: Any, names: Any) -> Any:
-  """Renames atoms of `output` with `names` for two matching structures."""
-  tf.nest.assert_same_structure(output, names, check_types=False)
-  renamed_output = [
-      tf.keras.layers.Layer(name=atom2)(atom1) if atom2 is not None else atom1
-      for atom1, atom2 in zip(tf.nest.flatten(output), tf.nest.flatten(names))
-  ]
-  return tf.nest.pack_sequence_as(names, renamed_output)
 
 
 class KerasModelExporter(interfaces.ModelExporter):
@@ -41,26 +30,31 @@ class KerasModelExporter(interfaces.ModelExporter):
                output_names: Optional[Any] = None,
                subdirectory: Optional[str] = None,
                include_preprocessing: bool = True,
-               options: Optional[tf.saved_model.SaveOptions] = None):
+               options: Optional[tf.saved_model.SaveOptions] = None,
+               use_legacy_model_save: Optional[bool] = None):
     """Captures the args shared across `save(...)` calls.
 
     Args:
-      output_names: The name(s) for any output Tensor(s). Can be a single `str`
-        name or a nested structure of `str` names. If a nested structure is
-        given, it must match the structure of the exported model's output
-        (as asserted by `tf.nest.assert_same_structure`): model output is
-        renamed by flattening (`tf.nest.flatten`) and zipping the two
-        structures. Any `None` values in `output_names` are ignored (leaving
-        that corresponding atom with its original name).
+      output_names: By default, each output of the exported model uses the name
+        of the final Keras layer that created it as its key in the SavedModel
+        signature. This argument can be set to a single `str` name or a nested
+        structure of `str` names to override the output names. Its nesting
+        structure must match the exported model's output (as checked by
+        `tf.nest.assert_same_structure`). Any `None` values in `output_names`
+        are ignored, leaving that output with its default name.
       subdirectory: An optional subdirectory, if set: models are exported to
         `os.path.join(export_dir, subdirectory).`
       include_preprocessing: Whether to include any `preprocess_model.`
       options: Options for saving to a TensorFlow `SavedModel`.
+      use_legacy_model_save: Optional; most users can leave it unset to get a
+        useful default for export to inference. See `runner.export_model()`
+        for more.
     """
     self._output_names = output_names
     self._subdirectory = subdirectory
     self._include_preprocessing = include_preprocessing
     self._options = options
+    self._use_legacy_model_save = use_legacy_model_save
 
   def save(self, run_result: interfaces.RunResult, export_dir: str):
     """Exports a Keras model (with Keras API) via tf.keras.models.save_model.
@@ -175,16 +169,63 @@ class SubmoduleExporter(interfaces.ModelExporter):
 
 def export_model(model: tf.keras.Model,
                  export_dir: str,
-                 options: Optional[tf.saved_model.SaveOptions] = None) -> None:
+                 *,
+                 output_names: Optional[Any] = None,
+                 options: Optional[tf.saved_model.SaveOptions] = None,
+                 use_legacy_model_save: Optional[bool] = None) -> None:
   """Exports a Keras model without traces s.t. it is loadable without TF-GNN.
 
   Args:
     model: Keras model instance to be saved.
     export_dir: Path where to save the model.
-    options: An optional `SaveOptions`.
+    output_names: Optionally, a nest of `str` values or `None` with the same
+      structure as the outputs of `model`. A non-`None` value is used as that
+      output's key in the SavedModel signature. By default, an output gets
+      the name of the final Keras layer creating it as its key (matching the
+      behavior of legacy `Model.save(save_format="tf")`).
+    options: An optional `tf.saved_model.SaveOptions` argument.
+    use_legacy_model_save: Optional; most users can leave it unset to get a
+      useful default for export to inference. If set to `True`, forces the use
+      of `Model.save()`, which exports a SavedModel suitable for inference and
+      potentially also for reloading as a Keras model (depending on its Layers).
+      If set to `False`, forces the use of `tf.keras.export.ExportArchive`,
+      which is usable as of TensorFlow 2.13 and is advertised as the more
+      streamlined way of exporting to SavedModel for inference only. Currently,
+      `None` behaves like `True`, but the long-term plan is to migrate towards
+      `False`.
   """
+  if use_legacy_model_save is None:
+    use_legacy_model_save = True
+
+  # Create a tf.function for export as the default signature.
+  #
+  # The goal is to replicate the traditional behavior of model.save()
+  # and its sole "serving_default" signature, even if we use...
+  #  * model.save(save_traces=False), which removes that default and requires
+  #    some boilerplate to get it back,
+  #  * model.export(), or rather the ExportArchive formalism behind it, which
+  #      * by default fails to retrieve the output names for the signature
+  #        in the expected way from layer names (b/312907301);
+  #      * by default creates two equal signatures "serve" and "serving_default"
+  #        but we'd rather not get clients to depend on "serve" before we are
+  #        ready to abandon the traditonal model.save() behavior.
   nested_arg_specs, nested_kwarg_specs = model.save_spec()
   flat_arg_specs = tf.nest.flatten((nested_arg_specs, nested_kwarg_specs))
+
+  if output_names is None:
+    flat_output_names = model.output_names
+    if not (isinstance(flat_output_names, Sequence)
+            and not isinstance(flat_output_names, (str, bytes))
+            and all(isinstance(name, str) for name in flat_output_names)):
+      raise ValueError("Expected Model.output_names to be a Sequence[str], "
+                       f"got: {flat_output_names}")
+  else:
+    tf.nest.assert_same_structure(model.output, output_names)
+    flat_output_names = tf.nest.flatten(output_names)
+    assert len(flat_output_names) == len(model.output_names)
+    for i in range(len(flat_output_names)):
+      if flat_output_names[i] is None:
+        flat_output_names[i] = model.output_names[i]
 
   @tf.function(input_signature=flat_arg_specs)
   def serving_default(*flat_args):
@@ -192,17 +233,23 @@ def export_model(model: tf.keras.Model,
         (nested_arg_specs, nested_kwarg_specs),
         flat_args)
     nested_outputs = model(*nested_args, **nested_kwargs)
-    return dict(zip(model.output_names, tf.nest.flatten(nested_outputs)))
+    return dict(zip(flat_output_names, tf.nest.flatten(nested_outputs)))
 
-  model.save(
-      export_dir,
-      save_format="tf",
-      include_optimizer=False,
-      save_traces=False,
-      signatures={
-          tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY: serving_default
-      },
-      options=options)
+  # Do the export.
+  if use_legacy_model_save:
+    model.save(
+        export_dir,
+        save_format="tf", include_optimizer=False, save_traces=False,
+        signatures={
+            tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY: serving_default
+        },
+        options=options)
+  else:
+    export_archive = tf.keras.export.ExportArchive()
+    export_archive.track(model)
+    export_archive.add_endpoint(
+        tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY, serving_default)
+    export_archive.write_out(export_dir, options=options)
 
 
 def _export_model(export_dir: str,
@@ -211,14 +258,13 @@ def _export_model(export_dir: str,
                   include_preprocessing: bool,
                   output_names: Optional[Any] = None,
                   subdirectory: Optional[str] = None,
-                  options: Optional[tf.saved_model.SaveOptions] = None):
+                  options: Optional[tf.saved_model.SaveOptions] = None,
+                  use_legacy_model_save: Optional[bool] = None):
   """Exports a Keras model."""
   if preprocess_model and include_preprocessing:
     xs, *_ = preprocess_model.output
     model = tf.keras.Model(preprocess_model.input, model(xs))
-  if output_names:
-    output = _rename_output(model.output, output_names)
-    model = tf.keras.Model(model.input, output)
   if subdirectory:
     export_dir = os.path.join(export_dir, subdirectory)
-  export_model(model, export_dir, options)
+  export_model(model, export_dir, output_names=output_names, options=options,
+               use_legacy_model_save=use_legacy_model_save)

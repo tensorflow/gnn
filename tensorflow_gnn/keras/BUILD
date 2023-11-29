@@ -42,6 +42,7 @@ tf_py_test(
     name = "keras_tensors_test",
     srcs = ["keras_tensors_test.py"],
     python_version = "PY3",
+    shard_count = 3,
     deps = [
         ":keras_tensors",
         "//:expect_absl_installed",
@@ -53,6 +54,7 @@ tf_py_test(
         "//tensorflow_gnn/graph:graph_tensor",
         "//tensorflow_gnn/graph:graph_tensor_ops",
         "//tensorflow_gnn/graph:pool_ops",
+        "//tensorflow_gnn/runner",
         "//tensorflow_gnn/utils:tf_test_utils",
     ],
 )

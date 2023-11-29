@@ -21,6 +21,7 @@ from typing import Mapping
 from absl.testing import parameterized
 import numpy as np
 import tensorflow as tf
+from tensorflow_gnn import runner
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import broadcast_ops
 from tensorflow_gnn.graph import graph_constants as const
@@ -185,13 +186,13 @@ class _SaveAndLoadTestBase(tf.test.TestCase, parameterized.TestCase):
     const.enable_graph_tensor_validation_at_runtime()
 
   def _save_and_load_inference_model(
-      self, model: tf.keras.Model, use_saved_model: bool
+      self, model: tf.keras.Model, use_legacy_model_save: bool
   ) -> tf.keras.Model:
+    if tf.__version__.startswith('2.12.') and not use_legacy_model_save:
+      self.skipTest('Model.export() does not work for TF < 2.13')
     path = os.path.join(self.get_temp_dir(), 'model')
-    if use_saved_model:
-      tf.saved_model.save(model, path)
-    else:
-      model.save(path, include_optimizer=False, save_traces=True)
+    runner.export_model(model, path,
+                        use_legacy_model_save=use_legacy_model_save)
     return tf.saved_model.load(path)
 
 
@@ -344,9 +345,12 @@ class ClassMethodsTest(_TestBase):
 class ClassMethodsSavingTest(_SaveAndLoadTestBase):
 
   def _get_test_model(self):
-    source = tf.keras.Input(type_spec=tf.TensorSpec([None], dtype=tf.int64))
-    target = tf.keras.Input(type_spec=tf.TensorSpec([None], dtype=tf.int64))
-    num_nodes = tf.keras.Input(type_spec=tf.TensorSpec([], dtype=tf.int64))
+    source = tf.keras.Input(type_spec=tf.TensorSpec(
+        [None], dtype=tf.int64, name='source'))
+    target = tf.keras.Input(type_spec=tf.TensorSpec(
+        [None], dtype=tf.int64, name='target'))
+    num_nodes = tf.keras.Input(type_spec=tf.TensorSpec(
+        [], dtype=tf.int64, name='num_nodes'))
 
     edge_set = gt.EdgeSet.from_fields(
         sizes=[tf.shape(source)[0]],
@@ -383,21 +387,24 @@ class ClassMethodsSavingTest(_SaveAndLoadTestBase):
     self.assertAllEqual(adjacency.target, [0, 0])
 
   @parameterized.parameters([True, False])
-  def testSavingForInference(self, use_saved_model: bool):
+  def testSavingForInference(self, use_legacy_model_save: bool):
     model = self._get_test_model()
-    outputs = tf.reduce_sum(
+    total_sizes = tf.reduce_sum(
         model.output.node_sets['node'].sizes
     ) + tf.reduce_sum(model.output.edge_sets['edge'].sizes)
+    outputs = tf.keras.layers.Layer(name='total_sizes')(total_sizes)
     inference_model = tf.keras.Model(inputs=model.inputs, outputs=outputs)
     restored_model = self._save_and_load_inference_model(
-        inference_model, use_saved_model
+        inference_model, use_legacy_model_save
     )
-    total_sizes = restored_model([
-        as_tensor([0, 1], tf.int64),
-        as_tensor([0, 0], tf.int64),
-        as_tensor(2, tf.int64),
-    ])
-    self.assertAllEqual(total_sizes, 2 + 2)
+    signature = restored_model.signatures[
+        tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
+    actual_total_sizes = signature(
+        source=as_tensor([0, 1], tf.int64),
+        target=as_tensor([0, 0], tf.int64),
+        num_nodes=as_tensor(2, tf.int64),
+    )['total_sizes']
+    self.assertAllEqual(actual_total_sizes, 2 + 2)
 
 
 class FunctionalModelTest(_TestBase):
@@ -802,24 +809,24 @@ class WrappedOpsTest(_TestBase):
 class WrappedOpsSavingTest(_SaveAndLoadTestBase):
 
   @tf.keras.utils.register_keras_serializable()
-  class _Unpack(tf.keras.layers.Layer):
+  class _Pack(tf.keras.layers.Layer):
 
     def call(self, inputs):
-      return tf.nest.pack_sequence_as(_TEST_GRAPH_TENSOR.spec, inputs, True)
+      return tf.nest.pack_sequence_as(_TEST_GRAPH_TENSOR.spec, inputs,
+                                      expand_composites=True)
 
   def setUp(self):
     super().setUp()
     tf.keras.backend.clear_session()
 
   def _get_test_model(self, transformation):
-    pieces = tf.nest.flatten(_TEST_GRAPH_TENSOR, expand_composites=True)
-    inputs = [
-        tf.keras.Input(type_spec=tf.type_spec_from_value(piece))
-        for piece in pieces
-    ]
-    restored_graph_tensor = self._Unpack()(inputs)
-    outputs = transformation(restored_graph_tensor)
-
+    fields = tf.nest.flatten(_TEST_GRAPH_TENSOR, expand_composites=True)
+    field_specs = [tf.TensorSpec(field.shape, field.dtype, name=f'field_{i}')
+                   for i, field in enumerate(fields)]
+    inputs = [tf.keras.Input(type_spec=spec) for spec in field_specs]
+    restored_graph_tensor = self._Pack()(inputs)
+    result = transformation(restored_graph_tensor)
+    outputs = tf.keras.layers.Layer(name='result')(result)
     return tf.keras.Model(inputs, outputs)
 
   @parameterized.named_parameters(
@@ -846,13 +853,12 @@ class WrappedOpsSavingTest(_SaveAndLoadTestBase):
       ('Keras', tftu.ModelReloading.KERAS),
       ('KerasV3', tftu.ModelReloading.KERAS_V3))
   def testKerasModelSaving(self, model_reloading):
-    def run_test(transformation, layer_name, msg: str):
+    def run_test(transformation, layer_name):
       tf.keras.backend.clear_session()
       model = self._get_test_model(transformation)
       self.assertIsInstance(
           model.get_layer(layer_name),
           kt.TFGNNOpLambda,
-          msg=msg,
       )
       model = tftu.maybe_reload_model(self, model, model_reloading,
                                       'wrapped-ops-model')
@@ -860,41 +866,50 @@ class WrappedOpsSavingTest(_SaveAndLoadTestBase):
         self.assertIsInstance(
             model.get_layer(layer_name),
             kt.TFGNNOpLambda,
-            msg=msg,
         )
       self.assertAllClose(
           model(tf.nest.flatten(_TEST_GRAPH_TENSOR, expand_composites=True)),
           transformation(_TEST_GRAPH_TENSOR),
-          msg=msg,
       )
 
     for case_name, layer_name, transformation in _OPS_TEST_CASES:
-      run_test(transformation, layer_name, case_name)
+      with self.subTest(case_name):
+        run_test(transformation, layer_name)
 
   @parameterized.parameters([True, False])
-  def testSimpleSavingForInference(self, use_saved_model: bool):
-    t = i = tf.keras.Input([])
+  def testSimpleSavingForInference(self, use_legacy_model_save: bool):
+    t = i = tf.keras.Input([], name='x')
     t = plus_one(t)
     t = plus_one(t)
+    t = tf.keras.layers.Layer(name='y')(t)
     model = tf.keras.Model(i, t)
-    restored_model = self._save_and_load_inference_model(model, use_saved_model)
+    restored_model = self._save_and_load_inference_model(
+        model, use_legacy_model_save)
+    signature = restored_model.signatures[
+        tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
     self.assertAllClose(
-        restored_model(tf.convert_to_tensor([0.0, 10.0])), [2.0, 12.0]
+        signature(x=tf.convert_to_tensor([0.0, 10.0]))['y'], [2.0, 12.0]
     )
 
   @parameterized.parameters([True, False])
-  def testSavingForInference(self, use_saved_model: bool):
-    def run_test(transformation, msg: str):
+  def testSavingForInference(self, use_legacy_model_save: bool):
+    def run_test(transformation):
       model = self._get_test_model(transformation)
-      model = self._save_and_load_inference_model(model, use_saved_model)
-      self.assertAllClose(
-          model(tf.nest.flatten(_TEST_GRAPH_TENSOR, expand_composites=True)),
-          transformation(_TEST_GRAPH_TENSOR),
-          msg=msg,
-      )
+      restored_model = self._save_and_load_inference_model(
+          model, use_legacy_model_save)
+      signature = restored_model.signatures[
+          tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
+      test_input_list = tf.nest.flatten(
+          _TEST_GRAPH_TENSOR, expand_composites=True)
+      test_input_dict = {f'field_{i}': field
+                         for i, field in enumerate(test_input_list)}
+      actual = signature(**test_input_dict)['result']
+      expected = transformation(_TEST_GRAPH_TENSOR)
+      self.assertAllClose(expected, actual)
 
     for case_name, _, transformation in _OPS_TEST_CASES:
-      run_test(transformation, case_name)
+      with self.subTest(case_name):
+        run_test(transformation)
 
 
 if __name__ == '__main__':
