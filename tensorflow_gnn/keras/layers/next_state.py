@@ -114,6 +114,9 @@ class NextStateFromConcat(tf.keras.layers.Layer):
   This layer flattens all inputs into a list (forgetting their origin),
   concatenates them and sends them through a user-supplied feed-forward network.
 
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
+
   Init args:
     transformation: Required. A Keras Layer to transform the combined inputs
       into the new state.
@@ -156,6 +159,9 @@ class ResidualNextState(tf.keras.layers.Layer):
   If the initial state of the graph piece that is being updated has size 0,
   the skip connection is omitted. This avoids the need to special-case, say,
   latent node sets in modeling code applied to different node sets.
+
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
 
   Init args:
     residual_block: Required. A Keras Layer to transform the concatenation
@@ -259,6 +265,9 @@ class SingleInputNextState(tf.keras.layers.Layer):
   For an EdgeSetUpdate, it replaces the edge_state with the incident node set's
   input. For a ContextUpdate, it replaces the context state with a single node
   set input.
+
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
 
   Call returns:
     A tensor to use as the new state.

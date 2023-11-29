@@ -211,8 +211,10 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":next_state",
+        "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:graph_constants",
+        "//tensorflow_gnn/utils:tf_test_utils",
     ],
 )
 
@@ -260,8 +262,12 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":parse_example",
+        "//:expect_absl_installed",
+        "//third_party/py/google/protobuf",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:adjacency",
+        "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
+        "//tensorflow_gnn/utils:tf_test_utils",
     ],
 )

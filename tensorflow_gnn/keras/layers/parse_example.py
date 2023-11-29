@@ -20,11 +20,13 @@ from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_io as io
 
 
-# Function dispatch does not work for extension types outside TF (b/205710036)
-# so this needs an explicit wrapper for use in the Keras functional API.
 @tf.keras.utils.register_keras_serializable(package="GNN")
 class ParseExample(tf.keras.layers.Layer):
-  """Applies tfgnn.parse_example(graph_tensor_spec, _) to a batch of strings."""
+  """Applies tfgnn.parse_example(graph_tensor_spec, _) to a batch of strings.
+
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
+  """
 
   def __init__(self, graph_tensor_spec: gt.GraphTensorSpec, **kwargs):
     super().__init__(**kwargs)
@@ -40,7 +42,11 @@ class ParseExample(tf.keras.layers.Layer):
 
 @tf.keras.utils.register_keras_serializable(package="GNN")
 class ParseSingleExample(tf.keras.layers.Layer):
-  """Applies tfgnn.parse_single_example(graph_tensor_spec, _)."""
+  """Applies tfgnn.parse_single_example(graph_tensor_spec, _).
+
+  This layer can be restored from config by `tf.keras.models.load_model()`
+  when saved as part of a Keras model using `save_format="tf"`.
+  """
 
   def __init__(self, graph_tensor_spec: gt.GraphTensorSpec, **kwargs):
     super().__init__(**kwargs)

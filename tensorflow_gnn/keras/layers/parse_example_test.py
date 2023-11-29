@@ -21,6 +21,7 @@ from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.keras.layers import parse_example
+from tensorflow_gnn.utils import tf_test_utils as tftu
 
 
 class ParseExampleTest(tf.test.TestCase, parameterized.TestCase):
@@ -74,17 +75,22 @@ class ParseExampleTest(tf.test.TestCase, parameterized.TestCase):
         }"""]
 
   @parameterized.named_parameters(
-      ("", False),
-      ("DropRemainder", True))
-  def testParseExample(self, drop_remainder):
+      ("", False, tftu.ModelReloading.SKIP),
+      ("DropRemainder", True, tftu.ModelReloading.SKIP),
+      ("RestoredKeras", False, tftu.ModelReloading.KERAS))
+  def testParseExample(self, drop_remainder, model_reloading):
     batch_size = len(self.EXAMPLES_PBTXT)
     ds = self.pbtxt_to_dataset(self.EXAMPLES_PBTXT)
     ds = ds.batch(batch_size, drop_remainder=drop_remainder)
 
     model = tf.keras.Sequential([
         parse_example.ParseExample(self.UNBATCHED_SPEC)])
-    ds = ds.map(model)
+    if model_reloading:
+      _ = model(ds.take(1).get_single_element())  # Trigger build.
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "parse-example")
 
+    ds = ds.map(model)
     batched_spec = self.UNBATCHED_SPEC._batch(batch_size if drop_remainder
                                               else None)
     self.assertAllEqual(ds.element_spec, batched_spec)
@@ -104,13 +110,20 @@ class ParseExampleTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(edges["weight"],
                         tf.ragged.constant([[1., 2., 3., 4., 5.], []]))
 
-  def testParseSingleExample(self):
+  @parameterized.named_parameters(
+      ("", tftu.ModelReloading.SKIP),
+      ("RestoredKeras", tftu.ModelReloading.KERAS))
+  def testParseSingleExample(self, model_reloading):
     ds = self.pbtxt_to_dataset(self.EXAMPLES_PBTXT)
 
     model = tf.keras.Sequential([
         parse_example.ParseSingleExample(self.UNBATCHED_SPEC)])
-    ds = ds.map(model)
+    if model_reloading:
+      _ = model(ds.take(1).get_single_element())  # Trigger build.
+    model = tftu.maybe_reload_model(self, model, model_reloading,
+                                    "parse-single-example")
 
+    ds = ds.map(model)
     self.assertAllEqual(ds.element_spec, self.UNBATCHED_SPEC)
 
     graphs = list(ds)
