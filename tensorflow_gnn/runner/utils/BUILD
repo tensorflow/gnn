@@ -1,4 +1,4 @@
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_library")
+load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_binary", "pytype_strict_library")
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "py_strict_test")
 
 licenses(["notice"])
@@ -106,7 +106,7 @@ py_strict_test(
     python_version = "PY3",
     deps = [
         ":model_export",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
@@ -120,9 +120,46 @@ py_strict_test(
     srcs_version = "PY3",
     deps = [
         ":parsing",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+    ],
+)
+
+pytype_strict_binary(
+    name = "saved_model_gen_testdata",
+    srcs = ["saved_model_gen_testdata.py"],
+    python_version = "PY3",
+    srcs_version = "PY3ONLY",
+    deps = [
+        ":model_export",
+        "//:expect_absl_installed_app",
+        "//:expect_absl_installed_flags",
+        "//:expect_tensorflow_installed",
+        "//tensorflow_gnn",
+    ],
+)
+
+pytype_strict_binary(
+    name = "saved_model_load_testdata",
+    srcs = ["saved_model_load_testdata.py"],
+    python_version = "PY3",
+    srcs_version = "PY3ONLY",
+    deps = [
+        ":model_export",
+        "//:expect_absl_installed_app",
+        "//:expect_absl_installed_flags",
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+sh_test(
+    name = "saved_model_test",
+    size = "small",
+    srcs = ["saved_model_test.sh"],
+    data = [
+        ":saved_model_gen_testdata",
+        ":saved_model_load_testdata",
     ],
 )

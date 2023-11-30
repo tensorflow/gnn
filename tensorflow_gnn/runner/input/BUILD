@@ -25,7 +25,7 @@ py_strict_test(
     python_version = "PY3",
     deps = [
         ":datasets",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_tensorflow_installed",
     ],

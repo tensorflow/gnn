@@ -45,7 +45,7 @@ tf_py_test(
     shard_count = 3,
     deps = [
         ":keras_tensors",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:adjacency",
@@ -79,7 +79,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":builders",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:adjacency",
         "//tensorflow_gnn/graph:graph_constants",
@@ -106,7 +106,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":initializers",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
     ],
 )

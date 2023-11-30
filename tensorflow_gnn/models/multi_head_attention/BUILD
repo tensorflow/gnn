@@ -99,7 +99,7 @@ tf_py_test(
     srcs_version = "PY3",
     deps = [
         ":multi_head_attention",
-        "//:expect_absl_installed",
+        "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
         "//tensorflow_gnn/utils:tf_test_utils",
