@@ -820,25 +820,6 @@ class ShapeInvariantsTest(tf.test.TestCase, parameterized.TestCase):
           tf.ragged.constant([[[1]], [[2]], [[3]]]),
       )
 
-  @parameterized.parameters([0, 1, 2, 3])
-  def testRaisesOnUndefinedInnerDenseDimension(self, rank: int):
-    @tf.function(input_signature=[tf.TensorSpec(shape=(), dtype=tf.int32)])
-    def build(x):
-      """Returns piece with tf.Tensor features of shape [1, None]."""
-      batch_shape = [1] * rank
-      value = tf.reshape(tf.range(x, x + x // 2), [*batch_shape, 1, -1])
-      assert value.shape.as_list() == [*batch_shape, 1, None]
-      return TestPiece.from_value(
-          value,
-          shape_dims=batch_shape,
-      )
-
-    with self.assertRaisesRegex(
-        ValueError,
-        'GraphTensor fields of type tf.Tensor must have a statically known',
-    ):
-      build(10)
-
 
 class MergeBatchToComponentsTest(tf.test.TestCase, parameterized.TestCase):
   """Tests for graph piece with TF Dataset batching/unbatching."""

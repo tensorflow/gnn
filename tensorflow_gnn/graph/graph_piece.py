@@ -494,10 +494,6 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
           data_spec,
       )
 
-      tf.nest.map_structure(
-          _assert_dense_have_static_inner_dimensions, data_spec
-      )
-
       if check_consistent_indices_dtype:
         tf.nest.map_structure(
             functools.partial(
@@ -1076,19 +1072,6 @@ def _assert_batch_shape_compatible_with_spec(batch_shape: tf.TensorShape,
   if not spec.shape[:batch_shape.rank].is_compatible_with(batch_shape):
     raise ValueError('Field spec shape is not compatible with the batch shape,'
                      f' spec.shape={spec.shape}, batch_shape={batch_shape}')
-
-
-def _assert_dense_have_static_inner_dimensions(spec: _ValueSpec) -> None:
-  if not isinstance(spec, tf.TensorSpec):
-    return
-
-  if not spec.shape[1:].is_fully_defined():
-    raise ValueError(
-        'GraphTensor fields of type tf.Tensor must have a statically known'
-        f' shape past the outermost dimension, but got shape={spec.shape}.'
-        ' Consider `tf.RaggedTensor` to represent variable-size features or'
-        ' `tf.ensure_shape()` to restore static shapes, if applicable.'
-    )
 
 
 def _assert_indices_dtype_compatible_with_spec(
