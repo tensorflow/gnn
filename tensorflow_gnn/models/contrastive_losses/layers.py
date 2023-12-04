@@ -22,7 +22,6 @@ from typing import Callable, Generic, List, Mapping, Optional, TypeVar, Union
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
-_PACKAGE = "GNN>models>contrastive_losses"
 _WILDCARD = "*"
 T = TypeVar("T")
 
@@ -136,23 +135,11 @@ class Corruptor(tfgnn.keras.layers.MapFeatures, Generic[T]):
     super().__init__(fn, fn, fn, **kwargs)
 
   def get_config(self):
-    return dict(
-        default=self._default,
-        corruption_fn=self._corruption_fn,
-        node_corruption_spec=self._node_corruption_spec,
-        edge_corruption_spec=self._edge_corruption_spec,
-        context_corruption_spec=self._context_corruption_spec,
-        **super().get_config(),
-    )
+    raise NotImplementedError()
 
   @classmethod
   def from_config(cls, config):
-    config["corruption_spec"] = CorruptionSpec(
-        config.pop("node_corruption_spec"),
-        config.pop("edge_corruption_spec"),
-        config.pop("context_corruption_spec"),
-    )
-    return cls(**config)
+    raise NotImplementedError()
 
 
 def _seed_wrapper(
@@ -165,7 +152,6 @@ def _seed_wrapper(
   return wrapper_fn
 
 
-@tf.keras.utils.register_keras_serializable(package=_PACKAGE)
 class ShuffleFeaturesGlobally(Corruptor[float]):
   """A corruptor that shuffles features.
 
@@ -178,20 +164,13 @@ class ShuffleFeaturesGlobally(Corruptor[float]):
     seeded_fn = _seed_wrapper(_shuffle_tensor, seed=seed)
     super().__init__(*args, corruption_fn=seeded_fn, default=1.0, **kwargs)
 
-  def get_config(self):
-    return dict(seed=self._seed, **super().get_config())
 
-
-@tf.keras.utils.register_keras_serializable(package=_PACKAGE)
 class DropoutFeatures(Corruptor[float]):
 
   def __init__(self, *args, seed: Optional[float] = None, **kwargs):
     self._seed = seed
     seeded_fn = _seed_wrapper(tf.nn.dropout, seed=seed)
     super().__init__(*args, corruption_fn=seeded_fn, default=0.0, **kwargs)
-
-  def get_config(self):
-    return dict(seed=self._seed, **super().get_config())
 
 
 def _ragged_dim_list(tensor: tf.RaggedTensor) -> List[Union[int, tf.Tensor]]:
@@ -295,7 +274,6 @@ def _corrupt_features(
   return output
 
 
-@tf.keras.utils.register_keras_serializable(package=_PACKAGE)
 class DeepGraphInfomaxLogits(tf.keras.layers.Layer):
   """Computes clean and corrupted logits for Deep Graph Infomax (DGI)."""
 
@@ -331,7 +309,6 @@ class DeepGraphInfomaxLogits(tf.keras.layers.Layer):
     return tf.keras.layers.Concatenate()((logits_clean, logits_corrupted))
 
 
-@tf.keras.utils.register_keras_serializable(package=_PACKAGE)
 class TripletEmbeddingSquaredDistances(tf.keras.layers.Layer):
   """Computes embeddings distance between positive and negative pairs."""
 
