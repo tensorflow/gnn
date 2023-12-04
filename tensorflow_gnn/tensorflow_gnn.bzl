@@ -8,17 +8,9 @@ def clean_dep(target):
     # Label() call appears, i.e. @org_tensorflow.
     return str(Label(target))
 
-# Placeholder to use until bazel supports py_strict_binary.
-def py_strict_binary(name, **kwargs):
-    native.py_binary(name = name, **kwargs)
-
 # Placeholder to use until bazel supports py_strict_library.
 def py_strict_library(name, **kwargs):
     native.py_library(name = name, **kwargs)
-
-# Placeholder to use until bazel supports pytype_strict_binary.
-def pytype_strict_binary(name, **kwargs):
-    native.py_binary(name = name, **kwargs)
 
 # Placeholder to use until bazel supports pytype_strict_library.
 def pytype_strict_library(name, **kwargs):
@@ -40,6 +32,17 @@ def py_test(name, deps = [], **kwargs):
         **kwargs
     )
 
+# Same for py_binary, enabling use in sh_test.
+def py_binary(name, deps = [], **kwargs):
+    native.py_binary(
+        name = name,
+        deps = select({
+            "//conditions:default": deps,
+            clean_dep("//tensorflow_gnn:no_tfgnn_py_deps"): [],
+        }),
+        **kwargs
+    )
+
 # Placeholder to use until bazel supports py_strict_test.
 def py_strict_test(name, deps = [], **kwargs):
     py_test(
@@ -48,9 +51,25 @@ def py_strict_test(name, deps = [], **kwargs):
         **kwargs
     )
 
+# Same for py_strict_binary.
+def py_strict_binary(name, deps = [], **kwargs):
+    py_binary(
+        name = name,
+        deps = deps,
+        **kwargs
+    )
+
 # Placeholder to use until bazel supports pytype_strict_contrib_test
 def pytype_strict_contrib_test(name, deps = [], **kwargs):
     py_test(
+        name = name,
+        deps = deps,
+        **kwargs
+    )
+
+# Same for pytype_strict_binary.
+def pytype_strict_binary(name, deps = [], **kwargs):
+    py_binary(
         name = name,
         deps = deps,
         **kwargs

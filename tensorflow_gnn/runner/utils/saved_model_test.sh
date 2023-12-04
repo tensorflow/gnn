@@ -15,20 +15,10 @@
 # limitations under the License.
 # ==============================================================================
 
-get_binary () {
-  echo "runner/utils/$1"
-}
+set -e -u -o pipefail  # Let no failure go undetected.
 
-# Generate the saved model.
-gen_test_data_par="${TEST_SRCDIR}/$(get_binary 'saved_model_gen_testdata')"
-readonly gen_test_data_par
+saved_model_gen_testdata=$1
+saved_model_load_testdata=$2
 
-$gen_test_data_par --filepath=${TEST_TMPDIR}/saved_model_testdata || die "Failed to execute $gen_test_data_par"
-
-# Attempt to load the saved model.
-testpar="${TEST_SRCDIR}/$(get_binary 'saved_model_load_testdata')"
-readonly testpar
-
-$testpar --filepath=${TEST_TMPDIR}/saved_model_testdata || die "Failed to execute $testpar"
-
-echo "PASS"
+$saved_model_gen_testdata --filepath=${TEST_TMPDIR}/saved_model_testdata
+$saved_model_load_testdata --filepath=${TEST_TMPDIR}/saved_model_testdata

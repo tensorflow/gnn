@@ -133,11 +133,11 @@ pytype_strict_binary(
     python_version = "PY3",
     srcs_version = "PY3ONLY",
     deps = [
-        ":model_export",
         "//:expect_absl_installed_app",
         "//:expect_absl_installed_flags",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//tensorflow_gnn/runner",
     ],
 )
 
@@ -147,7 +147,6 @@ pytype_strict_binary(
     python_version = "PY3",
     srcs_version = "PY3ONLY",
     deps = [
-        ":model_export",
         "//:expect_absl_installed_app",
         "//:expect_absl_installed_flags",
         "//:expect_tensorflow_installed",
@@ -156,8 +155,12 @@ pytype_strict_binary(
 
 sh_test(
     name = "saved_model_test",
-    size = "small",
+    size = "medium",
     srcs = ["saved_model_test.sh"],
+    args = [
+        "$(location :saved_model_gen_testdata)",
+        "$(location :saved_model_load_testdata)",
+    ],
     data = [
         ":saved_model_gen_testdata",
         ":saved_model_load_testdata",

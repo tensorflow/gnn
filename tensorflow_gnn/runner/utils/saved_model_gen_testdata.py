@@ -13,13 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 """Binary to create a TensorFlow GNN saved model."""
-from collections.abc import Sequence
+from typing import Sequence
 
 from absl import app
 from absl import flags
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
-from tensorflow_gnn.runner.utils import model_export
+from tensorflow_gnn import runner
 
 _FILEPATH = flags.DEFINE_string(
     "filepath",
@@ -49,7 +49,7 @@ def main(argv: Sequence[str]) -> None:
       node_set_name="nodes")(outputs)
   model = tf.keras.Model((source, target, h), outputs)
 
-  model_export.export_model(model, _FILEPATH.value)
+  runner.export_model(model, _FILEPATH.value)
 
 
 if __name__ == "__main__":

@@ -35,11 +35,7 @@ pytype_strict_library(
     name = "interfaces",
     srcs = ["interfaces.py"],
     srcs_version = "PY3",
-    visibility = [
-        # To pass open source testing in the pip Kokoros.
-        "//bazel_pip/tensorflow_gnn/runner:__subpackages__",
-        "//tensorflow_gnn/runner:__subpackages__",
-    ],
+    visibility = ["//tensorflow_gnn/runner:__subpackages__"],
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
