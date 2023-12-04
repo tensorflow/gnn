@@ -6,6 +6,8 @@ licenses(["notice"])
 package(
     default_applicable_licenses = ["//tensorflow_gnn:license"],
     default_visibility = [
+        # To pass open source testing in the pip Kokoros.
+        "//bazel_pip/tensorflow_gnn/runner:__subpackages__",
         "//tensorflow_gnn:__pkg__",
         "//tensorflow_gnn/compat:__subpackages__",
         "//tensorflow_gnn/converters:__subpackages__",
@@ -13,6 +15,7 @@ package(
         "//tensorflow_gnn/experimental:__subpackages__",
         "//tensorflow_gnn/graph:__subpackages__",
         "//tensorflow_gnn/keras:__subpackages__",
+        "//tensorflow_gnn/runner:__subpackages__",
         "//tensorflow_gnn/sampler:__subpackages__",
     ],
 )
