@@ -19,6 +19,8 @@ set -e -u -o pipefail  # Let no failure go undetected.
 
 saved_model_gen_testdata=$1
 saved_model_load_testdata=$2
+use_legacy_model_save=$3
 
-$saved_model_gen_testdata --filepath=${TEST_TMPDIR}/saved_model_testdata
+$saved_model_gen_testdata --filepath=${TEST_TMPDIR}/saved_model_testdata \
+    --use_legacy_model_save=$use_legacy_model_save
 $saved_model_load_testdata --filepath=${TEST_TMPDIR}/saved_model_testdata

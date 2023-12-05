@@ -28,6 +28,12 @@ _FILEPATH = flags.DEFINE_string(
     required=True,
 )
 
+_USE_LEGACY_MODEL_SAVE = flags.DEFINE_boolean(
+    "use_legacy_model_save",
+    None,
+    "Flag forwarded to runner.export_model().",
+)
+
 
 def main(argv: Sequence[str]) -> None:
   if len(argv) > 1:
@@ -49,7 +55,8 @@ def main(argv: Sequence[str]) -> None:
       node_set_name="nodes")(outputs)
   model = tf.keras.Model((source, target, h), outputs)
 
-  runner.export_model(model, _FILEPATH.value)
+  runner.export_model(model, _FILEPATH.value,
+                      use_legacy_model_save=_USE_LEGACY_MODEL_SAVE.value)
 
 
 if __name__ == "__main__":

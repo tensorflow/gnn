@@ -155,11 +155,28 @@ pytype_strict_binary(
 
 sh_test(
     name = "saved_model_test",
-    size = "medium",
+    size = "small",
     srcs = ["saved_model_test.sh"],
     args = [
         "$(location :saved_model_gen_testdata)",
         "$(location :saved_model_load_testdata)",
+        "0",  # use_legacy_model_save=False
+    ],
+    data = [
+        ":saved_model_gen_testdata",
+        ":saved_model_load_testdata",
+    ],
+    tags = ["tf_at_least_2_13"],
+)
+
+sh_test(
+    name = "legacy_saved_model_test",
+    size = "small",
+    srcs = ["saved_model_test.sh"],
+    args = [
+        "$(location :saved_model_gen_testdata)",
+        "$(location :saved_model_load_testdata)",
+        "1",  # use_legacy_model_save=True
     ],
     data = [
         ":saved_model_gen_testdata",
