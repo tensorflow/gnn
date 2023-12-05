@@ -94,10 +94,12 @@ TPUStrategy = strategies.TPUStrategy
 # in `distribute_test.py`.)
 #
 # Tasks (Classification)
-RootNodeBinaryClassification = classification.RootNodeBinaryClassification
-RootNodeMulticlassClassification = classification.RootNodeMulticlassClassification
 GraphBinaryClassification = classification.GraphBinaryClassification
 GraphMulticlassClassification = classification.GraphMulticlassClassification
+NodeBinaryClassification = classification.NodeBinaryClassification
+NodeMulticlassClassification = classification.NodeMulticlassClassification
+RootNodeBinaryClassification = classification.RootNodeBinaryClassification
+RootNodeMulticlassClassification = classification.RootNodeMulticlassClassification
 # Tasks (Link Prediction)
 DotProductLinkPrediction = link_prediction.DotProductLinkPrediction
 HadamardProductLinkPrediction = link_prediction.HadamardProductLinkPrediction

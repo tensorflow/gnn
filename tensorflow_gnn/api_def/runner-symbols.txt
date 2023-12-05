@@ -26,6 +26,7 @@ runner.ParameterServerStrategy
 runner.PassthruDatasetProvider
 runner.PassthruSampleDatasetsProvider
 runner.Predictions
+runner.NodeBinaryClassification
 runner.RootNodeBinaryClassification
 runner.RootNodeLabelFn
 runner.RootNodeMeanAbsoluteError
@@ -34,6 +35,7 @@ runner.RootNodeMeanAbsolutePercentageError
 runner.RootNodeMeanSquaredError
 runner.RootNodeMeanSquaredLogScaledError
 runner.RootNodeMeanSquaredLogarithmicError
+runner.NodeMulticlassClassification
 runner.RootNodeMulticlassClassification
 runner.RunResult
 runner.SampleTFRecordDatasetsProvider

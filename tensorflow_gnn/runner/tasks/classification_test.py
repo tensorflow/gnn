@@ -29,6 +29,7 @@ Field = tfgnn.Field
 # Enables tests for graph pieces that are members of test classes.
 tfgnn.enable_graph_tensor_validation_at_runtime()
 
+READOUT_KEY = "0x8191"
 TEST_GRAPH_TENSOR = GraphTensor.from_pieces(
     context=tfgnn.Context.from_fields(
         features={"labels": tf.constant((8, 1, 9, 1))}
@@ -52,7 +53,16 @@ def label_fn(num_labels: int) -> Callable[..., tuple[GraphTensor, Field]]:
   return fn
 
 
-def with_readout(num_labels: int, gt: GraphTensor) -> GraphTensor:
+def add_readout_from_first_node(gt: GraphTensor) -> GraphTensor:
+  return tfgnn.add_readout_from_first_node(
+      gt,
+      key=READOUT_KEY,
+      node_set_name="nodes")
+
+
+def context_readout_into_feature(
+    num_labels: int,
+    gt: GraphTensor) -> GraphTensor:
   context_fn = lambda inputs: {"labels": inputs["labels"] % num_labels}
   gt = tfgnn.keras.layers.MapFeatures(context_fn=context_fn)(gt)
   return tfgnn.experimental.context_readout_into_feature(
@@ -81,8 +91,8 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
           task=classification.GraphBinaryClassification(
               "nodes",
               label_feature_name="labels"),
-          inputs=with_readout(2, TEST_GRAPH_TENSOR),
-          expected_gt=with_readout(2, TEST_GRAPH_TENSOR),
+          inputs=context_readout_into_feature(2, TEST_GRAPH_TENSOR),
+          expected_gt=context_readout_into_feature(2, TEST_GRAPH_TENSOR),
           expected_labels=(0, 1, 1, 1)),
       dict(
           testcase_name="GraphMulticlassClassificationLabelFn",
@@ -99,8 +109,8 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               num_classes=4,
               label_feature_name="labels"),
-          inputs=with_readout(4, TEST_GRAPH_TENSOR),
-          expected_gt=with_readout(4, TEST_GRAPH_TENSOR),
+          inputs=context_readout_into_feature(4, TEST_GRAPH_TENSOR),
+          expected_gt=context_readout_into_feature(4, TEST_GRAPH_TENSOR),
           expected_labels=(0, 1, 1, 1)),
       dict(
           testcase_name="RootNodeBinaryClassificationLabelFn",
@@ -115,8 +125,8 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
           task=classification.RootNodeBinaryClassification(
               "nodes",
               label_feature_name="labels"),
-          inputs=with_readout(2, TEST_GRAPH_TENSOR),
-          expected_gt=with_readout(2, TEST_GRAPH_TENSOR),
+          inputs=context_readout_into_feature(2, TEST_GRAPH_TENSOR),
+          expected_gt=context_readout_into_feature(2, TEST_GRAPH_TENSOR),
           expected_labels=(0, 1, 1, 1)),
       dict(
           testcase_name="RootNodeMulticlassClassificationLabelFn",
@@ -133,8 +143,50 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               num_classes=3,
               label_feature_name="labels"),
-          inputs=with_readout(3, TEST_GRAPH_TENSOR),
-          expected_gt=with_readout(3, TEST_GRAPH_TENSOR),
+          inputs=context_readout_into_feature(3, TEST_GRAPH_TENSOR),
+          expected_gt=context_readout_into_feature(3, TEST_GRAPH_TENSOR),
+          expected_labels=(2, 1, 0, 1)),
+      dict(
+          testcase_name="NodeBinaryClassificationLabelFn",
+          task=classification.NodeBinaryClassification(
+              READOUT_KEY,
+              label_fn=label_fn(2)),
+          inputs=add_readout_from_first_node(TEST_GRAPH_TENSOR),
+          expected_gt=add_readout_from_first_node(
+              TEST_GRAPH_TENSOR.remove_features(context=("labels",))),
+          expected_labels=(0, 1, 1, 1)),
+      dict(
+          testcase_name="NodeBinaryClassificationReadout",
+          task=classification.NodeBinaryClassification(
+              READOUT_KEY,
+              label_feature_name="labels"),
+          inputs=add_readout_from_first_node(context_readout_into_feature(
+              2,
+              TEST_GRAPH_TENSOR)),
+          expected_gt=add_readout_from_first_node(
+              context_readout_into_feature(2, TEST_GRAPH_TENSOR)),
+          expected_labels=(0, 1, 1, 1)),
+      dict(
+          testcase_name="NodeMulticlassClassificationLabelFn",
+          task=classification.NodeMulticlassClassification(
+              READOUT_KEY,
+              num_classes=3,
+              label_fn=label_fn(3)),
+          inputs=add_readout_from_first_node(TEST_GRAPH_TENSOR),
+          expected_gt=add_readout_from_first_node(
+              TEST_GRAPH_TENSOR.remove_features(context=("labels",))),
+          expected_labels=(2, 1, 0, 1)),
+      dict(
+          testcase_name="NodeMulticlassClassificationReadout",
+          task=classification.NodeMulticlassClassification(
+              READOUT_KEY,
+              num_classes=3,
+              label_feature_name="labels"),
+          inputs=add_readout_from_first_node(context_readout_into_feature(
+              3,
+              TEST_GRAPH_TENSOR)),
+          expected_gt=add_readout_from_first_node(
+              context_readout_into_feature(3, TEST_GRAPH_TENSOR)),
           expected_labels=(2, 1, 0, 1)),
   ])
   def test_preprocess(
@@ -163,7 +215,7 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               num_classes=4,
               label_feature_name="labels"),
-          gt=with_readout(4, TEST_GRAPH_TENSOR),
+          gt=context_readout_into_feature(4, TEST_GRAPH_TENSOR),
           expected_loss=tf.keras.losses.SparseCategoricalCrossentropy,
           expected_shape=tf.TensorShape((None, 4))),
       dict(
@@ -180,7 +232,26 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               num_classes=3,
               label_feature_name="labels"),
-          gt=with_readout(3, TEST_GRAPH_TENSOR),
+          gt=context_readout_into_feature(3, TEST_GRAPH_TENSOR),
+          expected_loss=tf.keras.losses.SparseCategoricalCrossentropy,
+          expected_shape=tf.TensorShape((None, 3))),
+      dict(
+          testcase_name="NodeBinaryClassification",
+          task=classification.NodeBinaryClassification(
+              READOUT_KEY,
+              label_fn=label_fn(2)),
+          gt=add_readout_from_first_node(TEST_GRAPH_TENSOR),
+          expected_loss=tf.keras.losses.BinaryCrossentropy,
+          expected_shape=tf.TensorShape((None, 1))),
+      dict(
+          testcase_name="NodeMulticlassClassification",
+          task=classification.NodeMulticlassClassification(
+              READOUT_KEY,
+              num_classes=3,
+              label_feature_name="labels"),
+          gt=add_readout_from_first_node(context_readout_into_feature(
+              3,
+              TEST_GRAPH_TENSOR)),
           expected_loss=tf.keras.losses.SparseCategoricalCrossentropy,
           expected_shape=tf.TensorShape((None, 3))),
   ])
@@ -197,7 +268,12 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
     self.assertIsInstance(model.layers[0], tf.keras.layers.InputLayer)
     self.assertIsInstance(
         model.layers[1],
-        (tfgnn.keras.layers.ReadoutFirstNode, tfgnn.keras.layers.Pool))
+        (
+            tfgnn.keras.layers.ReadoutFirstNode,
+            tfgnn.keras.layers.Pool,
+            tfgnn.keras.layers.StructuredReadout,
+        ),
+    )
     self.assertIsInstance(model.layers[2], tf.keras.layers.Dense)
 
     _, _, dense = model.layers
@@ -223,7 +299,7 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               num_classes=4,
               label_feature_name="labels"),
-          gt=with_readout(4, TEST_GRAPH_TENSOR),
+          gt=context_readout_into_feature(4, TEST_GRAPH_TENSOR),
           batch_size=1),
       dict(
           testcase_name="RootNodeBinaryClassification",
@@ -238,7 +314,24 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               num_classes=3,
               label_feature_name="labels"),
-          gt=with_readout(3, TEST_GRAPH_TENSOR),
+          gt=context_readout_into_feature(3, TEST_GRAPH_TENSOR),
+          batch_size=1),
+      dict(
+          testcase_name="NodeBinaryClassification",
+          task=classification.NodeBinaryClassification(
+              READOUT_KEY,
+              label_fn=label_fn(2)),
+          gt=add_readout_from_first_node(TEST_GRAPH_TENSOR),
+          batch_size=1),
+      dict(
+          testcase_name="NodeMulticlassClassification",
+          task=classification.NodeMulticlassClassification(
+              READOUT_KEY,
+              num_classes=3,
+              label_feature_name="labels"),
+          gt=add_readout_from_first_node(context_readout_into_feature(
+              3,
+              TEST_GRAPH_TENSOR)),
           batch_size=1),
       dict(
           testcase_name="GraphBinaryClassificationBatchSize2",
@@ -253,7 +346,7 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               num_classes=4,
               label_feature_name="labels"),
-          gt=with_readout(4, TEST_GRAPH_TENSOR),
+          gt=context_readout_into_feature(4, TEST_GRAPH_TENSOR),
           batch_size=2),
       dict(
           testcase_name="RootNodeBinaryClassificationBatchSize2",
@@ -268,7 +361,7 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               num_classes=3,
               label_feature_name="labels"),
-          gt=with_readout(3, TEST_GRAPH_TENSOR),
+          gt=context_readout_into_feature(3, TEST_GRAPH_TENSOR),
           batch_size=2),
   ])
   def test_fit(

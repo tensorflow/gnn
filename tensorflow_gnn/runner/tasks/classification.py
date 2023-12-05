@@ -112,8 +112,9 @@ class _Classification(interfaces.Task):
     Args:
       units: The units for the classification head. (Typically `1` for binary
         classification and `num_classes` for multiclass classification.)
-      name: The classification head's layer name. This name typically appears
-        in the exported model's SignatureDef.
+      name: The classification head's layer name. To control the naming of saved
+        model outputs see the runner model exporters (e.g.,
+        `KerasModelExporter`).
       label_fn: A label extraction function. This function mutates the input
         `GraphTensor`. Mutually exclusive with `label_feature_name`.
       label_feature_name: A label feature name for readout from the auxiliary
@@ -148,7 +149,7 @@ class _Classification(interfaces.Task):
     activations = self.gather_activations(inputs)
     logits = tf.keras.layers.Dense(
         self._units,
-        name=self._name)(activations)  # Name seen in SignatureDef.
+        name=self._name)(activations)
     return logits
 
   def preprocess(self, inputs: GraphTensor) -> tuple[GraphTensor, Field]:
@@ -303,21 +304,364 @@ class _RootNodeClassification(_Classification):
         feature_name=self._state_name)(inputs)
 
 
-# TODO(dzelle): Add an `__init__` with parameters and doc for all of the below.
+class _NodeClassification(_Classification):
+  """Classification by node(s) via structured readout."""
+
+  def __init__(self,
+               key: str = "seed",
+               *,
+               feature_name: str = tfgnn.HIDDEN_STATE,
+               readout_node_set: tfgnn.NodeSetName = "_readout",
+               validate: bool = True,
+               **kwargs):
+    """Classification of node(s) via structured readout.
+
+    This task defines classification via structured readout (see
+    `tfgnn.keras.layers.StructuredReadout`).  Structured readout addresses the
+    need to read out final hidden states from a GNN computation to make
+    predictions for some nodes (or edges) of interest. To add auxiliary node
+    (and edge) sets for structured readout see, e.g.:
+    `tfgnn.keras.layers.AddReadoutFromFirstNode`.
+
+    Any labels are expected to be sparse, i.e.: scalars.
+
+    Args:
+      key: A string key to select between possibly multiple named readouts.
+      feature_name: The name of the feature to read. If unset,
+        `tfgnn.HIDDEN_STATE` will be read.
+      readout_node_set: A string, defaults to `"_readout"`. This is used as the
+        name for the readout node set and as a name prefix for its edge sets.
+      validate: Setting this to false disables the validity checks for the
+        auxiliary edge sets. This is stronlgy discouraged, unless great care is
+        taken to run `tfgnn.validate_graph_tensor_for_readout()` earlier on
+        structurally unchanged GraphTensors.
+      **kwargs: Additional keyword arguments.
+    """
+    super().__init__(**kwargs)
+    self._key = key
+    self._feature_name = feature_name
+    self._readout_node_set = readout_node_set
+    self._validate = validate
+
+  def gather_activations(self, inputs: GraphTensor) -> Field:
+    """Gather activations from auxiliary node (and edge) sets."""
+    try:
+      return tfgnn.keras.layers.StructuredReadout(
+          self._key,
+          feature_name=self._feature_name,
+          readout_node_set=self._readout_node_set,
+          validate=self._validate)(inputs)
+    except (KeyError, ValueError) as e:
+      raise ValueError(
+          "This NodeClassification task failed in StructuredReadout("
+          f"{self._key}, feature_name={self._feature_name}, "
+          f"readout_node_set={self._readout_node_set}).\n"
+          "For a dataset of sampled subgraphs that does not provide a readout "
+          "structure but follows the conventional placement of root nodes "
+          "first in their node set, consider using a RootNodeClassification "
+          "task or tfgnn.keras.layers.AddReadoutFromFirstNode."
+      ) from e
+
+
 class GraphBinaryClassification(_GraphClassification, _BinaryClassification):
-  pass
+  """Graph binary (or multi-label) classification from pooled node states."""
+
+  def __init__(self,
+               node_set_name: str,
+               units: int = 1,
+               *,
+               state_name: str = tfgnn.HIDDEN_STATE,
+               reduce_type: str = "mean",
+               name: str = "classification_logits",
+               label_fn: Optional[LabelFn] = None,
+               label_feature_name: Optional[str] = None,
+               **kwargs):
+    """Graph binary (or multi-label) classification.
+
+    This task performs binary classification (or multiple independent ones:
+    often called multi-label classification).
+
+    Args:
+      node_set_name: The node set to pool.
+      units: The units for the classification head. (Typically `1` for binary
+        classification and the number of labels for multi-label classification.)
+      state_name: The feature name for activations (e.g.: tfgnn.HIDDEN_STATE).
+      reduce_type: The context pooling reduction type.
+      name: The classification head's layer name. To control the naming of saved
+        model outputs see the runner model exporters (e.g.,
+        `KerasModelExporter`).
+      label_fn: A label extraction function. This function mutates the input
+        `GraphTensor`. Mutually exclusive with `label_feature_name`.
+      label_feature_name: A label feature name for readout from the auxiliary
+        '_readout' node set. Readout does not mutate the input `GraphTensor`.
+        Mutually exclusive with `label_fn`.
+      **kwargs: Additional keyword arguments.
+    """
+    super().__init__(
+        node_set_name,
+        units=units,
+        state_name=state_name,
+        reduce_type=reduce_type,
+        name=name,
+        label_fn=label_fn,
+        label_feature_name=label_feature_name,
+        **kwargs)
 
 
 class GraphMulticlassClassification(_GraphClassification,
                                     _MulticlassClassification):
-  pass
+  """Graph multiclass classification from pooled node states."""
+
+  def __init__(self,
+               node_set_name: str,
+               *,
+               num_classes: Optional[int] = None,
+               class_names: Optional[Sequence[str]] = None,
+               per_class_statistics: bool = False,
+               state_name: str = tfgnn.HIDDEN_STATE,
+               reduce_type: str = "mean",
+               name: str = "classification_logits",
+               label_fn: Optional[LabelFn] = None,
+               label_feature_name: Optional[str] = None,
+               **kwargs):
+    """Graph multiclass classification from pooled node states.
+
+    Args:
+      node_set_name: The node set to pool.
+      num_classes: The number of classes. Exactly one of `num_classes` or
+        `class_names` must be specified
+      class_names: The class names. Exactly one of `num_classes` or
+        `class_names` must be specified
+      per_class_statistics: Whether to compute statistics per class.
+      state_name: The feature name for activations (e.g.: tfgnn.HIDDEN_STATE).
+      reduce_type: The context pooling reduction type.
+      name: The classification head's layer name. To control the naming of saved
+        model outputs see the runner model exporters (e.g.,
+        `KerasModelExporter`).
+      label_fn: A label extraction function. This function mutates the input
+        `GraphTensor`. Mutually exclusive with `label_feature_name`.
+      label_feature_name: A label feature name for readout from the auxiliary
+        '_readout' node set. Readout does not mutate the input `GraphTensor`.
+        Mutually exclusive with `label_fn`.
+      **kwargs: Additional keyword arguments.
+    """
+    super().__init__(
+        node_set_name,
+        num_classes=num_classes,
+        class_names=class_names,
+        per_class_statistics=per_class_statistics,
+        state_name=state_name,
+        reduce_type=reduce_type,
+        name=name,
+        label_fn=label_fn,
+        label_feature_name=label_feature_name,
+        **kwargs)
 
 
 class RootNodeBinaryClassification(_RootNodeClassification,
                                    _BinaryClassification):
-  pass
+  """Root node binary (or multi-label) classification."""
+
+  def __init__(self,
+               node_set_name: str,
+               units: int = 1,
+               *,
+               state_name: str = tfgnn.HIDDEN_STATE,
+               name: str = "classification_logits",
+               label_fn: Optional[LabelFn] = None,
+               label_feature_name: Optional[str] = None,
+               **kwargs):
+    """Root node binary (or multi-label) classification.
+
+    This task performs binary classification (or multiple independent ones:
+    often called multi-label classification).
+
+    The task can be used on graph datasets without a readout structure.
+    It requires that each input graph stores its unique root node as the
+    first node of `node_set_name`.
+
+    Args:
+      node_set_name: The node set containing the root node.
+      units: The units for the classification head. (Typically `1` for binary
+        classification and the number of labels for multi-label classification.)
+      state_name: The feature name for activations (e.g.: tfgnn.HIDDEN_STATE).
+      name: The classification head's layer name. To control the naming of saved
+        model outputs see the runner model exporters (e.g.,
+        `KerasModelExporter`).
+      label_fn: A label extraction function. This function mutates the input
+        `GraphTensor`. Mutually exclusive with `label_feature_name`.
+      label_feature_name: A label feature name for readout from the auxiliary
+        '_readout' node set. Readout does not mutate the input `GraphTensor`.
+        Mutually exclusive with `label_fn`.
+      **kwargs: Additional keyword arguments.
+    """
+    super().__init__(
+        node_set_name,
+        units=units,
+        state_name=state_name,
+        name=name,
+        label_fn=label_fn,
+        label_feature_name=label_feature_name,
+        **kwargs)
 
 
 class RootNodeMulticlassClassification(_RootNodeClassification,
                                        _MulticlassClassification):
-  pass
+  """Root node multiclass classification."""
+
+  def __init__(self,
+               node_set_name: str,
+               *,
+               num_classes: Optional[int] = None,
+               class_names: Optional[Sequence[str]] = None,
+               per_class_statistics: bool = False,
+               state_name: str = tfgnn.HIDDEN_STATE,
+               name: str = "classification_logits",
+               label_fn: Optional[LabelFn] = None,
+               label_feature_name: Optional[str] = None,
+               **kwargs):
+    """Root node multiclass classification.
+
+    This task can be used on graph datasets without a readout structure.
+    It requires that each input graph stores its unique root node as the
+    first node of `node_set_name`.
+
+    Args:
+      node_set_name: The node set containing the root node.
+      num_classes: The number of classes. Exactly one of `num_classes` or
+        `class_names` must be specified
+      class_names: The class names. Exactly one of `num_classes` or
+        `class_names` must be specified
+      per_class_statistics: Whether to compute statistics per class.
+      state_name: The feature name for activations (e.g.: tfgnn.HIDDEN_STATE).
+      name: The classification head's layer name. To control the naming of saved
+        model outputs see the runner model exporters (e.g.,
+        `KerasModelExporter`).
+      label_fn: A label extraction function. This function mutates the input
+        `GraphTensor`. Mutually exclusive with `label_feature_name`.
+      label_feature_name: A label feature name for readout from the auxiliary
+        '_readout' node set. Readout does not mutate the input `GraphTensor`.
+        Mutually exclusive with `label_fn`.
+      **kwargs: Additional keyword arguments.
+    """
+    super().__init__(
+        node_set_name,
+        num_classes=num_classes,
+        class_names=class_names,
+        per_class_statistics=per_class_statistics,
+        state_name=state_name,
+        name=name,
+        label_fn=label_fn,
+        label_feature_name=label_feature_name,
+        **kwargs)
+
+
+class NodeBinaryClassification(_NodeClassification, _BinaryClassification):
+  """Node binary (or multi-label) classification via structured readout."""
+
+  def __init__(self,
+               key: str = "seed",
+               units: int = 1,
+               *,
+               feature_name: str = tfgnn.HIDDEN_STATE,
+               readout_node_set: tfgnn.NodeSetName = "_readout",
+               validate: bool = True,
+               name: str = "classification_logits",
+               label_fn: Optional[LabelFn] = None,
+               label_feature_name: Optional[str] = None,
+               **kwargs):
+    """Node binary (or multi-label) classification.
+
+    This task performs binary classification (or multiple independent ones:
+    often called multi-label classification).
+
+    Args:
+      key: A string key to select between possibly multiple named readouts.
+      units: The units for the classification head. (Typically `1` for binary
+        classification and the number of labels for multi-label classification.)
+      feature_name: The name of the feature to read. If unset,
+        `tfgnn.HIDDEN_STATE` will be read.
+      readout_node_set: A string, defaults to `"_readout"`. This is used as the
+        name for the readout node set and as a name prefix for its edge sets.
+      validate: Setting this to false disables the validity checks for the
+        auxiliary edge sets. This is stronlgy discouraged, unless great care is
+        taken to run `tfgnn.validate_graph_tensor_for_readout()` earlier on
+        structurally unchanged GraphTensors.
+      name: The classification head's layer name. To control the naming of saved
+        model outputs see the runner model exporters (e.g.,
+        `KerasModelExporter`).
+      label_fn: A label extraction function. This function mutates the input
+        `GraphTensor`. Mutually exclusive with `label_feature_name`.
+      label_feature_name: A label feature name for readout from the auxiliary
+        '_readout' node set. Readout does not mutate the input `GraphTensor`.
+        Mutually exclusive with `label_fn`.
+      **kwargs: Additional keyword arguments.
+    """
+    super().__init__(
+        key,
+        units=units,
+        feature_name=feature_name,
+        readout_node_set=readout_node_set,
+        validate=validate,
+        name=name,
+        label_fn=label_fn,
+        label_feature_name=label_feature_name,
+        **kwargs)
+
+
+class NodeMulticlassClassification(_NodeClassification,
+                                   _MulticlassClassification):
+  """Node multiclass classification via structured readout."""
+
+  def __init__(self,
+               key: str = "seed",
+               *,
+               feature_name: str = tfgnn.HIDDEN_STATE,
+               readout_node_set: tfgnn.NodeSetName = "_readout",
+               validate: bool = True,
+               num_classes: Optional[int] = None,
+               class_names: Optional[Sequence[str]] = None,
+               per_class_statistics: bool = False,
+               name: str = "classification_logits",
+               label_fn: Optional[LabelFn] = None,
+               label_feature_name: Optional[str] = None,
+               **kwargs):
+    """Node multiclass classification via structured readout.
+
+    Args:
+      key: A string key to select between possibly multiple named readouts.
+      feature_name: The name of the feature to read. If unset,
+        `tfgnn.HIDDEN_STATE` will be read.
+      readout_node_set: A string, defaults to `"_readout"`. This is used as the
+        name for the readout node set and as a name prefix for its edge sets.
+      validate: Setting this to false disables the validity checks for the
+        auxiliary edge sets. This is stronlgy discouraged, unless great care is
+        taken to run `tfgnn.validate_graph_tensor_for_readout()` earlier on
+        structurally unchanged GraphTensors.
+      num_classes: The number of classes. Exactly one of `num_classes` or
+        `class_names` must be specified
+      class_names: The class names. Exactly one of `num_classes` or
+        `class_names` must be specified
+      per_class_statistics: Whether to compute statistics per class.
+      name: The classification head's layer name. To control the naming of saved
+        model outputs see the runner model exporters (e.g.,
+        `KerasModelExporter`).
+      label_fn: A label extraction function. This function mutates the input
+        `GraphTensor`. Mutually exclusive with `label_feature_name`.
+      label_feature_name: A label feature name for readout from the auxiliary
+        '_readout' node set. Readout does not mutate the input `GraphTensor`.
+        Mutually exclusive with `label_fn`.
+      **kwargs: Additional keyword arguments.
+    """
+    super().__init__(
+        key,
+        feature_name=feature_name,
+        readout_node_set=readout_node_set,
+        validate=validate,
+        num_classes=num_classes,
+        class_names=class_names,
+        per_class_statistics=per_class_statistics,
+        name=name,
+        label_fn=label_fn,
+        label_feature_name=label_feature_name,
+        **kwargs)
