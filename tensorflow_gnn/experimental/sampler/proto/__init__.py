@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""The protocol mesage (protobuf) types defined by TF-GNN Sampler."""
+"""The protocol message (protobuf) types defined by TF-GNN Sampler."""
 
 from tensorflow_gnn.experimental.sampler.proto import eval_dag_pb2
 from tensorflow_gnn.utils import api_utils

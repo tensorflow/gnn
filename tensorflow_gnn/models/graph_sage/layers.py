@@ -628,7 +628,7 @@ class GraphSAGENextState(tf.keras.layers.Layer):
   GraphSAGE is Algorithm 1 in Hamilton et al.: ["Inductive Representation
   Learning on Large Graphs"](https://arxiv.org/abs/1706.02216), 2017.
   It computes the new hidden state h_v for each node v from a concatenation of
-  the previous hiddden state with an aggregation of the neighbor states as
+  the previous hidden state with an aggregation of the neighbor states as
 
   $$h_v = \sigma(W \text{ concat}(h_v, h_{N(v)}))$$
 

@@ -116,7 +116,7 @@ def dataset_filter_with_summary(
   before filtering. Statistics are reported using `tf.summary.scalar()` with
   `step` set to the element index in the result (filtered) dataset, see
   https://tensorflow.org/tensorboard/scalars_and_keras#logging_custom_scalars
-  for how to write and retreive them.
+  for how to write and retrieve them.
 
   Args:
     dataset: An input dataset.

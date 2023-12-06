@@ -1217,7 +1217,7 @@ class GraphTensor(gp.GraphPieceBase):
                 sizes=[3, 2, 1, 1],
                 features={},
                 # Note how node indices have changes to reference nodes
-                # withing the same graph ignoring its components.
+                # within the same graph ignoring its components.
                 adjacency=tfgnn.Adjacency.from_indices(
                     source=('node', [0, 1, 1, 2, 3 + 0, 3 + 1 + 0]),
                     target=('node', [0, 0, 1, 2, 3 + 0, 3 + 1 + 0])))})

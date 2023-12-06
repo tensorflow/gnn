@@ -235,8 +235,8 @@ def find_tight_size_constraints(
     raise ValueError('The dataset must be finite.')
 
   ds = dataset.map(_get_total_sizes_int64)
-  size_contraints = preprocessing_common.compute_basic_stats(ds).maximum
-  assert isinstance(size_contraints, SizeConstraints)
+  size_constraints = preprocessing_common.compute_basic_stats(ds).maximum
+  assert isinstance(size_constraints, SizeConstraints)
 
   if target_batch_size is not None:
     def multiply_by_batch_size(size):
@@ -246,11 +246,11 @@ def find_tight_size_constraints(
       else:
         return size * target_batch_size
 
-    size_contraints = tf.nest.map_structure(multiply_by_batch_size,
-                                            size_contraints)
+    size_constraints = tf.nest.map_structure(multiply_by_batch_size,
+                                             size_constraints)
 
   return _fine_tune_learned_constraints(
-      size_contraints, graph_tensor_spec=graph_tensor_spec,
+      size_constraints, graph_tensor_spec=graph_tensor_spec,
       min_nodes_per_component=min_nodes_per_component)
 
 
@@ -304,7 +304,7 @@ def learn_fit_or_skip_size_constraints(
 
   The learned constraints are intend to be used only with randomized repeated
   dataset. This dataset are first batched using `tf.data.Dataset.batch()`, the
-  batches that are too large to fit the learned contraints are filtered using
+  batches that are too large to fit the learned constraints are filtered using
   `tfgnn.satisfies_size_constraints()` and then padded
   `tfgnn.pad_to_total_sizes()`.
 

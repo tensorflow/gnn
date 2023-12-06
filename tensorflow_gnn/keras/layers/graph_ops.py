@@ -234,7 +234,7 @@ class ReadoutFirstNode(tf.keras.layers.Layer):
   neighborhoods of seed nodes in a large graph: by convention, each seed node is
   the first node of its component in the respective node set, and this layer
   reads out the information it has accumulated there. (In other node sets, the
-  first node may be arbitrary -- or nonexistant, in which case this operation
+  first node may be arbitrary -- or nonexistent, in which case this operation
   must not be used and may raise an error at runtime.)
 
   This implicit convention is inflexible and hard to validate. New models are

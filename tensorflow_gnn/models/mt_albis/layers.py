@@ -290,10 +290,11 @@ def MtAlbisGraphUpdate(  # To be called like a class initializer.  pylint: disab
       the number of attention heads.
     simple_conv_reduce_type: For attention_type `"none"`, controls how messages
       are aggregated on an EdgeSet for each receiver node. Defaults to `"mean"`;
-      other recommened values are the concatenations `"mean|sum"`, `"mean|max"`,
-      and `"mean|sum|max"` (but mind the increased output dimension and the
-      corresponding increase in the number of weights in the next-state layer).
-      Technically, can be set to any reduce_type understood by `tfgnn.pool()`.
+      other recommended values are the concatenations `"mean|sum"`,
+      `"mean|max"`, and `"mean|sum|max"` (but mind the increased output
+      dimension and the corresponding increase in the number of weights in the
+      next-state layer). Technically, can be set to any reduce_type understood
+      by `tfgnn.pool()`.
     simple_conv_use_receiver_state: For attention_type `"none"`, controls
       whether the receiver node state is used in computing each edge's message
       (in addition to the sender node state and possibly an `edge feature`).

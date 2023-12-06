@@ -29,9 +29,9 @@ def clone_initializer(initializer):
   all calls to them return the same sequence of numbers. To achieve
   independent initializations of the various model weights, user-specified
   initializers must be cloned for each weight before passing them to Keras.
-  This way, each of them gets a separate seed (unless explicitly overriden).
+  This way, each of them gets a separate seed (unless explicitly overridden).
 
-  This helper function clones `Initializer` obejcts and passes through all other
+  This helper function clones `Initializer` objects and passes through all other
   forms of specifying an initializer. TF-GNN's modeling code applies it before
   passing user-specified initaializers to Keras. User code that calls Keras
   directly and passes an initializer more than once is advised to wrap it with
@@ -60,7 +60,7 @@ def clone_initializer(initializer):
 
   Returns:
     A new `Initializer` object with the same config as `initializer`,
-    or `initializer` unchanged if if was not an `Initializer` object.
+    or `initializer` unchanged if it was not an `Initializer` object.
   """
   if isinstance(initializer, tf.keras.initializers.Initializer):
     return initializer.__class__.from_config(initializer.get_config())

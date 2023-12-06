@@ -400,7 +400,7 @@ def run(*,
       (for supervised learning, that means: labels) and optionally transform
       the value of the preprocessed `GraphTensor` into a model input (or
       multiple model inputs for tasks like self-supervised contrastive losses).
-   6. If the resulting `GraphTensor`s have any auxillary pieces (as indicated by
+   6. If the resulting `GraphTensor`s have any auxiliary pieces (as indicated by
       `tfgnn.get_aux_type_prefix(...)`): all features (typically: labels) are
       removed from those graph pieces.
 

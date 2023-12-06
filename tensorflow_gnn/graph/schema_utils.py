@@ -78,7 +78,7 @@ def create_graph_spec_from_schema_pb(
   of the same goal. This function converts the proto to the corresponding type
   spec.
 
-  It is guranteed that the output graph spec is compatible with the input graph
+  It is guaranteed that the output graph spec is compatible with the input graph
   schema (as `tfgnn.check_compatible_with_schema_pb()`.)
 
   Args:
@@ -134,7 +134,7 @@ def create_schema_pb_from_graph_spec(
   other fields are left unset. (Callers can set them separately before writing
   out the schema.)
 
-  It is guranteed that the input graph is compatible with the output graph
+  It is guaranteed that the input graph is compatible with the output graph
   schema (as `tfgnn.check_compatible_with_schema_pb()`.)
 
   Args:

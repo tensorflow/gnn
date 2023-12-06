@@ -341,7 +341,7 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
 
   @property
   def row_splits_dtype(self) -> tf.dtypes.DType:
-    """The dtype for ragged row partions. One of `tf.int32` or `tf.int64`."""
+    """The dtype for ragged row partitions. One of `tf.int32` or `tf.int64`."""
     return self._spec.row_splits_dtype
 
   def with_row_splits_dtype(self, dtype: tf.dtypes.DType) -> 'GraphPieceBase':
@@ -631,7 +631,7 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
 
   @property
   def row_splits_dtype(self) -> tf.dtypes.DType:
-    """The dtype for ragged row partions. One of `tf.int32` or `tf.int64`."""
+    """The dtype for ragged row partitions. One of `tf.int32` or `tf.int64`."""
     return self._row_splits_dtype
 
   def with_row_splits_dtype(

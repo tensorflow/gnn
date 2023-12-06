@@ -80,7 +80,7 @@ class SimpleConv(convolution_base.AnyToAnyConvolutionBase):
     sender_node_feature: Can be set to override `tfgnn.HIDDEN_STATE` for use as
       the input feature from sender nodes. Passing `None` disables input from
       the sender node.
-      IMPORANT: Must be set to `None` for use with `receiver_tag=tfgnn.CONTEXT`
+      IMPORTANT: Must be set to `None` for use with `receiver_tag=tfgnn.CONTEXT`
       on an edge set, or for pooling from edges without sender node states.
     sender_edge_feature: Can be set to a feature name of the edge set to select
       it as an input feature. By default, this set to `None`, which disables

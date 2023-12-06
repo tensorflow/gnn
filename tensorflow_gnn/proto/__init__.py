@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""The protocol mesage (protobuf) types defined by TF-GNN.
+"""The protocol message (protobuf) types defined by TF-GNN.
 
 This package is automatically included in the top-level tfgnn package:
 

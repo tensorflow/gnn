@@ -452,7 +452,7 @@ class ConstraintsTestBase(tu.GraphTensorTestBase):
     super().setUp()
     const.enable_graph_tensor_validation_at_runtime()
 
-  def assertContraintsEqual(self, actual, expected):
+  def assertConstraintsEqual(self, actual, expected):
     tf.nest.map_structure(
         functools.partial(
             self.assertAllEqual, msg=f'actual={actual}, expected={expected}'),
@@ -470,7 +470,7 @@ class FindTightSizeConstraintsTest(ConstraintsTestBase):
         _gt_from_sizes(SizeConstraints(5, {'n': 3}, {'n->n': 6})))
     ds = ds.take(0)
     result = batching_utils.find_tight_size_constraints(ds)
-    self.assertContraintsEqual(
+    self.assertConstraintsEqual(
         result,
         SizeConstraints(tf.int64.min, {'n': tf.int64.min},
                         {'n->n': tf.int64.min}))
@@ -486,7 +486,7 @@ class FindTightSizeConstraintsTest(ConstraintsTestBase):
   def testSingleExample(self, value: SizeConstraints):
     ds = tf.data.Dataset.from_tensors(_gt_from_sizes(value))
     result = batching_utils.find_tight_size_constraints(ds)
-    self.assertContraintsEqual(result, value)
+    self.assertConstraintsEqual(result, value)
 
   @parameterized.named_parameters(
       ('PythonInt', 10),
@@ -498,7 +498,7 @@ class FindTightSizeConstraintsTest(ConstraintsTestBase):
     ds = tf.data.Dataset.range(0, 7).map(generator)
     result = batching_utils.find_tight_size_constraints(
         ds, target_batch_size=ten)
-    self.assertContraintsEqual(
+    self.assertConstraintsEqual(
         result, SizeConstraints(51, {'n': 31}, {'n->n': 60}))
 
   @parameterized.product(min_nodes=[0, 1, 2, 3])
@@ -508,7 +508,7 @@ class FindTightSizeConstraintsTest(ConstraintsTestBase):
     ds = tf.data.Dataset.range(0, 7).map(generator)
     result = batching_utils.find_tight_size_constraints(
         ds, target_batch_size=10, min_nodes_per_component={'n': min_nodes})
-    self.assertContraintsEqual(
+    self.assertConstraintsEqual(
         result,
         SizeConstraints(
             51, {'n': 30 + max(min_nodes, 1)}, {'n->n': 60},
@@ -529,7 +529,7 @@ class FindTightSizeConstraintsTest(ConstraintsTestBase):
     min_nodes_per_component = {'a': min_a_nodes, 'b': min_b_nodes}
     result = batching_utils.find_tight_size_constraints(
         ds, min_nodes_per_component=min_nodes_per_component)
-    self.assertContraintsEqual(
+    self.assertConstraintsEqual(
         result,
         SizeConstraints(
             100 + 1, {
@@ -559,7 +559,7 @@ class ConstraintsForStaticBatchTest(ConstraintsTestBase):
     super().setUp()
     const.enable_graph_tensor_validation_at_runtime()
 
-  def assertContraintsEqual(self, actual, expected):
+  def assertConstraintsEqual(self, actual, expected):
     tf.nest.map_structure(
         functools.partial(
             self.assertAllEqual, msg=f'actual={actual}, expected={expected}'),
@@ -572,7 +572,7 @@ class ConstraintsForStaticBatchTest(ConstraintsTestBase):
     actual = batching_utils.learn_fit_or_skip_size_constraints(
         ds, batch_size=batch_size, sample_size=100)
 
-    self.assertContraintsEqual(
+    self.assertConstraintsEqual(
         actual,
         SizeConstraints(
             total_num_components=batch_size * num_components,
@@ -605,7 +605,7 @@ class ConstraintsForStaticBatchTest(ConstraintsTestBase):
     actual = batching_utils.learn_fit_or_skip_size_constraints(
         ds, batch_size=batch_size, success_ratio=success_ratio, sample_size=100)
 
-    self.assertContraintsEqual(
+    self.assertConstraintsEqual(
         actual,
         SizeConstraints(
             total_num_components=1 * batch_size,
@@ -659,7 +659,7 @@ class ConstraintsForStaticBatchTest(ConstraintsTestBase):
         success_ratio=1.,
         min_nodes_per_component=min_nodes_per_component)
 
-    self.assertContraintsEqual(
+    self.assertConstraintsEqual(
         actual,
         SizeConstraints(
             total_num_components=1 * batch_size + 1,

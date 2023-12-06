@@ -130,7 +130,7 @@ class ConvGNNBuilder:
   ) -> tf.keras.layers.Layer:
     """Constructs GraphUpdate layer for the set of receiver node sets.
 
-    This method contructs NodeSetUpdate layers from convolutions and next state
+    This method constructs NodeSetUpdate layers from convolutions and next state
     factories (specified during the class construction) for the given receiver
     node sets. The resulting node set update layers are combined and returned
     as one GraphUpdate layer. Auxiliary node sets (e.g., as needed for
@@ -142,7 +142,7 @@ class ConvGNNBuilder:
         of those node sets. It is not allowed to include node sets that do not
         receive messages from any edge set. It is also not allowed to include
         auxiliary node sets.
-      name: Optionally, a name for the returned GraphUpate layer.
+      name: Optionally, a name for the returned GraphUpdate layer.
 
     Returns:
       A GraphUpdate layer, with building deferred to the first call.
