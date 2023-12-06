@@ -22,6 +22,25 @@ like this:
 import tensorflow_gnn as tfgnn
 ```
 """
+
+
+# For clear error messaging, check at the earliest opportunity for a
+# compatible version of TF/Keras, before any import below fails obscurely.
+# pylint: disable=g-statement-before-imports,g-import-not-at-top
+def _check_keras_version():
+  import tensorflow as tf
+  # Condition formulated per b/306638603#comment33.
+  keras_version_fn = getattr(tf.keras, "version", None)
+  if keras_version_fn:  # Not present in tf.keras for v2 / before TF 2.16.
+    keras_version = keras_version_fn()
+    if keras_version.startswith("3."):
+      raise ImportError(
+          "Package tensorflow_gnn requires tf.keras to be Keras version 2 "
+          f"but got version {keras_version}. Install tensorflow<=2.15 to fix.")
+_check_keras_version()
+del _check_keras_version
+# pylint: enable=g-statement-before-imports
+
 # pylint: disable=line-too-long
 
 from tensorflow_gnn import experimental  # Exposed as submodule. pylint: disable=unused-import

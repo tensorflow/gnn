@@ -32,6 +32,8 @@ try:
 except ImportError:
   type_spec_registry = None  # Not available before TF 2.12.
 
+# NOTE: See ../__init__.py for an up-front check of supported Keras versions.
+
 try:
   try:
     # Get Keras v2 from the separate tf_keras package.
