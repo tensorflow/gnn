@@ -1743,6 +1743,7 @@ def _relax_outer_dim_if(cond: bool, features_nest: Any) -> Any:
 
 def check_scalar_graph_tensor(graph: Union[GraphTensor, GraphTensorSpec],
                               name='This operation') -> None:
+  """Checks that graph tensor is scalar (has rank 0)."""
   gp.check_scalar_graph_piece(graph, name=name)
 
 
