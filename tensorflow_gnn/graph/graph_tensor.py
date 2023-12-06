@@ -1169,7 +1169,7 @@ class GraphTensor(gp.GraphPieceBase):
 
     On a batched GraphTensor, one can call this method merge all graphs of the
     batch into one, contiguously indexed graph. The resulting GraphTensor has
-    shape [] (i.e., is scalar) and its features have the shape
+    shape `[]` (i.e., is scalar) and its features have the shape
     `[total_num_items, *feature_shape]` where `total_num_items` is the sum of
     the previous `num_items` per batch element. Most TF-GNN models expect scalar
     GraphTensors. There is no function to reverse this method.
