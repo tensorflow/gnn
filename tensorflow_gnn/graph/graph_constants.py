@@ -69,8 +69,9 @@ SetName = str  # A NodeSetName or EdgeSetName
 
 FieldNameOrNames = Union[FieldName, Sequence[FieldName]]
 
-ShapeLike = Union[tf.TensorShape, Tuple[Optional[int], ...],
-                  List[Optional[int]]]
+ShapeLike = Union[
+    tf.TensorShape, Tuple[Optional[int], ...], List[Optional[int]]
+]
 Field = Union[tf.Tensor, tf.RaggedTensor]
 FieldSpec = Union[tf.TensorSpec, tf.RaggedTensorSpec]
 
@@ -124,11 +125,9 @@ DEFAULT_STATE_NAME = HIDDEN_STATE
 def disable_graph_tensor_validation():
   """Disables both static and runtime checks of graph tensors.
 
-  This is temporary workaround for the legacy code (before TF-GNN 1.0 release)
-  that may rely on the inconsistent number of graph tensor items and allowed
-  edges with adjaceny indices for non-existing nodes.
-
-  DO NOT USE.
+  IMPORTANT: This is temporary workaround for the legacy code (before TF-GNN 1.0
+  release) that may rely on the inconsistent number of graph tensor items and
+  allowed edges with adjaceny indices for non-existing nodes. **DO NOT USE**.
   """
   disable_graph_tensor_validation_at_runtime()
 
@@ -137,19 +136,19 @@ def disable_graph_tensor_validation():
 
 
 def disable_graph_tensor_validation_at_runtime():
-  """Disables runtime checks (`tf.debugging.Assert`) of graph tensor."""
+  """Disables runtime checks (`tf.debugging.Assert`) of graph tensors."""
   global validate_graph_tensor_at_runtime
   validate_graph_tensor_at_runtime = False
 
 
 def enable_graph_tensor_validation():
-  """Enables static checks of graph tensor."""
+  """Enables static checks of graph tensors."""
   global validate_graph_tensor
   validate_graph_tensor = True
 
 
 def enable_graph_tensor_validation_at_runtime():
-  """Enables both static and runtime checks of graph tensor."""
+  """Enables both static and runtime checks of graph tensors."""
   enable_graph_tensor_validation()
 
   global validate_graph_tensor_at_runtime
