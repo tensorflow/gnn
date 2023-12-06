@@ -26,7 +26,8 @@ specifiers](https://packaging.python.org/en/latest/specifications/version-specif
     and release candidates (rc0, rc1, ...).
   * Ongoing development on the GitHub main branch uses the version number
     x.y.0.dev1, where x.y is the *upcoming* release we ware working towards.
-    We make no attempt to increment the "1" after "dev".
+    We usually make no attempt to increment the "1" after "dev", unless we
+    build dev packages and need to version them.
 """
 
 # On the main branch, leave this at X.Y.0.dev1 ( = dev version of next release).
@@ -42,4 +43,4 @@ specifiers](https://packaging.python.org/en/latest/specifications/version-specif
 # IMPORANT: Right after branching rX.Y, bump the main branch to X.(Y+1).0.dev1.
 # (Submit a change to the Source of Truth, get it out on the main branch asap.)
 
-__version__ = "1.0.0.dev1"
+__version__ = "1.0.0.dev2"
