@@ -1,17 +1,10 @@
 # tfgnn.dataset_from_generator
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/batching_utils.py#L787-L880">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/batching_utils.py#L786-L879">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Creates dataset from generator of any nest of scalar graph pieces.
 
@@ -42,13 +35,14 @@ print([dataset1])  # prints: pieceA, pieceD.
 ```
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
 <tr>
 <td>
-`generator`<a id="generator"></a>
+<code>generator</code><a id="generator"></a>
 </td>
 <td>
 a callable object that returns an object that supports the iter()
@@ -60,25 +54,27 @@ protocol. Could consist of any nest of tensors and scalar graph pieces
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
-A `tf.data.Dataset`.
+A <code>tf.data.Dataset</code>.
 </td>
 </tr>
 
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Raises</h2></th></tr>
 
 <tr>
 <td>
-`ValueError`<a id="ValueError"></a>
+<code>ValueError</code><a id="ValueError"></a>
 </td>
 <td>
 if any contained graph piece is not scalar or has not compatible

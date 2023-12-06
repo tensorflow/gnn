@@ -1,17 +1,10 @@
 # tfgnn.keras.layers.AnyToAnyConvolutionBase
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/convolution_base.py#L29-L393">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/convolution_base.py#L29-L393">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Convenience base class for convolutions to nodes or to context.
 
@@ -27,8 +20,6 @@ Convenience base class for convolutions to nodes or to context.
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
 This base class simplifies the implementation of graph convolutions as Keras
@@ -36,10 +27,10 @@ Layers. Instead of subclassing Layer directly and implementing `call()` with a
 GraphTensor input, users can subclass this class and implement the abstract
 `convolve()` method, which is invoked with the relevant tensors unpacked from
 the graph, and with callbacks to broadcast and pool values across the relevant
-parts of the graph structure (see its docstring for more).  The resulting
+parts of the graph structure (see its docstring for more). The resulting
 subclass can perform convolutions from nodes to nodes, optionally with a side
-input from edges, or the equivalent computations from nodes to context,
-from edges to context, or from edges into incident nodes.
+input from edges, or the equivalent computations from nodes to context, from
+edges to context, or from edges into incident nodes.
 
 Here is a minimal example:
 
@@ -72,63 +63,51 @@ class ExampleConvolution(tfgnn.keras.layers.AnyToAnyConvolutionBase):
 
 The resulting subclass can be applied to a GraphTensor in four ways:
 
- 1. Convolutions from nodes.
+1.  Convolutions from nodes.
 
-    a) The classic case: convolutions over an edge set.
-       ```
-         sender_node -> sender_edge <->> receiver (node)
-       ```
-       A message is computed for each edge of the edge set, depending on
-       inputs from the sender node, the receiver node (single arrowheads),
-       and/or the edge itself. The messages are aggregated at each receiver
-       node from its incident edges (double arrowhead).
+    a) The classic case: convolutions over an edge set. `sender_node ->
+    sender_edge <->> receiver (node)` A message is computed for each edge of the
+    edge set, depending on inputs from the sender node, the receiver node
+    (single arrowheads), and/or the edge itself. The messages are aggregated at
+    each receiver node from its incident edges (double arrowhead).
 
-    b) Convolutions from a node set to context.
-       ```
-         sender_node <->> receiver (context)
-       ```
-       Instead of the EdgeSet as in case (1a), there is a NodeSet, which
-       tracks the containment of its nodes in graph components. Instead of
-       a receiver node, there is the per-component graph context.
-       A message is computed for each node of the node set, depending on
-       inputs from the node itself and possibly its context. The messages are
-       aggregated for each component from the nodes contained in it.
+    b) Convolutions from a node set to context. `sender_node <->> receiver
+    (context)` Instead of the EdgeSet as in case (1a), there is a NodeSet, which
+    tracks the containment of its nodes in graph components. Instead of a
+    receiver node, there is the per-component graph context. A message is
+    computed for each node of the node set, depending on inputs from the node
+    itself and possibly its context. The messages are aggregated for each
+    component from the nodes contained in it.
 
+2.  Pooling from edges.
 
- 2. Pooling from edges.
+    a) Pooling from an edge set to an incident node set. `sender_edge <->>
+    receiver (node)` This works like a convolution in case (1a) with the side
+    input for the edge feature switched on and the main input from the sender
+    node switched off.
 
-    a) Pooling from an edge set to an incident node set.
-       ```
-         sender_edge <->> receiver (node)
-       ```
-       This works like a convolution in case (1a) with the side input for the
-       edge feature switched on and the main input from the sender node
-       switched off.
-
-    b) Pooling from an edge set to context.
-       ```
-         sender_edge <->> receiver (context)
-       ```
-       Like in case (1b), the receiver is the context, and senders are
-       connected to it by containment in a graph component. Unlike case (1b),
-       but similar to case (2a), the sender input comes from an edge set,
-       not a node set.
+    b) Pooling from an edge set to context. `sender_edge <->> receiver
+    (context)` Like in case (1b), the receiver is the context, and senders are
+    connected to it by containment in a graph component. Unlike case (1b), but
+    similar to case (2a), the sender input comes from an edge set, not a node
+    set.
 
 Case (1) is solved directly by subclasses of this class with default init args
-`sender_node_feature=tfgnn.HIDDEN_STATE` and `sender_edge_feature=None`.
-The sub-cases are distinguised by passing `receiver_tag=tfgnn.SOURCE` or
-<a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a> for (a) and <a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a> for (b).
-The side input from edges can be activated in case (1a) by setting the init
-arg `sender_edge_feature=`.
+`sender_node_feature=tfgnn.HIDDEN_STATE` and `sender_edge_feature=None`. The
+sub-cases are distinguised by passing `receiver_tag=tfgnn.SOURCE` or
+<a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a> for (a) and
+<a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a> for (b). The
+side input from edges can be activated in case (1a) by setting the init arg
+`sender_edge_feature=`.
 
-Case (2) is solved indirectly by wrapping a subclass to invert the selection
-for sender inputs: nodes off, edges on. The sub-cases (a) and (b) are again
+Case (2) is solved indirectly by wrapping a subclass to invert the selection for
+sender inputs: nodes off, edges on. The sub-cases (a) and (b) are again
 distinguished by the `receiver_tag`. TF-GNN avoids the term "Convolution" for
 this operation and calls it "EdgePool" instead, to emphasize that sender nodes
 are not involved. Whenever it makes sense to repurpose a convolution as an
 EdgePool operation, we recommend that the convolution is accompanied by a
-wrapper function in the following style so that the proper term "edge pool"
-can be used in code:
+wrapper function in the following style so that the proper term "edge pool" can
+be used in code:
 
 ```python
 def ExampleEdgePool(*args, sender_feature=tfgnn.HIDDEN_STATE, **kwargs):
@@ -142,11 +121,12 @@ attention to neighbor nodes, but in this way we can reuse the same code for
 attention to incident edges, or to all nodes/edges in a graph component.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
-<tr> <td> `receiver_tag`<a id="receiver_tag"></a> </td> <td> one of
+<tr> <td> <code>receiver_tag</code><a id="receiver_tag"></a> </td> <td> one of
 <a href="../../../tfgnn.md#SOURCE"><code>tfgnn.SOURCE</code></a>,
 <a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a> or
 <a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>. The results
@@ -158,45 +138,46 @@ of the edges. If set to
 <a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>, the layer
 can be called for an edge set or a node set and will aggregate results for
 context (per graph component). If left unset for init, the tag must be passed at
-call time. </td> </tr><tr> <td> `receiver_feature`<a id="receiver_feature"></a>
-</td> <td> The name of the feature that is read from the receiver graph piece
-and passed as convolve(receiver_input=...). </td> </tr><tr> <td>
-`sender_node_feature`<a id="sender_node_feature"></a> </td> <td> The name of the
-feature that is read from the sender nodes, if any, and passed as
-convolve(sender_node_input=...). NOTICE this must be `None` for use with
-`receiver_tag=tfgnn.CONTEXT` on an edge set, or for pooling from edges without
-sender node states. </td> </tr><tr> <td>
-`sender_edge_feature`<a id="sender_edge_feature"></a> </td> <td> The name of the
-feature that is read from the sender edges, if any, and passed as
-convolve(sender_edge_input=...). NOTICE this must not be `None` for use with
-`receiver_tag=tfgnn.CONTEXT` on an edge set. </td> </tr><tr> <td>
-`extra_receiver_ops`<a id="extra_receiver_ops"></a> </td> <td> A str-keyed
-dictionary of Python callables that are wrapped to bind some arguments and then
-passed on to `convolve()`. Sample usage: `extra_receiver_ops={"softmax":
-tfgnn.softmax}`. The values passed in this dict must be callable as follows,
-with two positional arguments:
+call time. </td> </tr><tr> <td>
+<code>receiver_feature</code><a id="receiver_feature"></a> </td> <td> The name
+of the feature that is read from the receiver graph piece and passed as
+convolve(receiver_input=...). </td> </tr><tr> <td>
+<code>sender_node_feature</code><a id="sender_node_feature"></a> </td> <td> The
+name of the feature that is read from the sender nodes, if any, and passed as
+convolve(sender_node_input=...). NOTICE this must be <code>None</code> for use
+with <code>receiver_tag=tfgnn.CONTEXT</code> on an edge set, or for pooling from
+edges without sender node states. </td> </tr><tr> <td>
+<code>sender_edge_feature</code><a id="sender_edge_feature"></a> </td> <td> The
+name of the feature that is read from the sender edges, if any, and passed as
+convolve(sender_edge_input=...). NOTICE this must not be <code>None</code> for
+use with <code>receiver_tag=tfgnn.CONTEXT</code> on an edge set. </td> </tr><tr>
+<td> <code>extra_receiver_ops</code><a id="extra_receiver_ops"></a> </td> <td> A
+str-keyed dictionary of Python callables that are wrapped to bind some arguments
+and then passed on to <code>convolve()</code>. Sample usage:
+<code>extra_receiver_ops={"softmax": tfgnn.softmax}</code>. The values passed in
+this dict must be callable as follows, with two positional arguments:
 
 ```python
 f(graph, receiver_tag, node_set_name=..., feature_value=..., ...)
 f(graph, receiver_tag, edge_set_name=..., feature_value=..., ...)
 ```
 
-The wrapped callables seen by `convolve()` can be called like
+The wrapped callables seen by <code>convolve()</code> can be called like
 
 ```python
 wrapped_f(feature_value, ...)
 ```
 
-The first three arguments of `f` are set to the input GraphTensor of
+The first three arguments of <code>f</code> are set to the input GraphTensor of
 the layer and the tag/name pair required by <a href="../../../tfgnn/broadcast.md"><code>tfgnn.broadcast()</code></a> and
 <a href="../../../tfgnn/pool.md"><code>tfgnn.pool()</code></a> to move values between the receiver and the messages that
 are computed inside the convolution. The sole positional argument of
-`wrapped_f()` is passed to `f()`  as `feature_value=`, and any keyword
+<code>wrapped_f()</code> is passed to <code>f()</code>  as <code>feature_value=</code>, and any keyword
 arguments are forwarded.
 </td>
 </tr><tr>
 <td>
-`**kwargs`<a id="**kwargs"></a>
+<code>**kwargs</code><a id="**kwargs"></a>
 </td>
 <td>
 Forwarded to the base class tf.keras.layers.Layer.
@@ -205,30 +186,31 @@ Forwarded to the base class tf.keras.layers.Layer.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>
 
 <tr>
 <td>
-`takes_receiver_input`<a id="takes_receiver_input"></a>
+<code>takes_receiver_input</code><a id="takes_receiver_input"></a>
 </td>
 <td>
-If `False`, all calls to convolve() will get `receiver_input=None`.
-</td>
-</tr><tr>
-<td>
-`takes_sender_edge_input`<a id="takes_sender_edge_input"></a>
-</td>
-<td>
-If `False`, all calls to convolve() will get `sender_edge_input=None`.
+If <code>False</code>, all calls to convolve() will get <code>receiver_input=None</code>.
 </td>
 </tr><tr>
 <td>
-`takes_sender_node_input`<a id="takes_sender_node_input"></a>
+<code>takes_sender_edge_input</code><a id="takes_sender_edge_input"></a>
 </td>
 <td>
-If `False`, all calls to convolve() will get `sender_node_input=None`.
+If <code>False</code>, all calls to convolve() will get <code>sender_edge_input=None</code>.
+</td>
+</tr><tr>
+<td>
+<code>takes_sender_node_input</code><a id="takes_sender_node_input"></a>
+</td>
+<td>
+If <code>False</code>, all calls to convolve() will get <code>sender_node_input=None</code>.
 </td>
 </tr>
 </table>
@@ -257,52 +239,52 @@ source</a>
 
 Returns the convolution result.
 
-The Tensor inputs to this function still have their original shapes
-and need to be broadcast such that the leading dimension is indexed
-by the items in the graph for which messages are computed (usually edges;
-except when convolving from nodes to context). In the end, values have to be
-pooled from there into a Tensor with a leading dimension indexed by
-receivers, see `pool_to_receiver`.
+The Tensor inputs to this function still have their original shapes and need to
+be broadcast such that the leading dimension is indexed by the items in the
+graph for which messages are computed (usually edges; except when convolving
+from nodes to context). In the end, values have to be pooled from there into a
+Tensor with a leading dimension indexed by receivers, see `pool_to_receiver`.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Args</th></tr>
 
 <tr>
 <td>
-`sender_node_input`
+<code>sender_node_input</code>
 </td>
 <td>
-The input Tensor from the sender NodeSet, or `None`.
-If self.takes_sender_node_input is `False`, this arg will be `None`.
-(If it is `True`, that depends on how this layer gets called.)
+The input Tensor from the sender NodeSet, or <code>None</code>.
+If self.takes_sender_node_input is <code>False</code>, this arg will be <code>None</code>.
+(If it is <code>True</code>, that depends on how this layer gets called.)
 See also broadcast_from_sender_node.
 </td>
 </tr><tr>
 <td>
-`sender_edge_input`
+<code>sender_edge_input</code>
 </td>
 <td>
-The input Tensor from the sender EdgeSet, or `None`.
-If self.takes_sender_edge_input is `False`, this arg will be `None`.
-(If it is `True`, it depends on how this layer gets called.)
+The input Tensor from the sender EdgeSet, or <code>None</code>.
+If self.takes_sender_edge_input is <code>False</code>, this arg will be <code>None</code>.
+(If it is <code>True</code>, it depends on how this layer gets called.)
 If present, this Tensor is already indexed by the items for which
 messages are computed.
 </td>
 </tr><tr>
 <td>
-`receiver_input`
+<code>receiver_input</code>
 </td>
 <td>
 The input Tensor from the receiver NodeSet or Context,
-or None. If self.takes_receiver_input is `False`, this arg will be
-`None`. (If it is `True`, it depends on how this layer gets called.)
+or None. If self.takes_receiver_input is <code>False</code>, this arg will be
+<code>None</code>. (If it is <code>True</code>, it depends on how this layer gets called.)
 See broadcast_from_receiver.
 </td>
 </tr><tr>
 <td>
-`broadcast_from_sender_node`
+<code>broadcast_from_sender_node</code>
 </td>
 <td>
 A function that broadcasts a Tensor indexed
@@ -311,25 +293,25 @@ messages are computed.
 </td>
 </tr><tr>
 <td>
-`broadcast_from_receiver`
+<code>broadcast_from_receiver</code>
 </td>
 <td>
-Call this as `broadcast_from_receiver(value)`
+Call this as <code>broadcast_from_receiver(value)</code>
 to broadcast a Tensor indexed like receiver_input to a Tensor indexed
 by the items for which messages are computed.
 </td>
 </tr><tr>
 <td>
-`pool_to_receiver`
+<code>pool_to_receiver</code>
 </td>
 <td>
-Call this as `pool_to_receiver(value, reduce_type=...)`
+Call this as <code>pool_to_receiver(value, reduce_type=...)</code>
 to pool an item-indexed Tensor to a receiver-indexed tensor, using
 a reduce_type understood by tfgnn.pool(), such as "sum".
 </td>
 </tr><tr>
 <td>
-`extra_receiver_ops`
+<code>extra_receiver_ops</code>
 </td>
 <td>
 The extra_receiver_ops passed to init, see there,
@@ -339,10 +321,10 @@ this argument, so subclass implementors not using it can omit it.
 </td>
 </tr><tr>
 <td>
-`training`
+<code>training</code>
 </td>
 <td>
-The `training` boolean that was passed to Layer.call(). If true,
+The <code>training</code> boolean that was passed to Layer.call(). If true,
 the result is computed for training rather than inference. For example,
 calls to tf.nn.dropout() are usually conditioned on this flag.
 By contrast, calling another Keras layer (like tf.keras.layers.Dropout)
@@ -351,9 +333,8 @@ does not require forwarding this arg, Keras does that automatically.
 </tr>
 </table>
 
-
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Returns</th></tr>
@@ -365,8 +346,3 @@ result of the convolution for each receiver.
 </tr>
 
 </table>
-
-
-
-
-

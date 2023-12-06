@@ -1,17 +1,10 @@
 # gcn.GCNConv
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gcn/gcn_conv.py#L26-L279">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gcn/gcn_conv.py#L26-L282">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Implements the Graph Convolutional Network by Kipf&Welling (2016).
 
@@ -71,14 +64,18 @@ $$v_{ij} = w_{ij} / (\sqrt{\deg^{in}_i} \sqrt{\deg^{in}_j}).$$
 For symmetric graphs (as in the original GCN paper), `"in_out"` and `"in_in"`
 are equal, but the latter needs to compute degrees just once.
 
+This layer can be restored from config by `tf.keras.models.load_model()` when
+saved as part of a Keras model using `save_format="tf"`.
+
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init arguments</h2></th></tr>
 
 <tr>
 <td>
-`units`<a id="units"></a>
+<code>units</code><a id="units"></a>
 </td>
 <td>
 Number of output units for this transformation applied to sender
@@ -86,26 +83,26 @@ node features.
 </td>
 </tr><tr>
 <td>
-`receiver_tag`<a id="receiver_tag"></a>
+<code>receiver_tag</code><a id="receiver_tag"></a>
 </td>
 <td>
 This layer's result is obtained by pooling the per-edge
-results at this endpoint of each edge. The default is `tfgnn.TARGET`,
+results at this endpoint of each edge. The default is <code>tfgnn.TARGET</code>,
 but it is perfectly reasonable to do a convolution towards the
-`tfgnn.SOURCE` instead. (Source and target are conventional names for
+<code>tfgnn.SOURCE</code> instead. (Source and target are conventional names for
 the incident nodes of a directed edge, data flow in a GNN may happen
 in either direction.)
 </td>
 </tr><tr>
 <td>
-`activation`<a id="activation"></a>
+<code>activation</code><a id="activation"></a>
 </td>
 <td>
 Keras activation to apply to the result, defaults to 'relu'.
 </td>
 </tr><tr>
 <td>
-`use_bias`<a id="use_bias"></a>
+<code>use_bias</code><a id="use_bias"></a>
 </td>
 <td>
 Whether to add bias in the final transformation. The original
@@ -114,7 +111,7 @@ with Keras and other implementations.
 </td>
 </tr><tr>
 <td>
-`add_self_loops`<a id="add_self_loops"></a>
+<code>add_self_loops</code><a id="add_self_loops"></a>
 </td>
 <td>
 Whether to compute the result as if a loop from each node
@@ -123,24 +120,24 @@ with an edge weight of one.
 </td>
 </tr><tr>
 <td>
-`kernel_initializer`<a id="kernel_initializer"></a>
+<code>kernel_initializer</code><a id="kernel_initializer"></a>
 </td>
 <td>
-Can be set to a `kernel_initializer` as understood
-by `tf.keras.layers.Dense` etc.
-An `Initializer` object gets cloned before use to ensure a fresh seed,
-if not set explicitly. For more, see `tfgnn.keras.clone_initializer()`.
+Can be set to a <code>kernel_initializer</code> as understood
+by <code>tf.keras.layers.Dense</code> etc.
+An <code>Initializer</code> object gets cloned before use to ensure a fresh seed,
+if not set explicitly. For more, see <code>tfgnn.keras.clone_initializer()</code>.
 </td>
 </tr><tr>
 <td>
-`node_feature`<a id="node_feature"></a>
+<code>node_feature</code><a id="node_feature"></a>
 </td>
 <td>
 Name of the node feature to transform.
 </td>
 </tr><tr>
 <td>
-`edge_weight_feature_name`<a id="edge_weight_feature_name"></a>
+<code>edge_weight_feature_name</code><a id="edge_weight_feature_name"></a>
 </td>
 <td>
 Can be set to the name of a feature on the edge
@@ -149,15 +146,15 @@ it as the edge's entry in the adjacency matrix, instead of the default 1.
 </td>
 </tr><tr>
 <td>
-`degree_normalization`<a id="degree_normalization"></a>
+<code>degree_normalization</code><a id="degree_normalization"></a>
 </td>
 <td>
-Can be set to `"none"`, `"in"`, `"out"`, `"in_out"`,
-or `"in_in"`, as explained above.
+Can be set to <code>"none"</code>, <code>"in"</code>, <code>"out"</code>, <code>"in_out"</code>,
+or <code>"in_in"</code>, as explained above.
 </td>
 </tr><tr>
 <td>
-`**kwargs`<a id="**kwargs"></a>
+<code>**kwargs</code><a id="**kwargs"></a>
 </td>
 <td>
 additional arguments for the Layer.
@@ -166,23 +163,24 @@ additional arguments for the Layer.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call arguments</h2></th></tr>
 
 <tr>
 <td>
-`graph`<a id="graph"></a>
+<code>graph</code><a id="graph"></a>
 </td>
 <td>
 The GraphTensor on which to apply the layer.
 </td>
 </tr><tr>
 <td>
-`edge_set_name`<a id="edge_set_name"></a>
+<code>edge_set_name</code><a id="edge_set_name"></a>
 </td>
 <td>
-Edge set of `graph` over which to apply the layer.
+Edge set of <code>graph</code> over which to apply the layer.
 </td>
 </tr>
 </table>

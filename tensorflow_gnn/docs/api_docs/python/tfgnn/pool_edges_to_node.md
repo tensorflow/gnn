@@ -1,17 +1,10 @@
 # tfgnn.pool_edges_to_node
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/pool_ops.py#L41-L96">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/pool_ops.py#L41-L97">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Aggregates (pools) edge values to incident nodes.
 
@@ -44,35 +37,36 @@ For a generalization beyond a single edge set, see
 The feature to fetch edge values from is provided either by name (using
 `feature_name`) and found in the graph tensor itself, or provided explicitly
 (using `feature_value`) in which case its shape has to be compatible with the
-shape prefix of the edge set being gathered from. One of `feature_value`
-or `feature_name` must be specified.
+shape prefix of the edge set being gathered from. One of `feature_value` or
+`feature_name` must be specified.
 
 (Note that in most cases the `feature_value` form will be used, because in a
 regular convolution, we will first broadcast over edges and combine the result
 of that with this function.)
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
 <tr>
 <td>
-`graph_tensor`<a id="graph_tensor"></a>
+<code>graph_tensor</code><a id="graph_tensor"></a>
 </td>
 <td>
 A scalar GraphTensor.
 </td>
 </tr><tr>
 <td>
-`edge_set_name`<a id="edge_set_name"></a>
+<code>edge_set_name</code><a id="edge_set_name"></a>
 </td>
 <td>
 The name of the edge set from which values are pooled.
 </td>
 </tr><tr>
 <td>
-`node_tag`<a id="node_tag"></a>
+<code>node_tag</code><a id="node_tag"></a>
 </td>
 <td>
 The incident node of each edge at which values are aggregated,
@@ -80,25 +74,25 @@ identified by its tag in the edge set.
 </td>
 </tr><tr>
 <td>
-`reduce_type`<a id="reduce_type"></a>
+<code>reduce_type</code><a id="reduce_type"></a>
 </td>
 <td>
-A pooling operation name like `"sum"` or `"mean"`, or a
-`|`-separated combination of these; see <a href="../tfgnn/pool.md"><code>tfgnn.pool()</code></a>.
+A pooling operation name like <code>"sum"</code> or <code>"mean"</code>, or a
+<code>|</code>-separated combination of these; see <a href="../tfgnn/pool.md"><code>tfgnn.pool()</code></a>.
 </td>
 </tr><tr>
 <td>
-`feature_value`<a id="feature_value"></a>
+<code>feature_value</code><a id="feature_value"></a>
 </td>
 <td>
 A ragged or dense edge feature value. Has a shape
-`[num_edges, *feature_shape]`, where `num_edges` is the number of edges in
-the `edge_set_name` edge set and `feature_shape` is the shape of the
+<code>[num_edges, *feature_shape]</code>, where <code>num_edges</code> is the number of edges in
+the <code>edge_set_name</code> edge set and <code>feature_shape</code> is the shape of the
 feature value for each edge.
 </td>
 </tr><tr>
 <td>
-`feature_name`<a id="feature_name"></a>
+<code>feature_name</code><a id="feature_name"></a>
 </td>
 <td>
 An edge feature name.
@@ -107,16 +101,16 @@ An edge feature name.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
-The edge values pooled to each incident node. Has a shape `[num_nodes,
-*feature_shape]`, where `num_nodes` is the number of nodes in the incident
-node set and `feature_shape` is not affected.
+The edge values pooled to each incident node. Has a shape <code>[num_nodes,
+*feature_shape]</code>, where <code>num_nodes</code> is the number of nodes in the incident
+node set and <code>feature_shape</code> is not affected.
 </td>
 </tr>
 
 </table>
-

@@ -1,17 +1,10 @@
 # tfgnn.pool
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/pool_ops.py#L207-L327">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/pool_ops.py#L210-L331">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Pools values from edges to nodes, or from nodes or edges to context.
 
@@ -65,20 +58,21 @@ individual results along the innermost axis in the order of appearance.
 support RaggedTensors.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
 <tr>
 <td>
-`graph_tensor`<a id="graph_tensor"></a>
+<code>graph_tensor</code><a id="graph_tensor"></a>
 </td>
 <td>
 A scalar GraphTensor.
 </td>
 </tr><tr>
 <td>
-`to_tag`<a id="to_tag"></a>
+<code>to_tag</code><a id="to_tag"></a>
 </td>
 <td>
 Values are pooled to context if this is <a href="../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a> or to the
@@ -86,48 +80,48 @@ incident node on each edge with this tag.
 </td>
 </tr><tr>
 <td>
-`edge_set_name`<a id="edge_set_name"></a>
+<code>edge_set_name</code><a id="edge_set_name"></a>
 </td>
 <td>
 The name of the edge set from which values are pooled, or
-a non-empty sequence of such names. Unless `to_tag=tfgnn.CONTEXT`,
+a non-empty sequence of such names. Unless <code>to_tag=tfgnn.CONTEXT</code>,
 all named edge sets must have the same incident node set at the given tag.
 </td>
 </tr><tr>
 <td>
-`node_set_name`<a id="node_set_name"></a>
+<code>node_set_name</code><a id="node_set_name"></a>
 </td>
 <td>
 The name of the node set from which values are pooled,
 or a non-empty sequence of such names. Can only be set with
-`to_tag=tfgnn.CONTEXT`. Exactly one of edge_set_name or node_set_name
+<code>to_tag=tfgnn.CONTEXT</code>. Exactly one of edge_set_name or node_set_name
 must be set.
 </td>
 </tr><tr>
 <td>
-`reduce_type`<a id="reduce_type"></a>
+<code>reduce_type</code><a id="reduce_type"></a>
 </td>
 <td>
 A string with the name of a pooling operation, or multiple ones
-separated by `|`. See the table above for the known names.
+separated by <code>|</code>. See the table above for the known names.
 </td>
 </tr><tr>
 <td>
-`feature_value`<a id="feature_value"></a>
+<code>feature_value</code><a id="feature_value"></a>
 </td>
 <td>
 A tensor or list of tensors, parallel to the node_set_names
 or edge_set_names, to supply the input values of pooling. Each tensor
-has shape `[num_items, *feature_shape]`, where `num_items` is the number
+has shape <code>[num_items, *feature_shape]</code>, where <code>num_items</code> is the number
 of edges in the given edge set or nodes in the given node set, and
-`*feature_shape` is the same across all inputs. The `*feature_shape` may
+<code>*feature_shape</code> is the same across all inputs. The <code>*feature_shape</code> may
 contain ragged dimensions. All the ragged values that are reduced onto
 any one item of the graph must have the same ragged index structure,
 so that a result can be computed from them.
 </td>
 </tr><tr>
 <td>
-`feature_name`<a id="feature_name"></a>
+<code>feature_name</code><a id="feature_name"></a>
 </td>
 <td>
 The name of a feature stored on each graph piece from which
@@ -145,10 +139,10 @@ Exactly one of feature_name or feature_value must be set.
 <tr class="alt">
 <td colspan="2">
 A tensor with the result of pooling from the conceptual concatenation of the
-named edge set(s) or node set(s) to the destination selected by `to_tag`.
-Its shape is `[num_items, *feature_shape]`, where `num_items` is the number
-of destination nodes (or graph components if `to_tag=tfgnn.CONTEXT`)
-and `*feature_shape` is as for all the inputs.
+named edge set(s) or node set(s) to the destination selected by <code>to_tag</code>.
+Its shape is <code>[num_items, *feature_shape]</code>, where <code>num_items</code> is the number
+of destination nodes (or graph components if <code>to_tag=tfgnn.CONTEXT</code>)
+and <code>*feature_shape</code> is as for all the inputs.
 </td>
 </tr>
 

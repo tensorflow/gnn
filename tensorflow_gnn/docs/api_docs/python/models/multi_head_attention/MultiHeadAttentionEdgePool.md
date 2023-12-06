@@ -1,17 +1,10 @@
 # multi_head_attention.MultiHeadAttentionEdgePool
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L565-L618">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L571-L628">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Returns a layer for pooling edges with Transformer-style Multi-Head Attention.
 
@@ -40,21 +33,26 @@ an edge set to do the analogous pooling of edge states to context.
 
 NOTE: This layer cannot pool node states. For that, use MultiHeadAttentionConv.
 
+The layer returned by this function can be restored from config by
+`tf.keras.models.load_model()` when saved as part of a Keras model using
+`save_format="tf"`.
+
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
 <tr>
 <td>
-`num_heads`<a id="num_heads"></a>
+<code>num_heads</code><a id="num_heads"></a>
 </td>
 <td>
 The number of attention heads.
 </td>
 </tr><tr>
 <td>
-`per_head_channels`<a id="per_head_channels"></a>
+<code>per_head_channels</code><a id="per_head_channels"></a>
 </td>
 <td>
 The number of channels for each attention head. This
@@ -62,19 +60,19 @@ means that the final output size will be per_head_channels * num_heads.
 </td>
 </tr><tr>
 <td>
-`receiver_tag`<a id="receiver_tag"></a>
+<code>receiver_tag</code><a id="receiver_tag"></a>
 </td>
 <td>
 The results of attention are aggregated for this graph piece.
-If set to `tfgnn.CONTEXT`, the layer can be called for an edge set or node
-set. If set to an IncidentNodeTag (e.g., `tfgnn.SOURCE` or
-`tfgnn.TARGET`), the layer can be called for an edge set and will
+If set to <code>tfgnn.CONTEXT</code>, the layer can be called for an edge set or node
+set. If set to an IncidentNodeTag (e.g., <code>tfgnn.SOURCE</code> or
+<code>tfgnn.TARGET</code>), the layer can be called for an edge set and will
 aggregate results at the specified endpoint of the edges. If left unset,
 the tag must be passed when calling the layer.
 </td>
 </tr><tr>
 <td>
-`receiver_feature`<a id="receiver_feature"></a>
+<code>receiver_feature</code><a id="receiver_feature"></a>
 </td>
 <td>
 By default, the default state feature of the receiver is
@@ -83,7 +81,7 @@ selected by setting this argument.
 </td>
 </tr><tr>
 <td>
-`sender_feature`<a id="sender_feature"></a>
+<code>sender_feature</code><a id="sender_feature"></a>
 </td>
 <td>
 By default, the default state feature of the edge set is
@@ -92,7 +90,7 @@ selected by setting this argument.
 </td>
 </tr><tr>
 <td>
-`**kwargs`<a id="**kwargs"></a>
+<code>**kwargs</code><a id="**kwargs"></a>
 </td>
 <td>
 Any other option for MultiHeadAttentionConv, except

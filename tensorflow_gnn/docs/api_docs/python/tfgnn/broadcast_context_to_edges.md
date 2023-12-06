@@ -1,17 +1,10 @@
 # tfgnn.broadcast_context_to_edges
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/broadcast_ops.py#L121-L157">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/broadcast_ops.py#L124-L161">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Broadcasts a context value to the `edge_set` edges.
 
@@ -38,37 +31,38 @@ shape prefix of the node set being gathered from. One of `feature_value` or
 `feature_name` must be specified.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
 <tr>
 <td>
-`graph_tensor`<a id="graph_tensor"></a>
+<code>graph_tensor</code><a id="graph_tensor"></a>
 </td>
 <td>
 A scalar GraphTensor.
 </td>
 </tr><tr>
 <td>
-`edge_set_name`<a id="edge_set_name"></a>
+<code>edge_set_name</code><a id="edge_set_name"></a>
 </td>
 <td>
 An edge set name.
 </td>
 </tr><tr>
 <td>
-`feature_value`<a id="feature_value"></a>
+<code>feature_value</code><a id="feature_value"></a>
 </td>
 <td>
 A ragged or dense graph context feature value. Has a shape
-`[num_components, *feature_shape]`, where `num_components` is the number
-of components in a graph and `feature_shape` is the shape of the feature
+<code>[num_components, *feature_shape]</code>, where <code>num_components</code> is the number
+of components in a graph and <code>feature_shape</code> is the shape of the feature
 value for each component.
 </td>
 </tr><tr>
 <td>
-`feature_name`<a id="feature_name"></a>
+<code>feature_name</code><a id="feature_name"></a>
 </td>
 <td>
 A context feature name.
@@ -77,16 +71,16 @@ A context feature name.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
-Graph context value broadcast to the `edge_set` edges. Has a shape
-`[num_edges, *feature_shape]`, where `num_edges` is the number of edges in
-the `edge_set_name` edge set and `feature_shape` is not affected.
+Graph context value broadcast to the <code>edge_set</code> edges. Has a shape
+<code>[num_edges, *feature_shape]</code>, where <code>num_edges</code> is the number of edges in
+the <code>edge_set_name</code> edge set and <code>feature_shape</code> is not affected.
 </td>
 </tr>
 
 </table>
-

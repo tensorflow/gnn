@@ -1,17 +1,10 @@
 # tfgnn.mask_edges
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L234-L347">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L229-L341">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Creates a GraphTensor after applying edge_mask over the specified edge-set.
 
@@ -33,35 +26,36 @@ Edge masking doesn't change the node sets or the context node information.
 Not compatible with XLA.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
 <tr>
 <td>
-`graph`<a id="graph"></a>
+<code>graph</code><a id="graph"></a>
 </td>
 <td>
 A scalar GraphTensor.
 </td>
 </tr><tr>
 <td>
-`edge_set_name`<a id="edge_set_name"></a>
+<code>edge_set_name</code><a id="edge_set_name"></a>
 </td>
 <td>
 Name of edge-set to apply the boolean mask.
 </td>
 </tr><tr>
 <td>
-`boolean_edge_mask`<a id="boolean_edge_mask"></a>
+<code>boolean_edge_mask</code><a id="boolean_edge_mask"></a>
 </td>
 <td>
-A boolean mask with shape `[num_edges]` to mask edges in
-the specified edge-set of the `graph` with rank=1.
+A boolean mask with shape <code>[num_edges]</code> to mask edges in
+the specified edge-set of the <code>graph</code> with rank=1.
 </td>
 </tr><tr>
 <td>
-`masked_info_edge_set_name`<a id="masked_info_edge_set_name"></a>
+<code>masked_info_edge_set_name</code><a id="masked_info_edge_set_name"></a>
 </td>
 <td>
 Masked out edge-set information will be kept in a
@@ -71,6 +65,7 @@ new edge-set, with name masked_info_edge_set_name.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>

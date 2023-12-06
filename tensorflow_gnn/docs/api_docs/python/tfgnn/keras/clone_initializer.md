@@ -1,17 +1,10 @@
 # tfgnn.keras.clone_initializer
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/initializers.py#L20-L67">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/initializers.py#L20-L67">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Clones an initializer to ensure a new default seed.
 
@@ -32,9 +25,9 @@ seed (even if not explicitly specified) at creation time, so that all calls to
 them return the same sequence of numbers. To achieve independent initializations
 of the various model weights, user-specified initializers must be cloned for
 each weight before passing them to Keras. This way, each of them gets a separate
-seed (unless explicitly overriden).
+seed (unless explicitly overridden).
 
-This helper function clones `Initializer` obejcts and passes through all other
+This helper function clones `Initializer` objects and passes through all other
 forms of specifying an initializer. TF-GNN's modeling code applies it before
 passing user-specified initaializers to Keras. User code that calls Keras
 directly and passes an initializer more than once is advised to wrap it with
@@ -66,7 +59,7 @@ return gnn_builder.Convolve()
 
 <tr>
 <td>
-`initializer`<a id="initializer"></a>
+<code>initializer</code><a id="initializer"></a>
 </td>
 <td>
 An initializer specification as understood by Keras.
@@ -81,8 +74,8 @@ An initializer specification as understood by Keras.
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
-A new `Initializer` object with the same config as `initializer`,
-or `initializer` unchanged if if was not an `Initializer` object.
+A new <code>Initializer</code> object with the same config as <code>initializer</code>,
+or <code>initializer</code> unchanged if it was not an <code>Initializer</code> object.
 </td>
 </tr>
 

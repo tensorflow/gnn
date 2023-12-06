@@ -1,17 +1,10 @@
 # tfgnn.get_homogeneous_node_and_edge_set_name
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1590-L1620">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1907-L1937">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Returns the sole `node_set_name, edge_set_name` or raises `ValueError`.
 
@@ -38,14 +31,14 @@ as appropriate for model-building code.
 
 <tr>
 <td>
-`graph`<a id="graph"></a>
+<code>graph</code><a id="graph"></a>
 </td>
 <td>
-the `GraphTensor` or `GraphTensorSpec` to check.
+the <code>GraphTensor</code> or <code>GraphTensorSpec</code> to check.
 </td>
 </tr><tr>
 <td>
-`name`<a id="name"></a>
+<code>name</code><a id="name"></a>
 </td>
 <td>
 Optionally, the name of the operation (library function, class, ...)
@@ -62,9 +55,9 @@ raised.
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
-A tuple `node_set_name, edge_set_name` with the unique node set and edge
-set, resp., in `graph` for which <a href="../tfgnn/get_aux_type_prefix.md"><code>tfgnn.get_aux_type_prefix(set_name)</code></a> is
-`None`.
+A tuple <code>node_set_name, edge_set_name</code> with the unique node set and edge
+set, resp., in <code>graph</code> for which <a href="../tfgnn/get_aux_type_prefix.md"><code>tfgnn.get_aux_type_prefix(set_name)</code></a> is
+<code>None</code>.
 </td>
 </tr>
 

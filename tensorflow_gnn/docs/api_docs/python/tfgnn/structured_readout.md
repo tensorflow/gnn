@@ -1,17 +1,10 @@
 # tfgnn.structured_readout
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/readout.py#L137-L269">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/readout.py#L141-L274">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Reads out a feature value from select nodes (or edges) in a graph.
 
@@ -89,7 +82,7 @@ as usual with `GraphTensor.node_sets["_readout"]["ft"]`.
 
 <tr>
 <td>
-`graph`<a id="graph"></a>
+<code>graph</code><a id="graph"></a>
 </td>
 <td>
 A scalar GraphTensor with a readout structure composed of auxiliary
@@ -97,36 +90,36 @@ graph pieces as described above.
 </td>
 </tr><tr>
 <td>
-`key`<a id="key"></a>
+<code>key</code><a id="key"></a>
 </td>
 <td>
 A string key to select between possibly multiple named readouts
-(such as `"source"` and `"target"` for link prediction).
+(such as <code>"source"</code> and <code>"target"</code> for link prediction).
 </td>
 </tr><tr>
 <td>
-`feature_name`<a id="feature_name"></a>
+<code>feature_name</code><a id="feature_name"></a>
 </td>
 <td>
 The name of a feature that is present on the node set(s)
 (or edge set(s)) referenced by the auxiliary edge sets. The feature
-must have shape `[num_items, *feature_dims]` with the same `feature_dims`
+must have shape <code>[num_items, *feature_dims]</code> with the same <code>feature_dims</code>
 on all graph pieces, and the same dtype.
 </td>
 </tr><tr>
 <td>
-`readout_node_set`<a id="readout_node_set"></a>
+<code>readout_node_set</code><a id="readout_node_set"></a>
 </td>
 <td>
 The name for the readout node set and the name prefix for
-its edge sets. Permissible values are `"_readout"` (the default) and
-`f"_readout:{tag}"` where `tag` matches `[a-zA-Z0-9_]+`.
+its edge sets. Permissible values are <code>"_readout"</code> (the default) and
+<code>f"_readout:{tag}"</code> where <code>tag</code> matches <code>[a-zA-Z0-9_]+</code>.
 Setting this to a different value allows to select between multiple
 independent readout structures in the same graph.
 </td>
 </tr><tr>
 <td>
-`validate`<a id="validate"></a>
+<code>validate</code><a id="validate"></a>
 </td>
 <td>
 Setting this to false disables the validity checks for the
@@ -144,7 +137,7 @@ structurally unchanged GraphTensors.
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
-A tensor of shape `[readout_size, *feature_dims]` with the read-out feature
+A tensor of shape <code>[readout_size, *feature_dims]</code> with the read-out feature
 values.
 </td>
 </tr>

@@ -1,17 +1,10 @@
 # tfgnn.keras.layers.ParseExample
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/parse_example.py#L25-L38">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/parse_example.py#L23-L40">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Applies tfgnn.parse_example(graph_tensor_spec, _) to a batch of strings.
 
@@ -22,8 +15,7 @@ Applies tfgnn.parse_example(graph_tensor_spec, _) to a batch of strings.
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
-
+This layer can be restored from config by `tf.keras.models.load_model()` when
+saved as part of a Keras model using `save_format="tf"`.

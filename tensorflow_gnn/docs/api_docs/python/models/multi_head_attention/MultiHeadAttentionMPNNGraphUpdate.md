@@ -1,17 +1,10 @@
 # multi_head_attention.MultiHeadAttentionMPNNGraphUpdate
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L684-L781">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L698-L799">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Returns a GraphUpdate layer for message passing with MultiHeadAttention pooling.
 
@@ -44,45 +37,50 @@ layer to compute the new node states from a concatenation of the old node state
 and all pooled messages, analogous to TF-GNN's
 `vanilla_mpnn.VanillaMPNNGraphUpdate` and `gat_v2.GATv2MPNNGraphUpdate`.
 
+The layer returned by this function can be restored from config by
+`tf.keras.models.load_model()` when saved as part of a Keras model using
+`save_format="tf"`.
+
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
 <tr>
 <td>
-`units`<a id="units"></a>
+<code>units</code><a id="units"></a>
 </td>
 <td>
 The dimension of output hidden states for each node.
 </td>
 </tr><tr>
 <td>
-`message_dim`<a id="message_dim"></a>
+<code>message_dim</code><a id="message_dim"></a>
 </td>
 <td>
 The dimension of messages (attention values) computed on each
-edge.  Must be divisible by `num_heads`.
+edge.  Must be divisible by <code>num_heads</code>.
 </td>
 </tr><tr>
 <td>
-`num_heads`<a id="num_heads"></a>
+<code>num_heads</code><a id="num_heads"></a>
 </td>
 <td>
 The number of attention heads used by MultiHeadAttention.
-`message_dim` must be divisible by this number.
+<code>message_dim</code> must be divisible by this number.
 </td>
 </tr><tr>
 <td>
-`receiver_tag`<a id="receiver_tag"></a>
+<code>receiver_tag</code><a id="receiver_tag"></a>
 </td>
 <td>
-one of `tfgnn.TARGET` or `tfgnn.SOURCE`, to select the
+one of <code>tfgnn.TARGET</code> or <code>tfgnn.SOURCE</code>, to select the
 incident node of each edge that receives the message.
 </td>
 </tr><tr>
 <td>
-`node_set_names`<a id="node_set_names"></a>
+<code>node_set_names</code><a id="node_set_names"></a>
 </td>
 <td>
 The names of node sets to update. If unset, updates all that
@@ -90,16 +88,16 @@ are on the receiving end of any edge set.
 </td>
 </tr><tr>
 <td>
-`edge_feature`<a id="edge_feature"></a>
+<code>edge_feature</code><a id="edge_feature"></a>
 </td>
 <td>
 Can be set to a feature name of the edge set to select it as
-an input feature. By default, this set to `None`, which disables this
+an input feature. By default, this set to <code>None</code>, which disables this
 input.
 </td>
 </tr><tr>
 <td>
-`l2_regularization`<a id="l2_regularization"></a>
+<code>l2_regularization</code><a id="l2_regularization"></a>
 </td>
 <td>
 The coefficient of L2 regularization for weights and
@@ -107,7 +105,7 @@ biases.
 </td>
 </tr><tr>
 <td>
-`edge_dropout_rate`<a id="edge_dropout_rate"></a>
+<code>edge_dropout_rate</code><a id="edge_dropout_rate"></a>
 </td>
 <td>
 The edge dropout rate applied during attention pooling of
@@ -115,24 +113,24 @@ edges.
 </td>
 </tr><tr>
 <td>
-`state_dropout_rate`<a id="state_dropout_rate"></a>
+<code>state_dropout_rate</code><a id="state_dropout_rate"></a>
 </td>
 <td>
 The dropout rate applied to the resulting node states.
 </td>
 </tr><tr>
 <td>
-`attention_activation`<a id="attention_activation"></a>
+<code>attention_activation</code><a id="attention_activation"></a>
 </td>
 <td>
 The nonlinearity used on the transformed inputs before
 multiplying with the trained weights of the attention layer. This can be
 specified as a Keras layer, a tf.keras.activations.* function, or a string
-understood by `tf.keras.layers.Activation`. Defaults to None.
+understood by <code>tf.keras.layers.Activation</code>. Defaults to None.
 </td>
 </tr><tr>
 <td>
-`conv_activation`<a id="conv_activation"></a>
+<code>conv_activation</code><a id="conv_activation"></a>
 </td>
 <td>
 The nonlinearity applied to the result of attention on one
@@ -140,7 +138,7 @@ edge set, specified in the same ways as attention_activation.
 </td>
 </tr><tr>
 <td>
-`activation`<a id="activation"></a>
+<code>activation</code><a id="activation"></a>
 </td>
 <td>
 The nonlinearity applied to the new node states computed by this
@@ -148,25 +146,26 @@ graph update.
 </td>
 </tr><tr>
 <td>
-`kernel_initializer`<a id="kernel_initializer"></a>
+<code>kernel_initializer</code><a id="kernel_initializer"></a>
 </td>
 <td>
-Can be set to a `kernel_initializer` as understood
-by `tf.keras.layers.Dense` etc.
-An `Initializer` object gets cloned before use to ensure a fresh seed,
-if not set explicitly. For more, see `tfgnn.keras.clone_initializer()`.
+Can be set to a <code>kernel_initializer</code> as understood
+by <code>tf.keras.layers.Dense</code> etc.
+An <code>Initializer</code> object gets cloned before use to ensure a fresh seed,
+if not set explicitly. For more, see <code>tfgnn.keras.clone_initializer()</code>.
 </td>
 </tr>
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
 A GraphUpdate layer for use on a scalar GraphTensor with
-`tfgnn.HIDDEN_STATE` features on the node sets.
+<code>tfgnn.HIDDEN_STATE</code> features on the node sets.
 </td>
 </tr>
 

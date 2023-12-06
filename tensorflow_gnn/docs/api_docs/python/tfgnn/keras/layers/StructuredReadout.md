@@ -1,17 +1,10 @@
 # tfgnn.keras.layers.StructuredReadout
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L318-L412">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L318-L412">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Reads out a feature value from select nodes (or edges) in a graph.
 
@@ -68,16 +61,16 @@ To retrieve a feature unchanged, see
 
 <tr>
 <td>
-`key`<a id="key"></a>
+<code>key</code><a id="key"></a>
 </td>
 <td>
 A string key to select between possibly multiple named readouts
-(such as `"source"` and `"target"` for link prediction). Can be fixed
+(such as <code>"source"</code> and <code>"target"</code> for link prediction). Can be fixed
 in init, or selected for each call.
 </td>
 </tr><tr>
 <td>
-`feature_name`<a id="feature_name"></a>
+<code>feature_name</code><a id="feature_name"></a>
 </td>
 <td>
 The name of the feature to read. If unset (also in call),
@@ -85,15 +78,15 @@ The name of the feature to read. If unset (also in call),
 </td>
 </tr><tr>
 <td>
-`readout_node_set`<a id="readout_node_set"></a>
+<code>readout_node_set</code><a id="readout_node_set"></a>
 </td>
 <td>
-A string, defaults to `"_readout"`. This is used as the
+A string, defaults to <code>"_readout"</code>. This is used as the
 name for the readout node set and as a name prefix for its edge sets.
 </td>
 </tr><tr>
 <td>
-`validate`<a id="validate"></a>
+<code>validate</code><a id="validate"></a>
 </td>
 <td>
 Setting this to false disables the validity checks for the
@@ -112,14 +105,14 @@ structurally unchanged GraphTensors.
 
 <tr>
 <td>
-`graph`<a id="graph"></a>
+<code>graph</code><a id="graph"></a>
 </td>
 <td>
 The scalar GraphTensor to read from.
 </td>
 </tr><tr>
 <td>
-`key`<a id="key"></a>
+<code>key</code><a id="key"></a>
 </td>
 <td>
 Same meaning as for init. Must be passed to init, or to call,
@@ -136,7 +129,7 @@ or to both (with the same value).
 <tr class="alt">
 <td colspan="2">
 A tensor of read-out feature values, shaped like a feature of the
-`readout_node_set`.
+<code>readout_node_set</code>.
 </td>
 </tr>
 
