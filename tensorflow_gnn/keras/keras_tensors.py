@@ -327,6 +327,7 @@ class _TFGNNOpDispatcher:
     self._op = op
     self._resistry_key = registry_key
     _OPS_REGISTRY[self._resistry_key] = op
+    self.__doc__ = op.__doc__
 
   def __call__(self, *args, **kwargs):
     """Handle the specified operation with the specified arguments."""
@@ -390,6 +391,7 @@ class _NotSupportedDispatcher:
     self._name = name if name else op.__qualname__
     self._op = op
     self._alternative = alternative
+    self.__doc__ = op.__doc__
 
   def __call__(self, *args, **kwargs):
     """Handle the specified operation with the specified arguments."""
@@ -415,7 +417,7 @@ def delegate_keras_tensors(target=None, name: Optional[str] = None):
 
   Although Keras, internally, wraps all TF Core functions as `TFOpLambda` layer,
   the implementation is tightly coupled with TF internals and does not allow
-  generic use. 
+  generic use.
 
   This is a workaround that allows the library users to call TFGNN
   functions directly using the Keras Functional API without having to wrap each
