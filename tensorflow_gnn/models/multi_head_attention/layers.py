@@ -84,6 +84,8 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
   Example: Transformer-style attention on neighbors along incoming edges
   whose result is concatenated with the old node state and passed through
   a Dense layer to compute the new node state.
+
+
   ```
   dense = tf.keras.layers.Dense
   graph = tfgnn.keras.layers.GraphUpdate(
@@ -97,22 +99,22 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
   For now, there is a variant that modifies the inputs transformation part and
   could potentially be beneficial:
 
-      1. (transform_keys is False) Instead of projecting both queries and
-        keys when computing attention weights, we only project the queries
-        because the two linear projections can be collapsed to a single
-        projection:
+    1. (transform_keys is False) Instead of projecting both queries and
+       keys when computing attention weights, we only project the queries
+       because the two linear projections can be collapsed to a single
+       projection:
 
-          $$ (Q_v W_Q^k)(K_u W_K^k)^T
-            = Q_v (W_Q^k {W_K^k}^T) K_u^T
-            = Q_v W_{QK}^k K_u^T $$
+         $$ (Q_v W_Q^k)(K_u W_K^k)^T
+           = Q_v (W_Q^k {W_K^k}^T) K_u^T
+           = Q_v W_{QK}^k K_u^T $$
 
-        where $d$ is the key width. (Following "Attention is all you need",
-        this scaling is meant to achieve unit variance of the results, assuming
-        that $Q_v W_{QK}^k$ has unit variance due to the initialization of
-        $Q_v W_{QK}^k$.)
+       where $d$ is the key width. (Following "Attention is all you need",
+       this scaling is meant to achieve unit variance of the results, assuming
+       that $Q_v W_{QK}^k$ has unit variance due to the initialization of
+       $Q_v W_{QK}^k$.)
 
-        NOTE: The single projection matrix behaves differently in
-        gradient-descent training than the product of two matrices.
+       NOTE: The single projection matrix behaves differently in
+       gradient-descent training than the product of two matrices.
 
   This layer can be restored from config by `tf.keras.models.load_model()`
   when saved as part of a Keras model using `save_format="tf"`.
