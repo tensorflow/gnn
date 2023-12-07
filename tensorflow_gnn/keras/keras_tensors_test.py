@@ -15,6 +15,7 @@
 """Tests for KerasTensor specializations for GraphTensor pieces."""
 
 import functools
+import inspect
 import os
 from typing import Mapping
 
@@ -804,6 +805,31 @@ class WrappedOpsTest(_TestBase):
     self.assertAllClose(
         model(_TEST_GRAPH_TENSOR), transformation(_TEST_GRAPH_TENSOR)
     )
+
+
+class DocStringsDelegationTest(_TestBase):
+
+  def testDelegateKerasTensors(self):
+    @kt.delegate_keras_tensors
+    def test_fn(t: tf.Tensor, a: int, *, b: str):
+      """Delegates Keras tensors."""
+      del t, a, b
+
+    signature = inspect.signature(test_fn, follow_wrapped=True)
+    self.assertSequenceEqual(list(signature.parameters.keys()), ['t', 'a', 'b'])
+    self.assertEqual(inspect.getdoc(test_fn), 'Delegates Keras tensors.')
+
+  def testDisallowKerasTensors(self):
+    @kt.disallow_keras_tensors
+    def test_fn(t1: tf.Tensor, t2: tf.Tensor, *, x: str):
+      """Deprecates Keras tensors."""
+      del t1, t2, x
+
+    signature = inspect.signature(test_fn, follow_wrapped=True)
+    self.assertSequenceEqual(
+        list(signature.parameters.keys()), ['t1', 't2', 'x']
+    )
+    self.assertEqual(inspect.getdoc(test_fn), 'Deprecates Keras tensors.')
 
 
 class WrappedOpsSavingTest(_SaveAndLoadTestBase):

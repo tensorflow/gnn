@@ -19,8 +19,8 @@ specialize callables for KerasTensor inputs. This system assumes that a
 `ValueError` or `TypeError` is raised when the wrapped callables are called
 with an unexpected argument type.
 """
+import functools
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
-
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
@@ -437,13 +437,19 @@ def delegate_keras_tensors(target=None, name: Optional[str] = None):
     target.
   """
 
-  def delegator(target=None):
-    return _TFGNNOpDispatcher(target, name)
+  def decorator(target=None):
+    impl = _TFGNNOpDispatcher(target, name)
+
+    @functools.wraps(target)
+    def fn(*argw, **kwargs):
+      return impl(*argw, **kwargs)
+
+    return fn
 
   if target is None:
-    return delegator
+    return decorator
   else:
-    return _TFGNNOpDispatcher(target, name)
+    return decorator(target)
 
 
 def disallow_keras_tensors(
@@ -470,12 +476,18 @@ def disallow_keras_tensors(
   """
 
   def decorator(target=None):
-    return _NotSupportedDispatcher(target, name=name, alternative=alternative)
+    impl = _NotSupportedDispatcher(target, name=name, alternative=alternative)
+
+    @functools.wraps(target)
+    def fn(*argw, **kwargs):
+      return impl(*argw, **kwargs)
+
+    return fn
 
   if target is None:
     return decorator
   else:
-    return _NotSupportedDispatcher(target, name=name, alternative=alternative)
+    return decorator(target)
 
 
 def _pack_args(
