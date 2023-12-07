@@ -22,6 +22,11 @@ runner.Losses
 runner.Metric
 runner.Metrics
 runner.ModelExporter
+runner.NodeMeanAbsoluteError
+runner.NodeMeanAbsolutePercentageError
+runner.NodeMeanSquaredError
+runner.NodeMeanSquaredLogScaledError
+runner.NodeMeanSquaredLogarithmicError
 runner.ParameterServerStrategy
 runner.PassthruDatasetProvider
 runner.PassthruSampleDatasetsProvider
@@ -30,7 +35,6 @@ runner.NodeBinaryClassification
 runner.RootNodeBinaryClassification
 runner.RootNodeLabelFn
 runner.RootNodeMeanAbsoluteError
-runner.RootNodeMeanAbsoluteLogarithmicError
 runner.RootNodeMeanAbsolutePercentageError
 runner.RootNodeMeanSquaredError
 runner.RootNodeMeanSquaredLogScaledError

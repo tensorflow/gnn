@@ -29,6 +29,7 @@ Field = tfgnn.Field
 # Enables tests for graph pieces that are members of test classes.
 tfgnn.enable_graph_tensor_validation_at_runtime()
 
+READOUT_KEY = "0x8191"
 TEST_GRAPH_TENSOR = GraphTensor.from_pieces(
     context=tfgnn.Context.from_fields(
         features={"labels": tf.constant((.8, .1, .9, .1))}
@@ -50,7 +51,14 @@ def label_fn(inputs: GraphTensor) -> tuple[GraphTensor, Field]:
   return x, y
 
 
-def with_readout(gt: GraphTensor) -> GraphTensor:
+def add_readout_from_first_node(gt: GraphTensor) -> GraphTensor:
+  return tfgnn.add_readout_from_first_node(
+      gt,
+      key=READOUT_KEY,
+      node_set_name="nodes")
+
+
+def context_readout_into_feature(gt: GraphTensor) -> GraphTensor:
   return tfgnn.experimental.context_readout_into_feature(
       gt,
       feature_name="labels",
@@ -77,8 +85,8 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           task=regression.GraphMeanAbsoluteError(
               "nodes",
               label_feature_name="labels"),
-          inputs=with_readout(TEST_GRAPH_TENSOR),
-          expected_gt=with_readout(TEST_GRAPH_TENSOR),
+          inputs=context_readout_into_feature(TEST_GRAPH_TENSOR),
+          expected_gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_labels=tf.constant((.8, .1, .9, .1))),
       dict(
           testcase_name="GraphMeanAbsolutePercentageErrorLabelFn",
@@ -93,8 +101,8 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           task=regression.GraphMeanAbsolutePercentageError(
               "nodes",
               label_feature_name="labels"),
-          inputs=with_readout(TEST_GRAPH_TENSOR),
-          expected_gt=with_readout(TEST_GRAPH_TENSOR),
+          inputs=context_readout_into_feature(TEST_GRAPH_TENSOR),
+          expected_gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_labels=tf.constant((.8, .1, .9, .1))),
       dict(
           testcase_name="GraphMeanSquaredErrorLabelFn",
@@ -109,8 +117,8 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           task=regression.GraphMeanSquaredError(
               "nodes",
               label_feature_name="labels"),
-          inputs=with_readout(TEST_GRAPH_TENSOR),
-          expected_gt=with_readout(TEST_GRAPH_TENSOR),
+          inputs=context_readout_into_feature(TEST_GRAPH_TENSOR),
+          expected_gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_labels=tf.constant((.8, .1, .9, .1))),
       dict(
           testcase_name="GraphMeanSquaredLogarithmicErrorLabelFn",
@@ -127,8 +135,8 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               units=3,
               label_feature_name="labels"),
-          inputs=with_readout(TEST_GRAPH_TENSOR),
-          expected_gt=with_readout(TEST_GRAPH_TENSOR),
+          inputs=context_readout_into_feature(TEST_GRAPH_TENSOR),
+          expected_gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_labels=tf.constant((.8, .1, .9, .1))),
       dict(
           testcase_name="GraphMeanSquaredLogScaledErrorLabelFn",
@@ -145,8 +153,8 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               units=2,
               label_feature_name="labels"),
-          inputs=with_readout(TEST_GRAPH_TENSOR),
-          expected_gt=with_readout(TEST_GRAPH_TENSOR),
+          inputs=context_readout_into_feature(TEST_GRAPH_TENSOR),
+          expected_gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_labels=tf.constant((.8, .1, .9, .1))),
       dict(
           testcase_name="RootNodeMeanAbsoluteErrorLabelFn",
@@ -161,8 +169,8 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           task=regression.RootNodeMeanAbsoluteError(
               "nodes",
               label_feature_name="labels"),
-          inputs=with_readout(TEST_GRAPH_TENSOR),
-          expected_gt=with_readout(TEST_GRAPH_TENSOR),
+          inputs=context_readout_into_feature(TEST_GRAPH_TENSOR),
+          expected_gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_labels=tf.constant((.8, .1, .9, .1))),
       dict(
           testcase_name="RootNodeMeanAbsolutePercentageErrorLabelFn",
@@ -177,8 +185,8 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           task=regression.RootNodeMeanAbsolutePercentageError(
               "nodes",
               label_feature_name="labels"),
-          inputs=with_readout(TEST_GRAPH_TENSOR),
-          expected_gt=with_readout(TEST_GRAPH_TENSOR),
+          inputs=context_readout_into_feature(TEST_GRAPH_TENSOR),
+          expected_gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_labels=tf.constant((.8, .1, .9, .1))),
       dict(
           testcase_name="RootNodeMeanSquaredErrorLabelFn",
@@ -193,8 +201,8 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           task=regression.RootNodeMeanSquaredError(
               "nodes",
               label_feature_name="labels"),
-          inputs=with_readout(TEST_GRAPH_TENSOR),
-          expected_gt=with_readout(TEST_GRAPH_TENSOR),
+          inputs=context_readout_into_feature(TEST_GRAPH_TENSOR),
+          expected_gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_labels=tf.constant((.8, .1, .9, .1))),
       dict(
           testcase_name="RootNodeMeanSquaredLogarithmicErrorLabelFn",
@@ -211,8 +219,8 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               units=3,
               label_feature_name="labels"),
-          inputs=with_readout(TEST_GRAPH_TENSOR),
-          expected_gt=with_readout(TEST_GRAPH_TENSOR),
+          inputs=context_readout_into_feature(TEST_GRAPH_TENSOR),
+          expected_gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_labels=tf.constant((.8, .1, .9, .1))),
       dict(
           testcase_name="RootNodeMeanSquaredLogScaledErrorLabelFn",
@@ -229,26 +237,107 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               units=2,
               label_feature_name="labels"),
-          inputs=with_readout(TEST_GRAPH_TENSOR),
-          expected_gt=with_readout(TEST_GRAPH_TENSOR),
+          inputs=context_readout_into_feature(TEST_GRAPH_TENSOR),
+          expected_gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_labels=tf.constant((.8, .1, .9, .1))),
       dict(
-          testcase_name="RootNodeMeanAbsoluteLogarithmicErrorLabelFn",
-          task=regression.RootNodeMeanAbsoluteLogarithmicError(
-              node_set_name="nodes",
+          testcase_name="NodeMeanAbsoluteErrorLabelFn",
+          task=regression.NodeMeanAbsoluteError(
+              READOUT_KEY,
+              label_fn=label_fn),
+          inputs=add_readout_from_first_node(TEST_GRAPH_TENSOR),
+          expected_gt=add_readout_from_first_node(
+              TEST_GRAPH_TENSOR.remove_features(context=("labels",))),
+          expected_labels=tf.constant((.8, .1, .9, .1))),
+      dict(
+          testcase_name="NodeMeanAbsoluteErrorReadout",
+          task=regression.NodeMeanAbsoluteError(
+              READOUT_KEY,
+              label_feature_name="labels"),
+          inputs=add_readout_from_first_node(context_readout_into_feature(
+              TEST_GRAPH_TENSOR)),
+          expected_gt=add_readout_from_first_node(
+              context_readout_into_feature(TEST_GRAPH_TENSOR)),
+          expected_labels=tf.constant((.8, .1, .9, .1))),
+      dict(
+          testcase_name="NodeMeanAbsolutePercentageErrorLabelFn",
+          task=regression.NodeMeanAbsolutePercentageError(
+              READOUT_KEY,
+              label_fn=label_fn),
+          inputs=add_readout_from_first_node(TEST_GRAPH_TENSOR),
+          expected_gt=add_readout_from_first_node(
+              TEST_GRAPH_TENSOR.remove_features(context=("labels",))),
+          expected_labels=tf.constant((.8, .1, .9, .1))),
+      dict(
+          testcase_name="NodeMeanAbsolutePercentageErrorReadout",
+          task=regression.NodeMeanAbsolutePercentageError(
+              READOUT_KEY,
+              label_feature_name="labels"),
+          inputs=add_readout_from_first_node(context_readout_into_feature(
+              TEST_GRAPH_TENSOR)),
+          expected_gt=add_readout_from_first_node(
+              context_readout_into_feature(TEST_GRAPH_TENSOR)),
+          expected_labels=tf.constant((.8, .1, .9, .1))),
+      dict(
+          testcase_name="NodeMeanSquaredErrorLabelFn",
+          task=regression.NodeMeanSquaredError(
+              READOUT_KEY,
+              label_fn=label_fn),
+          inputs=add_readout_from_first_node(TEST_GRAPH_TENSOR),
+          expected_gt=add_readout_from_first_node(
+              TEST_GRAPH_TENSOR.remove_features(context=("labels",))),
+          expected_labels=tf.constant((.8, .1, .9, .1))),
+      dict(
+          testcase_name="NodeMeanSquaredErrorReadout",
+          task=regression.NodeMeanSquaredError(
+              READOUT_KEY,
+              label_feature_name="labels"),
+          inputs=add_readout_from_first_node(context_readout_into_feature(
+              TEST_GRAPH_TENSOR)),
+          expected_gt=add_readout_from_first_node(
+              context_readout_into_feature(TEST_GRAPH_TENSOR)),
+          expected_labels=tf.constant((.8, .1, .9, .1))),
+      dict(
+          testcase_name="NodeMeanSquaredLogarithmicErrorLabelFn",
+          task=regression.NodeMeanSquaredLogarithmicError(
+              READOUT_KEY,
+              units=3,
+              label_fn=label_fn),
+          inputs=add_readout_from_first_node(TEST_GRAPH_TENSOR),
+          expected_gt=add_readout_from_first_node(
+              TEST_GRAPH_TENSOR.remove_features(context=("labels",))),
+          expected_labels=tf.constant((.8, .1, .9, .1))),
+      dict(
+          testcase_name="NodeMeanSquaredLogarithmicErrorReadout",
+          task=regression.NodeMeanSquaredLogarithmicError(
+              READOUT_KEY,
+              units=3,
+              label_feature_name="labels"),
+          inputs=add_readout_from_first_node(context_readout_into_feature(
+              TEST_GRAPH_TENSOR)),
+          expected_gt=add_readout_from_first_node(
+              context_readout_into_feature(TEST_GRAPH_TENSOR)),
+          expected_labels=tf.constant((.8, .1, .9, .1))),
+      dict(
+          testcase_name="NodeMeanSquaredLogScaledErrorLabelFn",
+          task=regression.NodeMeanSquaredLogScaledError(
+              READOUT_KEY,
               units=2,
               label_fn=label_fn),
-          inputs=TEST_GRAPH_TENSOR,
-          expected_gt=TEST_GRAPH_TENSOR.remove_features(context=("labels",)),
+          inputs=add_readout_from_first_node(TEST_GRAPH_TENSOR),
+          expected_gt=add_readout_from_first_node(
+              TEST_GRAPH_TENSOR.remove_features(context=("labels",))),
           expected_labels=tf.constant((.8, .1, .9, .1))),
       dict(
-          testcase_name="RootNodeMeanAbsoluteLogarithmicErrorReadout",
-          task=regression.RootNodeMeanAbsoluteLogarithmicError(
-              node_set_name="nodes",
+          testcase_name="NodeMeanSquaredLogScaledErrorReadout",
+          task=regression.NodeMeanSquaredLogScaledError(
+              READOUT_KEY,
               units=2,
               label_feature_name="labels"),
-          inputs=with_readout(TEST_GRAPH_TENSOR),
-          expected_gt=with_readout(TEST_GRAPH_TENSOR),
+          inputs=add_readout_from_first_node(context_readout_into_feature(
+              TEST_GRAPH_TENSOR)),
+          expected_gt=add_readout_from_first_node(
+              context_readout_into_feature(TEST_GRAPH_TENSOR)),
           expected_labels=tf.constant((.8, .1, .9, .1))),
   ])
   def test_preprocess(
@@ -269,7 +358,6 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               label_fn=label_fn),
           gt=TEST_GRAPH_TENSOR,
-          expected_activation="linear",
           expected_loss=tf.keras.losses.MeanAbsoluteError,
           expected_shape=tf.TensorShape((None, 1))),
       dict(
@@ -277,8 +365,7 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           task=regression.GraphMeanAbsolutePercentageError(
               "nodes",
               label_feature_name="labels"),
-          gt=with_readout(TEST_GRAPH_TENSOR),
-          expected_activation="linear",
+          gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_loss=tf.keras.losses.MeanAbsolutePercentageError,
           expected_shape=tf.TensorShape((None, 1))),
       dict(
@@ -287,7 +374,6 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               label_fn=label_fn),
           gt=TEST_GRAPH_TENSOR,
-          expected_activation="linear",
           expected_loss=tf.keras.losses.MeanSquaredError,
           expected_shape=tf.TensorShape((None, 1))),
       dict(
@@ -296,8 +382,7 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               units=3,
               label_feature_name="labels"),
-          gt=with_readout(TEST_GRAPH_TENSOR),
-          expected_activation="linear",
+          gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_loss=tf.keras.losses.MeanSquaredLogarithmicError,
           expected_shape=tf.TensorShape((None, 3))),
       dict(
@@ -307,7 +392,6 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
               units=2,
               label_fn=label_fn),
           gt=TEST_GRAPH_TENSOR,
-          expected_activation="linear",
           expected_loss=regression.MeanSquaredLogScaledError,
           expected_shape=tf.TensorShape((None, 2))),
       dict(
@@ -315,8 +399,7 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           task=regression.RootNodeMeanAbsoluteError(
               "nodes",
               label_feature_name="labels"),
-          gt=with_readout(TEST_GRAPH_TENSOR),
-          expected_activation="linear",
+          gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_loss=tf.keras.losses.MeanAbsoluteError,
           expected_shape=tf.TensorShape((None, 1))),
       dict(
@@ -325,7 +408,6 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               label_fn=label_fn),
           gt=TEST_GRAPH_TENSOR,
-          expected_activation="linear",
           expected_loss=tf.keras.losses.MeanAbsolutePercentageError,
           expected_shape=tf.TensorShape((None, 1))),
       dict(
@@ -333,8 +415,7 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           task=regression.RootNodeMeanSquaredError(
               "nodes",
               label_feature_name="labels"),
-          gt=with_readout(TEST_GRAPH_TENSOR),
-          expected_activation="linear",
+          gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_loss=tf.keras.losses.MeanSquaredError,
           expected_shape=tf.TensorShape((None, 1))),
       dict(
@@ -344,7 +425,6 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
               units=3,
               label_fn=label_fn),
           gt=TEST_GRAPH_TENSOR,
-          expected_activation="linear",
           expected_loss=tf.keras.losses.MeanSquaredLogarithmicError,
           expected_shape=tf.TensorShape((None, 3))),
       dict(
@@ -353,26 +433,59 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               units=2,
               label_feature_name="labels"),
-          gt=with_readout(TEST_GRAPH_TENSOR),
-          expected_activation="linear",
+          gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_loss=regression.MeanSquaredLogScaledError,
           expected_shape=tf.TensorShape((None, 2))),
       dict(
-          testcase_name="RootNodeMeanAbsoluteLogarithmicError",
-          task=regression.RootNodeMeanAbsoluteLogarithmicError(
-              node_set_name="nodes",
-              units=2,
+          testcase_name="NodeMeanAbsoluteError",
+          task=regression.NodeMeanAbsoluteError(
+              READOUT_KEY,
+              label_feature_name="labels"),
+          gt=add_readout_from_first_node(
+              context_readout_into_feature(TEST_GRAPH_TENSOR)),
+          expected_loss=tf.keras.losses.MeanAbsoluteError,
+          expected_shape=tf.TensorShape((None, 1))),
+      dict(
+          testcase_name="NodeMeanAbsolutePercentageError",
+          task=regression.NodeMeanAbsolutePercentageError(
+              READOUT_KEY,
               label_fn=label_fn),
-          gt=TEST_GRAPH_TENSOR,
-          expected_activation="relu",
-          expected_loss=regression.MeanAbsoluteLogarithmicErrorLoss,
+          gt=add_readout_from_first_node(TEST_GRAPH_TENSOR),
+          expected_loss=tf.keras.losses.MeanAbsolutePercentageError,
+          expected_shape=tf.TensorShape((None, 1))),
+      dict(
+          testcase_name="NodeMeanSquaredError",
+          task=regression.NodeMeanSquaredError(
+              READOUT_KEY,
+              label_feature_name="labels"),
+          gt=add_readout_from_first_node(
+              context_readout_into_feature(TEST_GRAPH_TENSOR)),
+          expected_loss=tf.keras.losses.MeanSquaredError,
+          expected_shape=tf.TensorShape((None, 1))),
+      dict(
+          testcase_name="NodeMeanSquaredLogarithmicError",
+          task=regression.NodeMeanSquaredLogarithmicError(
+              READOUT_KEY,
+              units=3,
+              label_fn=label_fn),
+          gt=add_readout_from_first_node(TEST_GRAPH_TENSOR),
+          expected_loss=tf.keras.losses.MeanSquaredLogarithmicError,
+          expected_shape=tf.TensorShape((None, 3))),
+      dict(
+          testcase_name="NodeMeanSquaredLogScaledError",
+          task=regression.NodeMeanSquaredLogScaledError(
+              READOUT_KEY,
+              units=2,
+              label_feature_name="labels"),
+          gt=add_readout_from_first_node(
+              context_readout_into_feature(TEST_GRAPH_TENSOR)),
+          expected_loss=regression.MeanSquaredLogScaledError,
           expected_shape=tf.TensorShape((None, 2))),
   ])
   def test_predict(
       self,
       task: interfaces.Task,
       gt: GraphTensor,
-      expected_activation: str,
       expected_loss: Type[tf.keras.losses.Loss],
       expected_shape: tf.TensorShape):
     # Assert head readout, activation and shape.
@@ -382,11 +495,15 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
     self.assertIsInstance(model.layers[0], tf.keras.layers.InputLayer)
     self.assertIsInstance(
         model.layers[1],
-        (tfgnn.keras.layers.ReadoutFirstNode, tfgnn.keras.layers.Pool))
+        (
+            tfgnn.keras.layers.ReadoutFirstNode,
+            tfgnn.keras.layers.Pool,
+            tfgnn.keras.layers.StructuredReadout,
+        ),
+    )
     self.assertIsInstance(model.layers[2], tf.keras.layers.Dense)
 
     _, _, dense = model.layers
-    self.assertEqual(dense.get_config()["activation"], expected_activation)
     self.assertTrue(expected_shape.is_compatible_with(dense.output_shape))
 
     # Assert losses.
@@ -405,7 +522,7 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           task=regression.GraphMeanAbsolutePercentageError(
               "nodes",
               label_feature_name="labels"),
-          gt=with_readout(TEST_GRAPH_TENSOR)),
+          gt=context_readout_into_feature(TEST_GRAPH_TENSOR)),
       dict(
           testcase_name="GraphMeanSquaredError",
           task=regression.GraphMeanSquaredError(
@@ -418,7 +535,7 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               units=3,
               label_feature_name="labels"),
-          gt=with_readout(TEST_GRAPH_TENSOR)),
+          gt=context_readout_into_feature(TEST_GRAPH_TENSOR)),
       dict(
           testcase_name="GraphMeanSquaredLogScaledError",
           task=regression.GraphMeanSquaredLogScaledError(
@@ -431,7 +548,7 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           task=regression.RootNodeMeanAbsoluteError(
               "nodes",
               label_feature_name="labels"),
-          gt=with_readout(TEST_GRAPH_TENSOR)),
+          gt=context_readout_into_feature(TEST_GRAPH_TENSOR)),
       dict(
           testcase_name="RootNodeMeanAbsolutePercentageError",
           task=regression.RootNodeMeanAbsolutePercentageError(
@@ -443,7 +560,7 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           task=regression.RootNodeMeanSquaredError(
               "nodes",
               label_feature_name="labels"),
-          gt=with_readout(TEST_GRAPH_TENSOR)),
+          gt=context_readout_into_feature(TEST_GRAPH_TENSOR)),
       dict(
           testcase_name="RootNodeMeanSquaredLogarithmicError",
           task=regression.RootNodeMeanSquaredLogarithmicError(
@@ -457,14 +574,42 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
               "nodes",
               units=2,
               label_feature_name="labels"),
-          gt=with_readout(TEST_GRAPH_TENSOR)),
+          gt=context_readout_into_feature(TEST_GRAPH_TENSOR)),
       dict(
-          testcase_name="RootNodeMeanAbsoluteLogarithmicError",
-          task=regression.RootNodeMeanAbsoluteLogarithmicError(
-              node_set_name="nodes",
-              units=2,
+          testcase_name="NodeMeanAbsoluteError",
+          task=regression.NodeMeanAbsoluteError(
+              READOUT_KEY,
+              label_feature_name="labels"),
+          gt=add_readout_from_first_node(
+              context_readout_into_feature(TEST_GRAPH_TENSOR))),
+      dict(
+          testcase_name="NodeMeanAbsolutePercentageError",
+          task=regression.NodeMeanAbsolutePercentageError(
+              READOUT_KEY,
               label_fn=label_fn),
-          gt=TEST_GRAPH_TENSOR),
+          gt=add_readout_from_first_node(TEST_GRAPH_TENSOR)),
+      dict(
+          testcase_name="NodeMeanSquaredError",
+          task=regression.NodeMeanSquaredError(
+              READOUT_KEY,
+              label_feature_name="labels"),
+          gt=add_readout_from_first_node(
+              context_readout_into_feature(TEST_GRAPH_TENSOR))),
+      dict(
+          testcase_name="NodeMeanSquaredLogarithmicError",
+          task=regression.NodeMeanSquaredLogarithmicError(
+              READOUT_KEY,
+              units=3,
+              label_fn=label_fn),
+          gt=add_readout_from_first_node(TEST_GRAPH_TENSOR)),
+      dict(
+          testcase_name="NodeMeanSquaredLogScaledError",
+          task=regression.NodeMeanSquaredLogScaledError(
+              READOUT_KEY,
+              units=2,
+              label_feature_name="labels"),
+          gt=add_readout_from_first_node(
+              context_readout_into_feature(TEST_GRAPH_TENSOR))),
   ])
   def test_fit(
       self,
