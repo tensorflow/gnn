@@ -374,8 +374,7 @@ class GraphBinaryClassification(_GraphClassification, _BinaryClassification):
                reduce_type: str = "mean",
                name: str = "classification_logits",
                label_fn: Optional[LabelFn] = None,
-               label_feature_name: Optional[str] = None,
-               **kwargs):
+               label_feature_name: Optional[str] = None):
     """Graph binary (or multi-label) classification.
 
     This task performs binary classification (or multiple independent ones:
@@ -395,7 +394,6 @@ class GraphBinaryClassification(_GraphClassification, _BinaryClassification):
       label_feature_name: A label feature name for readout from the auxiliary
         '_readout' node set. Readout does not mutate the input `GraphTensor`.
         Mutually exclusive with `label_fn`.
-      **kwargs: Additional keyword arguments.
     """
     super().__init__(
         node_set_name,
@@ -404,8 +402,7 @@ class GraphBinaryClassification(_GraphClassification, _BinaryClassification):
         reduce_type=reduce_type,
         name=name,
         label_fn=label_fn,
-        label_feature_name=label_feature_name,
-        **kwargs)
+        label_feature_name=label_feature_name)
 
 
 class GraphMulticlassClassification(_GraphClassification,
@@ -422,8 +419,7 @@ class GraphMulticlassClassification(_GraphClassification,
                reduce_type: str = "mean",
                name: str = "classification_logits",
                label_fn: Optional[LabelFn] = None,
-               label_feature_name: Optional[str] = None,
-               **kwargs):
+               label_feature_name: Optional[str] = None):
     """Graph multiclass classification from pooled node states.
 
     Args:
@@ -443,7 +439,6 @@ class GraphMulticlassClassification(_GraphClassification,
       label_feature_name: A label feature name for readout from the auxiliary
         '_readout' node set. Readout does not mutate the input `GraphTensor`.
         Mutually exclusive with `label_fn`.
-      **kwargs: Additional keyword arguments.
     """
     super().__init__(
         node_set_name,
@@ -454,8 +449,7 @@ class GraphMulticlassClassification(_GraphClassification,
         reduce_type=reduce_type,
         name=name,
         label_fn=label_fn,
-        label_feature_name=label_feature_name,
-        **kwargs)
+        label_feature_name=label_feature_name)
 
 
 class RootNodeBinaryClassification(_RootNodeClassification,
@@ -469,8 +463,7 @@ class RootNodeBinaryClassification(_RootNodeClassification,
                state_name: str = tfgnn.HIDDEN_STATE,
                name: str = "classification_logits",
                label_fn: Optional[LabelFn] = None,
-               label_feature_name: Optional[str] = None,
-               **kwargs):
+               label_feature_name: Optional[str] = None):
     """Root node binary (or multi-label) classification.
 
     This task performs binary classification (or multiple independent ones:
@@ -493,7 +486,6 @@ class RootNodeBinaryClassification(_RootNodeClassification,
       label_feature_name: A label feature name for readout from the auxiliary
         '_readout' node set. Readout does not mutate the input `GraphTensor`.
         Mutually exclusive with `label_fn`.
-      **kwargs: Additional keyword arguments.
     """
     super().__init__(
         node_set_name,
@@ -501,8 +493,7 @@ class RootNodeBinaryClassification(_RootNodeClassification,
         state_name=state_name,
         name=name,
         label_fn=label_fn,
-        label_feature_name=label_feature_name,
-        **kwargs)
+        label_feature_name=label_feature_name)
 
 
 class RootNodeMulticlassClassification(_RootNodeClassification,
@@ -518,8 +509,7 @@ class RootNodeMulticlassClassification(_RootNodeClassification,
                state_name: str = tfgnn.HIDDEN_STATE,
                name: str = "classification_logits",
                label_fn: Optional[LabelFn] = None,
-               label_feature_name: Optional[str] = None,
-               **kwargs):
+               label_feature_name: Optional[str] = None):
     """Root node multiclass classification.
 
     This task can be used on graph datasets without a readout structure.
@@ -542,7 +532,6 @@ class RootNodeMulticlassClassification(_RootNodeClassification,
       label_feature_name: A label feature name for readout from the auxiliary
         '_readout' node set. Readout does not mutate the input `GraphTensor`.
         Mutually exclusive with `label_fn`.
-      **kwargs: Additional keyword arguments.
     """
     super().__init__(
         node_set_name,
@@ -552,8 +541,7 @@ class RootNodeMulticlassClassification(_RootNodeClassification,
         state_name=state_name,
         name=name,
         label_fn=label_fn,
-        label_feature_name=label_feature_name,
-        **kwargs)
+        label_feature_name=label_feature_name)
 
 
 class NodeBinaryClassification(_NodeClassification, _BinaryClassification):
@@ -568,8 +556,7 @@ class NodeBinaryClassification(_NodeClassification, _BinaryClassification):
                validate: bool = True,
                name: str = "classification_logits",
                label_fn: Optional[LabelFn] = None,
-               label_feature_name: Optional[str] = None,
-               **kwargs):
+               label_feature_name: Optional[str] = None):
     """Node binary (or multi-label) classification.
 
     This task performs binary classification (or multiple independent ones:
@@ -595,7 +582,6 @@ class NodeBinaryClassification(_NodeClassification, _BinaryClassification):
       label_feature_name: A label feature name for readout from the auxiliary
         '_readout' node set. Readout does not mutate the input `GraphTensor`.
         Mutually exclusive with `label_fn`.
-      **kwargs: Additional keyword arguments.
     """
     super().__init__(
         key,
@@ -605,8 +591,7 @@ class NodeBinaryClassification(_NodeClassification, _BinaryClassification):
         validate=validate,
         name=name,
         label_fn=label_fn,
-        label_feature_name=label_feature_name,
-        **kwargs)
+        label_feature_name=label_feature_name)
 
 
 class NodeMulticlassClassification(_NodeClassification,
@@ -624,8 +609,7 @@ class NodeMulticlassClassification(_NodeClassification,
                per_class_statistics: bool = False,
                name: str = "classification_logits",
                label_fn: Optional[LabelFn] = None,
-               label_feature_name: Optional[str] = None,
-               **kwargs):
+               label_feature_name: Optional[str] = None):
     """Node multiclass classification via structured readout.
 
     Args:
@@ -651,7 +635,6 @@ class NodeMulticlassClassification(_NodeClassification,
       label_feature_name: A label feature name for readout from the auxiliary
         '_readout' node set. Readout does not mutate the input `GraphTensor`.
         Mutually exclusive with `label_fn`.
-      **kwargs: Additional keyword arguments.
     """
     super().__init__(
         key,
@@ -663,5 +646,4 @@ class NodeMulticlassClassification(_NodeClassification,
         per_class_statistics=per_class_statistics,
         name=name,
         label_fn=label_fn,
-        label_feature_name=label_feature_name,
-        **kwargs)
+        label_feature_name=label_feature_name)
