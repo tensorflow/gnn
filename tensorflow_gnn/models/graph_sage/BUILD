@@ -14,10 +14,7 @@ pytype_strict_library(
     name = "graph_sage",
     srcs = ["__init__.py"],
     srcs_version = "PY3",
-    visibility = [
-        ":__subpackages__",
-        ":users",
-    ],
+    visibility = [":users"],
     deps = [
         ":layers",
         "//tensorflow_gnn/utils:api_utils",
