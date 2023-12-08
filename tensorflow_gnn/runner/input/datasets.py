@@ -27,7 +27,7 @@ def _process_dataset(
     shuffle_dataset: bool = False,
     interleave_fn: Callable[..., tf.data.Dataset],
     examples_shuffle_size: Optional[int] = None) -> tf.data.Dataset:
-  """Implements `SimpleDatasetsProvider.get_dataset(...)`.
+  """Implements `SimpleDatasetProvider.get_dataset(...)`.
 
   Args:
     dataset: A `tf.data.Dataset` to process.
@@ -60,7 +60,7 @@ class PassthruDatasetProvider(interfaces.DatasetProvider):
   """Builds a `tf.data.Dataset` from a pass thru dataset.
 
   Passes any `dataset` thru: omitting any sharding. For detailed documentation,
-  see the filename dataset provider complement: `SimpleDatasetsProvider.`
+  see the filename dataset provider complement: `SimpleDatasetProvider.`
   """
 
   def __init__(self,
