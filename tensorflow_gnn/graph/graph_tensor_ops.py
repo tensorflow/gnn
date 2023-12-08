@@ -786,6 +786,8 @@ def _connect_line_graph_with_original(
       )
       continue
 
+    # TODO: b/312937672 - Guarantee (and test) the edge order.
+
     line_edge_sets[
         f'original/from/{edge_set_name}'
     ] = gt.EdgeSet.from_fields(
