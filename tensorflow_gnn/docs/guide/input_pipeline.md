@@ -28,8 +28,9 @@ input pipeline. For rapid experimentation, we recommend starting with the
 TF-GNN follows TensorFlow's general approach to store training data on disk as
 records of serialized tf.Example protocol buffers, which are read into a
 `tf.data.Dataset` and streamed through series of transformations, such as
-shuffling and batching (covered by the tf.data documentation), parsing tensor
-values, and applying problem-specific feature transformations.
+shuffling and batching
+(covered by the [tf.data documentation](https://www.tensorflow.org/guide/data)),
+parsing tensor values, and applying problem-specific feature transformations.
 
 A [`tfgnn.GraphTensor`](../api_docs/python/tfgnn/GraphTensor.md) is
 a composite tensor (like `tf.SparseTensor` or `tf.RaggedTensor`),
@@ -103,7 +104,7 @@ buffered Dataset than synchronously inside the training loop. Also, some
 accelerators (notably TPUs) do not allow variable-length or string data inside
 the trained model. For example, to represent a categorical string feature with
 a trained embedding, the preprocessing of the dataset maps strings to indices,
-and the main model looks up the index in the trained embedding table.
+and the main model looks up each index in the trained embedding table.
 
 For inference, the story is different: The trainer exports one SavedModel, and
 it depends on the inference platform how much of the preprocessing it should
@@ -160,37 +161,23 @@ serving_input = tf.keras.layers.Input(shape=[],  # The batch dim is implied.
 preproc_input = tfgnn.keras.layers.ParseExample(example_input_spec)(serving_input)
 serving_model_input, _ = preproc_model(preproc_input)  # Drop labels.
 serving_logits = model(serving_model_input)
-serving_output = {"logits": tf.keras.layers.Layer(name="logits")(serving_logits)}
+serving_output = {"logits": serving_logits}
 exported_model = tf.keras.Model(serving_input, serving_output)
-exported_model.save("/tmp/exported_keras_model", include_optimizer=False)
+exported_model.export("/tmp/my_exported_model")
 ```
 
 This recipe can be varied according to the needs of the deployment platform.
 
-The following sections of this document fills in the missing details regarding
+From TensorFlow 2.13 onwards, `Model.export()` should cover most use-cases of
+exporting to inference. It creates a default serving signature that names inputs
+by their `Input()` type specs (above: `"examples"`) and outputs by their dict
+keys (above: `"logits"`). If you need to dig deeper, consult our
+[Model saving](model_saving.md) guide.
+
+The following sections of this document fill in the missing details regarding
 `preproc_model`. Building the main `model` is discussed in the separate
 [TF-GNN modeling guide](gnn_modeling.md), including the creation of initial
 hidden states of the GNN from input features.
-
-About the exported model, there is not much to say: It's a Keras SavedModel,
-with serialized tf.Examples as inputs and a dict of predictions as outputs. As
-usual, there are three ways to use the SavedModel:
-
-  * Restoring as a TensorFlow SavedModel in terms of SignatureDefs, as done by
-    TF Serving and other C++ environments: this works as always. TF-GNN does not
-    bring in any custom ops (as of May 2022); all its functionality is
-    implemented in Python in terms of standard TF ops.
-  * Restoring into a Python environment with `tf.saved_model.load()` as nested
-    objects with tf.functions or with `tf.keras.models.load_model()` as a
-    fully-fledged Keras model: this requires a compatible version of the TF-GNN
-    library to be imported up-front, in order to define the GraphTensor type
-    and, for the latter case, TF-GNN's Keras layers.
-
-By the way, the odd duplication of `"logits"` in the dict of `serving_outputs`
-above is unrelated to TF-GNN: It addresses an oddity in TensorFlow whereby the
-result of `tf.saved_model.load()` expects a dict of inputs with the keys as
-given, while the SignatureDef seen by TF Serving uses the name of the last layer
-as its keys.
 
 
 ## Feature preprocessing

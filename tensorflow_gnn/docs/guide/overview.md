@@ -54,6 +54,10 @@ The following docs go deeper into particular topics.
     models and a toolbox for writing your own. Users of the TF-GNN Runner
     are encouraged to consult this page to define custom models in the Runner.
 
+  * The [Model saving](model_saving.md) guide covers technical details of
+    saving TF-GNN models. (Most users of TF/Keras 2.13+ should be fine calling
+    `tf.keras.Model.export()` without looking here.)
+
 ## Colab Tutorials
 
 These Colab notebooks run complete examples of building and training a TF-GNN
