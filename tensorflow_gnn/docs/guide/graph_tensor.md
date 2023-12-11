@@ -429,6 +429,11 @@ each.
     (and possibly also edges or context). TF-GNN comes with pre-defined layers
     of that kind and a framework to build more.
 
+    The first layer of a `Sequential` model on `tfgnn.GraphTensor` must be
+    `tf.keras.Input(type_spec=graph_tensor_spec)` to declare the input type.
+    This is true for any composite tensor type, even though the `Input` layer
+    is optional for a plain `tf.Tensor` input.
+
   * Keras' [Functional API](https://www.tensorflow.org/guide/keras/functional)
     lets you compose layers in more advanced ways, by calling Keras Layer
     objects on symbolic tensors (that is, placeholders for future values).

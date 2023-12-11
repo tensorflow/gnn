@@ -56,6 +56,7 @@ class ConvGNNBuilder:
 
   # Two rounds of message passing to target node sets:
   model = tf.keras.models.Sequential([
+      tf.keras.Input(type_spec=graph_tensor_spec),
       gnn.Convolve({"a", "b", "c"}),  # equivalent to gnn.Convolve()
       gnn.Convolve({"c"}),
   ])

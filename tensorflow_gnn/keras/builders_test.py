@@ -171,7 +171,7 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters(
       ("Baseline", tftu.ModelReloading.SKIP, False),
       ("SavedModel", tftu.ModelReloading.SAVED_MODEL, False),
-      # ("Keras", tftu.ModelReloading.KERAS, False),  # Broken by b/312397856.
+      ("Keras", tftu.ModelReloading.KERAS, False),
       ("SavedModelFunctional", tftu.ModelReloading.SAVED_MODEL, True),
       ("KerasFunctional", tftu.ModelReloading.KERAS, True))
   def testModelSaving(self, model_reloading, use_functional_api):
@@ -206,7 +206,11 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
       outputs = graph_update_2(graph_update_1(inputs))
       model = tf.keras.Model(inputs, outputs)
     else:
-      model = tf.keras.models.Sequential([graph_update_1, graph_update_2])
+      model = tf.keras.models.Sequential([
+          tf.keras.layers.Input(type_spec=input_graph.spec),
+          graph_update_1,
+          graph_update_2
+      ])
     _ = model(input_graph)  # Trigger weight building.
     model = tftu.maybe_reload_model(self, model, model_reloading, "builder")
 
@@ -248,6 +252,7 @@ class ConvGNNBuilderTest(tf.test.TestCase, parameterized.TestCase):
     gnn_builder = builders.ConvGNNBuilder(convolutions_factory,
                                           next_state_factory)
     model = tf.keras.models.Sequential([
+        tf.keras.Input(type_spec=input_graph.spec),
         gnn_builder.Convolve({"a", "c"}),
         gnn_builder.Convolve({"c"}),
     ])
