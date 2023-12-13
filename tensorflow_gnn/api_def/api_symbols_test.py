@@ -149,6 +149,8 @@ assert tfgnn.models.vanilla_mpnn is vanilla_mpnn
 del tfgnn.models.vanilla_mpnn
 del tfgnn.models
 
+# TODO(b/316135889): remove once fixed.
+del tfgnn.proto.graph_schema_pb2
 
 ##
 ## STEP 3: Recursively collect all module attributes exposed by the public API.

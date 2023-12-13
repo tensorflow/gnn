@@ -51,5 +51,13 @@ GraphType = graph_schema.GraphType
 OriginInfo = graph_schema.OriginInfo
 
 # Remove all names added by module imports, unless explicitly allowed here.
-api_utils.remove_submodules_except(__name__, [])
+api_utils.remove_submodules_except(
+    __name__,
+    [
+        # Workaround for Beam/pickle, required by
+        # `experimental/sampler/beam/sampler.py`.
+        # TODO(b/316135889): remove once fixed.
+        'graph_schema_pb2',
+    ],
+)
 # LINT.ThenChange()../api_def/tfgnn-symbols.txt)
