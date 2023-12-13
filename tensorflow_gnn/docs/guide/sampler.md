@@ -128,6 +128,7 @@ Beam direct runner.
 ```
 cd <path-to>/gnn/examples/sampler/creditcard
 python3 -m tensorflow_gnn.experimental.sampler.beam.sampler \
+  --data_path="." \
   --graph_schema graph_schema.pbtxt \
   --sampling_spec sampling_spec.pbtxt \
   --output_samples outputs/examples.tfrecord \
