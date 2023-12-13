@@ -5,8 +5,8 @@
 This code implements transformer-style (dot-product) multi-head attention,
 with different variants and optional attention score leaks.
 
-Some publications in the GNN context that either use this multi-head attention as
-a component ([1]&[2]) or a baseline ([3]) of their method:
+Some publications in the GNN context that either use this multi-head attention
+as a component ([1]&[2]) or a baseline ([3]) of their method:
 
 *   [1] Vijay Prakash Dwivedi, Xavier Bresson: ["A Generalization of Transformer
     Networks to Graphs"](https://arxiv.org/abs/2012.09699), 2021.
@@ -25,9 +25,11 @@ a component ([1]&[2]) or a baseline ([3]) of their method:
 TensorFlow programs can import and use this model as described in its
 [API docs](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/docs/api_docs/python/models/multi_head_attention.md).
 
-## Maintenance and stability for open-source users
+## API stability
 
-This code is being maintained together with the TF-GNN library.
-However, its API may change between library versions.
+The API of this model may change between OSS library versions.
+
+TF-GNN's [Model Template "Albis"](../mt_albis/README.md) offers a stable and
+simplified API for a subset of this model's configuration options.
 
 <!-- PLACEHOLDER FOR README GOOGLE EXTRAS -->

@@ -1,4 +1,7 @@
-# Vanilla MPNN (TF-GNN's basic model flavor)
+# Vanilla MPNN (TF-GNN's classic model flavor)
+
+**New users, please see [MtAlbis](../mt_albis/README.md) instead.***
+It is a more powerful superset of this model.
 
 ## Overview
 
@@ -41,10 +44,10 @@ The authors of this code found them to be a quite powerful baseline.
 TensorFlow programs can import and use this model as described in its
 [API docs](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/docs/api_docs/python/models/vanilla_mpnn.md).
 
+## API stability
 
-## Maintenance and stability for open-source users
-
-This code is being maintained together with the TF-GNN library.
-However, its API may change between library versions.
+This model is covered by [semantic
+versioning](https://semver.org/spec/v2.0.0.html) of TensorFlow GNN's
+open-source releases: new minor versions do not break existing users.
 
 <!-- PLACEHOLDER FOR README GOOGLE EXTRAS -->

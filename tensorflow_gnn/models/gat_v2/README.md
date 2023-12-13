@@ -11,7 +11,8 @@ This code implements Graph Attention Networks v2, originally published by
 TensorFlow programs can import and use it as described in its
 [API docs](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/docs/api_docs/python/models/gat_v2.md).
 
-## Maintenance and stability
+## API stability
 
-This code is experimental for now, with no promises of maintenance or stability,
-and no assigned maintainer. Use at your own risk.
+This model is covered by [semantic
+versioning](https://semver.org/spec/v2.0.0.html) of TensorFlow GNN's
+open-source releases: new minor versions do not break existing users.

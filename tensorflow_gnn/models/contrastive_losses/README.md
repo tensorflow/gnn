@@ -27,9 +27,8 @@ attributes (vs. its structure).
 TensorFlow programs can import and use this model as described in its
 [API docs](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/docs/api_docs/python/models/contrastive_losses.md).
 
-## Maintenance and stability for open-source users
+## API stability
 
-This code is being maintained together with the TF-GNN library.
-However, its API may change between library versions.
+The API of this model may change between OSS library versions.
 
 <!-- PLACEHOLDER FOR README GOOGLE EXTRAS -->

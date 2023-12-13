@@ -68,11 +68,14 @@ models carefully, relative to the non-attention baseline. Not all problems
 benefit from attention, even those that do may become more sensitive to skews
 between the training and inference distributions.
 
-## Maintenance and stability
+## API stability
 
-For now, this code is experimental, with no promises of stability yet.
-We intend to develop a stable version of `MtAlbis`, eventually freezing its
-selection of architectures. Further evolution of TF-GNN's model template
-would then happen under a new code name, `MtB...`.
+The public API of this model (`from tensorflow_gnn.models import mt_albis`)
+is covered by [semantic versioning](https://semver.org/spec/v2.0.0.html) of
+TensorFlow GNN's open-source releases: new minor versions do not break existing
+users.
+
+Major changes to the architecture or the like would happen under a new code name
+`MtB...`.
 
 <!-- PLACEHOLDER FOR README GOOGLE EXTRAS -->

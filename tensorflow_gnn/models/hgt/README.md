@@ -14,7 +14,6 @@ implemented by
 TensorFlow programs can import and use this model as described in its
 [API docs](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/docs/api_docs/python/models/hgt.md).
 
-## Maintenance and stability
+## API stability
 
-This code is experimental for now, with no promises of maintenance or stability,
-and no assigned maintainer. Use at your own risk.
+The API of this model may change between OSS library versions.

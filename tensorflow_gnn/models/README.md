@@ -9,26 +9,23 @@ libraries of their own.
 
 ### Usage
 
-If, for example, the hypothetical FancyNet model offered a convolution
-layer compatible with the standard NodeSetUpdate, its use would look like
+If, for example, the hypothetical FancyNet model offered a graph update layer,
+its use would look like
 
 ```python
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models import fancynet
 
-_ = tfgnn.keras.layers.NodeSetUpdate(
-    {"edges": fancynet.FancyConv(units=42, fanciness=0.99, ...)}, ...)
+graph = fancynet.FancyGraphUpdate(units=42, fanciness=0.99, ...)(graph)
 ```
 
 ...and require a separate dependency for `fancynet` in a BUILD file.
 
-### Maintenance and stability
+### API stability
 
-Each model comes with a README file that lists its maintainers and the intended
-level of stability and maintenance; please check before depending on it for
-anything beyond one-off experimentation. In particular, the API stability
-promises of TF-GNN releases do **not** extend to particular models, unless they
-say so in their README files.
+Each model comes with a README file that describes its intended level of
+API stability. Not all models are covered by the [semantic
+versioning](https://semver.org/spec/v2.0.0.html) of the TF-GNN package.
 
 ## List of Models
 
@@ -45,5 +42,5 @@ say so in their README files.
     of a few field-tested GNN architectures, generalizing VanillaMPNN.
   * [MultiHeadAttention](multi_head_attention/README.md): Transformer-style
     multi-head attention on graph (Dwivedi&Bresson, 2021).
-  * [VanillaMPNN](vanilla_mpnn/README.md): TF-GNN's frequently used baseline
-    model, based on (Gilmer&al., 2016).
+  * [VanillaMPNN](vanilla_mpnn/README.md): TF-GNN's classic baseline model,
+    based on (Gilmer&al., 2016).
