@@ -912,10 +912,4 @@ yourself.
 
 Homogeneous graphs in this context are simply a special case of heterogeneous
 graphs with a single set of nodes and a single set of edges. There is nothing
-special to do to support them. OBGN-ARXIV is another popular open-source
-citation network used for benchmarking but only consists of a single entity and
-edge type describing the links between `"papers"`. An example of running
-sampling on the OGBN-ARXIV dataset is given in
-[examples/arxiv](https://github.com/tensorflow/gnn/tree/main/examples/arxiv)
-which can be run following the same procedures described in the OGBN-MAG
-example.
+special to do to support them.
