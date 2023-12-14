@@ -6,8 +6,8 @@ The `tensorflow_gnn` library supports reading streams of `tf.train.Example`
 proto messages with all the contents of a graph, or subgraph, encoded in them.
 This document describes how to produce such a stream of encoded data using the
 library helper functions, details of the encoding (if you’d like to write your
-own graph data generator), and showcases a scalable sampling tool based on
-Apache Beam that we provide to sample from very large graphs.
+own graph data generator), and describes the steps required to prepare for
+graph sampling.
 
 ## Writing Graph Tensors to Files
 
@@ -577,21 +577,20 @@ prediction.)
 ## Graph Sampling
 
 As described in the [introduction](intro.md), many practically relevant graphs
-are very large (e.g., a large social network may have billions of nodes) and
-may not fit in memory, so this library resorts to sampling neighborhoods around
+are very large (e.g., a large social network may have billions of nodes) and may
+not fit in memory, so this library resorts to sampling neighborhoods around
 nodes which we want to train over (say, nodes with associated ground truth
-labels). The library comes with a sampler tool written in Apache Beam that
-stores sampled subgraphs encoded as `tf.train.Example` proto messages in sharded
-output files. This is the format we produce for training datasets from data
-preparation jobs.
-
+labels). The library comes with a [Beam Sampler](beam_sampler.md) written in
+Apache Beam that stores sampled subgraphs encoded as `tf.train.Example` proto
+messages in sharded output files. This is the format we produce for training
+datasets from data preparation jobs.
 
 ### Input Graph Format
 
 The graph sampler accepts graphs in a simple data format we call “unigraph.”
 This data format supports very large, homogeneous and heterogeneous graphs with
 variable number of node sets and edge sets. In order to use the graph sampler
-tool we provide, you need to convert your graph in the unigraph format.
+we provide, you need to convert your graph in the unigraph format.
 
 A unigraph dataset is defined by a central text-formatted protocol buffer
 message that describes the topology of the graph using the same `GraphSchema`
@@ -662,7 +661,7 @@ read out is not useful as a seed node for sampling.
 Hence training with sampled subgraphs usually implies that readout happens
 precisely from the seed node of each input graph.
 
-As of this writing (July 2023), the sampler tool does not yet create an
+As of this writing (July 2023), the Beam sampler does not yet create an
 explicit `"_readout"` node set. Instead, it samples each subgraph from a single
 seed node, always from the same node set, and stores the seed as the first node
 of that node set. It falls on the model to know that special node set and read
@@ -895,205 +894,13 @@ Which specifies the following sampling procedure:
 5.   For every `"author"` sample up to 16 `"affiliated_with"` edges.
 6.   For every paper sample up to 16 `"has_topic"` edges.
 
-NOTE: By default the Graph Sampler samples **edges** from the graph. This allows
+NOTE: Graph Sampler samples **edges** from the graph. This allows
 to better control complexity even for dense graphs with large-degree nodes.
-For some applications it is desired to include all edges from the original graph
-that connect sampled nodes by setting
-`--edge_aggregation_method=node`.
 
 ##### Apache Beam and Google Cloud Dataflow
 
-The TF-GNN Graph Sampler is written in [Apache Beam](https://beam.apache.org/),
-an open-source SDK for expressing
-[Dataflow-Model](https://research.google/pubs/pub43864/) data processing
-pipelines with support for multiple infrastructure backends.
-
-[Google Cloud Platform (GCP)](https://cloud.google.com/) is Google's cloud
-computing service and [Dataflow](https://cloud.google.com/dataflow) is GCP's
-service for executing Beam pipelines at scale. The two main abstractions defined
-by Apache Beam of concern are:
-
--   [Pipelines](https://beam.apache.org/documentation/programming-guide/#creating-a-pipeline):
-    computational steps expressed as a DAG (Directed Acyclic Graph)
--   [Runners](https://beam.apache.org/documentation/runners/capability-matrix/):
-    Environments for running Beam Pipelines
-
-A client writes an Apache Beam Pipeline and, at runtime, specifies a Runner to
-define the compute environment in which the pipeline will execute. The simplest
-Beam runner is the
-[DirectRunner](https://beam.apache.org/documentation/runners/direct/) which
-executes Beam pipelines on local hardware. *Only* use the DirectRunner for small
-scale development and testing. Google provides a runner implementation named
-[DataflowRunner](https://beam.apache.org/documentation/runners/dataflow/) that
-enables clients to connect to a GCP project and execute a Beam pipeline on GCP
-hardware through the Dataflow service.
-
-Distributed compute services like Dataflow typically follow a Manager/Worker
-architecture where machines performing distributed computations need to be able
-to import common definitions, libraries and serialize/deserialize data. An easy
-way to ensure that all machines executing the Beam pipeline have a consistent
-software environment is to provide generate a [Docker](https://www.docker.com/)
-image that can be pulled by every Beam worker.
-
-TF-GNN provides a
-[Dockerfile](https://github.com/tensorflow/gnn/blob/main/Dockerfile) which can
-be used to build a consistent compute environment for running TFGNN
-applications. Docker images can be leveraged by machines in a GCP project by
-pushing the image to
-[Google Container Registry](https://cloud.google.com/container-registry) or the
-[Google Artifact Registry](https://cloud.google.com/artifact-registry). Assuming
-a user has a GCP project with a name stored in the environment variable
-`GOOGLE_CLOUD_PROJECT` and Docker installed on their local machine, a TFGNN
-image may be built from the root of the TFNN project and pushed to their
-container registry with something like:
-
-```shell
-docker build . -t tfgnn:latest -t gcr.io/${GOOGLE_CLOUD_PROJECT}/tfgnn:latest
-docker push gcr.io/${GOOGLE_CLOUD_PROJECT}/tfgnn:latest
-```
-
-Alternatively, the container could be built on Google Cloud with
-[Google Cloud Build](https://cloud.google.com/build) and automatically be added
-to the container registry without the push though the client would want to
-`docker pull` the image down to their machine to execute commands within a
-running container.
-
-The graph (in unigraph format) with it's graph schema need to be hosted at a
-location accessible by Dataflow workers. Likewise, the target output location
-must writable by Dataflow workers. The simplest solution is to host the unigraph
-in on [Google Cloud Storage (GCS)](https://cloud.google.com/storage/) and set
-the output to be a sharded fileset also hosted on GCS.
-
-A user will need credentials to connect to the appropriate GCP
-project and start Dataflow jobs. Default application credentials are
-sufficient for a small isolated project and running batch sampling jobs but
-production environments will probably want to create custom service accounts.
-
-Default application credentials can be acquired by running:
-
-```shell
-gcloud auth application-default login
-```
-
-After following the instructions to complete authentication, a JSON file will be
-created and placed (typically) at
-`~/.config/gcloud/application_default_credentials.json`.
-
-Additionally, Docker should be installed on the host machine. Users could
-potentially install python and TFGNN locally but it is easiest to use the Docker
-container to instantiate the Dataflow job especially as the python version of
-the job starting the Dataflow job and the version of python running the workers
-must match (a Dataflow constraint). Using docker locally to start (or even to
-develop) ensures the execution environment of the host exactly matches the
-environment of the Dataflow worker machines.
-
-Let the root of the local TF-GNN repo be `TFGNN_REPO` and the name of the GCP
-project be represented as `GOOGLE_CLOUD_PROJECT`. The following commands build
-the TF-GNN docker image and pushes it to GCR.
-
-```shell
-cd $TFGNN_REPO
-docker build . -t tfgnn:latest -t gcr.io/${GOOGLE_CLOUD_PROJECT}/tfgnn:latest
-docker push gcr.io/${GOOGLE_CLOUD_PROJECT}/tfgnn:latest
-```
-
-The following will start a docker container running the `tfgnn:latest` image,
-download the OGBN-MAG dataset *to the host machine*, convert it to unigraph
-format and save artifacts to the host `/tmp/data/ogbn-mag/graph` folder:
-
-```shell
-[./examples/mag/download_and_format.sh](https://github.com/tensorflow/gnn/blob/main/examples/mag/download_and_format.sh)
-```
-
-The above command starts Docker container running the `tfgnn:latest` image, and
-mounts the users local `/tmp` directory to `/tmp` in the container's filesystem.
-The tfgnn_convert_ogb_dataset tool is run within the container which downloads
-and converts the OGBN-MAG graph. At the completion of this command, the
-container will be brought down but the unigraph representation of OBGN-MAG will
-persist on the host machine at `/tmp/data/ogbn-mag/graph`. To move this data to
-GCS, create a GCS bucket (if one doesn't already exist). Assuming
-`GOOGLE_CLOUD_BUCKET` holds the desired name of the bucket:
-
-```shell
-gcloud mb gs://${GOOGLE_CLOUD_BUCKET}
-```
-
-will create the bucket and the following will copy the unigraph to GCS:
-
-```shell
-gsutil cp -m /tmp/data/ogbn-mag/graph
-gs://${GOOGLE_CLOUD_BUCKET}/tfgnn/mag
-```
-
-[examples/mag/sample_dataflow.sh](https://github.com/tensorflow/gnn/blob/main/examples/mag/sample_dataflow.sh)
-provides a template that a user can fill-in with appropriate values and launch
-the sampling job on Dataflow. However, it is worth discussing the details of the
-shell script.
-
-```shell
-MAX_NUM_WORKERS=1000
-
-SAMPLING_SPEC="/app/examples/mag/sampling_spec.pbtxt"
-GRAPH_SCHEMA="/app/examples/mag/schema.pbtxt"
-TEMP_LOCATION="gs://${GOOGLE_CLOUD_BUCKET}/tmp"
-OUTPUT_SAMPLES="gs://${GOOGLE_CLOUD_BUCKET}/mag-samples@100"
-REGION=us-east1  # or other desired value.
-
-# remember to build/push.
-TFGNN_IMAGE="gs://${GOOGLE_CLOUD_PROJECT}/tfgnn:latest"
-GCP_VPC_NAME="your-network-name"
-JOB_NAME="tfgnn_mag_sampling"
-
-docker run -v ~/.config/gcloud:/root/.config/gcloud \
-  -e "GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}" \
-  -e "GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json" \
- --entrypoint tfgnn_graph_sampler \
-  tfgnn:latest \
-  --graph_schema="${GRAPH_SCHEMA}" \
-  --sampling_spec="${SAMPLING_SPEC}" \
-  --output_samples="${OUTPUT_SAMPLES}" \
-  --runner=DataflowRunner \
-  --dataflow_service_options=enable_prime \
-  --project=${GOOGLE_CLOUD_PROJECT} \
-  --region=${REGION} \
-  --max_num_workers="${MAX_NUM_WORKERS}" \
-  --temp_location="${TEMP_LOCATION}" \
-  --job_name="${JOB_NAME}" \
-  --no_use_public_ips \
-  --network="${GCP_VPC_NAME}" \
-  --experiments=shuffle_mode=service \
-  --experiments=use_monitoring_state_manager \
-  --experiments=enable_execution_details_collection \
-  --experiment=use_runner_v2 \
-  --worker_harness_container_image=${TFGNN_IMAGE} \
-  --alsologtostderr
-```
-
-The `-v ~/.config/gcloud:/root/.config/gcloud` argument injects the host's
-`~/.config/gcloud` directory into the chrooted filesystem of the spawned
-container at `/root/.config/gcloud`. The `-e` arguments define environment
-variables, in the context of the running container, that specify the GCP project
-name and the location (again, relative to the container filesystem) of the
-host's application default credentials file. `--entrypoint tfgnn_graph_sampler`
-starts the main Graph Sampler binary after container startup and `tfgnn:latest`
-is just the name and tag of the (local) `tfgnn` image that Docker will start.
-The remaining arguments specify the location of the graph schema, sampling
-specification and the target output files.
-
-A tricky part of the command is the `--network=${GCP_VPC_NAME}`. Dataflow
-workers by default allocate machines that acquire IP addresses with external
-internet access. This makes sense as some users of Dataflow will want to `pip
-install` additional libraries or use other mechanisms to download content to
-workers. However, IPs with external internet access count against the project's
-global quota which may require special permission to increase. We can define a
-named [Virtual Private Cloud (VPC)](https://cloud.google.com/vpc) to allocate a
-dedicated IP range that can scale to the maximum number of Dataflow workers
-without counting against (or allocating) the global external IP quota. These
-steps and flag are optional but are recommended.
-
-The Graph Sampler is not limited to running on Google Cloud infrastructure, but
-instructions for acquiring and injecting credentials as well as cloud-specific
-command line arguments will differ from platform to platform.
+See [beam_sampler](beam_sampler.md) guide on how to use `tfgnn_sampler` tool for
+distributed sampling using [Apache Beam](https://beam.apache.org/).
 
 ### Sampling Homogeneous Graphs
 

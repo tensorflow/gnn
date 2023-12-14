@@ -1,20 +1,53 @@
 # The TF-GNN Sampler
 
+
 ## Overview
 
-*TensorFlow GNN (TF-GNN)* provides a graph sampling tool to facilitate local
-neighborhood learning and convenient batching for graph datasets. Using Apache
-Beam, it provides a scalable and distributed means to sample even the largest
-publicly-available graph datasets.
+*TensorFlow GNN (TF-GNN)* provides the `tfgnn_sampler` tool to
+facilitate local neighborhood learning and convenient batching for graph
+datasets. It provides a scalable and distributed means to sample even the
+largest publicly-available graph datasets.
 
-<!--*
-# Document freshness: For more information, see go/fresh-source.
-freshness: { owner: 'mparadkar' reviewed: '2023-06-30' }
-*-->
+The Graph Sampler takes a sampling configuration, graph data, and optionally a
+list of seed nodes as its inputs and produces sampled subgraphs as its output.
+The graph data comes as `tf.Example`s in sharded files for graph edges and node
+features. The generated subgraphs are as serialized `tf.Example`s that can be
+parsed as `tfgnn.GraphTensor` using `tfgnn.parse_example()`.
 
-[TOC]
+The Graph Sampler is written in [Apache Beam](https://beam.apache.org/), an
+open-source SDK for expressing
+[Dataflow-Model](https://research.google/pubs/pub43864/) data processing
+pipelines with support for multiple infrastructure backends. A client writes an
+Apache Beam Pipeline and, at runtime, specifies a Runner to define the compute
+environment in which the pipeline will execute.
+
+The two main abstractions defined
+by Apache Beam of concern are:
+
+-   [Pipelines](https://beam.apache.org/documentation/programming-guide/#creating-a-pipeline):
+    computational steps expressed as a DAG (Directed Acyclic Graph)
+-   [Runners](https://beam.apache.org/documentation/runners/capability-matrix/):
+    Environments for running Beam Pipelines
+
+
+The simplest Beam runner is the
+[DirectRunner](https://beam.apache.org/documentation/runners/direct/) which
+allows to test Beam pipelines on local hardware. It requires all data to fit in
+memory on a single machine and runs user code with extra debug checks enabled.
+It is slow and should be used only for small-scale testing or prototyping.
+
+[DataflowRunner](https://beam.apache.org/documentation/runners/dataflow/) that
+enables clients to connect to a
+[Google Cloud Platform (GCP)](https://cloud.google.com/) and execute a Beam
+pipeline on GCP hardware through the
+[Dataflow](https://cloud.google.com/dataflow) service. It enables
+[horizontal scaling](https://cloud.google.com/dataflow/docs/horizontal-autoscaling)
+which allows to sample graphs even with billions of edges.
 
 ## Getting Started - Direct Runner
+
+NOTE: Only use the DirectRunner for small-scale testing.
+
 
 To successfully use the Graph Sampler, we need a few items set up. In
 particular, we need a schema for the graph, a specification for the sampling
@@ -127,150 +160,49 @@ Beam direct runner.
 
 ```
 cd <path-to>/gnn/examples/sampler/creditcard
-python3 -m tensorflow_gnn.experimental.sampler.beam.sampler \
+tfgnn_sampler \
   --data_path="." \
   --graph_schema graph_schema.pbtxt \
   --sampling_spec sampling_spec.pbtxt \
-  --output_samples outputs/examples.tfrecord \
+  --output_samples outputs/examples.tfrecords \
   --runner DirectRunner
 ```
 
 ## Larger-scale Sampling with the Beam DataFlow runner
 
-The Beam direct runner requires all data to fit in memory on a single machine.
-The sampler also works with DataFlow on GCP to provide distributed sampling for
-graphs with up to hundreds of millions of nodes and billions of edges.
-
 The `examples/sampler/mag` directory contains some of the components needed to
-run the sampler on OGBN-MAG. This example further assumes that the graph schema,
-sampling spec, and data are in a directory on cloud storage. For this example,
-the directory should contain the following (with data files in either TFRecord
-or CSV format):
+run the sampler for [OGBN-MAG](https://ogb.stanford.edu/docs/nodeprop/#ogbn-mag)
+described in detail in [the data prep guide](./data_prep.md)
+
+The directory should contain the following:
+
+*   The `graph_schema.pbtxt` is a Graph Schema with filenames in the metadata
+    for all edge sets and all node sets with features.
+
+*   The `sampling_spec.pbtxt` is a sampling specification.
+
+*   The `run_mag.sh` script has the command to start the DataFlow pipeline run.
+    This script configures location, machine types to use, sets desired
+    parallelism as minimum/maximum number of workers and the number of threads
+    for each worker.
+
+*   The `setup.py` file is used by the pipeline workers to install their
+    [dependencies](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/),
+    e.g., the `apache-beam[gcp]`, `tensorflow` and `tensorflow_gnn` libraries.
+
+This example further assumes that OGB data is converted to the unigraph format,
+e.g. using `tfgnn_convert_ogb_dataset`, and stored cloud storage as sharded
+files for edges and node features:
 
 ```
-graph_schema.pbtxt
-sampling_spec.pbtxt
-nodes-paper.tfrecords
-edges-affiliated-with.tfrecords
-edges-cites.tfrecords
-edges-has_topic.tfrecords
-edges-writes.tfrecords
+nodes-paper.tfrecords-?????-of-?????
+edges-affiliated-with.tfrecords-?????-of-?????
+edges-cites.tfrecords-?????-of-?????
+edges-has_topic.tfrecords-?????-of-?????
+edges-writes.tfrecords-?????-of-?????
 ```
 
-Graph Schema:
 
-The graph schema should have filenames in the metadata for all edge sets and all
-node sets with features. This is an example schema for OGBN-MAG.
-
-```
-node_sets {
-  key: "author"
-  value {}
-}
-node_sets {
-  key: "field_of_study"
-  value {}
-}
-node_sets {
-  key: "institution"
-  value {}
-}
-node_sets {
-  key: "paper"
-  value {
-    features {
-      key: "feat"
-      value {
-        dtype: DT_FLOAT
-        shape {
-          dim {
-            size: 128
-          }
-        }
-      }
-    }
-    features {
-      key: "labels"
-      value {
-        dtype: DT_INT64
-        shape {
-          dim {
-            size: 1
-          }
-        }
-      }
-    }
-    features {
-      key: "year"
-      value {
-        dtype: DT_INT64
-        shape {
-          dim {
-            size: 1
-          }
-        }
-      }
-    }
-    metadata {
-      filename: "nodes-paper.tfrecords@397"
-    }
-  }
-}
-edge_sets {
-  key: "affiliated_with"
-  value {
-    source: "author"
-    target: "institution"
-    metadata {
-      filename: "edges-affiliated_with.tfrecords@30"
-    }
-  }
-}
-edge_sets {
-  key: "cites"
-  value {
-    source: "paper"
-    target: "paper"
-    metadata {
-      filename: "edges-cites.tfrecords@120"
-    }
-  }
-}
-edge_sets {
-  key: "has_topic"
-  value {
-    source: "paper"
-    target: "field_of_study"
-    metadata {
-      filename: "edges-has_topic.tfrecords@226"
-    }
-  }
-}
-edge_sets {
-  key: "writes"
-  value {
-    source: "author"
-    target: "paper"
-    metadata {
-      filename: "edges-writes.tfrecords@172"
-    }
-  }
-}
-edge_sets {
-  key: "written"
-  value {
-    source: "paper"
-    target: "author"
-    metadata {
-      filename: "edges-writes.tfrecords@172"
-      extra {
-        key: "edge_type"
-        value: "reversed"
-      }
-    }
-  }
-}
-```
 
 The sampler currently supports CSV files and TFRecord files corresponding to
 each graph piece. For TFRecords, the filename should be a glob pattern that
@@ -278,59 +210,10 @@ identifies the relevant shards. The sampler also supports shorthand for a common
 sharding pattern, where `<filename>.tfrecords@<shard-count>` is read as
 `filename.tfrecords-?????-of-<5-digit shard-count>`.
 
-Sampling Spec:
 
-The sampling spec is similar to the previous example, just with some more
-sampling operations.
+Before running `run_mag.sh`, users must edit the `GOOGLE_CLOUD_PROJECT` and
+`DATA_PATH` variables in the script.
 
-```
-seed_op <
-  op_name: "seed"
-  node_set_name: "paper"
->
-sampling_ops <
-  op_name: "seed->paper"
-  input_op_names: "seed"
-  edge_set_name: "cites"
-  sample_size: 32
-  strategy: RANDOM_UNIFORM
->
-sampling_ops <
-  op_name: "paper->author"
-  input_op_names: "seed"
-  input_op_names: "seed->paper"
-  edge_set_name: "written"
-  sample_size: 8
-  strategy: RANDOM_UNIFORM
->
-sampling_ops <
-  op_name: "author->paper"
-  input_op_names: "paper->author"
-  edge_set_name: "writes"
-  sample_size: 16
-  strategy: RANDOM_UNIFORM
->
-sampling_ops <
-  op_name: "author->institution"
-  input_op_names: "paper->author"
-  edge_set_name: "affiliated_with"
-  sample_size: 16
-  strategy: RANDOM_UNIFORM
->
-sampling_ops <
-  op_name: "paper->field_of_study"
-  input_op_names: "seed"
-  input_op_names: "seed->paper"
-  input_op_names: "author->paper"
-  edge_set_name: "has_topic"
-  sample_size: 16
-  strategy: RANDOM_UNIFORM
->
-```
-
-Finally, we have a script `run_mag.sh` with the command to start the DataFlow
-pipeline run. This refers to a `setup.py` file which the pipeline workers need
-to install their dependencies.
 
 ## Performance and Cost Comparisons
 
