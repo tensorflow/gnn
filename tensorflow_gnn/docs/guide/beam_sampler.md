@@ -1,5 +1,4 @@
-# The TF-GNN Sampler
-
+# The TF-GNN Beam Sampler
 
 ## Overview
 

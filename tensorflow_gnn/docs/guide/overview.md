@@ -31,10 +31,12 @@ Start with our introductory guides:
     graphs as training data).
 
   * [Data preparation and sampling](data_prep.md). Training data for GNN
-    models are graphs. When operating on very large graphs, we produce local
-    subgraph samples from the full dataset which are serialized along with their
-    features and streamed for training. This document describes the sampler tool
-    as well as the data format we support for storing large graphs.
+    models are graphs. This document describes their encoding as `tf.Example`s.
+    Moreover, it introduces subgraph sampling for turning one huge graph into a
+    stream of training inputs.
+
+  * [The TF-GNN Beam Sampler](beam_sampler.md) lets you run distributed graph
+    sampling.
 
   * [The TF-GNN Runner](runner.md) lets you train GNN models on the
     prepared input data for a variety of tasks (e.g., node prediction).
