@@ -441,10 +441,9 @@ each.
     in Keras' Functional API, much like Tensor or RaggedTensor.
     (In technical terms: they all provide the necessary specializations of the
     KerasTensor wrapper type.) You can even call GraphTensor methods and
-    tensor-to-tensor functions from `tf.*`, which will be wrapped ad-hoc as
-    layers. However, you cannot call freestanding functions
-    from `tfgnn.*`, due to a limitation in Keras. Instead, use their wrappers
-    from `tfgnn.keras.layers.*`.
+    tensor-to-tensor functions from `tf.*` and `tfgnn.*`, which will be wrapped
+    ad-hoc as layers. (For some important ops, `tfgnn.keras.layers.*` provides
+    dedicated layer implementations.)
 
   * Keras' [Subclassing API](https://www.tensorflow.org/guide/keras/custom_layers_and_models)
     lets you define your own Keras Layers, or even a complete Keras Model
