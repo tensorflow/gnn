@@ -1,17 +1,10 @@
 # multi_head_attention.MultiHeadAttentionConv
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L24-L562">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L24-L568">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Transformer-style (dot-product) multi-head attention on GNNs.
 
@@ -32,7 +25,7 @@ Transformer-style (dot-product) multi-head attention on GNNs.
     kernel_initializer: Any = None,
     kernel_regularizer: Any = None,
     transform_keys: bool = True,
-    score_scaling: Literal['none', 'rsqrt_dim', 'trainable_sigmoid'] = &#x27;rsqrt_dim&#x27;,
+    score_scaling: Literal['none', 'rsqrt_dim', 'trainable_elup1'] = &#x27;rsqrt_dim&#x27;,
     transform_values_after_pooling: bool = False,
     **kwargs
 )
@@ -96,34 +89,37 @@ using the other arguments.
 
 Example: Transformer-style attention on neighbors along incoming edges whose
 result is concatenated with the old node state and passed through a Dense layer
-to compute the new node state. `dense = tf.keras.layers.Dense graph =
-tfgnn.keras.layers.GraphUpdate( node_sets={"paper":
-tfgnn.keras.layers.NodeSetUpdate( {"cites":
-tfgnn.keras.layers.MultiHeadAttentionConv( message_dim,
-receiver_tag=tfgnn.TARGET)},
-tfgnn.keras.layers.NextStateFromConcat(dense(node_state_dim)))} )(graph)`
+to compute the new node state.
+
+```
+dense = tf.keras.layers.Dense
+graph = tfgnn.keras.layers.GraphUpdate(
+    node_sets={"paper": tfgnn.keras.layers.NodeSetUpdate(
+        {"cites": tfgnn.keras.layers.MultiHeadAttentionConv(
+             message_dim, receiver_tag=tfgnn.TARGET)},
+        tfgnn.keras.layers.NextStateFromConcat(dense(node_state_dim)))}
+)(graph)
+```
 
 For now, there is a variant that modifies the inputs transformation part and
 could potentially be beneficial:
 
-```
-1. (transform_keys is False) Instead of projecting both queries and
-  keys when computing attention weights, we only project the queries
-  because the two linear projections can be collapsed to a single
-  projection:
+1.  (transform_keys is False) Instead of projecting both queries and keys when
+    computing attention weights, we only project the queries because the two
+    linear projections can be collapsed to a single projection:
 
-    $$ (Q_v W_Q^k)(K_u W_K^k)^T
-      = Q_v (W_Q^k {W_K^k}^T) K_u^T
-      = Q_v W_{QK}^k K_u^T $$
+    $$ (Q_v W_Q^k)(K_u W_K^k)^T = Q_v (W_Q^k {W_K^k}^T) K_u^T = Q_v W_{QK}^k
+    K_u^T $$
 
-  where $d$ is the key width. (Following "Attention is all you need",
-  this scaling is meant to achieve unit variance of the results, assuming
-  that $Q_v W_{QK}^k$ has unit variance due to the initialization of
-  $Q_v W_{QK}^k$.)
+    where $d$ is the key width. (Following "Attention is all you need", this
+    scaling is meant to achieve unit variance of the results, assuming that $Q_v
+    W_{QK}^k$ has unit variance due to the initialization of $Q_v W_{QK}^k$.)
 
-  NOTE: The single projection matrix behaves differently in
-  gradient-descent training than the product of two matrices.
-```
+    NOTE: The single projection matrix behaves differently in gradient-descent
+    training than the product of two matrices.
+
+This layer can be restored from config by `tf.keras.models.load_model()` when
+saved as part of a Keras model using `save_format="tf"`.
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -132,14 +128,14 @@ could potentially be beneficial:
 
 <tr>
 <td>
-`num_heads`<a id="num_heads"></a>
+<code>num_heads</code><a id="num_heads"></a>
 </td>
 <td>
 The number of attention heads.
 </td>
 </tr><tr>
 <td>
-`per_head_channels`<a id="per_head_channels"></a>
+<code>per_head_channels</code><a id="per_head_channels"></a>
 </td>
 <td>
 The number of channels for each attention head. This
@@ -147,51 +143,51 @@ means that the final output size will be per_head_channels * num_heads.
 </td>
 </tr><tr>
 <td>
-`receiver_tag`<a id="receiver_tag"></a>
+<code>receiver_tag</code><a id="receiver_tag"></a>
 </td>
 <td>
-one of `tfgnn.SOURCE`, `tfgnn.TARGET` or `tfgnn.CONTEXT`.
+one of <code>tfgnn.SOURCE</code>, <code>tfgnn.TARGET</code> or <code>tfgnn.CONTEXT</code>.
 The results of attention are aggregated for this graph piece.
-If set to `tfgnn.SOURCE` or `tfgnn.TARGET`, the layer can be called for
+If set to <code>tfgnn.SOURCE</code> or <code>tfgnn.TARGET</code>, the layer can be called for
 an edge set and will aggregate results at the specified endpoint of the
 edges.
-If set to `tfgnn.CONTEXT`, the layer can be called for an edge set or
+If set to <code>tfgnn.CONTEXT</code>, the layer can be called for an edge set or
 node set.
 If left unset for init, the tag must be passed at call time.
 </td>
 </tr><tr>
 <td>
-`receiver_feature`<a id="receiver_feature"></a>
+<code>receiver_feature</code><a id="receiver_feature"></a>
 </td>
 <td>
-Can be set to override `tfgnn.HIDDEN_STATE`
+Can be set to override <code>tfgnn.HIDDEN_STATE</code>
 for use as the receiver's input feature to attention. (The attention key
 is derived from this input.)
 </td>
 </tr><tr>
 <td>
-`sender_node_feature`<a id="sender_node_feature"></a>
+<code>sender_node_feature</code><a id="sender_node_feature"></a>
 </td>
 <td>
-Can be set to override `tfgnn.HIDDEN_STATE`
+Can be set to override <code>tfgnn.HIDDEN_STATE</code>
 for use as the input feature from sender nodes to attention.
-IMPORTANT: Must be set to `None` for use with `receiver_tag=tfgnn.CONTEXT`
+IMPORTANT: Must be set to <code>None</code> for use with <code>receiver_tag=tfgnn.CONTEXT</code>
 on an edge set, or for pooling from edges without sender node states.
 </td>
 </tr><tr>
 <td>
-`sender_edge_feature`<a id="sender_edge_feature"></a>
+<code>sender_edge_feature</code><a id="sender_edge_feature"></a>
 </td>
 <td>
 Can be set to a feature name of the edge set to select
-it as an input feature. By default, this set to `None`, which disables
+it as an input feature. By default, this set to <code>None</code>, which disables
 this input.
-IMPORTANT: Must be set for use with `receiver_tag=tfgnn.CONTEXT`
+IMPORTANT: Must be set for use with <code>receiver_tag=tfgnn.CONTEXT</code>
 on an edge set.
 </td>
 </tr><tr>
 <td>
-`use_bias`<a id="use_bias"></a>
+<code>use_bias</code><a id="use_bias"></a>
 </td>
 <td>
 If true, bias terms are added to the transformations of query,
@@ -199,7 +195,7 @@ key and value inputs.
 </td>
 </tr><tr>
 <td>
-`edge_dropout`<a id="edge_dropout"></a>
+<code>edge_dropout</code><a id="edge_dropout"></a>
 </td>
 <td>
 Can be set to a dropout rate for edge dropout. (When pooling
@@ -208,7 +204,7 @@ is dropped out.)
 </td>
 </tr><tr>
 <td>
-`inputs_dropout`<a id="inputs_dropout"></a>
+<code>inputs_dropout</code><a id="inputs_dropout"></a>
 </td>
 <td>
 Dropout rate for random dropout on the inputs to this
@@ -216,18 +212,18 @@ convolution layer, i.e. the receiver, sender node, and sender edge inputs.
 </td>
 </tr><tr>
 <td>
-`attention_activation`<a id="attention_activation"></a>
+<code>attention_activation</code><a id="attention_activation"></a>
 </td>
 <td>
 The nonlinearity used on the transformed inputs
-(query, and keys if `transform_keys` is `True`) before computing the
+(query, and keys if <code>transform_keys</code> is <code>True</code>) before computing the
 attention scores. This can be specified as a Keras layer, a
 tf.keras.activations.* function, or a string understood by
-`tf.keras.layers.Activation`. Defaults to None.
+<code>tf.keras.layers.Activation</code>. Defaults to None.
 </td>
 </tr><tr>
 <td>
-`activation`<a id="activation"></a>
+<code>activation</code><a id="activation"></a>
 </td>
 <td>
 The nonlinearity applied to the final result of attention,
@@ -235,25 +231,25 @@ specified in the same ways as attention_activation.
 </td>
 </tr><tr>
 <td>
-`kernel_initializer`<a id="kernel_initializer"></a>
+<code>kernel_initializer</code><a id="kernel_initializer"></a>
 </td>
 <td>
-Can be set to a `kernel_initializer` as understood
-by `tf.keras.layers.Dense` etc.
-An `Initializer` object gets cloned before use to ensure a fresh seed,
-if not set explicitly. For more, see `tfgnn.keras.clone_initializer()`.
-</td>
-</tr><tr>
-<td>
-`kernel_regularizer`<a id="kernel_regularizer"></a>
-</td>
-<td>
-Can be set to a `kernel_regularized` as understood
-by `tf.keras.layers.Dense` etc.
+Can be set to a <code>kernel_initializer</code> as understood
+by <code>tf.keras.layers.Dense</code> etc.
+An <code>Initializer</code> object gets cloned before use to ensure a fresh seed,
+if not set explicitly. For more, see <code>tfgnn.keras.clone_initializer()</code>.
 </td>
 </tr><tr>
 <td>
-`transform_keys`<a id="transform_keys"></a>
+<code>kernel_regularizer</code><a id="kernel_regularizer"></a>
+</td>
+<td>
+Can be set to a <code>kernel_regularized</code> as understood
+by <code>tf.keras.layers.Dense</code> etc.
+</td>
+</tr><tr>
+<td>
+<code>transform_keys</code><a id="transform_keys"></a>
 </td>
 <td>
 If true, transform both queries and keys inputs. Otherwise,
@@ -263,22 +259,24 @@ independent of this arg.)
 </td>
 </tr><tr>
 <td>
-`score_scaling`<a id="score_scaling"></a>
+<code>score_scaling</code><a id="score_scaling"></a>
 </td>
 <td>
-One of either `"none"`, `"rsqrt_dim"`, or
-`"trainable_sigmoid"`. If set to `"rsqrt_dim"`, the attention scores are
+One of either <code>"rsqrt_dim"</code> (default), <code>"trainable_elup1"</code>,
+or <code>"none"</code>. If set to <code>"rsqrt_dim"</code>, the attention scores are
 divided by the square root of the dimension of keys (i.e.,
-`per_head_channels` if `transform_keys=True`, otherwise whatever the
-dimension of combined sender inputs is). If set to `"trainable_sigmoid"`,
-the scores are scaled with `sigmoid(x)`, where `x` is a trainable weight
-of the model that is initialized to `-5.0`, which initially makes all the
-attention weights equal and slowly ramps up as the other weights in the
-layer converge. Defaults to `"rsqrt_dim"`.
+<code>per_head_channels</code> if <code>transform_keys=True</code>, otherwise whatever the
+dimension of combined sender inputs is). If set to <code>"trainable_elup1"</code>,
+the scores are scaled with <code>elu(x) + 1</code>, where <code>elu</code> is the Exponential
+Linear Unit (see <code>tf.keras.activations.elu</code>), and <code>x</code> is a per-head
+trainable weight of the model that is initialized to <code>0.0</code>. Recall that
+<code>elu(x) + 1 == exp(x) if x<0 else x+1</code>, so the
+initial scaling factor is <code>1.0</code>, decreases exponentially below 1.0, and
+grows linearly above 1.0.
 </td>
 </tr><tr>
 <td>
-`transform_values_after_pooling`<a id="transform_values_after_pooling"></a>
+<code>transform_values_after_pooling</code><a id="transform_values_after_pooling"></a>
 </td>
 <td>
 By default, each attention head applies
@@ -296,52 +294,53 @@ IMPORTANT: Toggling this option breaks checkpoint compatibility.
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
-<tr> <td> `receiver_tag`<a id="receiver_tag"></a> </td> <td> one of
-`tfgnn.SOURCE`, `tfgnn.TARGET` or `tfgnn.CONTEXT`. The results are aggregated
-for this graph piece. If set to `tfgnn.SOURCE` or `tfgnn.TARGET`, the layer can
-be called for an edge set and will aggregate results at the specified endpoint
-of the edges. If set to `tfgnn.CONTEXT`, the layer can be called for an edge set
-or a node set and will aggregate results for context (per graph component). If
-left unset for init, the tag must be passed at call time. </td> </tr><tr> <td>
-`receiver_feature`<a id="receiver_feature"></a> </td> <td> The name of the
-feature that is read from the receiver graph piece and passed as
-convolve(receiver_input=...). </td> </tr><tr> <td>
-`sender_node_feature`<a id="sender_node_feature"></a> </td> <td> The name of the
-feature that is read from the sender nodes, if any, and passed as
-convolve(sender_node_input=...). NOTICE this must be `None` for use with
-`receiver_tag=tfgnn.CONTEXT` on an edge set, or for pooling from edges without
-sender node states. </td> </tr><tr> <td>
-`sender_edge_feature`<a id="sender_edge_feature"></a> </td> <td> The name of the
-feature that is read from the sender edges, if any, and passed as
-convolve(sender_edge_input=...). NOTICE this must not be `None` for use with
-`receiver_tag=tfgnn.CONTEXT` on an edge set. </td> </tr><tr> <td>
-`extra_receiver_ops`<a id="extra_receiver_ops"></a> </td> <td> A str-keyed
-dictionary of Python callables that are wrapped to bind some arguments and then
-passed on to `convolve()`. Sample usage: `extra_receiver_ops={"softmax":
-tfgnn.softmax}`. The values passed in this dict must be callable as follows,
-with two positional arguments:
+<tr> <td> <code>receiver_tag</code><a id="receiver_tag"></a> </td> <td> one of
+<code>tfgnn.SOURCE</code>, <code>tfgnn.TARGET</code> or
+<code>tfgnn.CONTEXT</code>. The results are aggregated for this graph piece. If
+set to <code>tfgnn.SOURCE</code> or <code>tfgnn.TARGET</code>, the layer can be
+called for an edge set and will aggregate results at the specified endpoint of
+the edges. If set to <code>tfgnn.CONTEXT</code>, the layer can be called for an
+edge set or a node set and will aggregate results for context (per graph
+component). If left unset for init, the tag must be passed at call time. </td>
+</tr><tr> <td> <code>receiver_feature</code><a id="receiver_feature"></a> </td>
+<td> The name of the feature that is read from the receiver graph piece and
+passed as convolve(receiver_input=...). </td> </tr><tr> <td>
+<code>sender_node_feature</code><a id="sender_node_feature"></a> </td> <td> The
+name of the feature that is read from the sender nodes, if any, and passed as
+convolve(sender_node_input=...). NOTICE this must be <code>None</code> for use
+with <code>receiver_tag=tfgnn.CONTEXT</code> on an edge set, or for pooling from
+edges without sender node states. </td> </tr><tr> <td>
+<code>sender_edge_feature</code><a id="sender_edge_feature"></a> </td> <td> The
+name of the feature that is read from the sender edges, if any, and passed as
+convolve(sender_edge_input=...). NOTICE this must not be <code>None</code> for
+use with <code>receiver_tag=tfgnn.CONTEXT</code> on an edge set. </td> </tr><tr>
+<td> <code>extra_receiver_ops</code><a id="extra_receiver_ops"></a> </td> <td> A
+str-keyed dictionary of Python callables that are wrapped to bind some arguments
+and then passed on to <code>convolve()</code>. Sample usage:
+<code>extra_receiver_ops={"softmax": tfgnn.softmax}</code>. The values passed in
+this dict must be callable as follows, with two positional arguments:
 
 ```python
 f(graph, receiver_tag, node_set_name=..., feature_value=..., ...)
 f(graph, receiver_tag, edge_set_name=..., feature_value=..., ...)
 ```
 
-The wrapped callables seen by `convolve()` can be called like
+The wrapped callables seen by <code>convolve()</code> can be called like
 
 ```python
 wrapped_f(feature_value, ...)
 ```
 
-The first three arguments of `f` are set to the input GraphTensor of
-the layer and the tag/name pair required by `tfgnn.broadcast()` and
-`tfgnn.pool()` to move values between the receiver and the messages that
+The first three arguments of <code>f</code> are set to the input GraphTensor of
+the layer and the tag/name pair required by <code>tfgnn.broadcast()</code> and
+<code>tfgnn.pool()</code> to move values between the receiver and the messages that
 are computed inside the convolution. The sole positional argument of
-`wrapped_f()` is passed to `f()`  as `feature_value=`, and any keyword
+<code>wrapped_f()</code> is passed to <code>f()</code>  as <code>feature_value=</code>, and any keyword
 arguments are forwarded.
 </td>
 </tr><tr>
 <td>
-`**kwargs`<a id="**kwargs"></a>
+<code>**kwargs</code><a id="**kwargs"></a>
 </td>
 <td>
 Forwarded to the base class tf.keras.layers.Layer.
@@ -356,24 +355,24 @@ Forwarded to the base class tf.keras.layers.Layer.
 
 <tr>
 <td>
-`takes_receiver_input`<a id="takes_receiver_input"></a>
+<code>takes_receiver_input</code><a id="takes_receiver_input"></a>
 </td>
 <td>
-If `False`, all calls to convolve() will get `receiver_input=None`.
-</td>
-</tr><tr>
-<td>
-`takes_sender_edge_input`<a id="takes_sender_edge_input"></a>
-</td>
-<td>
-If `False`, all calls to convolve() will get `sender_edge_input=None`.
+If <code>False</code>, all calls to convolve() will get <code>receiver_input=None</code>.
 </td>
 </tr><tr>
 <td>
-`takes_sender_node_input`<a id="takes_sender_node_input"></a>
+<code>takes_sender_edge_input</code><a id="takes_sender_edge_input"></a>
 </td>
 <td>
-If `False`, all calls to convolve() will get `sender_node_input=None`.
+If <code>False</code>, all calls to convolve() will get <code>sender_edge_input=None</code>.
+</td>
+</tr><tr>
+<td>
+<code>takes_sender_node_input</code><a id="takes_sender_node_input"></a>
+</td>
+<td>
+If <code>False</code>, all calls to convolve() will get <code>sender_node_input=None</code>.
 </td>
 </tr>
 </table>
@@ -382,7 +381,7 @@ If `False`, all calls to convolve() will get `sender_node_input=None`.
 
 <h3 id="convolve"><code>convolve</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L350-L534">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/multi_head_attention/layers.py#L357-L540">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -414,38 +413,38 @@ Tensor with a leading dimension indexed by receivers, see `pool_to_receiver`.
 
 <tr>
 <td>
-`sender_node_input`
+<code>sender_node_input</code>
 </td>
 <td>
-The input Tensor from the sender NodeSet, or `None`.
-If self.takes_sender_node_input is `False`, this arg will be `None`.
-(If it is `True`, that depends on how this layer gets called.)
+The input Tensor from the sender NodeSet, or <code>None</code>.
+If self.takes_sender_node_input is <code>False</code>, this arg will be <code>None</code>.
+(If it is <code>True</code>, that depends on how this layer gets called.)
 See also broadcast_from_sender_node.
 </td>
 </tr><tr>
 <td>
-`sender_edge_input`
+<code>sender_edge_input</code>
 </td>
 <td>
-The input Tensor from the sender EdgeSet, or `None`.
-If self.takes_sender_edge_input is `False`, this arg will be `None`.
-(If it is `True`, it depends on how this layer gets called.)
+The input Tensor from the sender EdgeSet, or <code>None</code>.
+If self.takes_sender_edge_input is <code>False</code>, this arg will be <code>None</code>.
+(If it is <code>True</code>, it depends on how this layer gets called.)
 If present, this Tensor is already indexed by the items for which
 messages are computed.
 </td>
 </tr><tr>
 <td>
-`receiver_input`
+<code>receiver_input</code>
 </td>
 <td>
 The input Tensor from the receiver NodeSet or Context,
-or None. If self.takes_receiver_input is `False`, this arg will be
-`None`. (If it is `True`, it depends on how this layer gets called.)
+or None. If self.takes_receiver_input is <code>False</code>, this arg will be
+<code>None</code>. (If it is <code>True</code>, it depends on how this layer gets called.)
 See broadcast_from_receiver.
 </td>
 </tr><tr>
 <td>
-`broadcast_from_sender_node`
+<code>broadcast_from_sender_node</code>
 </td>
 <td>
 A function that broadcasts a Tensor indexed
@@ -454,25 +453,25 @@ messages are computed.
 </td>
 </tr><tr>
 <td>
-`broadcast_from_receiver`
+<code>broadcast_from_receiver</code>
 </td>
 <td>
-Call this as `broadcast_from_receiver(value)`
+Call this as <code>broadcast_from_receiver(value)</code>
 to broadcast a Tensor indexed like receiver_input to a Tensor indexed
 by the items for which messages are computed.
 </td>
 </tr><tr>
 <td>
-`pool_to_receiver`
+<code>pool_to_receiver</code>
 </td>
 <td>
-Call this as `pool_to_receiver(value, reduce_type=...)`
+Call this as <code>pool_to_receiver(value, reduce_type=...)</code>
 to pool an item-indexed Tensor to a receiver-indexed tensor, using
 a reduce_type understood by tfgnn.pool(), such as "sum".
 </td>
 </tr><tr>
 <td>
-`extra_receiver_ops`
+<code>extra_receiver_ops</code>
 </td>
 <td>
 The extra_receiver_ops passed to init, see there,
@@ -482,10 +481,10 @@ this argument, so subclass implementors not using it can omit it.
 </td>
 </tr><tr>
 <td>
-`training`
+<code>training</code>
 </td>
 <td>
-The `training` boolean that was passed to Layer.call(). If true,
+The <code>training</code> boolean that was passed to Layer.call(). If true,
 the result is computed for training rather than inference. For example,
 calls to tf.nn.dropout() are usually conditioned on this flag.
 By contrast, calling another Keras layer (like tf.keras.layers.Dropout)

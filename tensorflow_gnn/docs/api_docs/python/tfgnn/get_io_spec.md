@@ -1,17 +1,10 @@
 # tfgnn.get_io_spec
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_io.py#L132-L227">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_io.py#L132-L227">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Returns tf.io parsing features for `GraphTensorSpec` type spec.
 
@@ -43,14 +36,14 @@ routine directly, which handles this process for you.)
 
 <tr>
 <td>
-`spec`<a id="spec"></a>
+<code>spec</code><a id="spec"></a>
 </td>
 <td>
 A graph tensor type specification.
 </td>
 </tr><tr>
 <td>
-`prefix`<a id="prefix"></a>
+<code>prefix</code><a id="prefix"></a>
 </td>
 <td>
 An optional prefix string over all the features. You may use
@@ -58,23 +51,24 @@ this if you are encoding other data in the same protocol buffer.
 </td>
 </tr><tr>
 <td>
-`validate`<a id="validate"></a>
+<code>validate</code><a id="validate"></a>
 </td>
 <td>
 A boolean indicating whether or not to validate that the input
-fields form a valid `GraphTensor`. Defaults to `True`.
+fields form a valid <code>GraphTensor</code>. Defaults to <code>True</code>.
 </td>
 </tr>
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
-A dict of `tf.train.Feature` name to feature configuration object, to be
-used in `tf.io.parse_example()`.
+A dict of <code>tf.train.Feature</code> name to feature configuration object, to be
+used in <code>tf.io.parse_example()</code>.
 </td>
 </tr>
 

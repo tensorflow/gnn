@@ -1,17 +1,10 @@
 # tfgnn.assert_constraints
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_validation.py#L301-L319">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_validation.py#L301-L319">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Validate the shape constaints of a graph's features at runtime.
 
@@ -38,10 +31,10 @@ that those constraints have been applied correctly.
 
 <tr>
 <td>
-`graph`<a id="graph"></a>
+<code>graph</code><a id="graph"></a>
 </td>
 <td>
-An instance of a `GraphTensor`.
+An instance of a <code>GraphTensor</code>.
 </td>
 </tr>
 </table>

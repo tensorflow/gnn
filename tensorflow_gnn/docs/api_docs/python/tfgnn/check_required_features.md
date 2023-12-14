@@ -1,28 +1,19 @@
 # tfgnn.check_required_features
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_validation.py#L80-L149">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_validation.py#L73-L142">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Checks the requirements of a given schema against another.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.check_required_features(
-    requirements: <a href="../tfgnn/GraphSchema.md"><code>tfgnn.GraphSchema</code></a>,
-    actual: <a href="../tfgnn/GraphSchema.md"><code>tfgnn.GraphSchema</code></a>
+    requirements: <a href="../tfgnn/proto/GraphSchema.md"><code>tfgnn.proto.GraphSchema</code></a>,
+    actual: <a href="../tfgnn/proto/GraphSchema.md"><code>tfgnn.proto.GraphSchema</code></a>
 )
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
 
@@ -51,14 +42,14 @@ an equivalent construct using the `GraphTensorSpec.)
 
 <tr>
 <td>
-`requirements`<a id="requirements"></a>
+<code>requirements</code><a id="requirements"></a>
 </td>
 <td>
 An instance of a GraphSchema object, with optional shapes.
 </td>
 </tr><tr>
 <td>
-`actual`<a id="actual"></a>
+<code>actual</code><a id="actual"></a>
 </td>
 <td>
 The instance of actual schema to check is a matching superset
@@ -74,7 +65,7 @@ of the required schema.
 
 <tr>
 <td>
-`ValidationError`<a id="ValidationError"></a>
+<code>ValidationError</code><a id="ValidationError"></a>
 </td>
 <td>
 If the given schema does not fulfill the requirements.

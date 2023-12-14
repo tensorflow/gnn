@@ -1,24 +1,17 @@
 # tfgnn.check_compatible_with_schema_pb
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_utils.py#L188-L227">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/schema_utils.py#L216-L256">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Checks that the given spec or value is compatible with the graph schema.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.check_compatible_with_schema_pb(
     graph: Union[<a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>, <a href="../tfgnn/GraphTensorSpec.md"><code>tfgnn.GraphTensorSpec</code></a>],
-    schema: <a href="../tfgnn/GraphSchema.md"><code>tfgnn.GraphSchema</code></a>
+    schema: <a href="../tfgnn/proto/GraphSchema.md"><code>tfgnn.proto.GraphSchema</code></a>
 ) -> None
 </code></pre>
 
@@ -41,14 +34,14 @@ The `graph` is compatible with the `schema` if
 
 <tr>
 <td>
-`graph`<a id="graph"></a>
+<code>graph</code><a id="graph"></a>
 </td>
 <td>
 The graph tensor or graph tensor spec.
 </td>
 </tr><tr>
 <td>
-`schema`<a id="schema"></a>
+<code>schema</code><a id="schema"></a>
 </td>
 <td>
 The graph schema.
@@ -63,10 +56,10 @@ The graph schema.
 
 <tr>
 <td>
-`ValueError`<a id="ValueError"></a>
+<code>ValueError</code><a id="ValueError"></a>
 </td>
 <td>
-if `spec_or_value` is not represented by the graph schema.
+if <code>spec_or_value</code> is not represented by the graph schema.
 </td>
 </tr>
 </table>

@@ -1,17 +1,10 @@
 # tfgnn.keras.layers.MapFeatures
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/map_features.py#L27-L316">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/map_features.py#L27-L317">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Transforms features on a GraphTensor by user-defined callbacks.
 
@@ -144,6 +137,9 @@ KerasTensors.
 Weight sharing between the transformation of different graph pieces is possible
 by sharing the Keras objects between the respective callback invocations.
 
+This layer can be restored from config by `tf.keras.models.load_model()` when
+saved as part of a Keras model using `save_format="tf"`.
+
 WARNING: Weight sharing fails in `tf.keras.models.load_model()` with an error
 message on weights missing from the checkpoint. (Most users don't need to
 re-load their models this way.)
@@ -155,52 +151,52 @@ re-load their models this way.)
 
 <tr>
 <td>
-`context_fn`<a id="context_fn"></a>
+<code>context_fn</code><a id="context_fn"></a>
 </td>
 <td>
 A callback to build a Keras model for transforming context
-features. It will be called as `output = context_fn(g.context)`.
-Leaving this at the default `None` is equivalent to returning `None`.
+features. It will be called as <code>output = context_fn(g.context)</code>.
+Leaving this at the default <code>None</code> is equivalent to returning <code>None</code>.
 </td>
 </tr><tr>
 <td>
-`node_sets_fn`<a id="node_sets_fn"></a>
+<code>node_sets_fn</code><a id="node_sets_fn"></a>
 </td>
 <td>
 A callback to build a Keras model for transforming node set
 features. It will be called for every node sets as
-`node_sets_fn(g.node_sets[node_set_name], node_set_name=node_set_name)`.
-Leaving this at the default `None` is equivalent to returning `None`
+<code>node_sets_fn(g.node_sets[node_set_name], node_set_name=node_set_name)</code>.
+Leaving this at the default <code>None</code> is equivalent to returning <code>None</code>
 for every node set.
 </td>
 </tr><tr>
 <td>
-`edge_sets_fn`<a id="edge_sets_fn"></a>
+<code>edge_sets_fn</code><a id="edge_sets_fn"></a>
 </td>
 <td>
 A callback to build a Keras model for transforming edge set
 features. It will be called for every edge sets as
-`edge_sets_fn(g.edge_sets[edge_set_name], edge_set_name=edge_set_name)`.
-Leaving this at the default `None` is equivalent to returning `None`
+<code>edge_sets_fn(g.edge_sets[edge_set_name], edge_set_name=edge_set_name)</code>.
+Leaving this at the default <code>None</code> is equivalent to returning <code>None</code>
 for every edge set.
 </td>
 </tr><tr>
 <td>
-`allowed_aux_node_sets_pattern`<a id="allowed_aux_node_sets_pattern"></a>
+<code>allowed_aux_node_sets_pattern</code><a id="allowed_aux_node_sets_pattern"></a>
 </td>
 <td>
-If set, `node_sets_fn` is also invoked for
+If set, <code>node_sets_fn</code> is also invoked for
 those auxiliary node sets that match this pattern, according to Python's
-`re.fullmatch(pattern, node_set_name)`.
+<code>re.fullmatch(pattern, node_set_name)</code>.
 </td>
 </tr><tr>
 <td>
-`allowed_aux_edge_sets_pattern`<a id="allowed_aux_edge_sets_pattern"></a>
+<code>allowed_aux_edge_sets_pattern</code><a id="allowed_aux_edge_sets_pattern"></a>
 </td>
 <td>
-If set, `edge_sets_fn` is also invoked for
+If set, <code>edge_sets_fn</code> is also invoked for
 those auxiliary edge sets that match this pattern, according to Python's
-`re.fullmatch(pattern, edge_set_name)`.
+<code>re.fullmatch(pattern, edge_set_name)</code>.
 </td>
 </tr>
 </table>
@@ -212,7 +208,7 @@ those auxiliary edge sets that match this pattern, according to Python's
 
 <tr>
 <td>
-`graph`<a id="graph"></a>
+<code>graph</code><a id="graph"></a>
 </td>
 <td>
 A GraphTensor. The very first call triggers the building of

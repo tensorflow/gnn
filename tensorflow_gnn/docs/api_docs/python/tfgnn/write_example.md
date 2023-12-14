@@ -1,17 +1,10 @@
 # tfgnn.write_example
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_encode.py#L32-L59">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_encode.py#L34-L72">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Encode an eager `GraphTensor` to a tf.train.Example proto.
 
@@ -39,6 +32,15 @@ graph schema. The graph tensors materialized in this way will be parseable by
 (using the spec deserialized from the schema) and have the same contents (up to
 the choice of indices_dtype).
 
+All features stored on the `graph` must have dtypes that are supported by the
+graph schema. For the following dtypes, special caveats apply to their
+representation in `tf.train.Example`:
+
+*   `tf.float64` features are serialized as `tf.float32`, which truncates them
+    (perhaps fatally to 0 or +/- inf, if exceeding the exponent range).
+*   `tf.uint64` features are serialized as `tf.int64` values with the same bit
+    pattern. Deserializing from `tf.train.Example` recovers the original value.
+
 <!-- Tabular view -->
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
@@ -46,14 +48,14 @@ the choice of indices_dtype).
 
 <tr>
 <td>
-`graph`<a id="graph"></a>
+<code>graph</code><a id="graph"></a>
 </td>
 <td>
-An eager instance of `GraphTensor` to write out.
+An eager instance of <code>GraphTensor</code> to write out.
 </td>
 </tr><tr>
 <td>
-`prefix`<a id="prefix"></a>
+<code>prefix</code><a id="prefix"></a>
 </td>
 <td>
 An optional prefix string over all the features. You may use
@@ -63,13 +65,13 @@ this if you are encoding other data in the same protocol buffer.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
-A reference to `result`, if provided, or a to a freshly created instance
-of `tf.train.Example`.
+A <code>tf.train.Example</code> with the serialized <code>graph</code>.
 </td>
 </tr>
 

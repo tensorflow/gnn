@@ -1,17 +1,10 @@
 # tfgnn.gather_first_node
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L181-L231">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L175-L226">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Gathers feature value from the first node of each graph component.
 
@@ -50,31 +43,31 @@ or `feature_name` must be specified.
 
 <tr>
 <td>
-`graph_tensor`<a id="graph_tensor"></a>
+<code>graph_tensor</code><a id="graph_tensor"></a>
 </td>
 <td>
 A scalar GraphTensor.
 </td>
 </tr><tr>
 <td>
-`node_set_name`<a id="node_set_name"></a>
+<code>node_set_name</code><a id="node_set_name"></a>
 </td>
 <td>
 A seed node set name.
 </td>
 </tr><tr>
 <td>
-`feature_value`<a id="feature_value"></a>
+<code>feature_value</code><a id="feature_value"></a>
 </td>
 <td>
 A ragged or dense node feature value. Has a shape
-`[num_nodes, *feature_shape]`, where `num_nodes` is the number of nodes in
-the `node_set_name` node set and `feature_shape` is the shape of the
+<code>[num_nodes, *feature_shape]</code>, where <code>num_nodes</code> is the number of nodes in
+the <code>node_set_name</code> node set and <code>feature_shape</code> is the shape of the
 feature value for each node.
 </td>
 </tr><tr>
 <td>
-`feature_name`<a id="feature_name"></a>
+<code>feature_name</code><a id="feature_name"></a>
 </td>
 <td>
 A node feature name.
@@ -83,14 +76,15 @@ A node feature name.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
 A tensor of gathered feature values, one for each graph component, like a
-context feature. Has a shape `[num_components, *feature_shape]`, where
-`num_components` is the number of components in a graph and `feature_shape`
+context feature. Has a shape <code>[num_components, *feature_shape]</code>, where
+<code>num_components</code> is the number of components in a graph and <code>feature_shape</code>
 is not affected.
 </td>
 </tr>

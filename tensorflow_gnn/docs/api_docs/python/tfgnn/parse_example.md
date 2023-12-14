@@ -1,17 +1,10 @@
 # tfgnn.parse_example
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_io.py#L54-L100">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_io.py#L54-L100">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Parses a batch of serialized Example protos into a single `GraphTensor`.
 
@@ -38,9 +31,9 @@ function accepts a type spec for a graph tensor and implements an encoding for
 all container tensors, including ragged tensors, from a batched sequence of
 `tf.train.Example` protocol buffer messages.
 
-The encoded examples shapes and features are expected to conform to the
-encoding defined by `get_io_spec()`. The `validate` flag exists to implement
-verifications of this encoding.
+Parsed feature values are converted to their dtype declared in the `spec` using
+`tf.cast()`. Note that `tf.float64` features are converted from a `tf.float32`
+representation in `tf.train.Example`.
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -49,7 +42,7 @@ verifications of this encoding.
 
 <tr>
 <td>
-`spec`<a id="spec"></a>
+<code>spec</code><a id="spec"></a>
 </td>
 <td>
 A graph tensor type specification of a single serialized graph tensor
@@ -57,16 +50,16 @@ value.
 </td>
 </tr><tr>
 <td>
-`serialized`<a id="serialized"></a>
+<code>serialized</code><a id="serialized"></a>
 </td>
 <td>
 A rank-1 dense tensor of strings with serialized Example protos,
-where each example is a graph tensor object with type corresponding `spec`
+where each example is a graph tensor object with type corresponding <code>spec</code>
 type spec.
 </td>
 </tr><tr>
 <td>
-`prefix`<a id="prefix"></a>
+<code>prefix</code><a id="prefix"></a>
 </td>
 <td>
 An optional prefix string over all the features. You may use
@@ -74,22 +67,23 @@ this if you are encoding other data in the same protocol buffer.
 </td>
 </tr><tr>
 <td>
-`validate`<a id="validate"></a>
+<code>validate</code><a id="validate"></a>
 </td>
 <td>
 A boolean indicating whether or not to validate that the input
-values form a valid GraphTensor. Defaults to `True`.
+values form a valid GraphTensor. Defaults to <code>True</code>.
 </td>
 </tr>
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
-A graph tensor object with `spec.batch(serialized.shape[0])` type spec.
+A graph tensor object with <code>spec.batch(serialized.shape[0])</code> type spec.
 </td>
 </tr>
 

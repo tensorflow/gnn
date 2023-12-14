@@ -1,17 +1,10 @@
 # tfgnn.get_aux_type_prefix
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1555-L1587">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1872-L1904">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Returns type prefix of aux node or edge set names, or `None` if non-aux.
 
@@ -45,18 +38,17 @@ See the named function(s) for how the respective types of auxiliary edge sets
 and node sets are formed.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
 <tr>
 <td>
-`set_name`<a id="set_name"></a>
+<code>set_name</code><a id="set_name"></a>
 </td>
 <td>
 The name of a node set or edge set in a <a href="../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a>,
-<a href="../tfgnn/GraphTensorSpec.md"><code>tfgnn.GraphTensorSpec</code></a> or <a href="../tfgnn/GraphSchema.md"><code>tfgnn.GraphSchema</code></a>.
+<a href="../tfgnn/GraphTensorSpec.md"><code>tfgnn.GraphTensorSpec</code></a> or <a href="../tfgnn/proto/GraphSchema.md"><code>tfgnn.GraphSchema</code></a>.
 </td>
 </tr>
 </table>
@@ -69,7 +61,7 @@ The name of a node set or edge set in a <a href="../tfgnn/GraphTensor.md"><code>
 <tr class="alt">
 <td colspan="2">
 For an auxiliary node set or edge set, a non-empty prefix that identifies
-its type; for other node sets or edge sets, `None`.
+its type; for other node sets or edge sets, <code>None</code>.
 </td>
 </tr>
 

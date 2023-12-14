@@ -1,17 +1,10 @@
 # mt_albis.MtAlbisGraphUpdate
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/mt_albis/layers.py#L239-L389">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/mt_albis/layers.py#L243-L394">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Returns GraphUpdate layer for message passing with Model Template "Albis".
 
@@ -44,37 +37,40 @@ Returns GraphUpdate layer for message passing with Model Template "Albis".
 The TF-GNN Model Template "Albis" provides a small selection of field-tested GNN
 architectures through the unified interface of this class.
 
-<!-- Tabular view -->
+The layer returned by this function can be restored from config by
+`tf.keras.models.load_model()` when saved as part of a Keras model using
+`save_format="tf"`.
 
+<!-- Tabular view -->
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
 <tr>
 <td>
-`units`<a id="units"></a>
+<code>units</code><a id="units"></a>
 </td>
 <td>
 The dimension of node states in the output GraphTensor.
 </td>
 </tr><tr>
 <td>
-`message_dim`<a id="message_dim"></a>
+<code>message_dim</code><a id="message_dim"></a>
 </td>
 <td>
 The dimension of messages computed transiently on each edge.
 </td>
 </tr><tr>
 <td>
-`receiver_tag`<a id="receiver_tag"></a>
+<code>receiver_tag</code><a id="receiver_tag"></a>
 </td>
 <td>
-One of `tfgnn.SOURCE` or `tfgnn.TARGET`. The messages are
+One of <code>tfgnn.SOURCE</code> or <code>tfgnn.TARGET</code>. The messages are
 sent to the nodes at this endpoint of edges.
 </td>
 </tr><tr>
 <td>
-`node_set_names`<a id="node_set_names"></a>
+<code>node_set_names</code><a id="node_set_names"></a>
 </td>
 <td>
 Optionally, the names of NodeSets to update. By default,
@@ -82,7 +78,7 @@ all NodeSets are updated that receive from at least one EdgeSet.
 </td>
 </tr><tr>
 <td>
-`edge_feature_name`<a id="edge_feature_name"></a>
+<code>edge_feature_name</code><a id="edge_feature_name"></a>
 </td>
 <td>
 Optionally, the name of an edge feature to include in
@@ -90,53 +86,54 @@ message computation on edges.
 </td>
 </tr><tr>
 <td>
-`attention_type`<a id="attention_type"></a>
+<code>attention_type</code><a id="attention_type"></a>
 </td>
 <td>
-`"none"`, `"multi_head"`, or `"gat_v2"`. Selects whether
+<code>"none"</code>, <code>"multi_head"</code>, or <code>"gat_v2"</code>. Selects whether
 messages are pooled with data-dependent weights computed by a trained
 attention mechansim.
 </td>
 </tr><tr>
 <td>
-`attention_edge_set_names`<a id="attention_edge_set_names"></a>
+<code>attention_edge_set_names</code><a id="attention_edge_set_names"></a>
 </td>
 <td>
 If set, edge sets other than those named here
-will be treated as if `attention_type="none"` regardless.
+will be treated as if <code>attention_type="none"</code> regardless.
 </td>
 </tr><tr>
 <td>
-`attention_num_heads`<a id="attention_num_heads"></a>
+<code>attention_num_heads</code><a id="attention_num_heads"></a>
 </td>
 <td>
-For attention_types `"multi_head"` or `"gat_v2"`,
+For attention_types <code>"multi_head"</code> or <code>"gat_v2"</code>,
 the number of attention heads.
 </td>
 </tr><tr>
 <td>
-`simple_conv_reduce_type`<a id="simple_conv_reduce_type"></a>
+<code>simple_conv_reduce_type</code><a id="simple_conv_reduce_type"></a>
 </td>
 <td>
-For attention_type `"none"`, controls how messages
-are aggregated on an EdgeSet for each receiver node. Defaults to `"mean"`;
-other recommened values are the concatenations `"mean|sum"`, `"mean|max"`,
-and `"mean|sum|max"` (but mind the increased output dimension and the
-corresponding increase in the number of weights in the next-state layer).
-Technically, can be set to any reduce_type understood by `tfgnn.pool()`.
+For attention_type <code>"none"</code>, controls how messages
+are aggregated on an EdgeSet for each receiver node. Defaults to <code>"mean"</code>;
+other recommended values are the concatenations <code>"mean|sum"</code>,
+<code>"mean|max"</code>, and <code>"mean|sum|max"</code> (but mind the increased output
+dimension and the corresponding increase in the number of weights in the
+next-state layer). Technically, can be set to any reduce_type understood
+by <code>tfgnn.pool()</code>.
 </td>
 </tr><tr>
 <td>
-`simple_conv_use_receiver_state`<a id="simple_conv_use_receiver_state"></a>
+<code>simple_conv_use_receiver_state</code><a id="simple_conv_use_receiver_state"></a>
 </td>
 <td>
-For attention_type `"none"`, controls
+For attention_type <code>"none"</code>, controls
 whether the receiver node state is used in computing each edge's message
-(in addition to the sender node state and possibly an `edge feature`).
+(in addition to the sender node state and possibly an <code>edge feature</code>).
 </td>
 </tr><tr>
 <td>
-`state_dropout_rate`<a id="state_dropout_rate"></a>
+<code>state_dropout_rate</code><a id="state_dropout_rate"></a>
 </td>
 <td>
 The dropout rate applied to the pooled and combined
@@ -147,7 +144,7 @@ is applied to messages after pooling.)
 </td>
 </tr><tr>
 <td>
-`edge_dropout_rate`<a id="edge_dropout_rate"></a>
+<code>edge_dropout_rate</code><a id="edge_dropout_rate"></a>
 </td>
 <td>
 Can be set to a dropout rate for entire edges during
@@ -156,7 +153,7 @@ an edge is dropped, as if the edge were not present in the graph.
 </td>
 </tr><tr>
 <td>
-`l2_regularization`<a id="l2_regularization"></a>
+<code>l2_regularization</code><a id="l2_regularization"></a>
 </td>
 <td>
 The coefficient of L2 regularization for trained weights.
@@ -164,54 +161,54 @@ The coefficient of L2 regularization for trained weights.
 </td>
 </tr><tr>
 <td>
-`kernel_initializer`<a id="kernel_initializer"></a>
+<code>kernel_initializer</code><a id="kernel_initializer"></a>
 </td>
 <td>
-Can be set to a `kernel_initializer` as understood
-by `tf.keras.layers.Dense` etc.
-An `Initializer` object gets cloned before use to ensure a fresh seed,
-if not set explicitly. For more, see `tfgnn.keras.clone_initializer()`.
+Can be set to a <code>kernel_initializer</code> as understood
+by <code>tf.keras.layers.Dense</code> etc.
+An <code>Initializer</code> object gets cloned before use to ensure a fresh seed,
+if not set explicitly. For more, see <code>tfgnn.keras.clone_initializer()</code>.
 </td>
 </tr><tr>
 <td>
-`normalization_type`<a id="normalization_type"></a>
+<code>normalization_type</code><a id="normalization_type"></a>
 </td>
 <td>
 controls the normalization of output node states.
-By default (`"layer"`), LayerNormalization is used. Can be set to
-`"none"`, or to `"batch"` for BatchNormalization.
+By default (<code>"layer"</code>), LayerNormalization is used. Can be set to
+<code>"none"</code>, or to <code>"batch"</code> for BatchNormalization.
 </td>
 </tr><tr>
 <td>
-`batch_normalization_momentum`<a id="batch_normalization_momentum"></a>
+<code>batch_normalization_momentum</code><a id="batch_normalization_momentum"></a>
 </td>
 <td>
-If `normalization_type="batch"`, sets the
-`BatchNormalization(momentum=...)` parameter. Ignored otherwise.
+If <code>normalization_type="batch"</code>, sets the
+<code>BatchNormalization(momentum=...)</code> parameter. Ignored otherwise.
 </td>
 </tr><tr>
 <td>
-`next_state_type`<a id="next_state_type"></a>
+<code>next_state_type</code><a id="next_state_type"></a>
 </td>
 <td>
-`"dense"` or `"residual"`. With the latter, a residual
+<code>"dense"</code> or <code>"residual"</code>. With the latter, a residual
 link is added from the old to the new node state, which requires that all
-input node states already have size `units` (unless their size is 0, as
+input node states already have size <code>units</code> (unless their size is 0, as
 for latent node sets, in which case the residual link is omitted).
 </td>
 </tr><tr>
 <td>
-`edge_set_combine_type`<a id="edge_set_combine_type"></a>
+<code>edge_set_combine_type</code><a id="edge_set_combine_type"></a>
 </td>
 <td>
-`"concat"` or `"sum"`. Controls how pooled messages
+<code>"concat"</code> or <code>"sum"</code>. Controls how pooled messages
 from various edge sets are combined as inputs to the NextState layer
-that updates the node states. Defaults to `"concat"`, which gives the
+that updates the node states. Defaults to <code>"concat"</code>, which gives the
 pooled messages from each edge set separate weights in the NextState
-layer, namely `units * message_dim * num_incident_edge_sets` per node set.
-Setting this to `"sum"` adds up the pooled messages into a single
+layer, namely <code>units * message_dim * num_incident_edge_sets</code> per node set.
+Setting this to <code>"sum"</code> adds up the pooled messages into a single
 vector before passing them into the NextState layer, which requires just
-`units * message_dim` weights per node set.
+<code>units * message_dim</code> weights per node set.
 </td>
 </tr>
 </table>

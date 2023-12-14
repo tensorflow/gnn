@@ -1,17 +1,10 @@
 # tfgnn.EdgeSetSpec
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L634-L693">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L823-L882">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 A type spec for <a href="../tfgnn/EdgeSet.md"><code>tfgnn.EdgeSet</code></a>.
 
@@ -20,12 +13,12 @@ A type spec for <a href="../tfgnn/EdgeSet.md"><code>tfgnn.EdgeSet</code></a>.
     data_spec: DataSpec,
     shape: tf.TensorShape,
     indices_dtype: tf.dtypes.DType,
+    row_splits_dtype: tf.dtypes.DType,
     metadata: Metadata = None,
-    validate: bool = False
+    check_consistent_indices_dtype: bool = False,
+    check_consistent_row_splits_dtype: bool = False
 )
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->
 
@@ -37,25 +30,29 @@ A type spec for <a href="../tfgnn/EdgeSet.md"><code>tfgnn.EdgeSet</code></a>.
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Attributes</h2></th></tr>
 
-<tr> <td> `adjacency_spec`<a id="adjacency_spec"></a> </td> <td> A type spec for
-the adjacency composite tensor. </td> </tr><tr> <td>
-`features_spec`<a id="features_spec"></a> </td> <td> A read-only mapping of
-feature name to feature spec. </td> </tr><tr> <td>
-`indices_dtype`<a id="indices_dtype"></a> </td> <td> The integer type to
-represent ragged splits. </td> </tr><tr> <td> `rank`<a id="rank"></a> </td> <td>
-The rank of the GraphPiece. Guaranteed not to be `None`. </td> </tr><tr> <td>
-`shape`<a id="shape"></a> </td> <td> A possibly-partial shape specification of
-the GraphPiece.
+<tr> <td> <code>adjacency_spec</code><a id="adjacency_spec"></a> </td> <td> A
+type spec for the adjacency composite tensor. </td> </tr><tr> <td>
+<code>features_spec</code><a id="features_spec"></a> </td> <td> A read-only
+mapping of feature name to feature spec. </td> </tr><tr> <td>
+<code>indices_dtype</code><a id="indices_dtype"></a> </td> <td> The dtype for
+graph items indexing. One of <code>tf.int32</code> or <code>tf.int64</code>.
+</td> </tr><tr> <td> <code>rank</code><a id="rank"></a> </td> <td> The rank of
+the GraphPiece. Guaranteed not to be <code>None</code>. </td> </tr><tr> <td>
+<code>row_splits_dtype</code><a id="row_splits_dtype"></a> </td> <td> The dtype
+for ragged row partitions. One of <code>tf.int32</code> or
+<code>tf.int64</code>. </td> </tr><tr> <td> <code>shape</code><a id="shape"></a>
+</td> <td> A possibly-partial shape specification of the GraphPiece.
 
-The returned `TensorShape` is guaranteed to have a known rank, but the
-individual dimension sizes may be unknown. </td> </tr><tr> <td>
-`sizes_spec`<a id="sizes_spec"></a> </td> <td> The type spec for the sizes that
-provides num. elements per component. </td> </tr><tr> <td>
-`total_num_components`<a id="total_num_components"></a> </td> <td> The total
-number of graph components if known. </td> </tr><tr> <td>
-`total_size`<a id="total_size"></a> </td> <td> The total number of edges if
-known. </td> </tr><tr> <td> `value_type`<a id="value_type"></a> </td> <td> The
-Python type for values that are compatible with this TypeSpec.
+The returned <code>tf.TensorShape</code> is guaranteed to have a known rank and
+no unknown dimensions except possibly the outermost. </td> </tr><tr> <td>
+<code>sizes_spec</code><a id="sizes_spec"></a> </td> <td> The type spec for the
+sizes that provides num. elements per component. </td> </tr><tr> <td>
+<code>total_num_components</code><a id="total_num_components"></a> </td> <td>
+The total number of graph components if known. </td> </tr><tr> <td>
+<code>total_size</code><a id="total_size"></a> </td> <td> The total number of
+edges if known. </td> </tr><tr> <td>
+<code>value_type</code><a id="value_type"></a> </td> <td> The Python type for
+values that are compatible with this TypeSpec.
 
 In particular, all values that are compatible with this TypeSpec must be an
 instance of this type.
@@ -97,7 +94,7 @@ Do NOT override for custom non-TF types.
 
 <tr>
 <td>
-`proto`
+<code>proto</code>
 </td>
 <td>
 Proto generated using 'experimental_as_proto'.
@@ -118,7 +115,7 @@ Do NOT override for custom non-TF types.
 
 <h3 id="from_field_specs"><code>from_field_specs</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L638-L652">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L827-L841">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -136,7 +133,7 @@ The counterpart of <a href="../tfgnn/EdgeSet.md#from_fields"><code>EdgeSet.from_
 
 <h3 id="from_value"><code>from_value</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L491-L494">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L674-L677">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -169,15 +166,13 @@ possible.
 
 <tr>
 <td>
-`spec_or_value`
+<code>spec_or_value</code>
 </td>
 <td>
 A TypeSpec or TypeSpec associated value to compare against.
 </td>
 </tr>
 </table>
-
-
 
 <h3 id="is_subtype_of"><code>is_subtype_of</code></h3>
 
@@ -203,15 +198,13 @@ of the TypeSpec.
 
 <tr>
 <td>
-`other`
+<code>other</code>
 </td>
 <td>
 A TraceType object.
 </td>
 </tr>
 </table>
-
-
 
 <h3 id="most_specific_common_supertype"><code>most_specific_common_supertype</code></h3>
 
@@ -237,15 +230,13 @@ of the TypeSpec.
 
 <tr>
 <td>
-`others`
+<code>others</code>
 </td>
 <td>
 A sequence of TraceTypes.
 </td>
 </tr>
 </table>
-
-
 
 <h3 id="most_specific_compatible_type"><code>most_specific_compatible_type</code></h3>
 
@@ -271,15 +262,13 @@ Do not override this function.
 
 <tr>
 <td>
-`other`
+<code>other</code>
 </td>
 <td>
-A `TypeSpec`.
+A <code>TypeSpec</code>.
 </td>
 </tr>
 </table>
-
-
 
 <!-- Tabular view -->
  <table class="responsive fixed orange">
@@ -288,18 +277,18 @@ A `TypeSpec`.
 
 <tr>
 <td>
-`ValueError`
+<code>ValueError</code>
 </td>
 <td>
-If there is no TypeSpec that is compatible with both `self`
-and `other`.
+If there is no TypeSpec that is compatible with both <code>self</code>
+and <code>other</code>.
 </td>
 </tr>
 </table>
 
 <h3 id="relax"><code>relax</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L668-L693">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L857-L882">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
@@ -319,19 +308,19 @@ Calling with all default parameters keeps the spec unchanged.
 
 <tr>
 <td>
-`num_components`
+<code>num_components</code>
 </td>
 <td>
 if True, allows variable number of graph components by
-setting the outermost sizes dimension to `None`.
+setting the outermost sizes dimension to <code>None</code>.
 </td>
 </tr><tr>
 <td>
-`num_edges`
+<code>num_edges</code>
 </td>
 <td>
 if True, allows variable number of edges by setting the
-outermost features dimensions to `None`.
+outermost features dimensions to <code>None</code>.
 </td>
 </tr>
 </table>
@@ -355,13 +344,52 @@ Relaxed compatible edge set spec.
 
 <tr>
 <td>
-`ValueError`
+<code>ValueError</code>
 </td>
 <td>
 if edge set is not scalar (rank > 0).
 </td>
 </tr>
 </table>
+
+<h3 id="with_indices_dtype"><code>with_indices_dtype</code></h3>
+
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L598-L610">View
+source</a>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>with_indices_dtype(
+    dtype: tf.dtypes.DType
+) -> 'GraphPieceSpecBase'
+</code></pre>
+
+Returns a copy of this piece spec with the given indices dtype.
+
+<h3 id="with_row_splits_dtype"><code>with_row_splits_dtype</code></h3>
+
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L639-L653">View
+source</a>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>with_row_splits_dtype(
+    dtype: tf.dtypes.DType
+) -> 'GraphPieceSpecBase'
+</code></pre>
+
+Returns a copy of this piece spec with the given row splits dtype.
+
+<h3 id="with_shape"><code>with_shape</code></h3>
+
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_piece.py#L572-L586">View
+source</a>
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>with_shape(
+    new_shape: ShapeLike
+) -> 'GraphPieceSpecBase'
+</code></pre>
+
+Enforce the common prefix shape on all the contained features.
 
 <h3 id="__eq__"><code>__eq__</code></h3>
 
@@ -376,7 +404,7 @@ Return self==value.
 
 <h3 id="__getitem__"><code>__getitem__</code></h3>
 
-<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L164-L165">View
+<a target="_blank" class="external" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L240-L241">View
 source</a>
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">

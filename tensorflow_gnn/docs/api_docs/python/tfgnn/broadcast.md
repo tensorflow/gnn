@@ -1,17 +1,10 @@
 # tfgnn.broadcast
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/broadcast_ops.py#L181-L258">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/broadcast_ops.py#L185-L263">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Broadcasts values from nodes to edges, or from context to nodes or edges.
 
@@ -53,14 +46,14 @@ handy for some algorithms.
 
 <tr>
 <td>
-`graph_tensor`<a id="graph_tensor"></a>
+<code>graph_tensor</code><a id="graph_tensor"></a>
 </td>
 <td>
 A scalar GraphTensor.
 </td>
 </tr><tr>
 <td>
-`from_tag`<a id="from_tag"></a>
+<code>from_tag</code><a id="from_tag"></a>
 </td>
 <td>
 Values are broadcast from context if this is <a href="../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a> or
@@ -68,36 +61,36 @@ from the incident node on each edge with this tag.
 </td>
 </tr><tr>
 <td>
-`edge_set_name`<a id="edge_set_name"></a>
+<code>edge_set_name</code><a id="edge_set_name"></a>
 </td>
 <td>
 The name of the edge set to which values are broadcast, or
-a non-empty sequence of such names. Unless `from_tag=tfgnn.CONTEXT`,
+a non-empty sequence of such names. Unless <code>from_tag=tfgnn.CONTEXT</code>,
 all named edge sets must have the same incident node set at the given tag.
 </td>
 </tr><tr>
 <td>
-`node_set_name`<a id="node_set_name"></a>
+<code>node_set_name</code><a id="node_set_name"></a>
 </td>
 <td>
 The name of the node set to which values are broadcast,
 or a non-empty sequence of such names. Can only be passed together with
-`from_tag=tfgnn.CONTEXT`. Exactly one of edge_set_name or node_set_name
+<code>from_tag=tfgnn.CONTEXT</code>. Exactly one of edge_set_name or node_set_name
 must be set.
 </td>
 </tr><tr>
 <td>
-`feature_value`<a id="feature_value"></a>
+<code>feature_value</code><a id="feature_value"></a>
 </td>
 <td>
-A tensor of shape `[num_items, *feature_shape]` from which
+A tensor of shape <code>[num_items, *feature_shape]</code> from which
 the broadcast values are taken. The first dimension indexes the items
 from which the broadcast is done (that is, the nodes of the common node
-set identified by `from_tag`, or the graph components in the context).
+set identified by <code>from_tag</code>, or the graph components in the context).
 </td>
 </tr><tr>
 <td>
-`feature_name`<a id="feature_name"></a>
+<code>feature_name</code><a id="feature_name"></a>
 </td>
 <td>
 The name of a feature stored in the graph, for use instead of
@@ -107,7 +100,6 @@ feature_value. Exactly one of feature_name or feature_value must be set.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>

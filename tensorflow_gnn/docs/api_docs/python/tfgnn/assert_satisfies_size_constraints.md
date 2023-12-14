@@ -1,17 +1,10 @@
 # tfgnn.assert_satisfies_size_constraints
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/padding_ops.py#L213-L253">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/padding_ops.py#L216-L257">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Raises InvalidArgumentError if graph_tensor exceeds size_constraints.
 
@@ -58,14 +51,14 @@ following important advantages:
 
 <tr>
 <td>
-`graph_tensor`<a id="graph_tensor"></a>
+<code>graph_tensor</code><a id="graph_tensor"></a>
 </td>
 <td>
 a graph tensor to check against target total sizes.
 </td>
 </tr><tr>
 <td>
-`size_constraints`<a id="size_constraints"></a>
+<code>size_constraints</code><a id="size_constraints"></a>
 </td>
 <td>
 target total sizes for each graph piece.
@@ -74,12 +67,13 @@ target total sizes for each graph piece.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
-Validation operations to execute within a `tf.control_dependencies`.
+Validation operations to execute within a <code>tf.control_dependencies</code>.
 </td>
 </tr>
 
@@ -94,11 +88,11 @@ Validation operations to execute within a `tf.control_dependencies`.
 
 <tr>
 <td>
-`tf.errors.InvalidArgumentError`<a id="tf.errors.InvalidArgumentError"></a>
+<code>tf.errors.InvalidArgumentError</code><a id="tf.errors.InvalidArgumentError"></a>
 </td>
 <td>
 if input graph tensor could not be padded to
-the `size_constraints`.
+the <code>size_constraints</code>.
 </td>
 </tr>
 </table>

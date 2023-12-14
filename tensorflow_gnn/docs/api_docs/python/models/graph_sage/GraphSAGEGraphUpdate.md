@@ -1,17 +1,10 @@
 # graph_sage.GraphSAGEGraphUpdate
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L475-L588">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L484-L597">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Returns a GraphSAGE GraphUpdater layer for nodes in node_set_names.
 
@@ -49,7 +42,7 @@ edge_set_name_list for the specified node_set_name node.
 
 <tr>
 <td>
-`units`<a id="units"></a>
+<code>units</code><a id="units"></a>
 </td>
 <td>
 Number of output units of the linear transformation applied to both
@@ -57,7 +50,7 @@ final aggregated sender node features as well as the self node feature.
 </td>
 </tr><tr>
 <td>
-`hidden_units`<a id="hidden_units"></a>
+<code>hidden_units</code><a id="hidden_units"></a>
 </td>
 <td>
 Number of output units to be configure for GraphSAGE pooling
@@ -65,17 +58,17 @@ type convolution only.
 </td>
 </tr><tr>
 <td>
-`receiver_tag`<a id="receiver_tag"></a>
+<code>receiver_tag</code><a id="receiver_tag"></a>
 </td>
 <td>
-Either one of `tfgnn.SOURCE` or `tfgnn.TARGET`. The results of
-GraphSAGE are aggregated for this graph piece. When set to `tfgnn.SOURCE`
-or `tfgnn.TARGET`, the layer is called for an edge set and will aggregate
+Either one of <code>tfgnn.SOURCE</code> or <code>tfgnn.TARGET</code>. The results of
+GraphSAGE are aggregated for this graph piece. When set to <code>tfgnn.SOURCE</code>
+or <code>tfgnn.TARGET</code>, the layer is called for an edge set and will aggregate
 results at the specified endpoint of the edges.
 </td>
 </tr><tr>
 <td>
-`node_set_names`<a id="node_set_names"></a>
+<code>node_set_names</code><a id="node_set_names"></a>
 </td>
 <td>
 By default, this layer updates all node sets that receive
@@ -86,15 +79,15 @@ auxiliary node sets.
 </td>
 </tr><tr>
 <td>
-`reduce_type`<a id="reduce_type"></a>
+<code>reduce_type</code><a id="reduce_type"></a>
 </td>
 <td>
 An aggregation operation name. Supported list of aggregation
-operators can be found at `tfgnn.get_registered_reduce_operation_names()`.
+operators can be found at <code>tfgnn.get_registered_reduce_operation_names()</code>.
 </td>
 </tr><tr>
 <td>
-`use_pooling`<a id="use_pooling"></a>
+<code>use_pooling</code><a id="use_pooling"></a>
 </td>
 <td>
 If enabled, <a href="../graph_sage/GraphSAGEPoolingConv.md"><code>graph_sage.GraphSAGEPoolingConv</code></a> will be used,
@@ -103,7 +96,7 @@ provided edges.
 </td>
 </tr><tr>
 <td>
-`use_bias`<a id="use_bias"></a>
+<code>use_bias</code><a id="use_bias"></a>
 </td>
 <td>
 If true a bias term will be added to the linear transformations
@@ -111,7 +104,7 @@ for the incident node features as well as for the self node feature.
 </td>
 </tr><tr>
 <td>
-`dropout_rate`<a id="dropout_rate"></a>
+<code>dropout_rate</code><a id="dropout_rate"></a>
 </td>
 <td>
 Can be set to a dropout rate that will be applied to both
@@ -119,7 +112,7 @@ incident node features as well as the self node feature.
 </td>
 </tr><tr>
 <td>
-`l2_normalize`<a id="l2_normalize"></a>
+<code>l2_normalize</code><a id="l2_normalize"></a>
 </td>
 <td>
 If enabled l2 normalization will be applied to final node
@@ -127,7 +120,7 @@ states.
 </td>
 </tr><tr>
 <td>
-`combine_type`<a id="combine_type"></a>
+<code>combine_type</code><a id="combine_type"></a>
 </td>
 <td>
 Can be set to "sum" or "concat". If it's specified as concat
@@ -136,32 +129,32 @@ node state will be added with the sender node features.
 </td>
 </tr><tr>
 <td>
-`activation`<a id="activation"></a>
+<code>activation</code><a id="activation"></a>
 </td>
 <td>
 The nonlinearity applied to the concatenated or added node state
 and aggregated sender node features. This can be specified as a Keras
 layer, a tf.keras.activations.* function, or a string understood by
-`tf.keras.layers.Activation()`. Defaults to relu.
+<code>tf.keras.layers.Activation()</code>. Defaults to relu.
 </td>
 </tr><tr>
 <td>
-`feature_name`<a id="feature_name"></a>
+<code>feature_name</code><a id="feature_name"></a>
 </td>
 <td>
 The feature name of node states; defaults to
-`tfgnn.HIDDEN_STATE`.
+<code>tfgnn.HIDDEN_STATE</code>.
 </td>
 </tr><tr>
 <td>
-`name`<a id="name"></a>
+<code>name</code><a id="name"></a>
 </td>
 <td>
 Optionally, a name for the layer returned.
 </td>
 </tr><tr>
 <td>
-`**kwargs`<a id="**kwargs"></a>
+<code>**kwargs</code><a id="**kwargs"></a>
 </td>
 <td>
 Any optional arguments to <a href="../graph_sage/GraphSAGEPoolingConv.md"><code>graph_sage.GraphSAGEPoolingConv</code></a>,

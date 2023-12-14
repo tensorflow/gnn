@@ -1,17 +1,10 @@
 # tfgnn.convert_to_line_graph
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L1021-L1132">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L1019-L1131">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Obtain a graph's line graph.
 
@@ -66,21 +59,20 @@ sets: 'original/to/lines' with edges a->ab, b->bc, c->ca, and
 'original/from/lines' with edges ab->b, bc->c, ca->a.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
 <tr>
 <td>
-`graph_tensor`<a id="graph_tensor"></a>
+<code>graph_tensor</code><a id="graph_tensor"></a>
 </td>
 <td>
 Graph to convert to a line graph.
 </td>
 </tr><tr>
 <td>
-`connect_from`<a id="connect_from"></a>
+<code>connect_from</code><a id="connect_from"></a>
 </td>
 <td>
 Specifies which endpoint of the original edges
@@ -88,7 +80,7 @@ will determine the source for the line graph edges.
 </td>
 </tr><tr>
 <td>
-`connect_to`<a id="connect_to"></a>
+<code>connect_to</code><a id="connect_to"></a>
 </td>
 <td>
 Specifies which endpoint of the original edges
@@ -96,29 +88,29 @@ will determine the target for the line graph edges.
 </td>
 </tr><tr>
 <td>
-`connect_with_original_nodes`<a id="connect_with_original_nodes"></a>
+<code>connect_with_original_nodes</code><a id="connect_with_original_nodes"></a>
 </td>
 <td>
 If true, keep the original node sets (not the
 original edge sets) and connect them to line graph nodes according to
 source and target in the original graph. The node set names will be called
-`original/{node_set}` and the new edges `original/to/{edge_set}` for the
-SOURCE nodes and `original/from/{edge_set}` for the TARGET nodes.
+<code>original/{node_set}</code> and the new edges <code>original/to/{edge_set}</code> for the
+SOURCE nodes and <code>original/from/{edge_set}</code> for the TARGET nodes.
 </td>
 </tr><tr>
 <td>
-`non_backtracking`<a id="non_backtracking"></a>
+<code>non_backtracking</code><a id="non_backtracking"></a>
 </td>
 <td>
 Whether to return the non-backtracking line graph. Setting
 this to True will only connect edges where the "outer" nodes are
-different, i.e. `u_{1-i} != v_{1-j}`. For default connection settings,
+different, i.e. <code>u_{1-i} != v_{1-j}</code>. For default connection settings,
 for every edge u->v this *removes* line graph edges uv->vu. If
 connect_to=TARGET, this *removes* line graph edges uv->uv.
 </td>
 </tr><tr>
 <td>
-`use_node_features_as_line_graph_edge_features`<a id="use_node_features_as_line_graph_edge_features"></a>
+<code>use_node_features_as_line_graph_edge_features</code><a id="use_node_features_as_line_graph_edge_features"></a>
 </td>
 <td>
 Whether to use the original
@@ -128,7 +120,6 @@ graph's node features as edge features in the line graph.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>

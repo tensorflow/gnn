@@ -1,17 +1,10 @@
 # graph_sage.GCNGraphSAGENodeSetUpdate
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L256-L472">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L262-L481">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 GCNGraphSAGENodeSetUpdate is an extension of the mean aggregator operator.
 
@@ -77,6 +70,9 @@ reduce operation, instead only the sender node states will be accumulated based
 on the reduce_type specified. If share_weights is set to True, then single
 weight matrix will be used in place of W_E and W_self.
 
+This layer can be restored from config by `tf.keras.models.load_model()` when
+saved as part of a Keras model using `save_format="tf"`.
+
 <!-- Tabular view -->
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
@@ -84,26 +80,26 @@ weight matrix will be used in place of W_E and W_self.
 
 <tr>
 <td>
-`edge_set_names`<a id="edge_set_names"></a>
+<code>edge_set_names</code><a id="edge_set_names"></a>
 </td>
 <td>
 A list of edge set names to broadcast sender node states.
 </td>
 </tr><tr>
 <td>
-`receiver_tag`<a id="receiver_tag"></a>
+<code>receiver_tag</code><a id="receiver_tag"></a>
 </td>
 <td>
-Either one of `tfgnn.SOURCE` or `tfgnn.TARGET`. The results
+Either one of <code>tfgnn.SOURCE</code> or <code>tfgnn.TARGET</code>. The results
 of GraphSAGE convolution are aggregated for this graph piece. If set to
-`tfgnn.SOURCE` or `tfgnn.TARGET`, the layer will be called for each edge
+<code>tfgnn.SOURCE</code> or <code>tfgnn.TARGET</code>, the layer will be called for each edge
 set and will aggregate results at the specified endpoint of the edges.
 This should point at the node_set_name for each of the specified edge
 set name in the edge_set_name_dict.
 </td>
 </tr><tr>
 <td>
-`reduce_type`<a id="reduce_type"></a>
+<code>reduce_type</code><a id="reduce_type"></a>
 </td>
 <td>
 An aggregation operation name. Supported list of aggregation
@@ -111,24 +107,24 @@ operators are sum or mean.
 </td>
 </tr><tr>
 <td>
-`self_node_feature`<a id="self_node_feature"></a>
+<code>self_node_feature</code><a id="self_node_feature"></a>
 </td>
 <td>
 Feature name for the self node sets to be aggregated
 with the broadcasted sender node states. Default is
-`tfgnn.HIDDEN_STATE`.
+<code>tfgnn.HIDDEN_STATE</code>.
 </td>
 </tr><tr>
 <td>
-`sender_node_feature`<a id="sender_node_feature"></a>
+<code>sender_node_feature</code><a id="sender_node_feature"></a>
 </td>
 <td>
 Feature name for the sender node sets. Default is
-`tfgnn.HIDDEN_STATE`.
+<code>tfgnn.HIDDEN_STATE</code>.
 </td>
 </tr><tr>
 <td>
-`units`<a id="units"></a>
+<code>units</code><a id="units"></a>
 </td>
 <td>
 Number of output units for the linear transformation applied to
@@ -136,7 +132,7 @@ sender node and self node features.
 </td>
 </tr><tr>
 <td>
-`dropout_rate`<a id="dropout_rate"></a>
+<code>dropout_rate</code><a id="dropout_rate"></a>
 </td>
 <td>
 Can be set to a dropout rate that will be applied to both
@@ -144,7 +140,7 @@ self node and the sender node states.
 </td>
 </tr><tr>
 <td>
-`activation`<a id="activation"></a>
+<code>activation</code><a id="activation"></a>
 </td>
 <td>
 The nonlinearity applied to the update node states. This can
@@ -153,7 +149,7 @@ string understood by tf.keras.layers.Activation(). Defaults to relu.
 </td>
 </tr><tr>
 <td>
-`use_bias`<a id="use_bias"></a>
+<code>use_bias</code><a id="use_bias"></a>
 </td>
 <td>
 If true a bias term will be added to mean aggregated feature
@@ -161,7 +157,7 @@ vectors before applying non-linear activation.
 </td>
 </tr><tr>
 <td>
-`share_weights`<a id="share_weights"></a>
+<code>share_weights</code><a id="share_weights"></a>
 </td>
 <td>
 If left unset, separate weights are used to transform the
@@ -171,7 +167,7 @@ applied to all inputs.
 </td>
 </tr><tr>
 <td>
-`add_self_loop`<a id="add_self_loop"></a>
+<code>add_self_loop</code><a id="add_self_loop"></a>
 </td>
 <td>
 If left at True (the default), each node state update takes

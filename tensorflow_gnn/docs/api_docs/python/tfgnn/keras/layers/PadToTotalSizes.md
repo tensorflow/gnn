@@ -1,17 +1,10 @@
 # tfgnn.keras.layers.PadToTotalSizes
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/padding_ops.py#L23-L64">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/padding_ops.py#L23-L66">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Applies tfgnn.pad_to_total_sizes() to a GraphTensor.
 
@@ -33,6 +26,7 @@ This Keras layer maps a GraphTensor to a GraphTensor by calling
 `sizes_constraints`, passed at initialization time. See that function
 for detailed documentation.
 
-Serialization to a Keras model config requires the `sizes_constraints` to
-contain Python integers or eager Tensors, not symbolic Tensors.
-
+This layer can be restored from config by `tf.keras.models.load_model()` when
+saved as part of a Keras model using `save_format="tf"`. Serialization to a
+Keras model config requires the `sizes_constraints` to contain Python integers
+or eager Tensors, not symbolic Tensors.

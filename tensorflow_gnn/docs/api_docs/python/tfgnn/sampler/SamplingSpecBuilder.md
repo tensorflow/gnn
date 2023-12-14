@@ -1,24 +1,17 @@
 # tfgnn.sampler.SamplingSpecBuilder
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/sampler/sampling_spec_builder.py#L197-L324">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/sampler/sampling_spec_builder.py#L197-L324">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Mimics builder pattern that eases creation of `tfgnn.SamplingSpec`.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>tfgnn.sampler.SamplingSpecBuilder(
-    graph_schema: <a href="../../tfgnn/GraphSchema.md"><code>tfgnn.GraphSchema</code></a>,
-    default_strategy: SamplingStrategy = SamplingStrategy.TOP_K
+    graph_schema: <a href="../../tfgnn/proto/GraphSchema.md"><code>tfgnn.proto.GraphSchema</code></a>,
+    default_strategy: <a href="../../tfgnn/sampler.md#SamplingStrategy"><code>tfgnn.sampler.SamplingStrategy</code></a> = SamplingStrategy.TOP_K
 )
 </code></pre>
 
@@ -102,19 +95,18 @@ source</a>
 Initializes sampling by seeding on node with `node_set_name`.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Args</th></tr>
 
 <tr>
 <td>
-`node_set_name`
+<code>node_set_name</code>
 </td>
 <td>
-Becomes the `node_set_name` of built `spec.sampling_op`. If
-not given, the graph schema must be homogeneous (with one `node_set`).
-If given, it must correspond to some node set name in `graph_schema`
+Becomes the <code>node_set_name</code> of built <code>spec.sampling_op</code>. If
+not given, the graph schema must be homogeneous (with one <code>node_set</code>).
+If given, it must correspond to some node set name in <code>graph_schema</code>
 given to constructor.
 </td>
 </tr>
@@ -128,7 +120,7 @@ given to constructor.
 <tr class="alt">
 <td colspan="2">
 Object which support builder pattern, upon which, you may repeatedly call
-`.sample()`, per header comments.
+<code>.sample()</code>, per header comments.
 </td>
 </tr>
 

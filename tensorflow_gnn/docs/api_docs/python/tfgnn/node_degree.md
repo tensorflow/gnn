@@ -1,17 +1,10 @@
 # tfgnn.node_degree
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L620-L647">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_ops.py#L615-L643">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Returns the degree of each node w.r.t. one side of an edge set.
 
@@ -32,21 +25,21 @@ Returns the degree of each node w.r.t. one side of an edge set.
 
 <tr>
 <td>
-`graph_tensor`<a id="graph_tensor"></a>
+<code>graph_tensor</code><a id="graph_tensor"></a>
 </td>
 <td>
 A scalar GraphTensor.
 </td>
 </tr><tr>
 <td>
-`edge_set_name`<a id="edge_set_name"></a>
+<code>edge_set_name</code><a id="edge_set_name"></a>
 </td>
 <td>
 The name of the edge set for which degrees are calculated.
 </td>
 </tr><tr>
 <td>
-`node_tag`<a id="node_tag"></a>
+<code>node_tag</code><a id="node_tag"></a>
 </td>
 <td>
 The side of each edge for which the degrees are calculated,
@@ -57,15 +50,16 @@ specified by its tag in the edge set (e.g., <a href="../tfgnn.md#SOURCE"><code>t
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
-An integer Tensor of shape `[num_nodes]` and dtype equal to `indices_dtype`
-of the GraphTensor. Element `i` contains the number of edges in the given
-edge set that have node index `i` as their endpoint with the given
-`node_tag`. The dimension `num_nodes` is the number of nodes in the
+An integer Tensor of shape <code>[num_nodes]</code> and dtype equal to <code>indices_dtype</code>
+of the GraphTensor. Element <code>i</code> contains the number of edges in the given
+edge set that have node index <code>i</code> as their endpoint with the given
+<code>node_tag</code>. The dimension <code>num_nodes</code> is the number of nodes in the
 respective node set.
 </td>
 </tr>

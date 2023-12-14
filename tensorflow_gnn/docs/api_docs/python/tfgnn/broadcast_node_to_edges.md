@@ -1,17 +1,10 @@
 # tfgnn.broadcast_node_to_edges
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/broadcast_ops.py#L35-L79">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/broadcast_ops.py#L36-L81">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Broadcasts values from nodes to incident edges.
 
@@ -47,21 +40,21 @@ or `feature_name` must be specified.
 
 <tr>
 <td>
-`graph_tensor`<a id="graph_tensor"></a>
+<code>graph_tensor</code><a id="graph_tensor"></a>
 </td>
 <td>
 A scalar GraphTensor.
 </td>
 </tr><tr>
 <td>
-`edge_set_name`<a id="edge_set_name"></a>
+<code>edge_set_name</code><a id="edge_set_name"></a>
 </td>
 <td>
 The name of the edge set to which values are broadcast.
 </td>
 </tr><tr>
 <td>
-`node_tag`<a id="node_tag"></a>
+<code>node_tag</code><a id="node_tag"></a>
 </td>
 <td>
 The incident side of each edge from which values are broadcast,
@@ -70,17 +63,17 @@ specified by its tag in the edge set (e.g. <a href="../tfgnn.md#SOURCE"><code>tf
 </td>
 </tr><tr>
 <td>
-`feature_value`<a id="feature_value"></a>
+<code>feature_value</code><a id="feature_value"></a>
 </td>
 <td>
 A ragged or dense source node feature values. Has a shape
-`[num_nodes, *feature_shape]`, where `num_nodes` is the number of nodes in
+<code>[num_nodes, *feature_shape]</code>, where <code>num_nodes</code> is the number of nodes in
 the incident node set and feature_shape is the shape of the feature value
 for each node.
 </td>
 </tr><tr>
 <td>
-`feature_name`<a id="feature_name"></a>
+<code>feature_name</code><a id="feature_name"></a>
 </td>
 <td>
 A source node feature name.
@@ -89,14 +82,15 @@ A source node feature name.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
-Source node value broadcast to corresponding edges. Has a shape `[num_edges,
-*feature_shape]`, where `num_edges` is the number of edges in the
-`edge_set_name` edge set and `feature_shape` is not affected.
+Source node value broadcast to corresponding edges. Has a shape <code>[num_edges,
+*feature_shape]</code>, where <code>num_edges</code> is the number of edges in the
+<code>edge_set_name</code> edge set and <code>feature_shape</code> is not affected.
 </td>
 </tr>
 

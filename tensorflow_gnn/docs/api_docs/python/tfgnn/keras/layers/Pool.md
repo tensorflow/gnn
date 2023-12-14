@@ -1,17 +1,10 @@
 # tfgnn.keras.layers.Pool
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L806-L919">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_ops.py#L806-L919">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Pools a GraphTensor feature.
 
@@ -70,7 +63,7 @@ The feature name can be left unset to select
 
 <tr>
 <td>
-`tag`<a id="tag"></a>
+<code>tag</code><a id="tag"></a>
 </td>
 <td>
 Can be set to one of <a href="../../../tfgnn.md#SOURCE"><code>tfgnn.SOURCE</code></a>, <a href="../../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a> or <a href="../../../tfgnn.md#CONTEXT"><code>tfgnn.CONTEXT</code></a>
@@ -78,32 +71,32 @@ to select the receiver.
 </td>
 </tr><tr>
 <td>
-`reduce_type`<a id="reduce_type"></a>
+<code>reduce_type</code><a id="reduce_type"></a>
 </td>
 <td>
-Can be set to any `reduce_type` understood by <a href="../../../tfgnn/pool.md"><code>tfgnn.pool()</code></a>.
+Can be set to any <code>reduce_type</code> understood by <a href="../../../tfgnn/pool.md"><code>tfgnn.pool()</code></a>.
 </td>
 </tr><tr>
 <td>
-`edge_set_name`<a id="edge_set_name"></a>
+<code>edge_set_name</code><a id="edge_set_name"></a>
 </td>
 <td>
 If set, the feature will be pooled from this edge set
-(or this sequence of edge sets) to the receiver given by `tag`.
-Mutually exclusive with `node_set_name`.
+(or this sequence of edge sets) to the receiver given by <code>tag</code>.
+Mutually exclusive with <code>node_set_name</code>.
 </td>
 </tr><tr>
 <td>
-`node_set_name`<a id="node_set_name"></a>
+<code>node_set_name</code><a id="node_set_name"></a>
 </td>
 <td>
 If set, the feature will be pooled from this node set
 (or sequence of node sets). The receiver must be selected as
-`tag=tfgnn.CONTEXT`. Mutually exclusive with `edge_set_name`.
+<code>tag=tfgnn.CONTEXT</code>. Mutually exclusive with <code>edge_set_name</code>.
 </td>
 </tr><tr>
 <td>
-`feature_name`<a id="feature_name"></a>
+<code>feature_name</code><a id="feature_name"></a>
 </td>
 <td>
 The name of the feature to read. If unset (also in call),
@@ -119,14 +112,14 @@ the <a href="../../../tfgnn.md#HIDDEN_STATE"><code>tfgnn.HIDDEN_STATE</code></a>
 
 <tr>
 <td>
-`graph`<a id="graph"></a>
+<code>graph</code><a id="graph"></a>
 </td>
 <td>
 The scalar <a href="../../../tfgnn/GraphTensor.md"><code>tfgnn.GraphTensor</code></a> to read from.
 </td>
 </tr><tr>
 <td>
-`reduce_type`<a id="reduce_type"></a>
+<code>reduce_type</code><a id="reduce_type"></a>
 </td>
 <td>
 Same meaning as for init. Must be passed to init, or to call,
@@ -134,7 +127,7 @@ or to both (with the same value).
 </td>
 </tr><tr>
 <td>
-`tag`<a id="tag"></a>
+<code>tag</code><a id="tag"></a>
 </td>
 <td>
 Same meaning as for init. Must be passed to init, or to call,
@@ -144,7 +137,7 @@ edge_set_name, node_set_name: Same meaning as for init. One of them must
 </td>
 </tr><tr>
 <td>
-`feature_name`<a id="feature_name"></a>
+<code>feature_name</code><a id="feature_name"></a>
 </td>
 <td>
 Same meaning as for init. If passed to both, the value must
@@ -176,28 +169,28 @@ A tensor with the pooled feature value.
 
 <tr>
 <td>
-`feature_name`<a id="feature_name"></a>
+<code>feature_name</code><a id="feature_name"></a>
 </td>
 <td>
 Returns the feature_name argument to init, or None if unset.
 </td>
 </tr><tr>
 <td>
-`location`<a id="location"></a>
+<code>location</code><a id="location"></a>
 </td>
 <td>
 Returns dict of kwarg to init with the node or edge set name.
 </td>
 </tr><tr>
 <td>
-`reduce_type`<a id="reduce_type"></a>
+<code>reduce_type</code><a id="reduce_type"></a>
 </td>
 <td>
 Returns the reduce_type argument to init, or None if unset.
 </td>
 </tr><tr>
 <td>
-`tag`<a id="tag"></a>
+<code>tag</code><a id="tag"></a>
 </td>
 <td>
 Returns the tag argument to init, or None if unset.

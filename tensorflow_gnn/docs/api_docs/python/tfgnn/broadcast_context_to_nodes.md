@@ -1,17 +1,10 @@
 # tfgnn.broadcast_context_to_nodes
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/broadcast_ops.py#L82-L118">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/broadcast_ops.py#L84-L121">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Broadcasts a context value to the `node_set` nodes.
 
@@ -44,31 +37,31 @@ shape prefix of the node set being gathered from. One of `feature_value` or
 
 <tr>
 <td>
-`graph_tensor`<a id="graph_tensor"></a>
+<code>graph_tensor</code><a id="graph_tensor"></a>
 </td>
 <td>
 A scalar GraphTensor.
 </td>
 </tr><tr>
 <td>
-`node_set_name`<a id="node_set_name"></a>
+<code>node_set_name</code><a id="node_set_name"></a>
 </td>
 <td>
 A node set name.
 </td>
 </tr><tr>
 <td>
-`feature_value`<a id="feature_value"></a>
+<code>feature_value</code><a id="feature_value"></a>
 </td>
 <td>
 A ragged or dense graph context feature value. Has a shape
-`[num_components, *feature_shape]`, where `num_components` is the number
-of components in a graph and `feature_shape` is the shape of the feature
+<code>[num_components, *feature_shape]</code>, where <code>num_components</code> is the number
+of components in a graph and <code>feature_shape</code> is the shape of the feature
 value for each component.
 </td>
 </tr><tr>
 <td>
-`feature_name`<a id="feature_name"></a>
+<code>feature_name</code><a id="feature_name"></a>
 </td>
 <td>
 A context feature name.
@@ -77,14 +70,15 @@ A context feature name.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
-Graph context value broadcast to the `node_set` nodes. Has a shape
-`[num_nodes, *feature_shape]`, where `num_nodes` is the number of nodes in
-the `node_set_name` node set and `feature_shape` is not affected.
+Graph context value broadcast to the <code>node_set</code> nodes. Has a shape
+<code>[num_nodes, *feature_shape]</code>, where <code>num_nodes</code> is the number of nodes in
+the <code>node_set_name</code> node set and <code>feature_shape</code> is not affected.
 </td>
 </tr>
 

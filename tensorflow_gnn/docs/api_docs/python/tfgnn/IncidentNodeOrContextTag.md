@@ -1,7 +1,3 @@
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.IncidentNodeOrContextTag" />
-<meta itemprop="path" content="Stable" />
-</div>
 
 # tfgnn.IncidentNodeOrContextTag
 

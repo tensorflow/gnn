@@ -1,19 +1,10 @@
 # Module: tfgnn
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/__init__.py">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
-
-
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/__init__.py">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Public interface for TensorFlow GNN package.
 
@@ -22,11 +13,9 @@ All the public symbols, data types and functions are provided from this
 top-level package. To use the library, you should use a single import statement,
 like this:
 
-    import tensorflow_gnn as tfgnn
-
-The various data types provided by the GNN library have corresponding schemas
-similar to `tf.TensorSpec`. For example, a `FieldSpec` describes an instance of
-`Field`, and a `GraphTensorSpec` describes an instance of `GraphTensor`.
+```
+import tensorflow_gnn as tfgnn
+```
 
 ## Modules
 
@@ -34,6 +23,9 @@ similar to `tf.TensorSpec`. For example, a `FieldSpec` describes an instance of
 of the public interface of TensorFlow GNN.
 
 [`keras`](./tfgnn/keras.md) module: The tfgnn.keras package.
+
+[`proto`](./tfgnn/proto.md) module: The protocol message (protobuf) types
+defined by TensorFlow GNN.
 
 [`sampler`](./tfgnn/sampler.md) module: Public interface for GNN Sampler.
 
@@ -51,11 +43,13 @@ of the public interface of TensorFlow GNN.
 
 [`class EdgeSetSpec`](./tfgnn/EdgeSetSpec.md): A type spec for <a href="./tfgnn/EdgeSet.md"><code>tfgnn.EdgeSet</code></a>.
 
-[`class Feature`](./tfgnn/Feature.md): A schema for a single feature.
+[`class Feature`](./tfgnn/proto/Feature.md): The schema entry for a single
+feature.
 
 [`class FeatureDefaultValues`](./tfgnn/FeatureDefaultValues.md): Default values for graph context, node sets and edge sets features.
 
-[`class GraphSchema`](./tfgnn/GraphSchema.md): A schema definition for graphs.
+[`class GraphSchema`](./tfgnn/proto/GraphSchema.md): The top-level container for
+the schema of a graph dataset.
 
 [`class GraphTensor`](./tfgnn/GraphTensor.md): A composite tensor for heterogeneous directed graphs with features.
 
@@ -79,8 +73,8 @@ of the public interface of TensorFlow GNN.
 Adds a readout structure equivalent to
 <a href="./tfgnn/gather_first_node.md"><code>tfgnn.gather_first_node()</code></a>.
 
-[`add_self_loops(...)`](./tfgnn/add_self_loops.md): Adds self-loops for edge
-with name `edge_set_name` EVEN if already exist.
+[`add_self_loops(...)`](./tfgnn/add_self_loops.md): Adds self-loops for
+`edge_set_name` EVEN if they already exist.
 
 [`assert_constraints(...)`](./tfgnn/assert_constraints.md): Validate the shape constaints of a graph's features at runtime.
 
@@ -105,7 +99,8 @@ Raises ValueError when tfgnn.get_homogeneous_node_and_edge_set_name() does.
 
 [`check_required_features(...)`](./tfgnn/check_required_features.md): Checks the requirements of a given schema against another.
 
-[`check_scalar_graph_tensor(...)`](./tfgnn/check_scalar_graph_tensor.md)
+[`check_scalar_graph_tensor(...)`](./tfgnn/check_scalar_graph_tensor.md): Checks
+that graph tensor is scalar (has rank 0).
 
 [`combine_values(...)`](./tfgnn/combine_values.md): Combines a list of tensors into one (by concatenation or otherwise).
 
@@ -121,6 +116,18 @@ Converts scalar GraphTensorSpec to a graph schema proto message.
 
 [`dataset_from_generator(...)`](./tfgnn/dataset_from_generator.md): Creates
 dataset from generator of any nest of scalar graph pieces.
+
+[`disable_graph_tensor_validation(...)`](./tfgnn/disable_graph_tensor_validation.md):
+Disables both static and runtime checks of graph tensors.
+
+[`disable_graph_tensor_validation_at_runtime(...)`](./tfgnn/disable_graph_tensor_validation_at_runtime.md):
+Disables runtime checks (`tf.debugging.Assert`) of graph tensors.
+
+[`enable_graph_tensor_validation(...)`](./tfgnn/enable_graph_tensor_validation.md):
+Enables static checks of graph tensors.
+
+[`enable_graph_tensor_validation_at_runtime(...)`](./tfgnn/enable_graph_tensor_validation_at_runtime.md):
+Enables both static and runtime checks of graph tensors.
 
 [`find_tight_size_constraints(...)`](./tfgnn/find_tight_size_constraints.md): Returns smallest possible size constraints that allow dataset padding.
 
@@ -176,9 +183,16 @@ or edges to context.
 
 [`pool_edges_to_node(...)`](./tfgnn/pool_edges_to_node.md): Aggregates (pools) edge values to incident nodes.
 
+[`pool_neighbors_to_node(...)`](./tfgnn/pool_neighbors_to_node.md): Aggregates
+(pools) neighbor node values along one or more edge sets.
+
+[`pool_neighbors_to_node_feature(...)`](./tfgnn/pool_neighbors_to_node_feature.md):
+Aggregates (pools) sender node feature to receiver nodes feature.
+
 [`pool_nodes_to_context(...)`](./tfgnn/pool_nodes_to_context.md): Aggregates (pools) node values to graph context.
 
-[`random_graph_tensor(...)`](./tfgnn/random_graph_tensor.md): Generate a graph tensor from a schema, with random features.
+[`random_graph_tensor(...)`](./tfgnn/random_graph_tensor.md): Generate a graph
+tensor from a spec, with random features.
 
 [`read_schema(...)`](./tfgnn/read_schema.md): Read a proto schema from a file with text-formatted contents.
 
@@ -245,70 +259,70 @@ Checks `graph_spec` supports `structured_readout()` from `required_keys`.
 CONTEXT<a id="CONTEXT"></a>
 </td>
 <td>
-`'context'`
+<code>'context'</code>
 </td>
 </tr><tr>
 <td>
 EDGES<a id="EDGES"></a>
 </td>
 <td>
-`'edges'`
+<code>'edges'</code>
 </td>
 </tr><tr>
 <td>
 HIDDEN_STATE<a id="HIDDEN_STATE"></a>
 </td>
 <td>
-`'hidden_state'`
+<code>'hidden_state'</code>
 </td>
 </tr><tr>
 <td>
 NODES<a id="NODES"></a>
 </td>
 <td>
-`'nodes'`
+<code>'nodes'</code>
 </td>
 </tr><tr>
 <td>
 SIZE_NAME<a id="SIZE_NAME"></a>
 </td>
 <td>
-`'#size'`
+<code>'#size'</code>
 </td>
 </tr><tr>
 <td>
 SOURCE<a id="SOURCE"></a>
 </td>
 <td>
-`0`
+<code>0</code>
 </td>
 </tr><tr>
 <td>
 SOURCE_NAME<a id="SOURCE_NAME"></a>
 </td>
 <td>
-`'#source'`
+<code>'#source'</code>
 </td>
 </tr><tr>
 <td>
 TARGET<a id="TARGET"></a>
 </td>
 <td>
-`1`
+<code>1</code>
 </td>
 </tr><tr>
 <td>
 TARGET_NAME<a id="TARGET_NAME"></a>
 </td>
 <td>
-`'#target'`
+<code>'#target'</code>
 </td>
 </tr><tr>
 <td>
 **version**<a id="__version__"></a>
 </td>
 <td>
-`'0.6.0.dev1'`
+<code>'1.0.0.dev3'</code>
 </td>
 </tr>
 </table>

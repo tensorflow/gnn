@@ -1,17 +1,10 @@
 # tfgnn.graph_tensor_to_values
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_pprint.py#L49-L70">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor_pprint.py#L50-L72">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Convert an eager `GraphTensor` to a mapping of mappings of PODTs.
 
@@ -36,21 +29,22 @@ contents.
 
 <tr>
 <td>
-`graph`<a id="graph"></a>
+<code>graph</code><a id="graph"></a>
 </td>
 <td>
-An eager `GraphTensor` instance to be pprinted.
+An eager <code>GraphTensor</code> instance to be pprinted.
 </td>
 </tr>
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
-A dict of plain-old data types that can be run through `pprint.pprint()` or
+A dict of plain-old data types that can be run through <code>pprint.pprint()</code> or
 a JSON conversion library.
 </td>
 </tr>

@@ -1,17 +1,10 @@
 # tfgnn.softmax
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/normalization_ops.py#L36-L108">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/normalization_ops.py#L37-L110">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Computes softmax over a many-to-one relationship in a GraphTensor.
 
@@ -45,14 +38,14 @@ For non-scalar values, the softmax function is applied element-wise.
 
 <tr>
 <td>
-`graph_tensor`<a id="graph_tensor"></a>
+<code>graph_tensor</code><a id="graph_tensor"></a>
 </td>
 <td>
 A scalar GraphTensor.
 </td>
 </tr><tr>
 <td>
-`per_tag`<a id="per_tag"></a>
+<code>per_tag</code><a id="per_tag"></a>
 </td>
 <td>
 tfgnn.CONTEXT for normalization per graph component, or an incident
@@ -61,37 +54,37 @@ common incident node.
 </td>
 </tr><tr>
 <td>
-`edge_set_name`<a id="edge_set_name"></a>
+<code>edge_set_name</code><a id="edge_set_name"></a>
 </td>
 <td>
 The name of the edge set on which values are normalized,
-or a non-empty sequence of such names. Unless `from_tag=tfgnn.CONTEXT`,
+or a non-empty sequence of such names. Unless <code>from_tag=tfgnn.CONTEXT</code>,
 all named edge sets must have the same incident node set at the given tag.
 </td>
 </tr><tr>
 <td>
-`node_set_name`<a id="node_set_name"></a>
+<code>node_set_name</code><a id="node_set_name"></a>
 </td>
 <td>
 The name of the node set on which values are normalized,
 or a non-empty sequence of such names. Can only be passed together with
-`from_tag=tfgnn.CONTEXT`. Exactly one of edge_set_name or node_set_name
+<code>from_tag=tfgnn.CONTEXT</code>. Exactly one of edge_set_name or node_set_name
 must be set.
 </td>
 </tr><tr>
 <td>
-`feature_value`<a id="feature_value"></a>
+<code>feature_value</code><a id="feature_value"></a>
 </td>
 <td>
 A tensor or list of tensors, parallel to the node_set_names
 or edge_set_names, to supply the input values of softmax. Each tensor
-has shape `[num_items, *feature_shape]`, where `num_items` is the number
+has shape <code>[num_items, *feature_shape]</code>, where <code>num_items</code> is the number
 of edges in the given edge set or nodes in the given node set, and
-`*feature_shape` is the same across all inputs.
+<code>*feature_shape</code> is the same across all inputs.
 </td>
 </tr><tr>
 <td>
-`feature_name`<a id="feature_name"></a>
+<code>feature_name</code><a id="feature_name"></a>
 </td>
 <td>
 The name of a feature stored on each graph piece from which
@@ -102,7 +95,6 @@ Exactly one of feature_name or feature_value must be set.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>

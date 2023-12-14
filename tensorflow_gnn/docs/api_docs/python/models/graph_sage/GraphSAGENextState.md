@@ -1,17 +1,10 @@
 # graph_sage.GraphSAGENextState
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L591-L742">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/graph_sage/layers.py#L600-L751">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 GraphSAGENextState: compute new node states with GraphSAGE algorithm.
 
@@ -60,7 +53,7 @@ equal, unless `combine_type="concat"`is set.
 GraphSAGE is Algorithm 1 in Hamilton et al.:
 ["Inductive Representation Learning on Large Graphs"](https://arxiv.org/abs/1706.02216),
 2017. It computes the new hidden state h_v for each node v from a concatenation
-of the previous hiddden state with an aggregation of the neighbor states as
+of the previous hidden state with an aggregation of the neighbor states as
 
 $$h_v = \sigma(W \text{ concat}(h_v, h_{N(v)}))$$
 
@@ -93,7 +86,7 @@ Beyond the original GraphSAGE, this class supports:
 
 <tr>
 <td>
-`units`<a id="units"></a>
+<code>units</code><a id="units"></a>
 </td>
 <td>
 Number of output units for the linear transformation applied to the
@@ -101,7 +94,7 @@ node feature.
 </td>
 </tr><tr>
 <td>
-`use_bias`<a id="use_bias"></a>
+<code>use_bias</code><a id="use_bias"></a>
 </td>
 <td>
 If true a bias term will be added to the linear transformations
@@ -109,7 +102,7 @@ for the self node feature.
 </td>
 </tr><tr>
 <td>
-`dropout_rate`<a id="dropout_rate"></a>
+<code>dropout_rate</code><a id="dropout_rate"></a>
 </td>
 <td>
 Can be set to a dropout rate that will be applied to the
@@ -117,15 +110,15 @@ node feature.
 </td>
 </tr><tr>
 <td>
-`feature_name`<a id="feature_name"></a>
+<code>feature_name</code><a id="feature_name"></a>
 </td>
 <td>
 The feature name of node states; defaults to
-`tfgnn.HIDDEN_STATE`.
+<code>tfgnn.HIDDEN_STATE</code>.
 </td>
 </tr><tr>
 <td>
-`l2_normalize`<a id="l2_normalize"></a>
+<code>l2_normalize</code><a id="l2_normalize"></a>
 </td>
 <td>
 If enabled l2 normalization will be applied to node state
@@ -133,7 +126,7 @@ vectors.
 </td>
 </tr><tr>
 <td>
-`combine_type`<a id="combine_type"></a>
+<code>combine_type</code><a id="combine_type"></a>
 </td>
 <td>
 Can be set to "sum" or "concat". The default "sum" recovers
@@ -144,17 +137,17 @@ Setting this to "concat" concatenates the results of the transformations
 </td>
 </tr><tr>
 <td>
-`activation`<a id="activation"></a>
+<code>activation</code><a id="activation"></a>
 </td>
 <td>
 The nonlinearity applied to the concatenated or added node
 state and aggregated sender node features. This can be specified as a
 Keras layer, a tf.keras.activations.* function, or a string understood
-by `tf.keras.layers.Activation()`. Defaults to relu.
+by <code>tf.keras.layers.Activation()</code>. Defaults to relu.
 </td>
 </tr><tr>
 <td>
-`**kwargs`<a id="**kwargs"></a>
+<code>**kwargs</code><a id="**kwargs"></a>
 </td>
 <td>
 Forwarded to the base class tf.keras.layers.Layer.

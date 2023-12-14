@@ -1,17 +1,10 @@
 # tfgnn.validate_graph_tensor_spec_for_readout
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/readout.py#L29-L64">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/readout.py#L30-L65">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Checks `graph_spec` supports `structured_readout()` from `required_keys`.
 
@@ -46,14 +39,13 @@ preferably during dataset preprocessing, as it incurs a runtime cost for every
 input.
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
 <tr>
 <td>
-`graph_spec`<a id="graph_spec"></a>
+<code>graph_spec</code><a id="graph_spec"></a>
 </td>
 <td>
 The graph tensor spec to check. Must be scalar, that is, have
@@ -61,7 +53,7 @@ shape [].
 </td>
 </tr><tr>
 <td>
-`required_keys`<a id="required_keys"></a>
+<code>required_keys</code><a id="required_keys"></a>
 </td>
 <td>
 Can be set to a list of readout keys that are required to be
@@ -69,7 +61,7 @@ provided by the spec.
 </td>
 </tr><tr>
 <td>
-`readout_node_set`<a id="readout_node_set"></a>
+<code>readout_node_set</code><a id="readout_node_set"></a>
 </td>
 <td>
 The name of the auxiliary node set for readout, which is
@@ -80,24 +72,23 @@ auxiliary edge sets connected to it.
 </table>
 
 <!-- Tabular view -->
-
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Raises</h2></th></tr>
 
 <tr>
 <td>
-`ValueError`<a id="ValueError"></a>
+<code>ValueError</code><a id="ValueError"></a>
 </td>
 <td>
 if the auxiliary graph pieces for readout are malformed.
 </td>
 </tr><tr>
 <td>
-`KeyError`<a id="KeyError"></a>
+<code>KeyError</code><a id="KeyError"></a>
 </td>
 <td>
-if any of the `required_keys` is missing.
+if any of the <code>required_keys</code> is missing.
 </td>
 </tr>
 </table>

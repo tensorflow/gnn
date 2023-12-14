@@ -1,7 +1,3 @@
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.Fields" />
-<meta itemprop="path" content="Stable" />
-</div>
 
 # tfgnn.Fields
 
