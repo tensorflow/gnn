@@ -119,7 +119,7 @@ dict of **features** as well as the structural information stored in size and
 adjacency tensors.
 
 
-## The GraphTensorSpec and static shapes
+## The GraphTensorSpec and field shapes
 
 Recall how TensorFlow distinguishes between the actual numbers in a Tensor,
 which may vary from one model input to the next, and the Tensor's dtype and
@@ -138,19 +138,28 @@ where needed.
 For consistency between its fields, GraphTensor tightens TensorFlow's usual
 rules for shapes as follows:
 
-  * Each field must have a shape of known rank (number of dimension).
+  * Each field must have a shape of known rank (number of dimensions).
   * Each dimension has the meaning explained in the documentation. If the same
     dimension occurs in the shapes of multiple fields (e.g., the number *n* of
-    nodes in a node set occurs in the shapes of all its features), it must have
-    the same value in the static shape of each.
+    nodes in a node set occurs in the shapes of all its features), the static
+    shapes of those fields must not contradict each other about the value *n*.
   * The value `None` is allowed only
       * for the outermost (i.e., first) dimension of a field,
       * for a ragged dimenson in a field that is a `tf.RaggedTensor`.
 
-The last item can be summarized as: `None` means outermost or ragged.
+The first two items are enforced as invariants of the `tfgnn.GraphTensor` class.
+
+The third item can be summarized as: `None` means outermost or ragged.
 It forbids the use of `None` for uniform dimensions of unknown size,
 except the outermost. This comes naturally for most applications and greatly
-simplifies code that deals with field values based on their shapes.
+simplifies code that deals with field values based on their shapes. However,
+to accommodate legacy code, it is currently not enforced as a class invariant;
+operations that rely on it should check it.
+
+For development and unit tests, it is recommended to call
+`tfgnn.enable_graph_tensor_validation_at_runtime()`. This makes TF-GNN add
+TensorFlow assert ops to check that the numbers of nodes and edges agree between
+the various GraphTensor fields, beyond static shapes.
 
 ## The GraphSchema
 
@@ -368,7 +377,7 @@ combine multiple inputs: batching inputs, followed by merging each batch.
 Let's look at batching first. If a Dataset contains a GraphTensor of shape `[]`,
 then `dataset = dataset.batch(batch_size, drop_remainder=True)` produces
 batched GraphTensors that are no longer scalar but have shape `[batch_size]`.
-If you like, you can think of them as vectors of graphs, all of the same length.
+If you like, you can think of them as fixed-length vectors of graphs.
 Technically, each graph in such a GraphTensor could contain multiple components,
 but commonly it's just one.
 
@@ -387,16 +396,24 @@ GraphTensor shapes of rank 2 (a matrix of graphs), rank 3, rank 4, and so on.
 Generally speaking, in a GraphTensor of shape `graph_shape`, all features have
 the shape `[*graph_shape, num_items, *feature_shape]`.
 
-For the common case of batching scalar GraphTensors once, this means all
+In the common case of batching scalar GraphTensors once, this means all
 features have the shape `[batch_size, num_items, *feature_shape]`.
 If `num_items` is `None`, the field is a `tf.RaggedTensor`, and the
 batching operation turned `num_items` from the outermost into a ragged
 dimension. The dimensions in `feature_shape` stay unchanged.
 
-For now, GraphTensor requires that `GraphTensor.shape` does not contain `None`,
-except maybe as the outermost dimension. That means repeated calls to `.batch()`
-must set `drop_remainder=True` in all but the last one. Future versions of
-GraphTensor may lift that requirement.
+For node sets and edge sets, `num_items` typically varies between inputs,
+so it makes sense to have it `None` in the shapes of all their features and
+create a `tf.RaggedTensor` even from `tf.Tensor` inputs. By contrast, if
+`num_items` is fixed (say, for the number of graph components, or some special
+application with fixed-size graphs), it should be set to that fixed number in
+all field shapes to batch it as a uniform dimension (e.g., by using
+`tf.ensure_shape()` before putting the field into the GraphTensor).
+
+In the rare case of batching already-batched GraphTensors (with rank >= 1),
+all but the last call to `.batch()` must set `drop_remainder=True` because
+`GraphTensor.shape` must not contain `None` except maybe as the outermost
+dimension.
 
 
 ### Merging a batch of graphs to components of one graph

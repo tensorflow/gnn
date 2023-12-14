@@ -64,33 +64,36 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
 
    - `GraphPiece` and `GraphPieceSpec` are immutable objects.
 
-   - Each `GraphPiece` defines a `shape` attribute that reflects common batching
-     dimensions. These are dense (i.e., non-ragged) dimensions, a dimension
-     `None` is statically unknown (but must be the same for all constituent
-     tensors of one `GraphPiece` tensor).
+   - Each `GraphPiece` defines a `shape` attribute. This shape must be strictly
+     equal across all `GraphPieces` nested in each other and reflects the
+     graph dimensions (or batching dimensions) of any `GraphTensor` containing
+     this `GraphPiece`. It must not contain `None`, except maybe as the
+     outermost dimension, i.e., all graph dimensions are uniform (not ragged).
 
    - `GraphPiece` rank is by definition its `shape.rank`.
 
    - All `GraphPiece` field shapes must have the shape of the `GraphPiece` as a
      prefix. Fields rank is strictly greater than the `GraphPiece` rank.
 
-   - Each `GraphPiece` supports batching, which may introduce ragged dimensions
-     after the batching dimensions (e.g., when batching node features of graphs
-     with different numbers of nodes).
-
-   - The first field dimension after the `GraphPiece` rank ranges over graph
-     items (nodes, edges or components; see `GraphTensor` for an explanation of
-     components). For example, the node data fields in a `NodeSet` have an item
-     dimension ranging over the nodes.
+   - The first field dimension after the `GraphPiece.rank` is called the
+     items dimension. It ranges over graph items (nodes in a node set, edges
+     in an edge set, or components of the graph).
 
    - The following dimensions (> rank + 1), if any, apply to the field value
      for the respective item.
 
-   - Dense field dimensions must be fully defined (have static shapes).
+   - `None` may only occur in a static shape for the outermost dimension or a
+     ragged dimension of a field.
 
-   - If for some field its item dimension or following dimensions are not
-     statically defined (None), the field is batched as a potentially ragged
-     tensor. Otherwise the field is batched as a dense tensor.
+     TODO(b/316099539): Enforce that by validating input fields.
+
+     TODO(b/316100689): Enforce that all fields involving the same `num_items`
+     dimension consistently report it as `None` or an integer in their shapes.
+
+   - Each `GraphPiece` supports batching and unbatching by separately batching
+     or unbatching its fields. If the outermost dimension before batching is
+     `None`, this dimension becomes ragged after batching, which may convert
+     a field from type `tf.Tensor` to `tf.RaggedTensor`.
 
    - To help with batching potentially ragged tensors, each `GraphPiece` has a
      `.row_splits_dtype` attribute that determines the
@@ -172,9 +175,8 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
 
     Args:
       data: a nest of Field and GraphPiece objects. The batch dimensions of all
-        Fields (incl. those nested in GraphPiece objects) must be exactly equal.
-        (In particular, if a dimension is None for one, it must be None for
-        all.)
+        Fields (incl. those nested in GraphPiece objects) must be exactly equal,
+        and only the outermost dimension may be `None` (consistently for all).
       shape: A hint for the shape of the result. This shape must have a known
         rank. It must be compatible with (but not necessary equal to) the common
         batch dimensions of the Fields nested in data. (This is meant to align
@@ -265,8 +267,8 @@ class GraphPieceBase(tf_internal.CompositeTensor, metaclass=abc.ABCMeta):
   def shape(self) -> tf.TensorShape:
     """A possibly-partial shape specification for this Tensor.
 
-    The returned `TensorShape` is guaranteed to have a known rank, but the
-    individual dimension sizes may be unknown.
+    The returned `tf.TensorShape` is guaranteed to have a known rank and no
+    unknown dimensions except possibly the outermost.
 
     Returns:
       A `tf.TensorShape` containing the statically known shape of the
@@ -558,8 +560,8 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
   def shape(self) -> tf.TensorShape:
     """A possibly-partial shape specification of the GraphPiece.
 
-    The returned `TensorShape` is guaranteed to have a known rank, but the
-    individual dimension sizes may be unknown.
+    The returned `tf.TensorShape` is guaranteed to have a known rank and no
+    unknown dimensions except possibly the outermost.
 
     Returns:
       A `tf.TensorShape` containing the statically known shape of the

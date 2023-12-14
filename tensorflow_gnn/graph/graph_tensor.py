@@ -378,8 +378,8 @@ class Context(_GraphPieceWithFeatures):
       features: A mapping from feature name to feature Tensor or RaggedTensor.
         All feature tensors must have shape `[*graph_shape, num_components,
         *feature_shape]`, where `num_components` is the number of graph
-        components (could be ragged); `feature_shape` are feature-specific inner
-        dimensions.
+        components (could be ragged); `feature_shape` are feature-specific
+        dimensions (could be ragged).
       sizes: A Tensor of 1's with shape `[*graph_shape, num_components]`, where
         `num_components` is the number of graph components (could be ragged).
         For symmetry with `sizes` in NodeSet and EdgeSet, this counts the items
@@ -536,7 +536,7 @@ class ContextSpec(_GraphPieceWithFeaturesSpec):
       Relaxed compatible context spec.
 
     Raises:
-      ValueError: if contex is not scalar (rank > 0).
+      ValueError: if context is not scalar (rank > 0).
     """
     gp.check_scalar_graph_piece(self, 'ContextSpec.relax()')
     if not num_components:
@@ -886,8 +886,8 @@ class GraphTensor(gp.GraphPieceBase):
   """A composite tensor for heterogeneous directed graphs with features.
 
   A GraphTensor is an immutable container (as any composite tensor) to represent
-  one or more heterogeneous directed graphs, as defined in the GraphTensor guide
-  (or even hypergraphs). A GraphTensor consists of NodeSets, EdgeSets and a
+  one or more heterogeneous directed graphs, as defined in the GraphTensor
+  guide, or even hypergraphs. A GraphTensor consists of NodeSets, EdgeSets and a
   Context (collectively known as graph pieces), which are also composite
   tensors. The graph pieces consist of fields, which are `tf.Tensor`s and/or
   `tf.RaggedTensor`s that store the graph structure (esp. the edges between
@@ -899,14 +899,13 @@ class GraphTensor(gp.GraphPieceBase):
   `[d0, d1]` a `d0` x `d1` matrix of graphs, and so on.
 
   RULE: In the shape of a GraphTensor, no dimension except the outermost is
-  allowed to be `None` (that is, of unknown size). Future versions of
-  GraphTensor may lift that requirement.
+  allowed to be `None` (that is, of unknown size).
 
   Each of those graphs in a GraphTensor consists of 0 or more disjoint
   (sub-)graphs called graph components. The number of components could vary
   from graph to graph or be fixed to a value known statically. On a batched
   GraphTensor, one can call the method merge_batch_to_components() to merge all
-  graphs of the batch into one, contiguously indexed graph containing the same
+  graphs of the batch into one contiguously indexed graph containing the same
   components as the original graph tensor. See the GraphTensor guide for the
   typical usage that has motivated this design (going from input graphs with one
   component each to a batch of input graphs and on to one merged graph with
@@ -974,8 +973,8 @@ class GraphTensor(gp.GraphPieceBase):
 
   The assignment of an item to its graph components is stored as the `sizes`
   attribute of the graph piece. Its shape is `[*graph_shape, num_components]`
-  (the same for all pieces). The stored values are number of items in each graph
-  component (so the `.sizes` has all 1s as its values).
+  (the same for all graph pieces). The stored values are number of items in each
+  graph component.
 
   Example 3:
 
@@ -998,7 +997,7 @@ class GraphTensor(gp.GraphPieceBase):
 
   The GraphTensor allows batching of graphs. Batching changes a GraphTensor
   instance's shape to `[batch_size, *graph_shape]` and the GraphTensor's
-  rank is increased by 1. Unbatching removes dimension-0, as if truncating with
+  rank is increased by 1. Unbatching removes dimension 0, as if truncating with
   `shape[1:]`, and the GraphTensor's rank is decreased by 1. This works
   naturally with the batch and unbatch methods of tf.data.Datatset.
 
@@ -1006,10 +1005,9 @@ class GraphTensor(gp.GraphPieceBase):
   GraphTensors as before, except for the last incomplete batch (if batching
   used `drop_remainder=True`).
 
-  For now, GraphTensor requires that GraphTensor.shape does not contain `None`,
+  GraphTensor requires that GraphTensor.shape does not contain `None`,
   except maybe as the outermost dimension. That means repeated calls to
-  `.batch()` must set `drop_remainder=True` in all but the last one. Future
-  versions of GraphTensor may lift that requirement.
+  `.batch()` must set `drop_remainder=True` in all but the last one.
 
   All pieces and its fields are batched together with their GraphTensor so that
   shapes of a graph tensor, its pieces and features are all in sync.
@@ -1167,13 +1165,14 @@ class GraphTensor(gp.GraphPieceBase):
   def merge_batch_to_components(self) -> 'GraphTensor':
     """Merges all contained graphs into one contiguously indexed graph.
 
-    On a batched GraphTensor, one can call this method merge all graphs of the
-    batch into one, contiguously indexed graph. The resulting GraphTensor has
+    On a batched GraphTensor, one can call this method to merge all graphs of
+    the batch into one contiguously indexed graph. The resulting GraphTensor has
     shape `[]` (i.e., is scalar) and its features have the shape
     `[total_num_items, *feature_shape]` where `total_num_items` is the sum of
-    the previous `num_items` per batch element. Most TF-GNN models expect scalar
-    GraphTensors. There is no function to reverse this method.
-
+    the previous `num_items` per batch element. The adjacency indices have
+    values from the range `[0, total_num_nodes)` with respect to the incident
+    node set. Most TF-GNN models expect scalar GraphTensors. Currently, there
+    is no function to reverse this method.
 
     Example: Flattening of
 
@@ -1340,18 +1339,19 @@ class GraphTensor(gp.GraphPieceBase):
 
     Args:
       context: A substitute for the context features, or `None` (which keeps the
-        prior features). Their tensor shapes must match the number of existing
-        components, which remains unchanged.
+        prior features). Their tensor shapes must match the graph shape and the
+        number of existing components, which remain unchanged.
       node_sets: Substitutes for the features of the specified node sets. Their
-        tensor shapes must match the existing number of nodes, which remains
-        unchanged. Features on node sets that are not included remain unchanged.
+        tensor shapes must match the graph shape and the existing number of
+        nodes, which remain unchanged. Node sets not included in this argument
+        remain unchanged.
       edge_sets: Substitutes for the features of the specified edge sets. Their
-        tensor shapes must match the existing number of edges. The number of
-        edges and their incident nodes are unchanged. Features on edge sets that
-        are not included remain unchanged.
+        tensor shapes must match the graph shape and the existing number of
+        edges. The number of edges and their incident nodes are unchanged.
+        Edge sets not included in this argument remain unchanged.
 
     Returns:
-      A `GraphTensor` instance with feature maps replaced according to the
+      A `GraphTensor` instance with some feature maps replaced according to the
       arguments.
     Raises:
       ValueError: if some node sets or edge sets are not present in the graph
