@@ -33,12 +33,15 @@ Start with our introductory guides:
   * [Data preparation and sampling](data_prep.md). Training data for GNN
     models are graphs. This document describes their encoding as `tf.Example`s.
     Moreover, it introduces subgraph sampling for turning one huge graph into a
-    stream of training inputs.
+    stream of training inputs. TF-GNN offers two ways to run sampling:
 
-  * [The TF-GNN Beam Sampler](beam_sampler.md) lets you run distributed graph
-    sampling.
+      * The [In-Memory Sampler](inmemory_sampler.md) lets you run graph
+        sampling on a single machine from main memory. Start here for an
+        easy demo.
+      * The [Beam Sampler](beam_sampler.md) lets you run distributed
+        graph sampling, which scales way beyond in-memory sampling.
 
-  * [The TF-GNN Runner](runner.md) lets you train GNN models on the
+  * The [TF-GNN Runner](runner.md) lets you train GNN models on the
     prepared input data for a variety of tasks (e.g., node prediction).
     We recommend using the Runner to get started quickly with a first model
     for the data at hand, and then customize it as needed.
