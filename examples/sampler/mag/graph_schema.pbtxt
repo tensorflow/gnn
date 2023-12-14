@@ -50,7 +50,7 @@ node_sets {
       }
     }
     metadata {
-      filename: "nodes-paper.tfrecords@397"
+      filename: "nodes-paper.tfrecords-?????-of-?????"
     }
   }
 }
@@ -60,7 +60,7 @@ edge_sets {
     source: "author"
     target: "institution"
     metadata {
-      filename: "edges-affiliated_with.tfrecords@30"
+      filename: "edges-affiliated_with.tfrecords-?????-of-?????"
     }
   }
 }
@@ -70,7 +70,7 @@ edge_sets {
     source: "paper"
     target: "paper"
     metadata {
-      filename: "edges-cites.tfrecords@120"
+      filename: "edges-cites.tfrecords-?????-of-?????"
     }
   }
 }
@@ -80,7 +80,7 @@ edge_sets {
     source: "paper"
     target: "field_of_study"
     metadata {
-      filename: "edges-has_topic.tfrecords@226"
+      filename: "edges-has_topic.tfrecords-?????-of-?????"
     }
   }
 }
@@ -90,7 +90,7 @@ edge_sets {
     source: "author"
     target: "paper"
     metadata {
-      filename: "edges-writes.tfrecords@172"
+      filename: "edges-writes.tfrecords-?????-of-?????"
     }
   }
 }
@@ -100,7 +100,7 @@ edge_sets {
     source: "paper"
     target: "author"
     metadata {
-      filename: "edges-writes.tfrecords@172"
+      filename: "edges-writes.tfrecords-?????-of-?????"
       extra {
         key: "edge_type"
         value: "reversed"

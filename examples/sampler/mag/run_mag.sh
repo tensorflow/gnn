@@ -14,6 +14,18 @@
 # limitations under the License.
 # ==============================================================================
 
+# Samples subgraphs for https://ogb.stanford.edu/docs/nodeprop/#ogbn-mag.
+#
+# Consider `tfgnn_convert_ogb_dataset` to convert OGB data to sharded
+# `TFRecord`s on your local machine and then copy to Google Cloud bucket
+# ${DATA_PATH}/graph, e.g. using `gcloud cp`.
+#
+# Input:
+#   nodes: ${DATA_PATH}/graph/nodes-*.tfrecords-?????-of-?????
+#   edges: ${DATA_PATH}/graph/edges-*.tfrecords-?????-of-?????
+#
+# Result:
+#   Sampled subgraphs: ${DATA_PATH}/outputs/examples.tfrecords-?????-of-?????
 NUM_WORKER_THREADS=2
 MACHINE_TYPE="n1-highmem-2"
 
@@ -24,18 +36,20 @@ MIN_NUM_WORKERS=30
 TIMESTAMP="$(date +"%Y-%m-%d-%H-%M-%S")"
 
 GOOGLE_CLOUD_PROJECT="<Your Google Cloud Project>"
-EXAMPLE_ARTIFACT_DIRECTORY="gs://${GOOGLE_CLOUD_PROJECT}/sampler/${DATASET}/${TIMESTAMP}"
+DATA_PATH="gs://<Bucket with prepared OGB MAG data>"
 
-python3 -m tensorflow_gnn.experimental.sampler.beam.sampler \
+
+tfgnn_sampler \
   --project ${GOOGLE_CLOUD_PROJECT} \
   --region "us-east1" \
   --save_main_session \
   --setup_file "./setup.py" \
-  --graph_schema "gs://<path-to-data-dir>/graph_schema.pbtxt" \
-  --sampling_spec "gs://<path-to-data-dir>/sampling_spec.pbtxt" \
-  --output_samples "${EXAMPLE_ARTIFACT_DIRECTORY}/outputs/examples.tfrecord" \
+  --data_path "${DATA_PATH}/graph" \
+  --graph_schema "graph_schema.pbtxt" \
+  --sampling_spec "sampling_spec.pbtxt" \
+  --output_samples "${DATA_PATH}/outputs/examples.tfrecords@100" \
   --runner DataflowRunner \
-  --temp_location "${EXAMPLE_ARTIFACT_DIRECTORY}/tmp" \
+  --temp_location "${DATA_PATH}/tmp" \
   --machine_type ${MACHINE_TYPE} \
   --experiments "min_num_workers=${MIN_NUM_WORKERS}" \
   --max_num_workers ${MAX_NUM_WORKERS} \
