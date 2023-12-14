@@ -1,17 +1,10 @@
 # Module: gat_v2
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gat_v2/__init__.py">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gat_v2/__init__.py">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Graph Attention Networks v2.
 

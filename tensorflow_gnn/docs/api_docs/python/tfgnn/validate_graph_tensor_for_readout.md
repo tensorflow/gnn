@@ -1,17 +1,10 @@
 # tfgnn.validate_graph_tensor_for_readout
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/readout.py#L67-L134">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/readout.py#L68-L138">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Checks `graph` supports `structured_readout()` from `required_keys`.
 
@@ -45,14 +38,14 @@ all keys provided in the graph structure are checked.
 
 <tr>
 <td>
-`graph`<a id="graph"></a>
+<code>graph</code><a id="graph"></a>
 </td>
 <td>
 The graph tensor to check.
 </td>
 </tr><tr>
 <td>
-`required_keys`<a id="required_keys"></a>
+<code>required_keys</code><a id="required_keys"></a>
 </td>
 <td>
 Can be set to a list of readout keys to check. If unset,
@@ -60,7 +53,7 @@ checks all keys provided by the graph.
 </td>
 </tr><tr>
 <td>
-`readout_node_set`<a id="readout_node_set"></a>
+<code>readout_node_set</code><a id="readout_node_set"></a>
 </td>
 <td>
 Optionally, a non-default name for use as
@@ -76,7 +69,7 @@ Optionally, a non-default name for use as
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
-The input GraphTensor, unchanged. This helps to put `tf.debugging.assert*`
+The input GraphTensor, unchanged. This helps to put <code>tf.debugging.assert*</code>
 ops from this function into a dependency chain.
 </td>
 </tr>
@@ -91,7 +84,7 @@ ops from this function into a dependency chain.
 
 <tr>
 <td>
-`ValueError`<a id="ValueError"></a>
+<code>ValueError</code><a id="ValueError"></a>
 </td>
 <td>
 if the auxiliary graph pieces for readout are malformed in the
@@ -99,14 +92,14 @@ if the auxiliary graph pieces for readout are malformed in the
 </td>
 </tr><tr>
 <td>
-`KeyError`<a id="KeyError"></a>
+<code>KeyError</code><a id="KeyError"></a>
 </td>
 <td>
-if any of the `required_keys` is missing.
+if any of the <code>required_keys</code> is missing.
 </td>
 </tr><tr>
 <td>
-`tf.errors.InvalidArgumentError`<a id="tf.errors.InvalidArgumentError"></a>
+<code>tf.errors.InvalidArgumentError</code><a id="tf.errors.InvalidArgumentError"></a>
 </td>
 <td>
 If values in the GraphTensor, notably

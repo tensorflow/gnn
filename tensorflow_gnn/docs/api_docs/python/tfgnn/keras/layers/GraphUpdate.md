@@ -1,17 +1,10 @@
 # tfgnn.keras.layers.GraphUpdate
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_update.py#L125-L258">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/graph_update.py#L125-L261">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Applies one round of updates to EdgeSets, NodeSets and Context.
 
@@ -26,28 +19,30 @@ Applies one round of updates to EdgeSets, NodeSets and Context.
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
-The updates of EdgeSets, NodeSets and Context can either be passed as
-init arguments, or constructed later by passing a deferred_init_callback,
-which allows advanced users to adjust the updates to the GraphTensorSpec
-of the input (which EdgeSets and NodeSets even exist).
+The updates of EdgeSets, NodeSets and Context can either be passed as init
+arguments, or constructed later by passing a deferred_init_callback, which
+allows advanced users to adjust the updates to the GraphTensorSpec of the input
+(which EdgeSets and NodeSets even exist).
+
+This layer can be restored from config by `tf.keras.models.load_model()` when
+saved as part of a Keras model using `save_format="tf"`.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
 
 <tr>
 <td>
-`edge_sets`<a id="edge_sets"></a>
+<code>edge_sets</code><a id="edge_sets"></a>
 </td>
 <td>
-A dict `{edge_set_name: edge_set_update, ...}` of EdgeSetUpdate
+A dict <code>{edge_set_name: edge_set_update, ...}</code> of EdgeSetUpdate
 layers (or custom reimplementations). They are run on the input graph
-tensor as `edge_set_update(graph, edge_set_name=edge_set_name)`.
+tensor as <code>edge_set_update(graph, edge_set_name=edge_set_name)</code>.
 Their results are merged into the feature map of the respective edge set.
 This argument can be omitted, which is common in models with node set
 updates that use convolutions (i.e., read from adjacent nodes without
@@ -55,19 +50,19 @@ computing explicit edge states).
 </td>
 </tr><tr>
 <td>
-`node_sets`<a id="node_sets"></a>
+<code>node_sets</code><a id="node_sets"></a>
 </td>
 <td>
-A dict `{node_set_name: node_set_update, ...}` of NodeSetUpdate
+A dict <code>{node_set_name: node_set_update, ...}</code> of NodeSetUpdate
 layers (or custom reimplementations). They are run on the graph tensor
 with edge set updates (if any) as
-`node_set_update(graph, node_set_name=node_set_name)`,
+<code>node_set_update(graph, node_set_name=node_set_name)</code>,
 Their results are merged into the feature map of the respective node set.
 This argument can be omitted (but that is uncommon).
 </td>
 </tr><tr>
 <td>
-`context`<a id="context"></a>
+<code>context</code><a id="context"></a>
 </td>
 <td>
 A ContextUpdate that is run on the graph tensor with edge set and
@@ -77,7 +72,7 @@ without a context state.
 </td>
 </tr><tr>
 <td>
-`deferred_init_callback`<a id="deferred_init_callback"></a>
+<code>deferred_init_callback</code><a id="deferred_init_callback"></a>
 </td>
 <td>
 Can be set to a function that accepts a
@@ -93,6 +88,7 @@ be saved.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call result</h2></th></tr>

@@ -1,17 +1,10 @@
 # tfgnn.keras.layers.MakeEmptyFeature
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/map_features.py#L363-L419">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/map_features.py#L362-L421">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Returns an empty feature with a shape that fits the input graph piece.
 
@@ -21,25 +14,27 @@ Returns an empty feature with a shape that fits the input graph piece.
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
+This layer can be restored from config by `tf.keras.models.load_model()` when
+saved as part of a Keras model using `save_format="tf"`.
+
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
 
 <tr>
 <td>
-`dtype`<a id="dtype"></a>
+<code>dtype</code><a id="dtype"></a>
 </td>
 <td>
 the tf.DType to use for the result, defaults to tf.float32.
 </td>
 </tr><tr>
 <td>
-`**kwargs`<a id="**kwargs"></a>
+<code>**kwargs</code><a id="**kwargs"></a>
 </td>
 <td>
 Other arguments for the tf.keras.layers.Layer base class.
@@ -48,13 +43,14 @@ Other arguments for the tf.keras.layers.Layer base class.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call args</h2></th></tr>
 
 <tr>
 <td>
-`graph_piece`<a id="graph_piece"></a>
+<code>graph_piece</code><a id="graph_piece"></a>
 </td>
 <td>
 a Context, NodeSet or EdgeSet from a GraphTensor.
@@ -63,6 +59,7 @@ a Context, NodeSet or EdgeSet from a GraphTensor.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call returns</h2></th></tr>
@@ -80,6 +77,7 @@ GraphTensor, the result is a Tensor of shape [graph_piece.total_size, 0].
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">TPU compatibility</h2></th></tr>

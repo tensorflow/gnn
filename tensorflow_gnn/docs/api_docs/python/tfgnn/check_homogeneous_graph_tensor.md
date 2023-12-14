@@ -1,17 +1,10 @@
 # tfgnn.check_homogeneous_graph_tensor
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1623-L1628">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/graph/graph_tensor.py#L1940-L1945">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Raises ValueError when tfgnn.get_homogeneous_node_and_edge_set_name() does.
 
@@ -23,4 +16,3 @@ Raises ValueError when tfgnn.get_homogeneous_node_and_edge_set_name() does.
 </code></pre>
 
 <!-- Placeholder for "Used in" -->
-  

@@ -1,17 +1,10 @@
 # tfgnn.keras.ConvGNNBuilder
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/builders.py#L29-L218">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/builders.py#L29-L218">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Factory of layers that do convolutions on a graph.
 
@@ -31,9 +24,8 @@ Factory of layers that do convolutions on a graph.
 ConvGNNBuilder object constructs `GraphUpdate` layers, that apply arbitrary
 convolutions and updates on nodes of a graph. The convolutions (created by the
 `convolutions_factory`) propagate information to the incident edges of the
-graph. The results of the convolution together with the current nodes states
-are used to update the nodes, using a layer created by
-`nodes_next_state_factory`.
+graph. The results of the convolution together with the current nodes states are
+used to update the nodes, using a layer created by `nodes_next_state_factory`.
 
 Layers created by ConvGNNBuilder can be (re-)used in any order.
 
@@ -75,33 +67,34 @@ def graph_update_factory(deferred_init_callback, name):
 ```
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
 
 <tr>
 <td>
-`convolutions_factory`<a id="convolutions_factory"></a>
+<code>convolutions_factory</code><a id="convolutions_factory"></a>
 </td>
 <td>
 called as
-`convolutions_factory(edge_set_name, receiver_tag=receiver_tag)`
+<code>convolutions_factory(edge_set_name, receiver_tag=receiver_tag)</code>
 to return the convolution layer for the edge set towards the specified
-receiver. The `receiver_tag` kwarg is omitted from the call if it is
+receiver. The <code>receiver_tag</code> kwarg is omitted from the call if it is
 omitted from the init args (but that usage is deprecated).
 </td>
 </tr><tr>
 <td>
-`nodes_next_state_factory`<a id="nodes_next_state_factory"></a>
+<code>nodes_next_state_factory</code><a id="nodes_next_state_factory"></a>
 </td>
 <td>
 called as
-`nodes_next_state_factory(node_set_name)` to return the next-state layer
+<code>nodes_next_state_factory(node_set_name)</code> to return the next-state layer
 for the respectve NodeSetUpdate.
 </td>
 </tr><tr>
 <td>
-`receiver_tag`<a id="receiver_tag"></a>
+<code>receiver_tag</code><a id="receiver_tag"></a>
 </td>
 <td>
 Set this to <a href="../../tfgnn.md#TARGET"><code>tfgnn.TARGET</code></a> or <a href="../../tfgnn.md#SOURCE"><code>tfgnn.SOURCE</code></a> to choose which
@@ -111,21 +104,21 @@ New code is expected to set it in any case.
 </td>
 </tr><tr>
 <td>
-`node_set_update_factory`<a id="node_set_update_factory"></a>
+<code>node_set_update_factory</code><a id="node_set_update_factory"></a>
 </td>
 <td>
 If set, called as
-`node_set_update_factory(node_set_name, edge_set_inputs, next_state)`
-to return the node set update for the given `node_set_name`. The
+<code>node_set_update_factory(node_set_name, edge_set_inputs, next_state)</code>
+to return the node set update for the given <code>node_set_name</code>. The
 remaining arguments are as expected by <a href="../../tfgnn/keras/layers/NodeSetUpdate.md"><code>tfgnn.keras.layers.NodeSetUpdate</code></a>.
 </td>
 </tr><tr>
 <td>
-`graph_update_factory`<a id="graph_update_factory"></a>
+<code>graph_update_factory</code><a id="graph_update_factory"></a>
 </td>
 <td>
 If set, called as
-`graph_update_factory(deferred_init_callback, name)` to return the graph
+<code>graph_update_factory(deferred_init_callback, name)</code> to return the graph
 update. The arguments are as expected by <a href="../../tfgnn/keras/layers/GraphUpdate.md"><code>tfgnn.keras.layers.GraphUpdate</code></a>.
 </td>
 </tr>
@@ -147,20 +140,21 @@ source</a>
 
 Constructs GraphUpdate layer for the set of receiver node sets.
 
-This method contructs NodeSetUpdate layers from convolutions and next state
+This method constructs NodeSetUpdate layers from convolutions and next state
 factories (specified during the class construction) for the given receiver node
 sets. The resulting node set update layers are combined and returned as one
 GraphUpdate layer. Auxiliary node sets (e.g., as needed for
 `tfgnn.keras.layers.NamedReadout`) are ignored.
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Args</th></tr>
 
 <tr>
 <td>
-`node_sets`
+<code>node_sets</code>
 </td>
 <td>
 By default, the result updates all node sets that receive from
@@ -171,15 +165,16 @@ auxiliary node sets.
 </td>
 </tr><tr>
 <td>
-`name`
+<code>name</code>
 </td>
 <td>
-Optionally, a name for the returned GraphUpate layer.
+Optionally, a name for the returned GraphUpdate layer.
 </td>
 </tr>
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2">Returns</th></tr>
@@ -190,8 +185,3 @@ A GraphUpdate layer, with building deferred to the first call.
 </tr>
 
 </table>
-
-
-
-
-

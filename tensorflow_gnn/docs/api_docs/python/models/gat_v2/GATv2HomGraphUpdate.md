@@ -1,17 +1,10 @@
 # gat_v2.GATv2HomGraphUpdate
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gat_v2/layers.py#L424-L476">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/gat_v2/layers.py#L431-L487">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Returns a GraphUpdate layer with a Graph Attention Network V2 (GATv2).
 
@@ -40,21 +33,26 @@ objects instead, such as the GATv2MPNNGraphUpdate.
 > explicitly stored in the input GraphTensor. Attention of a node to itself
 > requires having an explicit loop in the edge set.
 
+The layer returned by this function can be restored from config by
+`tf.keras.models.load_model()` when saved as part of a Keras model using
+`save_format="tf"`.
+
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
 <tr>
 <td>
-`num_heads`<a id="num_heads"></a>
+<code>num_heads</code><a id="num_heads"></a>
 </td>
 <td>
 The number of attention heads.
 </td>
 </tr><tr>
 <td>
-`per_head_channels`<a id="per_head_channels"></a>
+<code>per_head_channels</code><a id="per_head_channels"></a>
 </td>
 <td>
 The number of channels for each attention head. This
@@ -62,22 +60,22 @@ means that the final output size will be per_head_channels * num_heads.
 </td>
 </tr><tr>
 <td>
-`receiver_tag`<a id="receiver_tag"></a>
+<code>receiver_tag</code><a id="receiver_tag"></a>
 </td>
 <td>
-one of `tfgnn.SOURCE` or `tfgnn.TARGET`.
+one of <code>tfgnn.SOURCE</code> or <code>tfgnn.TARGET</code>.
 </td>
 </tr><tr>
 <td>
-`feature_name`<a id="feature_name"></a>
+<code>feature_name</code><a id="feature_name"></a>
 </td>
 <td>
 The feature name of node states; defaults to
-`tfgnn.HIDDEN_STATE`.
+<code>tfgnn.HIDDEN_STATE</code>.
 </td>
 </tr><tr>
 <td>
-`heads_merge_type`<a id="heads_merge_type"></a>
+<code>heads_merge_type</code><a id="heads_merge_type"></a>
 </td>
 <td>
 "concat" or "mean". Gets passed to GATv2Conv, which uses
@@ -85,14 +83,14 @@ it to combine all heads into layer's output.
 </td>
 </tr><tr>
 <td>
-`name`<a id="name"></a>
+<code>name</code><a id="name"></a>
 </td>
 <td>
 Optionally, a name for the layer returned.
 </td>
 </tr><tr>
 <td>
-`**kwargs`<a id="**kwargs"></a>
+<code>**kwargs</code><a id="**kwargs"></a>
 </td>
 <td>
 Any optional arguments to GATv2Conv, see there.

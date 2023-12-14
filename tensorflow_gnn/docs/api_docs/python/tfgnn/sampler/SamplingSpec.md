@@ -1,17 +1,10 @@
 # tfgnn.sampler.SamplingSpec
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/sampler/sampling_spec.proto">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/sampler/sampling_spec.proto">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 A ProtocolMessage
 
@@ -24,17 +17,24 @@ A ProtocolMessage
 
 <tr>
 <td>
-`sampling_ops`<a id="sampling_ops"></a>
+<code>sampling_ops</code><a id="sampling_ops"></a>
 </td>
 <td>
-`repeated SamplingOp sampling_ops`
+<code>repeated SamplingOp sampling_ops</code>
 </td>
 </tr><tr>
 <td>
-`seed_op`<a id="seed_op"></a>
+<code>seed_op</code><a id="seed_op"></a>
 </td>
 <td>
-`SeedOp seed_op`
+<code>SeedOp seed_op</code>
+</td>
+</tr><tr>
+<td>
+<code>symmetric_link_seed_op</code><a id="symmetric_link_seed_op"></a>
+</td>
+<td>
+<code>SymmetricLinkSeedOp symmetric_link_seed_op</code>
 </td>
 </tr>
 </table>

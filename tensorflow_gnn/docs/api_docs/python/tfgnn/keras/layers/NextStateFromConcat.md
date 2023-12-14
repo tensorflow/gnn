@@ -1,17 +1,10 @@
 # tfgnn.keras.layers.NextStateFromConcat
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/next_state.py#L110-L142">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/keras/layers/next_state.py#L110-L145">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Computes a new state by concatenating inputs and applying a Keras Layer.
 
@@ -21,21 +14,23 @@ Computes a new state by concatenating inputs and applying a Keras Layer.
 )
 </code></pre>
 
-
-
 <!-- Placeholder for "Used in" -->
 
 This layer flattens all inputs into a list (forgetting their origin),
 concatenates them and sends them through a user-supplied feed-forward network.
 
+This layer can be restored from config by `tf.keras.models.load_model()` when
+saved as part of a Keras model using `save_format="tf"`.
+
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Init args</h2></th></tr>
 
 <tr>
 <td>
-`transformation`<a id="transformation"></a>
+<code>transformation</code><a id="transformation"></a>
 </td>
 <td>
 Required. A Keras Layer to transform the combined inputs
@@ -45,6 +40,7 @@ into the new state.
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Call returns</h2></th></tr>

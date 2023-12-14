@@ -1,14 +1,8 @@
-<div itemscope itemtype="http://developers.google.com/ReferenceObject">
-<meta itemprop="name" content="tfgnn.FieldSpec" />
-<meta itemprop="path" content="Stable" />
-</div>
-
 # tfgnn.FieldSpec
 
 <!-- Insert buttons and diff -->
+
 This symbol is a **type alias**.
-
-
 
 #### Source:
 
@@ -18,7 +12,5 @@ This symbol is a **type alias**.
     tf.RaggedTensorSpec
 ]
 </code></pre>
-
-
 
 <!-- Placeholder for "Used in" -->

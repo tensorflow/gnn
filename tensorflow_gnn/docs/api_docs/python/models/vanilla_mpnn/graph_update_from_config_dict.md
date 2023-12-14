@@ -1,72 +1,77 @@
 # vanilla_mpnn.graph_update_from_config_dict
 
-[TOC]
-
 <!-- Insert buttons and diff -->
 
-<table class="tfo-notebook-buttons tfo-api nocontent" align="left">
-<td>
-  <a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/vanilla_mpnn/config_dict.py#L38-L58">
-    <img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />
-    View source on GitHub
-  </a>
-</td>
-</table>
+<a target="_blank" href="https://github.com/tensorflow/gnn/tree/master/tensorflow_gnn/models/vanilla_mpnn/config_dict.py#L41-L66">
+<img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" /> View source
+on GitHub </a>
 
 Returns a VanillaMPNNGraphUpdate initialized from `cfg`.
 
 <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
 <code>vanilla_mpnn.graph_update_from_config_dict(
-    cfg: config_dict.ConfigDict
+    cfg: config_dict.ConfigDict,
+    *,
+    node_set_names: Optional[Collection[tfgnn.NodeSetName]] = None
 ) -> tf.keras.layers.Layer
 </code></pre>
 
 <!-- Placeholder for "Used in" -->
-
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
 <tr>
 <td>
-`cfg`<a id="cfg"></a>
+<code>cfg</code><a id="cfg"></a>
 </td>
 <td>
-A `ConfigDict` with the fields defined by
-`graph_update_get_config_dict()`. All fields with non-`None` values are
+A <code>ConfigDict</code> with the fields defined by
+<code>graph_update_get_config_dict()</code>. All fields with non-<code>None</code> values are
 used as keyword arguments for initializing and returning a
-`VanillaMPNNGraphUpdate` object. For the required arguments of
-`VanillaMPNNGraphUpdate.__init__`, users must set a value in `cfg` before
+<code>VanillaMPNNGraphUpdate</code> object. For the required arguments of
+<code>VanillaMPNNGraphUpdate.__init__</code>, users must set a value in <code>cfg</code> before
 passing it here.
+</td>
+</tr><tr>
+<td>
+<code>node_set_names</code><a id="node_set_names"></a>
+</td>
+<td>
+Optionally, the names of NodeSets to update; forwarded to
+<code>MtAlbisGraphUpdate.__init__</code>.
 </td>
 </tr>
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
 <tr class="alt">
 <td colspan="2">
-A new `VanillaMPNNGraphUpdate` object.
+A new <code>VanillaMPNNGraphUpdate</code> object.
 </td>
 </tr>
 
 </table>
 
 <!-- Tabular view -->
+
  <table class="responsive fixed orange">
 <colgroup><col width="214px"><col></colgroup>
 <tr><th colspan="2"><h2 class="add-link">Raises</h2></th></tr>
 
 <tr>
 <td>
-`TypeError`<a id="TypeError"></a>
+<code>TypeError</code><a id="TypeError"></a>
 </td>
 <td>
-if `cfg` fails to supply a required argument for
-`VanillaMPNNGraphUpdate.__init__`.
+if <code>cfg</code> fails to supply a required argument for
+<code>VanillaMPNNGraphUpdate.__init__</code>.
 </td>
 </tr>
 </table>
