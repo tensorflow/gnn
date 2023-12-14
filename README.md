@@ -1,85 +1,73 @@
 # TensorFlow GNN
 
-TensorFlow GNN is a library to build Graph Neural Networks on the TensorFlow
-platform. It contains the following components:
+## Summary
 
-* A high-level Keras-style API to create GNN models that can easily be composed
-  with other types of models. GNNs are often used in combination with ranking,
-  deep-retrieval (dual-encoders) or mixed with other types of models
-  (image, text, etc.)
+TensorFlow GNN is a library to build
+[Graph Neural Networks](tensorflow_gnn/docs/guide/intro.md) on the TensorFlow platform.
+It provides...
 
-* GNN API for heterogeneous graphs. Many of the graph problems we approach at
-  Google and in the real world contain different types of nodes and edges.
-  Hence the emphasis in heterogeneous models.
+  * a [`tfgnn.GraphTensor`](tensorflow_gnn/docs/guide/graph_tensor.md) type to represent
+    graphs with a [heterogeneous schema](tensorflow_gnn/docs/guide/schema.md), that is,
+    multiple types of nodes and edges;
+  * tools for [data preparation](tensorflow_gnn/docs/guide/data_prep.md),
+    notably a [graph sampler](tensorflow_gnn/docs/guide/beam_sampler.md)
+    to convert a huge database into a stream of reasonably-sized subgraphs for
+    training and inference;
+  * a collection of [ready-to-use models](tensorflow_gnn/models/README.md)
+    and Keras layers to do your own [GNN modeling](tensorflow_gnn/docs/guide/gnn_modeling.md);
+  * a high-level API for training [orchestration](tensorflow_gnn/docs/guide/runner.md).
 
-* A well-defined schema to declare the topology of a graph, and tools to
-  validate it. It describes the shape of its training data and serves to guide
-  other tools.
-
-* A GraphTensor composite tensor type which holds graph data, can be batched,
-  and has efficient graph manipulation functionality available.
-
-* A library of operations on the GraphTensor structure:
-
-  * Various efficient broadcast and pooling operations on nodes and edges, and
-    related tools.
-
-  * A library of standard baked convolutions, that can be easily extended by
-    ML engineers/researchers.
-
-  * A high-level API for product engineers to quickly build GNN models without
-    necessarily worrying about its details.
-
-* A set of tools used to convert graph datasets and sample from large
-  graphs.
-
-* An encoding of graph-shaped training data on file, as well as a library used
-  to parse this data into a data structure your model can extract the various
-  features.
-
-This library is an OSS port of a Google internal library used in a broad variety
+This library is an OSS port of a Google-internal library used in a broad variety
 of contexts, on homogeneous and heterogeneous graphs, and in conjunction with
 other scalable graph mining tools.
 
-For more details, please see our [documentation](tensorflow_gnn/docs/guide/overview.md).
 For background and discussion, please see O. Ferludin et al.:
 [TF-GNN: Graph Neural Networks in TensorFlow](https://arxiv.org/abs/2207.03522),
-2022 (full citation below).
+2023 (full citation below).
+
+## Quickstart
+
+Google Colab lets you run TF-GNN demos from your browser, no installation
+required:
+
+  * [Molecular Graph
+    Classification](https://colab.research.google.com/github/tensorflow/gnn/blob/master/examples/notebooks/intro_mutag_example.ipynb)
+     with the MUTAG dataset.
+  * [Solving OGBN-MAG
+    end-to-end](https://colab.research.google.com/github/tensorflow/gnn/blob/master/examples/notebooks/ogbn_mag_e2e.ipynb)
+    trains a model on heterogeneous sampled subgraphs from the popular
+    [OGBN-MAG](https://ogb.stanford.edu/docs/nodeprop/#ogbn-mag) benchmark.
+  * [Learning shortest paths with
+    GraphNetworks](https://colab.research.google.com/github/tensorflow/gnn/blob/master/examples/notebooks/graph_network_shortest_path.ipynb)
+    demonstrates an advanced Encoder/Process/Decoder architecture for predicting
+    the edges of a shortest path.
+
+For all colabs and user guides, please see the
+[Documentation overview](tensorflow_gnn/docs/guide/overview.md)
+page, which also links to the
+[API docs](tensorflow_gnn/docs/api_docs/README.md).
 
 ## Installation Instructions
 
-##### Latest available pip wheel.
+The latest stable release of TensorFlow GNN is available from
 
-`pip install tensorflow_gnn`
+```
+pip install tensorflow_gnn
+```
 
-##### Installation from source.
+For installation from source, see our [Developer
+Guide](tensorflow_gnn/docs/guide/developer.md).
 
-A virtual environment is highly recommended.
+Key platform requirements:
 
-1.  **Clone tensorflow_gnn**
+  * TensorFlow 2.12, 2.13, 2.14 or 2.15, and any GPU drivers it needs
+    [[instructions](https://www.tensorflow.org/install)].
+  * Keras v2, as traditionally included with TensorFlow 2.x.
+    (TF-GNN does not work with the new multi-backend Keras v3.)
+  * Apache Beam for distributed graph sampling.
 
-    > `$> git clone https://github.com/tensorflow/gnn.git tensorflow_gnn`
-
-2.  **Install TensorFlow**
-
-    TF-GNN currently uses
-    [tf.ExtensionTypes](https://www.tensorflow.org/api_docs/python/tf/experimental/ExtensionType),
-    which is a feature of TensorFlow 2.7. As such, you will need to install
-    TensorFlow build, following the instructions here:
-    https://www.tensorflow.org/install/pip.
-
-    > `$> pip install tensorflow`
-
-3.  **Install Bazel**
-
-    Bazel is required to build the source of this package. Follow the
-    instructions here to install Bazel for your OS:
-    https://docs.bazel.build/versions/main/install.html
-
-4.  **Install tensorflow_gnn**
-
-    > `$> cd tensorflow_gnn && python3 -m pip install .`
-
+TF-GNN is developed and tested on Linux. Running on other platforms supported
+by TensorFlow may be possible.
 
 ## Citation
 
@@ -90,9 +78,10 @@ When referencing this library in a paper, please cite the
 @article{tfgnn,
   author  = {Oleksandr Ferludin and Arno Eigenwillig and Martin Blais and
              Dustin Zelle and Jan Pfeifer and Alvaro Sanchez{-}Gonzalez and
-             Sibon Li and Sami Abu{-}El{-}Haija and Peter Battaglia and
+             Wai Lok Sibon Li and Sami Abu{-}El{-}Haija and Peter Battaglia and
              Neslihan Bulut and Jonathan Halcrow and
-             Filipe Miguel Gon{\c{c}}alves de Almeida and Silvio Lattanzi and
+             Filipe Miguel Gon{\c{c}}alves de Almeida and Pedro Gonnet and
+             Liangze Jiang and Parth Kothari and Silvio Lattanzi and 
              Andr{\'{e}} Linhares and Brandon Mayer and Vahab Mirrokni and
              John Palowitch and Mihir Paradkar and Jennifer She and
              Anton Tsitsulin and Kevin Villela and Lisa Wang and David Wong and
@@ -100,8 +89,7 @@ When referencing this library in a paper, please cite the
   title   = {{TF-GNN:} Graph Neural Networks in TensorFlow},
   journal = {CoRR},
   volume  = {abs/2207.03522},
-  year    = {2022},
+  year    = {2023},
   url     = {http://arxiv.org/abs/2207.03522},
 }
 ```
-

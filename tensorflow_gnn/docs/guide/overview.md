@@ -89,13 +89,9 @@ model on a Google server from within your browser.
 
 ## API Reference
 
-TF-GNN has reference documentation for the API, extracted from the source code.
-
-  * See [here](../api_docs/python/tfgnn.md) for the core library
-    (`import tensorflow_gnn`) .
-  * See
-    [this list](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/models/README.md)
-    for the bundled models (`from tensorflow_gnn.models import foo`).
+TF-GNN comes with
+[reference documentation for its API](https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/docs/api_docs/README.md),
+extracted from the source code.
 
 ## Developer Documentation
 
@@ -111,9 +107,4 @@ How to contribute to the TF-GNN library.
 The following research paper describes the design of this library:
 
   * O. Ferludin et al.: [TF-GNN: Graph Neural Networks in
-  TensorFlow](https://arxiv.org/abs/2207.03522), 2022.
-
-## Talks
-
-You can find related talks at our NeurIPS 2020 Expo workshop:
-https://gm-neurips-2020.github.io/
+  TensorFlow](https://arxiv.org/abs/2207.03522), 2023.

@@ -246,7 +246,9 @@ a pre-configured GNN model.
 If you want to define your own model and/or understand what happens under the
 hood, you can read the following in parallel:
 
-  * the end-to-end example (to be written),
+  * the
+    [OGBN-MAG in-depth](https://colab.research.google.com/github/tensorflow/gnn/blob/master/examples/notebooks/ogbn_mag_indepth.ipynb)
+    colab,
   * the guides that cover its techniques in more depth:
       * the rest of this doc about GraphTensor,
       * the [modeling guide](gnn_modeling.md) for information about using and
