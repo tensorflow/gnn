@@ -16,8 +16,10 @@
 
 import os
 import platform
+import re
 import subprocess
 import sys
+import urllib.parse
 
 import setuptools
 from setuptools import find_namespace_packages
@@ -28,6 +30,9 @@ from setuptools.dist import Distribution
 # setuptools must be imported prior to distutils.
 from distutils import spawn
 from distutils.command import build
+import mistletoe.markdown_renderer
+import mistletoe.span_token
+import mistletoe.token
 # pylint:enable=g-bad-import-order
 
 
@@ -118,14 +123,46 @@ def get_version():
   """Get version from version module."""
   version_path = os.path.join(os.path.dirname(__file__), 'tensorflow_gnn')
   sys.path.insert(0, version_path)
-  # pytype: disable=import-error  # pylint: disable=g-import-not-at-top
+  # pytype: disable=import-error
+  # pylint: disable=g-import-not-at-top
   from version import __version__ as v
   return v
 
 
-# Get the long description from the README file.
+# Get the long description from the README.md file and convert
+# relative links on github.com to absolute and versioned links for pypi.org.
+def _convert_readme_markdown(md, branch):
+  """Converts README.md into long description for pypi.org."""
+
+  version = get_version()
+  if branch == 'main' and not re.match(r'.*dev\d*$', version):
+    raise ValueError(
+        'Must edit setup.py to set _convert_readme_markdown(..., branch=...) '
+        f'to the github branch for version "{version}", other than "main".')
+
+  def update_relative_link(link):
+    url = urllib.parse.urlparse(link.target)
+    if url.scheme or url.netloc or url.path.startswith('/'):
+      return  # Leave absolute paths and URLs unchanged.
+    link.target = (
+        f'https://github.com/tensorflow/gnn/blob/{branch}/{link.target}')
+
+  def update_token(token):
+    if isinstance(token, mistletoe.span_token.Link):
+      update_relative_link(token)
+    for child in getattr(token, 'children', []):
+      update_token(child)
+
+  with mistletoe.markdown_renderer.MarkdownRenderer() as renderer:
+    document = mistletoe.Document(md)
+    update_token(document)
+    return renderer.render(document)
+
 with open('README.md') as fp:
-  _LONG_DESCRIPTION = fp.read()
+  _LONG_DESCRIPTION = _convert_readme_markdown(
+      fp.read(),
+      branch='main',  # <<< MUST EDIT TO RELEASE BRANCH.
+  )
 
 
 console_scripts = [
