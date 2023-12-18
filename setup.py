@@ -161,7 +161,7 @@ def _convert_readme_markdown(md, branch):
 with open('README.md') as fp:
   _LONG_DESCRIPTION = _convert_readme_markdown(
       fp.read(),
-      branch='main',  # <<< MUST EDIT TO RELEASE BRANCH.
+      branch='r1.0',  # <<< MUST EDIT TO RELEASE BRANCH.
   )
 
 
