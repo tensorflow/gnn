@@ -26,6 +26,7 @@ from setuptools.command.install import install
 from setuptools.dist import Distribution
 # pylint:disable=g-bad-import-order
 # setuptools must be imported prior to distutils.
+# TODO(b/317036825): Stop using distutils, Python 3.12 doesn't have it.
 from distutils import spawn
 from distutils.command import build
 # pylint:enable=g-bad-import-order
@@ -124,6 +125,7 @@ def get_version():
 
 
 # Get the long description from the README file.
+# TODO(b/316329189): The relative links from README.md don't work on PyPI.
 with open('README.md') as fp:
   _LONG_DESCRIPTION = fp.read()
 
