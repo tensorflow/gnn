@@ -33,6 +33,7 @@ pytype_strict_contrib_test(
         "//third_party/py/absl/testing:absltest",
         "//:expect_absl_installed_testing",
         "//third_party/py/apache_beam",
+        "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/experimental/sampler",
@@ -52,6 +53,7 @@ pytype_strict_contrib_test(
         "//:expect_absl_installed_testing",
         "//third_party/py/apache_beam",
         "//third_party/py/apache_beam/utils",
+        "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
@@ -84,6 +86,7 @@ pytype_strict_contrib_test(
         "//third_party/py/absl/testing:absltest",
         "//:expect_absl_installed_testing",
         "//third_party/py/apache_beam",
+        "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/experimental/sampler",
@@ -118,6 +121,7 @@ pytype_strict_contrib_test(
         "//third_party/py/absl/testing:absltest",
         "//:expect_absl_installed_testing",
         "//third_party/py/apache_beam",
+        "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/experimental/sampler",
@@ -146,6 +150,7 @@ pytype_strict_contrib_test(
         "//third_party/py/absl/testing:absltest",
         "//:expect_absl_installed_testing",
         "//third_party/py/apache_beam",
+        "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/experimental/sampler/proto",
@@ -196,6 +201,7 @@ pytype_strict_contrib_test(
         ":sampler-lib",
         "//testing/pybase",
         "//:expect_absl_installed_testing",
+        "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
         "//tensorflow_gnn/sampler",
@@ -207,6 +213,7 @@ py_binary(
     srcs = ["sampler.py"],
     deps = [
         ":sampler-lib",
+        "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
     ],
 )
 
@@ -223,6 +230,7 @@ pytype_strict_contrib_test(
         ":unigraph_utils",
         "//testing/pybase",
         "//third_party/py/apache_beam",
+        "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
