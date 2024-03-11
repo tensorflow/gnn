@@ -337,7 +337,7 @@ def main(
     else:
       logging.info("Applying dense layer %d to paper.", _PAPER_DIM.value)
       embedding_list.append(
-          tf.keras.layers.Dense(_PAPER_DIM.value)(node_set["feat"])
+          tf.keras.layers.Dense(_PAPER_DIM.value, "relu")(node_set["feat"])
       )
     # Masked label
     if _MASKED_LABELS.value:
