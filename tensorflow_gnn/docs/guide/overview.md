@@ -1,5 +1,7 @@
 # TF-GNN: TensorFlow Graph Neural Networks
 
+<!-- PLACEHOLDER FOR OVERVIEW GOOGLE EXTRAS -->
+
 The TensorFlow GNN library makes it easy to build Graph Neural Networks, that
 is, neural networks on graph data (nodes and edges with arbitrary features).
 It provides TensorFlow code for building GNN models as well as tools for
@@ -9,6 +11,7 @@ Throughout, TF-GNN supports *heterogeneous* graphs, that is, graphs consisting
 of multiple sets of nodes and multiple sets of edges, each with their own set of
 features. These come up naturally when modeling different types of objects
 (nodes) and their different types of relations (edges).
+
 
 ## User Documentation
 
