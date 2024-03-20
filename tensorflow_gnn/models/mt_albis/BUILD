@@ -7,16 +7,12 @@ package(
     default_visibility = [":__subpackages__"],
 )
 
-package_group(name = "users")
-
+# This is the public BUILD target for users of this model.
 pytype_strict_library(
     name = "mt_albis",
     srcs = ["__init__.py"],
     srcs_version = "PY3",
-    visibility = [
-        ":__subpackages__",
-        ":users",
-    ],
+    visibility = ["//visibility:public"],
     deps = [
         ":config_dict",
         ":layers",
@@ -29,10 +25,7 @@ pytype_strict_library(
 pytype_strict_library(
     name = "hparams_vizier",
     srcs = ["hparams_vizier.py"],
-    visibility = [
-        ":__subpackages__",
-        ":users",
-    ],
+    visibility = ["//visibility:public"],
     deps = [
         "//:expect_vizier_service_pyvizier_installed",
     ],

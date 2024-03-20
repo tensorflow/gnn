@@ -44,3 +44,6 @@ versioning](https://semver.org/spec/v2.0.0.html) of the TF-GNN package.
     multi-head attention on graph (Dwivedi&Bresson, 2021).
   * [VanillaMPNN](vanilla_mpnn/README.md): TF-GNN's classic baseline model,
     based on (Gilmer&al., 2016).
+
+Unsure? For generic node prediction tasks on relational data, we recommend
+to start with MtAlbis.
