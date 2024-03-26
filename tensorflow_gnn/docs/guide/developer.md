@@ -49,6 +49,9 @@ pip install -r requirements-dev.txt
 pip install tensorflow
 ```
 
+For TF2.16+, you will additionally need to follow the instructions from the
+[Keras version](./keras_version.md) guide.
+
 ## Building the package and running tests
 
 We use [Bazel](https://bazel.build/) to build and run tests. Since we use
@@ -84,7 +87,7 @@ After setting up the test directory, you can run all tests locally by running
 the following command in the repo root directory.
 
 ```
-bazel test --build_tag_filters=-no_oss,-oss_excluded --test_tag_filters=-no_oss,-oss_excluded --test_output=errors --verbose_failures=true --build_tests_only --define=no_tfgnn_py_deps=true --keep_going --experimental_repo_remote_exec //bazel_pip/tensorflow_gnn/...
+bazel test --build_tag_filters=-no_oss,-oss_excluded --test_tag_filters=-no_oss,-oss_excluded --test_output=errors --verbose_failures=true --build_tests_only --define=no_tfgnn_py_deps=true --keep_going --experimental_repo_remote_exec --test_env="TF_USE_LEGACY_KERAS=1" //bazel_pip/tensorflow_gnn/...
 ```
 
 The `--define=no_tfgnn_py_deps=true` flag directs bazel to assume that all
@@ -94,12 +97,16 @@ The flags `--build_tag_filters=-no_oss,-oss_excluded` and
 `--test_tag_filters=-no_oss,-oss_excluded` disable tests that pass in the
 internal production environment but fail on GitHub.
 
+The flag `--test_env="TF_USE_LEGACY_KERAS=1"` comes from the
+[Keras version](./keras_version.md) guide and is required for TF2.16+.
+
 ### Run a single test file
 
 It is also possible to run a single test file by specifying its path (for
 example)
 
 `bazel test --define=no_tfgnn_py_deps=true --experimental_repo_remote_exec
+--test_env="TF_USE_LEGACY_KERAS=1"
 //bazel_pip/tensorflow_gnn/models/gcn:gcn_conv_test`
 
 ### Run a single test case
@@ -107,6 +114,7 @@ example)
 To run a single test case, use the `--test_filter` flag.
 
 `bazel test --define=no_tfgnn_py_deps=true --experimental_repo_remote_exec
+--test_env="TF_USE_LEGACY_KERAS=1"
 //bazel_pip/tensorflow_gnn/models/gcn:gcn_conv_test
 --test_filter=*test_gcnconv_activation*`
 

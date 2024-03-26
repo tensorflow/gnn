@@ -63,6 +63,9 @@ The following docs go deeper into particular topics.
     saving TF-GNN models. (Most users of TF/Keras 2.13+ should be fine calling
     `tf.keras.Model.export()` without looking here.)
 
+  * The [Keras version config](keras_version.md) guide explains how to install
+    and use Keras v2 with TF2.16 and above, which is required for TF-GNN.
+
 ## Colab Tutorials
 
 These Colab notebooks run complete examples of building and training a TF-GNN

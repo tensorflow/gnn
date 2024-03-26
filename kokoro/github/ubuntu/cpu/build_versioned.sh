@@ -47,8 +47,11 @@ tag_filters="-no_oss,-oss_excluded${TAG_FILTERS}"
 bazel clean
 pip install -r requirements-dev.txt --progress-bar off
 pip install tensorflow=="${TF_VERSION}" --progress-bar off --upgrade
+if [[ "$TF_USE_LEGACY_KERAS" == 1 ]]; then
+  pip install tf-keras=="${TF_VERSION}" --progress-bar off --upgrade
+fi
 python3 setup.py bdist_wheel
 pip uninstall -y tensorflow_gnn
 pip install dist/tensorflow_gnn-*.whl
 
-bazel test --build_tag_filters="${tag_filters}" --test_tag_filters="${tag_filters}" --test_output=errors --verbose_failures=true --build_tests_only --define=no_tfgnn_py_deps=true --keep_going --experimental_repo_remote_exec //bazel_pip/tensorflow_gnn/...
+bazel test --test_env=TF_USE_LEGACY_KERAS --build_tag_filters="${tag_filters}" --test_tag_filters="${tag_filters}" --test_output=errors --verbose_failures=true --build_tests_only --define=no_tfgnn_py_deps=true --keep_going --experimental_repo_remote_exec //bazel_pip/tensorflow_gnn/...
