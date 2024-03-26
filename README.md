@@ -52,7 +52,7 @@ page, which also links to the
 The latest stable release of TensorFlow GNN is available from
 
 ```
-pip install tensorflow_gnn
+pip install tensorflow-gnn
 ```
 
 For installation from source, see our [Developer
@@ -60,10 +60,13 @@ Guide](tensorflow_gnn/docs/guide/developer.md).
 
 Key platform requirements:
 
-  * TensorFlow 2.12, 2.13, 2.14 or 2.15, and any GPU drivers it needs
+  * TensorFlow 2.12 or higher, and any GPU drivers it needs
     [[instructions](https://www.tensorflow.org/install)].
   * Keras v2, as traditionally included with TensorFlow 2.x.
-    (TF-GNN does not work with the new multi-backend Keras v3.)
+    TF-GNN does not work with the new multi-backend Keras v3.<br/>
+    **Users of TF2.16+ must also `pip install tf-keras` and set
+    TF_USE_LEGACY_KERAS=1**,
+    see our [Keras version](tensorflow_gnn/docs/guide/keras_version.md) guide for details.
   * Apache Beam for distributed graph sampling.
 
 TF-GNN is developed and tested on Linux. Running on other platforms supported

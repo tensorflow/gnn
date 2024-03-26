@@ -175,8 +175,8 @@ setup(
         'networkx',
         'pyarrow',
         # pylint:disable=g-line-too-long
-        'tensorflow>=2.12.0,<2.16.0; platform_machine != "arm64" or platform_system != "Darwin"',
-        'tensorflow-macos>=2.12.0,<2.16.0; platform_machine == "arm64" and platform_system == "Darwin"',
+        'tensorflow>=2.12.0,<3; platform_machine != "arm64" or platform_system != "Darwin"',
+        'tensorflow-macos>=2.12.0,<3; platform_machine == "arm64" and platform_system == "Darwin"',
         # pylint:enable=g-line-too-long
         'apache-beam',
     ],

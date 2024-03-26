@@ -36,7 +36,12 @@ def _check_keras_version():
     if keras_version.startswith("3."):
       raise ImportError(
           "Package tensorflow_gnn requires tf.keras to be Keras version 2 "
-          f"but got version {keras_version}. Install tensorflow<=2.15 to fix.")
+          f"but got version {keras_version}. "
+          "For open-source TensorFlow 2.16 and above, "
+          "set the environment variable TF_USE_LEGACY_KERAS=1 to fix. "
+          "For more information, see "
+          "https://github.com/tensorflow/gnn/blob/main/tensorflow_gnn/docs/guide/keras_version.md"
+      )
 _check_keras_version()
 del _check_keras_version
 # pylint: enable=g-statement-before-imports
