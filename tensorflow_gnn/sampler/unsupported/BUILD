@@ -1,10 +1,17 @@
+# Copybara rewrites some of these load() statements back and forth; do not reformat.
+# buildifier: disable=out-of-order-load, disable=same-origin-load
+load("@rules_proto//proto:defs.bzl", "proto_library")
+
+# buildifier: disable=out-of-order-load, disable=same-origin-load
+load("@rules_python//python:proto.bzl", "py_proto_library")
+
+# buildifier: disable=out-of-order-load, disable=same-origin-load
+load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_contrib_test")
+
+
 package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])  # Apache 2.0
-
-load("@rules_proto//proto:defs.bzl", "proto_library")
-load("@rules_python//python:proto.bzl", "py_proto_library")
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_contrib_test")
 
 proto_library(
     name = "subgraph_proto",

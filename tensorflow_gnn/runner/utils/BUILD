@@ -1,4 +1,11 @@
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_binary", "pytype_strict_library")
+# Copybara rewrites load() statements back and forth; do not reformat.
+# buildifier: disable=out-of-order-load, disable=same-origin-load
+load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_binary")
+
+# buildifier: disable=out-of-order-load, disable=same-origin-load
+load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_library")
+
+# buildifier: disable=out-of-order-load, disable=same-origin-load
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "py_strict_test")
 
 licenses(["notice"])

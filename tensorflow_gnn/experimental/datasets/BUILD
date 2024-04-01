@@ -1,5 +1,14 @@
+# Copybara rewrites load() statements back and forth; do not reformat.
+# buildifier: disable=out-of-order-load, disable=same-origin-load
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_library")
+
+# buildifier: disable=out-of-order-load, disable=same-origin-load
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "py_strict_test")
+
+package(
+    default_applicable_licenses = ["//tensorflow_gnn:license"],
+    default_visibility = ["//visibility:private"],
+)
 
 pytype_strict_library(
     name = "pyg_adapter",

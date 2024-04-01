@@ -1,4 +1,8 @@
+# Copybara rewrites some of these load() statements back and forth; do not reformat.
+# buildifier: disable=out-of-order-load, disable=same-origin-load
 load("@rules_proto//proto:defs.bzl", "proto_library")
+
+# buildifier: disable=out-of-order-load, disable=same-origin-load
 load("@rules_python//python:proto.bzl", "py_proto_library")
 
 package(default_visibility = ["//visibility:public"])
