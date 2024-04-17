@@ -58,7 +58,7 @@ E.g., if you consider citation datasets, you can make a SamplingSpec proto as:
 
 ```python
 proto = (SamplingSpecBuilder(schema)
-          .seed('author').sample('writes', 10).sample('cited_by', 5)
+          .seed('author').sample('writes', 10).sample(5, 'cited_by')
           .build())
 ```
 
@@ -73,15 +73,15 @@ some returns of `.sample()` calls. For example:
 
 ```python
 # Store builder at level of "author written papers":
-builder = tfgnn.SamplingSpecBuilder(schema).seed('author').sample('writes', 10)
-path1 = builder.sample('cited_by', 5)
-path2 = builder.sample('written_by', 3).sample('writes')
+builder = tfgnn.SamplingSpecBuilder(schema).seed('author').sample(10, 'writes')
+path1 = builder.sample(5, 'cited_by')
+path2 = builder.sample(3, 'written_by').sample('writes')
 
-proto = (tfgnn.SamplingSpecBuilder.Join([path1, path2]).sample('cited_by', 10)
+proto = (tfgnn.SamplingSpecBuilder.join([path1, path2]).sample(10, 'cited_by')
          .build())
 
 # The above `Join()` can be made less verbose with:
-proto = path1.Join([path2]).sample('cited_by', 10).build()
+proto = path1.Join([path2]).sample(10, 'cited_by').build()
 ```
 
 This merges together the papers written by author, and written by co-authors,
