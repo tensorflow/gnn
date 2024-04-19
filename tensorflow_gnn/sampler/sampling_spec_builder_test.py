@@ -51,12 +51,12 @@ def get_schema(edge_sets=('AA', 'AB', 'AC', 'BC', 'CD'),
 
 class SamplingSpecBuilderTest(parameterized.TestCase):
 
-  def test_line_to_sampling_spec(self):
+  def test_line_build(self):
     schema = get_schema()
     builder = sampling_spec_builder.SamplingSpecBuilder(
         schema, sampling_spec_pb2.SamplingStrategy.RANDOM_UNIFORM)
     proto = (builder.seed('A').sample(5, 'AB').sample(5, 'BC').sample(5, 'CD')
-             .to_sampling_spec())
+             .build())
 
     expected_proto = text_format.Parse(
         """
@@ -88,12 +88,12 @@ class SamplingSpecBuilderTest(parameterized.TestCase):
         """, sampling_spec_pb2.SamplingSpec())
     self.assertEqual(expected_proto, proto)
 
-  def test_dag_to_sampling_spec(self):
+  def test_dag_build(self):
     schema = get_schema()
     builder = sampling_spec_builder.SamplingSpecBuilder(schema).seed('A')
     path1 = builder.sample(5, 'AB').sample(4, 'BC', op_name='A-B-C')
     path2 = builder.sample(7, 'AC', op_name='A-C')
-    proto = (path1.join([path2]).sample(10, 'CD').to_sampling_spec())
+    proto = path1.join([path2]).sample(10, 'CD').build()
 
     expected_proto = text_format.Parse(
         """
@@ -133,6 +133,48 @@ class SamplingSpecBuilderTest(parameterized.TestCase):
         """, sampling_spec_pb2.SamplingSpec())
     self.assertEqual(expected_proto, proto)
 
+  def test_build_right_after_join(self):
+    schema = get_schema()
+    builder = sampling_spec_builder.SamplingSpecBuilder(schema).seed('A')
+    path1 = builder.sample(5, 'AB').sample(4, 'BC', op_name='A-B-C')
+    path2 = builder.sample(7, 'AC', op_name='A-C')
+    path1_build_proto = path1.build()
+    path2_build_proto = path2.build()
+    self.assertEqual(path1.build(), path2.build())
+    join_build_proto = path1.join([path2]).build()
+    self.assertEqual(join_build_proto, path1_build_proto)
+    self.assertEqual(join_build_proto, path2_build_proto)
+
+    expected_proto = text_format.Parse(
+        """
+        seed_op {
+          op_name: "SEED->A"
+          node_set_name: "A"
+        }
+        sampling_ops {
+          op_name: "A-C"
+          input_op_names: "SEED->A"
+          edge_set_name: "AC"
+          sample_size: 7
+          strategy: TOP_K
+        }
+        sampling_ops {
+          op_name: "A->B"
+          input_op_names: "SEED->A"
+          edge_set_name: "AB"
+          sample_size: 5
+          strategy: TOP_K
+        }
+        sampling_ops {
+          op_name: "A-B-C"
+          input_op_names: "A->B"
+          edge_set_name: "BC"
+          sample_size: 4
+          strategy: TOP_K
+        }
+        """, sampling_spec_pb2.SamplingSpec())
+    self.assertEqual(expected_proto, join_build_proto)
+
   def test_sample_with_list_of_sizes(self):
     schema = get_schema()
     proto = (sampling_spec_builder.SamplingSpecBuilder(schema).seed('A')
@@ -170,7 +212,7 @@ class SamplingSpecBuilderTest(parameterized.TestCase):
   def test_no_required_edgeset_or_nodeset_names_for_homogeneous_graph(self):
     schema = get_schema(edge_sets=['AA'])  # Homogeneous graph.
     proto = (sampling_spec_builder.SamplingSpecBuilder(schema)
-             .seed().sample([10, 5]).sample([2, 1]).to_sampling_spec())
+             .seed().sample([10, 5]).sample([2, 1]).build())
     #                             # ^ could be combined with previous sample.
 
     expected_proto = text_format.Parse(

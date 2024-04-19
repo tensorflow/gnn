@@ -446,11 +446,12 @@ class _SamplingStep(object):
 
     return new_step
 
-  def join(self, other_steps):
+  def join(self, other_steps) -> 'Join':
     return Join([self] + list(other_steps))
 
 
 class Join:
+  """Joins multiple steps. Acts like _SamplingStep due to `sample` & `build`."""
 
   def __init__(self, steps: List[_SamplingStep]):
     if not steps:
@@ -460,6 +461,9 @@ class Join:
   def sample(self, *sample_args, **sample_kwargs) -> '_SamplingStep':
     return self._steps[0].merge_then_sample(
         self._steps[1:], *sample_args, **sample_kwargs)
+
+  def build(self) -> sampling_spec_pb2.SamplingSpec:
+    return self._steps[0].build()
 
 
 def _edge_set_names_by_source(
