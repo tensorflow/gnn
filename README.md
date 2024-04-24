@@ -21,9 +21,9 @@ This library is an OSS port of a Google-internal library used in a broad variety
 of contexts, on homogeneous and heterogeneous graphs, and in conjunction with
 other scalable graph mining tools.
 
-For background and discussion, please see O. Ferludin et al.:
-[TF-GNN: Graph Neural Networks in TensorFlow](https://arxiv.org/abs/2207.03522),
-2023 (full citation below).
+For background, please see our
+[blog post](https://blog.tensorflow.org/2024/02/graph-neural-networks-in-tensorflow.html)
+and the [TF-GNN paper](https://arxiv.org/abs/2207.03522) (full citation below).
 
 ## Quickstart
 

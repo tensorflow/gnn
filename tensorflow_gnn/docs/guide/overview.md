@@ -119,3 +119,11 @@ The following research paper describes the design of this library:
 
   * O. Ferludin et al.: [TF-GNN: Graph Neural Networks in
   TensorFlow](https://arxiv.org/abs/2207.03522), 2023.
+
+## Blog posts
+
+  * [Graph neural networks in TensorFlow](https://blog.tensorflow.org/2024/02/graph-neural-networks-in-tensorflow.html)
+    (February 06, 2024) for release 1.0.
+  * [Introducing TensorFlow Graph Neural Networks](https://blog.tensorflow.org/2021/11/introducing-tensorflow-gnn.html)
+    (November 18, 2021) for the initial open-sourcing ahead of release 0.1.
+
