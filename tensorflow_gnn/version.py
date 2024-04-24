@@ -43,4 +43,4 @@ specifiers](https://packaging.python.org/en/latest/specifications/version-specif
 # IMPORANT: Right after branching rX.Y, bump the main branch to X.(Y+1).0.dev1.
 # (Submit a change to the Source of Truth, get it out on the main branch asap.)
 
-__version__ = "1.0.2"
+__version__ = "1.0.3rc0"
