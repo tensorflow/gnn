@@ -51,6 +51,10 @@ def label_fn(inputs: GraphTensor) -> tuple[GraphTensor, Field]:
   return x, y
 
 
+def l2(rate):
+  return tf.keras.regularizers.L2(rate)
+
+
 def add_readout_from_first_node(gt: GraphTensor) -> GraphTensor:
   return tfgnn.add_readout_from_first_node(
       gt,
@@ -356,138 +360,169 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
           testcase_name="GraphMeanAbsoluteError",
           task=regression.GraphMeanAbsoluteError(
               "nodes",
-              label_fn=label_fn),
+              label_fn=label_fn,
+              kernel_regularizer=l2(0.125)),
           gt=TEST_GRAPH_TENSOR,
           expected_loss=tf.keras.losses.MeanAbsoluteError,
-          expected_shape=tf.TensorShape((None, 1))),
+          expected_shape=tf.TensorShape((None, 1)),
+          expected_l2_regularization=0.125),
       dict(
           testcase_name="GraphMeanAbsolutePercentageError",
           task=regression.GraphMeanAbsolutePercentageError(
               "nodes",
-              label_feature_name="labels"),
+              label_feature_name="labels",
+              kernel_regularizer=l2(0.125)),
           gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_loss=tf.keras.losses.MeanAbsolutePercentageError,
-          expected_shape=tf.TensorShape((None, 1))),
+          expected_shape=tf.TensorShape((None, 1)),
+          expected_l2_regularization=0.125),
       dict(
           testcase_name="GraphMeanSquaredError",
           task=regression.GraphMeanSquaredError(
               "nodes",
-              label_fn=label_fn),
+              label_fn=label_fn,
+              kernel_regularizer=l2(0.125)),
           gt=TEST_GRAPH_TENSOR,
           expected_loss=tf.keras.losses.MeanSquaredError,
-          expected_shape=tf.TensorShape((None, 1))),
+          expected_shape=tf.TensorShape((None, 1)),
+          expected_l2_regularization=0.125),
       dict(
           testcase_name="GraphMeanSquaredLogarithmicError",
           task=regression.GraphMeanSquaredLogarithmicError(
               "nodes",
               units=3,
-              label_feature_name="labels"),
+              label_feature_name="labels",
+              kernel_regularizer=l2(0.125)),
           gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_loss=tf.keras.losses.MeanSquaredLogarithmicError,
-          expected_shape=tf.TensorShape((None, 3))),
+          expected_shape=tf.TensorShape((None, 3)),
+          expected_l2_regularization=0.125),
       dict(
           testcase_name="GraphMeanSquaredLogScaledError",
           task=regression.GraphMeanSquaredLogScaledError(
               "nodes",
               units=2,
-              label_fn=label_fn),
+              label_fn=label_fn,
+              kernel_regularizer=l2(0.125)),
           gt=TEST_GRAPH_TENSOR,
           expected_loss=regression.MeanSquaredLogScaledError,
-          expected_shape=tf.TensorShape((None, 2))),
+          expected_shape=tf.TensorShape((None, 2)),
+          expected_l2_regularization=0.125),
       dict(
           testcase_name="RootNodeMeanAbsoluteError",
           task=regression.RootNodeMeanAbsoluteError(
               "nodes",
-              label_feature_name="labels"),
+              label_feature_name="labels",
+              kernel_regularizer=l2(0.125)),
           gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_loss=tf.keras.losses.MeanAbsoluteError,
-          expected_shape=tf.TensorShape((None, 1))),
+          expected_shape=tf.TensorShape((None, 1)),
+          expected_l2_regularization=0.125),
       dict(
           testcase_name="RootNodeMeanAbsolutePercentageError",
           task=regression.RootNodeMeanAbsolutePercentageError(
               "nodes",
-              label_fn=label_fn),
+              label_fn=label_fn,
+              kernel_regularizer=l2(0.125)),
           gt=TEST_GRAPH_TENSOR,
           expected_loss=tf.keras.losses.MeanAbsolutePercentageError,
-          expected_shape=tf.TensorShape((None, 1))),
+          expected_shape=tf.TensorShape((None, 1)),
+          expected_l2_regularization=0.125),
       dict(
           testcase_name="RootNodeMeanSquaredError",
           task=regression.RootNodeMeanSquaredError(
               "nodes",
-              label_feature_name="labels"),
+              label_feature_name="labels",
+              kernel_regularizer=l2(0.125)),
           gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_loss=tf.keras.losses.MeanSquaredError,
-          expected_shape=tf.TensorShape((None, 1))),
+          expected_shape=tf.TensorShape((None, 1)),
+          expected_l2_regularization=0.125),
       dict(
           testcase_name="RootNodeMeanSquaredLogarithmicError",
           task=regression.RootNodeMeanSquaredLogarithmicError(
               "nodes",
               units=3,
-              label_fn=label_fn),
+              label_fn=label_fn,
+              kernel_regularizer=l2(0.125)),
           gt=TEST_GRAPH_TENSOR,
           expected_loss=tf.keras.losses.MeanSquaredLogarithmicError,
-          expected_shape=tf.TensorShape((None, 3))),
+          expected_shape=tf.TensorShape((None, 3)),
+          expected_l2_regularization=0.125),
       dict(
           testcase_name="RootNodeMeanSquaredLogScaledError",
           task=regression.RootNodeMeanSquaredLogScaledError(
               "nodes",
               units=2,
-              label_feature_name="labels"),
+              label_feature_name="labels",
+              kernel_regularizer=l2(0.125)),
           gt=context_readout_into_feature(TEST_GRAPH_TENSOR),
           expected_loss=regression.MeanSquaredLogScaledError,
-          expected_shape=tf.TensorShape((None, 2))),
+          expected_shape=tf.TensorShape((None, 2)),
+          expected_l2_regularization=0.125),
       dict(
           testcase_name="NodeMeanAbsoluteError",
           task=regression.NodeMeanAbsoluteError(
               READOUT_KEY,
-              label_feature_name="labels"),
+              label_feature_name="labels",
+              kernel_regularizer=l2(0.125)),
           gt=add_readout_from_first_node(
               context_readout_into_feature(TEST_GRAPH_TENSOR)),
           expected_loss=tf.keras.losses.MeanAbsoluteError,
-          expected_shape=tf.TensorShape((None, 1))),
+          expected_shape=tf.TensorShape((None, 1)),
+          expected_l2_regularization=0.125),
       dict(
           testcase_name="NodeMeanAbsolutePercentageError",
           task=regression.NodeMeanAbsolutePercentageError(
               READOUT_KEY,
-              label_fn=label_fn),
+              label_fn=label_fn,
+              kernel_regularizer=l2(0.125)),
           gt=add_readout_from_first_node(TEST_GRAPH_TENSOR),
           expected_loss=tf.keras.losses.MeanAbsolutePercentageError,
-          expected_shape=tf.TensorShape((None, 1))),
+          expected_shape=tf.TensorShape((None, 1)),
+          expected_l2_regularization=0.125),
       dict(
           testcase_name="NodeMeanSquaredError",
           task=regression.NodeMeanSquaredError(
               READOUT_KEY,
-              label_feature_name="labels"),
+              label_feature_name="labels",
+              kernel_regularizer=l2(0.125)),
           gt=add_readout_from_first_node(
               context_readout_into_feature(TEST_GRAPH_TENSOR)),
           expected_loss=tf.keras.losses.MeanSquaredError,
-          expected_shape=tf.TensorShape((None, 1))),
+          expected_shape=tf.TensorShape((None, 1)),
+          expected_l2_regularization=0.125),
       dict(
           testcase_name="NodeMeanSquaredLogarithmicError",
           task=regression.NodeMeanSquaredLogarithmicError(
               READOUT_KEY,
               units=3,
-              label_fn=label_fn),
+              label_fn=label_fn,
+              kernel_regularizer=l2(0.125)),
           gt=add_readout_from_first_node(TEST_GRAPH_TENSOR),
           expected_loss=tf.keras.losses.MeanSquaredLogarithmicError,
-          expected_shape=tf.TensorShape((None, 3))),
+          expected_shape=tf.TensorShape((None, 3)),
+          expected_l2_regularization=0.125),
       dict(
           testcase_name="NodeMeanSquaredLogScaledError",
           task=regression.NodeMeanSquaredLogScaledError(
               READOUT_KEY,
               units=2,
-              label_feature_name="labels"),
+              label_feature_name="labels",
+              kernel_regularizer=l2(0.125)),
           gt=add_readout_from_first_node(
               context_readout_into_feature(TEST_GRAPH_TENSOR)),
           expected_loss=regression.MeanSquaredLogScaledError,
-          expected_shape=tf.TensorShape((None, 2))),
+          expected_shape=tf.TensorShape((None, 2)),
+          expected_l2_regularization=0.125),
   ])
   def test_predict(
       self,
       task: interfaces.Task,
       gt: GraphTensor,
       expected_loss: Type[tf.keras.losses.Loss],
-      expected_shape: tf.TensorShape):
+      expected_shape: tf.TensorShape,
+      expected_l2_regularization: float):
     # Assert head readout, activation and shape.
     inputs = tf.keras.layers.Input(type_spec=gt.spec)
     model = tf.keras.Model(inputs, task.predict(inputs))
@@ -505,6 +540,8 @@ class Regression(tf.test.TestCase, parameterized.TestCase):
 
     _, _, dense = model.layers
     self.assertTrue(expected_shape.is_compatible_with(dense.output_shape))
+    self.assertEqual(dense.kernel_regularizer.get_config()["l2"],
+                     expected_l2_regularization)
 
     # Assert losses.
     loss = task.losses()

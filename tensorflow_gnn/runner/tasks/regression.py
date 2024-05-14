@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Callable, Optional, Tuple
+from typing import Any, Callable, Optional, Tuple
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
@@ -43,7 +43,9 @@ class _Regression(interfaces.Task):
       *,
       name: str = "regression_logits",
       label_fn: Optional[LabelFn] = None,
-      label_feature_name: Optional[str] = None):
+      label_feature_name: Optional[str] = None,
+      kernel_regularizer: Any = None,
+  ):
     """Sets `Task` parameters.
 
     Args:
@@ -56,6 +58,9 @@ class _Regression(interfaces.Task):
       label_feature_name: A label feature name for readout from the auxiliary
         '_readout' node set. Readout does not mutate the input `GraphTensor`.
         Mutually exclusive with `label_fn`.
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
+        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+        output layer.
     """
     if (label_fn is None) == (label_feature_name is None):
       raise ValueError(
@@ -67,6 +72,7 @@ class _Regression(interfaces.Task):
     self._name = name
     self._label_fn = label_fn
     self._label_feature_name = label_feature_name
+    self._kernel_regularizer = kernel_regularizer
 
   @abc.abstractmethod
   def gather_activations(self, inputs: GraphTensor) -> Field:
@@ -84,7 +90,7 @@ class _Regression(interfaces.Task):
     tfgnn.check_scalar_graph_tensor(inputs, name="_Regression")
     activations = self.gather_activations(inputs)
     logits = tf.keras.layers.Dense(
-        self._units,
+        self._units, kernel_regularizer=self._kernel_regularizer,
         name=self._name)(activations)
     return logits
 
@@ -310,7 +316,8 @@ class GraphMeanAbsoluteError(_MeanAbsoluteErrorLossMixIn, _GraphRegression):
                reduce_type: str = "mean",
                name: str = "regression_logits",
                label_fn: Optional[LabelFn] = None,
-               label_feature_name: Optional[str] = None):
+               label_feature_name: Optional[str] = None,
+               kernel_regularizer: Any = None):
     """Regression from pooled node states with mean absolute error.
 
     Args:
@@ -326,6 +333,9 @@ class GraphMeanAbsoluteError(_MeanAbsoluteErrorLossMixIn, _GraphRegression):
       label_feature_name: A label feature name for readout from the auxiliary
         '_readout' node set. Readout does not mutate the input `GraphTensor`.
         Mutually exclusive with `label_fn`.
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
+        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+        output layer.
     """
     super().__init__(
         node_set_name,
@@ -334,7 +344,9 @@ class GraphMeanAbsoluteError(_MeanAbsoluteErrorLossMixIn, _GraphRegression):
         reduce_type=reduce_type,
         name=name,
         label_fn=label_fn,
-        label_feature_name=label_feature_name)
+        label_feature_name=label_feature_name,
+        kernel_regularizer=kernel_regularizer,
+    )
 
 
 class GraphMeanAbsolutePercentageError(_MeanAbsolutePercentageErrorLossMixIn,
@@ -349,7 +361,8 @@ class GraphMeanAbsolutePercentageError(_MeanAbsolutePercentageErrorLossMixIn,
                reduce_type: str = "mean",
                name: str = "regression_logits",
                label_fn: Optional[LabelFn] = None,
-               label_feature_name: Optional[str] = None):
+               label_feature_name: Optional[str] = None,
+               kernel_regularizer: Any = None):
     """Regression from pooled node states with mean absolute percentage error.
 
     Args:
@@ -365,6 +378,9 @@ class GraphMeanAbsolutePercentageError(_MeanAbsolutePercentageErrorLossMixIn,
       label_feature_name: A label feature name for readout from the auxiliary
         '_readout' node set. Readout does not mutate the input `GraphTensor`.
         Mutually exclusive with `label_fn`.
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
+        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+        output layer.
     """
     super().__init__(
         node_set_name,
@@ -373,7 +389,9 @@ class GraphMeanAbsolutePercentageError(_MeanAbsolutePercentageErrorLossMixIn,
         reduce_type=reduce_type,
         name=name,
         label_fn=label_fn,
-        label_feature_name=label_feature_name)
+        label_feature_name=label_feature_name,
+        kernel_regularizer=kernel_regularizer,
+    )
 
 
 class GraphMeanSquaredError(_MeanSquaredErrorLossMixIn, _GraphRegression):
@@ -387,7 +405,8 @@ class GraphMeanSquaredError(_MeanSquaredErrorLossMixIn, _GraphRegression):
                reduce_type: str = "mean",
                name: str = "regression_logits",
                label_fn: Optional[LabelFn] = None,
-               label_feature_name: Optional[str] = None):
+               label_feature_name: Optional[str] = None,
+               kernel_regularizer: Any = None):
     """Regression from pooled node states with mean squared error.
 
     Args:
@@ -403,6 +422,9 @@ class GraphMeanSquaredError(_MeanSquaredErrorLossMixIn, _GraphRegression):
       label_feature_name: A label feature name for readout from the auxiliary
         '_readout' node set. Readout does not mutate the input `GraphTensor`.
         Mutually exclusive with `label_fn`.
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
+        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+        output layer.
     """
     super().__init__(
         node_set_name,
@@ -411,7 +433,9 @@ class GraphMeanSquaredError(_MeanSquaredErrorLossMixIn, _GraphRegression):
         reduce_type=reduce_type,
         name=name,
         label_fn=label_fn,
-        label_feature_name=label_feature_name)
+        label_feature_name=label_feature_name,
+        kernel_regularizer=kernel_regularizer,
+    )
 
 
 class GraphMeanSquaredLogarithmicError(_MeanSquaredLogarithmicErrorLossMixIn,
@@ -426,7 +450,8 @@ class GraphMeanSquaredLogarithmicError(_MeanSquaredLogarithmicErrorLossMixIn,
                reduce_type: str = "mean",
                name: str = "regression_logits",
                label_fn: Optional[LabelFn] = None,
-               label_feature_name: Optional[str] = None):
+               label_feature_name: Optional[str] = None,
+               kernel_regularizer: Any = None):
     """Regression from pooled node states with mean squared logarithmic error.
 
     Args:
@@ -442,6 +467,9 @@ class GraphMeanSquaredLogarithmicError(_MeanSquaredLogarithmicErrorLossMixIn,
       label_feature_name: A label feature name for readout from the auxiliary
         '_readout' node set. Readout does not mutate the input `GraphTensor`.
         Mutually exclusive with `label_fn`.
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
+        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+        output layer.
     """
     super().__init__(
         node_set_name,
@@ -450,7 +478,9 @@ class GraphMeanSquaredLogarithmicError(_MeanSquaredLogarithmicErrorLossMixIn,
         reduce_type=reduce_type,
         name=name,
         label_fn=label_fn,
-        label_feature_name=label_feature_name)
+        label_feature_name=label_feature_name,
+        kernel_regularizer=kernel_regularizer,
+    )
 
 
 class GraphMeanSquaredLogScaledError(_MeanSquaredLogScaledErrorLossMixIn,
@@ -468,7 +498,8 @@ class GraphMeanSquaredLogScaledError(_MeanSquaredLogScaledErrorLossMixIn,
                label_feature_name: Optional[str] = None,
                alpha_loss_param: float = 5.,
                epsilon_loss_param: float = 1e-8,
-               reduction: tf.keras.losses.Reduction = AUTO):
+               reduction: tf.keras.losses.Reduction = AUTO,
+               kernel_regularizer: Any = None):
     """Regression from pooled node states with mean squared log scaled error.
 
     Args:
@@ -487,6 +518,9 @@ class GraphMeanSquaredLogScaledError(_MeanSquaredLogScaledErrorLossMixIn,
       alpha_loss_param: Alpha for the mean squared log scaled error.
       epsilon_loss_param: Epsilon for the mean squared log scaled error.
       reduction: Reduction for the mean squared log scaled error.
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
+        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+        output layer.
     """
     super().__init__(
         node_set_name,
@@ -498,7 +532,9 @@ class GraphMeanSquaredLogScaledError(_MeanSquaredLogScaledErrorLossMixIn,
         label_feature_name=label_feature_name,
         alpha_loss_param=alpha_loss_param,
         epsilon_loss_param=epsilon_loss_param,
-        reduction=reduction)
+        reduction=reduction,
+        kernel_regularizer=kernel_regularizer,
+    )
 
 
 class RootNodeMeanAbsoluteError(_MeanAbsoluteErrorLossMixIn,
@@ -512,7 +548,8 @@ class RootNodeMeanAbsoluteError(_MeanAbsoluteErrorLossMixIn,
                state_name: str = tfgnn.HIDDEN_STATE,
                name: str = "regression_logits",
                label_fn: Optional[LabelFn] = None,
-               label_feature_name: Optional[str] = None):
+               label_feature_name: Optional[str] = None,
+               kernel_regularizer: Any = None):
     """Root node regression with mean absolute error.
 
     Args:
@@ -527,6 +564,9 @@ class RootNodeMeanAbsoluteError(_MeanAbsoluteErrorLossMixIn,
       label_feature_name: A label feature name for readout from the auxiliary
         '_readout' node set. Readout does not mutate the input `GraphTensor`.
         Mutually exclusive with `label_fn`.
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
+        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+        output layer.
     """
     super().__init__(
         node_set_name,
@@ -534,7 +574,9 @@ class RootNodeMeanAbsoluteError(_MeanAbsoluteErrorLossMixIn,
         state_name=state_name,
         name=name,
         label_fn=label_fn,
-        label_feature_name=label_feature_name)
+        label_feature_name=label_feature_name,
+        kernel_regularizer=kernel_regularizer,
+    )
 
 
 class RootNodeMeanAbsolutePercentageError(_MeanAbsolutePercentageErrorLossMixIn,
@@ -548,7 +590,8 @@ class RootNodeMeanAbsolutePercentageError(_MeanAbsolutePercentageErrorLossMixIn,
                state_name: str = tfgnn.HIDDEN_STATE,
                name: str = "regression_logits",
                label_fn: Optional[LabelFn] = None,
-               label_feature_name: Optional[str] = None):
+               label_feature_name: Optional[str] = None,
+               kernel_regularizer: Any = None):
     """Root node regression with mean absolute percentage error.
 
     Args:
@@ -563,6 +606,9 @@ class RootNodeMeanAbsolutePercentageError(_MeanAbsolutePercentageErrorLossMixIn,
       label_feature_name: A label feature name for readout from the auxiliary
         '_readout' node set. Readout does not mutate the input `GraphTensor`.
         Mutually exclusive with `label_fn`.
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
+        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+        output layer.
     """
     super().__init__(
         node_set_name,
@@ -570,7 +616,9 @@ class RootNodeMeanAbsolutePercentageError(_MeanAbsolutePercentageErrorLossMixIn,
         state_name=state_name,
         name=name,
         label_fn=label_fn,
-        label_feature_name=label_feature_name)
+        label_feature_name=label_feature_name,
+        kernel_regularizer=kernel_regularizer,
+    )
 
 
 class RootNodeMeanSquaredError(_MeanSquaredErrorLossMixIn, _RootNodeRegression):
@@ -583,7 +631,8 @@ class RootNodeMeanSquaredError(_MeanSquaredErrorLossMixIn, _RootNodeRegression):
                state_name: str = tfgnn.HIDDEN_STATE,
                name: str = "regression_logits",
                label_fn: Optional[LabelFn] = None,
-               label_feature_name: Optional[str] = None):
+               label_feature_name: Optional[str] = None,
+               kernel_regularizer: Any = None):
     """Root node regression with mean squared error.
 
     Args:
@@ -598,6 +647,9 @@ class RootNodeMeanSquaredError(_MeanSquaredErrorLossMixIn, _RootNodeRegression):
       label_feature_name: A label feature name for readout from the auxiliary
         '_readout' node set. Readout does not mutate the input `GraphTensor`.
         Mutually exclusive with `label_fn`.
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
+        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+        output layer.
     """
     super().__init__(
         node_set_name,
@@ -605,7 +657,9 @@ class RootNodeMeanSquaredError(_MeanSquaredErrorLossMixIn, _RootNodeRegression):
         state_name=state_name,
         name=name,
         label_fn=label_fn,
-        label_feature_name=label_feature_name)
+        label_feature_name=label_feature_name,
+        kernel_regularizer=kernel_regularizer,
+    )
 
 
 class RootNodeMeanSquaredLogarithmicError(_MeanSquaredLogarithmicErrorLossMixIn,
@@ -619,7 +673,8 @@ class RootNodeMeanSquaredLogarithmicError(_MeanSquaredLogarithmicErrorLossMixIn,
                state_name: str = tfgnn.HIDDEN_STATE,
                name: str = "regression_logits",
                label_fn: Optional[LabelFn] = None,
-               label_feature_name: Optional[str] = None):
+               label_feature_name: Optional[str] = None,
+               kernel_regularizer: Any = None):
     """Root node regression with mean squared logarithmic error.
 
     Args:
@@ -634,6 +689,9 @@ class RootNodeMeanSquaredLogarithmicError(_MeanSquaredLogarithmicErrorLossMixIn,
       label_feature_name: A label feature name for readout from the auxiliary
         '_readout' node set. Readout does not mutate the input `GraphTensor`.
         Mutually exclusive with `label_fn`.
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
+        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+        output layer.
     """
     super().__init__(
         node_set_name,
@@ -641,7 +699,9 @@ class RootNodeMeanSquaredLogarithmicError(_MeanSquaredLogarithmicErrorLossMixIn,
         state_name=state_name,
         name=name,
         label_fn=label_fn,
-        label_feature_name=label_feature_name)
+        label_feature_name=label_feature_name,
+        kernel_regularizer=kernel_regularizer,
+    )
 
 
 class RootNodeMeanSquaredLogScaledError(_MeanSquaredLogScaledErrorLossMixIn,
@@ -658,7 +718,8 @@ class RootNodeMeanSquaredLogScaledError(_MeanSquaredLogScaledErrorLossMixIn,
                label_feature_name: Optional[str] = None,
                alpha_loss_param: float = 5.,
                epsilon_loss_param: float = 1e-8,
-               reduction: tf.keras.losses.Reduction = AUTO):
+               reduction: tf.keras.losses.Reduction = AUTO,
+               kernel_regularizer: Any = None):
     """Root node regression with mean squared log scaled error.
 
     Args:
@@ -676,6 +737,9 @@ class RootNodeMeanSquaredLogScaledError(_MeanSquaredLogScaledErrorLossMixIn,
       alpha_loss_param: Alpha for the mean squared log scaled error.
       epsilon_loss_param: Epsilon for the mean squared log scaled error.
       reduction: Reduction for the mean squared log scaled error.
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
+        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+        output layer.
     """
     super().__init__(
         node_set_name,
@@ -686,7 +750,9 @@ class RootNodeMeanSquaredLogScaledError(_MeanSquaredLogScaledErrorLossMixIn,
         label_feature_name=label_feature_name,
         alpha_loss_param=alpha_loss_param,
         epsilon_loss_param=epsilon_loss_param,
-        reduction=reduction)
+        reduction=reduction,
+        kernel_regularizer=kernel_regularizer,
+    )
 
 
 class NodeMeanAbsoluteError(_MeanAbsoluteErrorLossMixIn, _NodeRegression):
@@ -701,7 +767,8 @@ class NodeMeanAbsoluteError(_MeanAbsoluteErrorLossMixIn, _NodeRegression):
                label_feature_name: Optional[str] = None,
                feature_name: str = tfgnn.HIDDEN_STATE,
                readout_node_set: tfgnn.NodeSetName = "_readout",
-               validate: bool = True):
+               validate: bool = True,
+               kernel_regularizer: Any = None):
     """Node regression with mean absolute error via structured readout.
 
     This task defines regression via structured readout (see
@@ -730,6 +797,9 @@ class NodeMeanAbsoluteError(_MeanAbsoluteErrorLossMixIn, _NodeRegression):
         auxiliary edge sets. This is stronlgy discouraged, unless great care is
         taken to run `tfgnn.validate_graph_tensor_for_readout()` earlier on
         structurally unchanged GraphTensors.
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
+        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+        output layer.
     """
     super().__init__(
         key,
@@ -739,7 +809,9 @@ class NodeMeanAbsoluteError(_MeanAbsoluteErrorLossMixIn, _NodeRegression):
         label_feature_name=label_feature_name,
         feature_name=feature_name,
         readout_node_set=readout_node_set,
-        validate=validate)
+        validate=validate,
+        kernel_regularizer=kernel_regularizer,
+    )
 
 
 class NodeMeanAbsolutePercentageError(_MeanAbsolutePercentageErrorLossMixIn,
@@ -756,7 +828,8 @@ class NodeMeanAbsolutePercentageError(_MeanAbsolutePercentageErrorLossMixIn,
                label_feature_name: Optional[str] = None,
                feature_name: str = tfgnn.HIDDEN_STATE,
                readout_node_set: tfgnn.NodeSetName = "_readout",
-               validate: bool = True):
+               validate: bool = True,
+               kernel_regularizer: Any = None):
     """Node regression with mean absolute percentage error via structured readout.
 
     This task defines regression via structured readout (see
@@ -785,6 +858,9 @@ class NodeMeanAbsolutePercentageError(_MeanAbsolutePercentageErrorLossMixIn,
         auxiliary edge sets. This is stronlgy discouraged, unless great care is
         taken to run `tfgnn.validate_graph_tensor_for_readout()` earlier on
         structurally unchanged GraphTensors.
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
+        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+        output layer.
     """
     super().__init__(
         key,
@@ -794,7 +870,9 @@ class NodeMeanAbsolutePercentageError(_MeanAbsolutePercentageErrorLossMixIn,
         label_feature_name=label_feature_name,
         feature_name=feature_name,
         readout_node_set=readout_node_set,
-        validate=validate)
+        validate=validate,
+        kernel_regularizer=kernel_regularizer,
+    )
 
 
 class NodeMeanSquaredError(_MeanSquaredErrorLossMixIn, _NodeRegression):
@@ -809,7 +887,8 @@ class NodeMeanSquaredError(_MeanSquaredErrorLossMixIn, _NodeRegression):
                label_feature_name: Optional[str] = None,
                feature_name: str = tfgnn.HIDDEN_STATE,
                readout_node_set: tfgnn.NodeSetName = "_readout",
-               validate: bool = True):
+               validate: bool = True,
+               kernel_regularizer: Any = None):
     """Node regression with mean squared error via structured readout.
 
     This task defines regression via structured readout (see
@@ -838,6 +917,9 @@ class NodeMeanSquaredError(_MeanSquaredErrorLossMixIn, _NodeRegression):
         auxiliary edge sets. This is stronlgy discouraged, unless great care is
         taken to run `tfgnn.validate_graph_tensor_for_readout()` earlier on
         structurally unchanged GraphTensors.
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
+        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+        output layer.
     """
     super().__init__(
         key,
@@ -847,7 +929,9 @@ class NodeMeanSquaredError(_MeanSquaredErrorLossMixIn, _NodeRegression):
         label_feature_name=label_feature_name,
         feature_name=feature_name,
         readout_node_set=readout_node_set,
-        validate=validate)
+        validate=validate,
+        kernel_regularizer=kernel_regularizer,
+    )
 
 
 class NodeMeanSquaredLogarithmicError(_MeanSquaredLogarithmicErrorLossMixIn,
@@ -863,7 +947,8 @@ class NodeMeanSquaredLogarithmicError(_MeanSquaredLogarithmicErrorLossMixIn,
                label_feature_name: Optional[str] = None,
                feature_name: str = tfgnn.HIDDEN_STATE,
                readout_node_set: tfgnn.NodeSetName = "_readout",
-               validate: bool = True):
+               validate: bool = True,
+               kernel_regularizer: Any = None):
     """Node regression with mean squared log error via structured readout.
 
     This task defines regression via structured readout (see
@@ -892,6 +977,9 @@ class NodeMeanSquaredLogarithmicError(_MeanSquaredLogarithmicErrorLossMixIn,
         auxiliary edge sets. This is stronlgy discouraged, unless great care is
         taken to run `tfgnn.validate_graph_tensor_for_readout()` earlier on
         structurally unchanged GraphTensors.
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
+        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+        output layer.
     """
     super().__init__(
         key,
@@ -901,7 +989,9 @@ class NodeMeanSquaredLogarithmicError(_MeanSquaredLogarithmicErrorLossMixIn,
         label_feature_name=label_feature_name,
         feature_name=feature_name,
         readout_node_set=readout_node_set,
-        validate=validate)
+        validate=validate,
+        kernel_regularizer=kernel_regularizer,
+    )
 
 
 class NodeMeanSquaredLogScaledError(_MeanSquaredLogScaledErrorLossMixIn,
@@ -921,7 +1011,8 @@ class NodeMeanSquaredLogScaledError(_MeanSquaredLogScaledErrorLossMixIn,
                validate: bool = True,
                alpha_loss_param: float = 5.,
                epsilon_loss_param: float = 1e-8,
-               reduction: tf.keras.losses.Reduction = AUTO):
+               reduction: tf.keras.losses.Reduction = AUTO,
+               kernel_regularizer: Any = None):
     """Node regression with mean squared log scaled error via structured readout.
 
     This task defines regression via structured readout (see
@@ -953,6 +1044,9 @@ class NodeMeanSquaredLogScaledError(_MeanSquaredLogScaledErrorLossMixIn,
       alpha_loss_param: Alpha for the mean squared log scaled error.
       epsilon_loss_param: Epsilon for the mean squared log scaled error.
       reduction: Reduction for the mean squared log scaled error.
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
+        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+        output layer.
     """
     super().__init__(
         key,
@@ -965,4 +1059,6 @@ class NodeMeanSquaredLogScaledError(_MeanSquaredLogScaledErrorLossMixIn,
         validate=validate,
         alpha_loss_param=alpha_loss_param,
         epsilon_loss_param=epsilon_loss_param,
-        reduction=reduction)
+        reduction=reduction,
+        kernel_regularizer=kernel_regularizer,
+    )

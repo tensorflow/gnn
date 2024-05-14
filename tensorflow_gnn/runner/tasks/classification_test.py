@@ -53,6 +53,10 @@ def label_fn(num_labels: int) -> Callable[..., tuple[GraphTensor, Field]]:
   return fn
 
 
+def l2(rate):
+  return tf.keras.regularizers.L2(rate)
+
+
 def add_readout_from_first_node(gt: GraphTensor) -> GraphTensor:
   return tfgnn.add_readout_from_first_node(
       gt,
@@ -205,63 +209,76 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
           testcase_name="GraphBinaryClassification",
           task=classification.GraphBinaryClassification(
               "nodes",
-              label_fn=label_fn(2)),
+              label_fn=label_fn(2),
+              kernel_regularizer=l2(0.125)),
           gt=TEST_GRAPH_TENSOR,
           expected_loss=tf.keras.losses.BinaryCrossentropy,
-          expected_shape=tf.TensorShape((None, 1))),
+          expected_shape=tf.TensorShape((None, 1)),
+          expected_l2_regularization=0.125),
       dict(
           testcase_name="GraphMulticlassClassification",
           task=classification.GraphMulticlassClassification(
               "nodes",
               num_classes=4,
-              label_feature_name="labels"),
+              label_feature_name="labels",
+              kernel_regularizer=l2(0.25)),
           gt=context_readout_into_feature(4, TEST_GRAPH_TENSOR),
           expected_loss=tf.keras.losses.SparseCategoricalCrossentropy,
-          expected_shape=tf.TensorShape((None, 4))),
+          expected_shape=tf.TensorShape((None, 4)),
+          expected_l2_regularization=0.25),
       dict(
           testcase_name="RootNodeBinaryClassification",
           task=classification.RootNodeBinaryClassification(
               "nodes",
-              label_fn=label_fn(2)),
+              label_fn=label_fn(2),
+              kernel_regularizer=l2(0.5)),
           gt=TEST_GRAPH_TENSOR,
           expected_loss=tf.keras.losses.BinaryCrossentropy,
-          expected_shape=tf.TensorShape((None, 1))),
+          expected_shape=tf.TensorShape((None, 1)),
+          expected_l2_regularization=0.5),
       dict(
           testcase_name="RootNodeMulticlassClassification",
           task=classification.RootNodeMulticlassClassification(
               "nodes",
               num_classes=3,
-              label_feature_name="labels"),
+              label_feature_name="labels",
+              kernel_regularizer=l2(0.75)),
           gt=context_readout_into_feature(3, TEST_GRAPH_TENSOR),
           expected_loss=tf.keras.losses.SparseCategoricalCrossentropy,
-          expected_shape=tf.TensorShape((None, 3))),
+          expected_shape=tf.TensorShape((None, 3)),
+          expected_l2_regularization=0.75),
       dict(
           testcase_name="NodeBinaryClassification",
           task=classification.NodeBinaryClassification(
               READOUT_KEY,
-              label_fn=label_fn(2)),
+              label_fn=label_fn(2),
+              kernel_regularizer=l2(1.0)),
           gt=add_readout_from_first_node(TEST_GRAPH_TENSOR),
           expected_loss=tf.keras.losses.BinaryCrossentropy,
-          expected_shape=tf.TensorShape((None, 1))),
+          expected_shape=tf.TensorShape((None, 1)),
+          expected_l2_regularization=1.0),
       dict(
           testcase_name="NodeMulticlassClassification",
           task=classification.NodeMulticlassClassification(
               READOUT_KEY,
               num_classes=3,
-              label_feature_name="labels"),
+              label_feature_name="labels",
+              kernel_regularizer=l2(0.375)),
           gt=add_readout_from_first_node(context_readout_into_feature(
               3,
               TEST_GRAPH_TENSOR)),
           expected_loss=tf.keras.losses.SparseCategoricalCrossentropy,
-          expected_shape=tf.TensorShape((None, 3))),
+          expected_shape=tf.TensorShape((None, 3)),
+          expected_l2_regularization=0.375),
   ])
   def test_predict(
       self,
       task: interfaces.Task,
       gt: GraphTensor,
       expected_loss: Type[tf.keras.losses.Loss],
-      expected_shape: tf.TensorShape):
-    # Assert head readout, activation and shape.
+      expected_shape: tf.TensorShape,
+      expected_l2_regularization: float):
+    # Assert head readout, activation, shape and regularization.
     inputs = tf.keras.layers.Input(type_spec=gt.spec)
     model = tf.keras.Model(inputs, task.predict(inputs))
     self.assertLen(model.layers, 3)
@@ -279,6 +296,8 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
     _, _, dense = model.layers
     self.assertEqual(dense.get_config()["activation"], "linear")
     self.assertTrue(expected_shape.is_compatible_with(dense.output_shape))
+    self.assertEqual(dense.kernel_regularizer.get_config()["l2"],
+                     expected_l2_regularization)
 
     # Assert losses.
     loss = task.losses()
