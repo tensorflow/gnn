@@ -162,7 +162,8 @@ def rankme_from_singular_values(
   """RankMe metric implementation.
 
   Computes a metric that measures the decay rate of the singular values.
-  For the paper, see https://arxiv.org/abs/2210.02885.
+  Singular values are truncated to be non-negative. For the paper, see
+  https://arxiv.org/abs/2210.02885.
 
   Args:
     sigma: Singular values of the input representations as rank-1 tensor.
@@ -173,10 +174,7 @@ def rankme_from_singular_values(
   """
   if sigma.shape.rank != 1:
     raise ValueError(f"Expected 1D tensor (got shape {sigma.shape})")
-  tf.debugging.assert_non_negative(
-      sigma,
-      message="All singular values must be non-negative.",
-  )
+  sigma = tf.maximum(sigma, 0)
   p_ks = tf.math.divide_no_nan(sigma, tf.math.reduce_sum(sigma)) + epsilon
   return tf.math.exp(-tf.math.reduce_sum(p_ks * tf.math.log(p_ks)))
 

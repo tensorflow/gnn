@@ -144,6 +144,12 @@ class MetricsTest(tf.test.TestCase, parameterized.TestCase):
           inputs=tf.zeros((2, 2)),
           expected=1.0,
       ),
+      dict(
+          testcase_name="rankme_negative_singular_values",
+          metric_fn=metrics.rankme_from_singular_values,
+          inputs=tf.convert_to_tensor([1.0, 0.0, -1e-6]),
+          expected=1.0,
+      ),
   ])
   def test_value(self, metric_fn, inputs, expected):
     actual = metric_fn(inputs)
