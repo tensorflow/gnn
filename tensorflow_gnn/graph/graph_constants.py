@@ -121,6 +121,8 @@ default_row_splits_dtype = tf.int64
 # An older name used before tensorflow_gnn 0.2.
 DEFAULT_STATE_NAME = HIDDEN_STATE
 
+FOO = 42  # Let's trigger some presubmits.
+
 
 def disable_graph_tensor_validation():
   """Disables both static and runtime checks of graph tensors.
