@@ -214,10 +214,9 @@ class TFModelStageTest(ExecutorTestBase):
         tf.__version__.startswith('2.15')
         or tf.__version__.startswith('2.16')
         or tf.__version__.startswith('2.17')
+        or '-dev' in tf.__version__  # tf-nightly
     ):
-      self.skipTest(
-          'Fails with tf internal error on tf 2.15, 2.16, 2.17 nightly'
-      )
+      self.skipTest('Fails with tf internal error since tf 2.15')
 
     i = tf.keras.Input([2], name='input')
     o = i
