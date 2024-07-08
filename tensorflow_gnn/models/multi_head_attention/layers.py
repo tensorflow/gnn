@@ -167,6 +167,9 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       only queries are transformed since the two transformations on queries and
       keys are equivalent to one. (The presence of transformations on values is
       independent of this arg.)
+    share_key_transform: If true, the same transformation is applied to the
+      keys within all attention heads. Otherwise, separate transformations
+      are applied.
     score_scaling: One of either `"rsqrt_dim"` (default), `"trainable_elup1"`,
       or `"none"`. If set to `"rsqrt_dim"`, the attention scores are
       divided by the square root of the dimension of keys (i.e.,
@@ -203,6 +206,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       kernel_initializer: Any = None,
       kernel_regularizer: Any = None,
       transform_keys: bool = True,
+      share_key_transform: bool = False,
       score_scaling: Literal["none", "rsqrt_dim",
                              "trainable_elup1"] = "rsqrt_dim",
       transform_values_after_pooling: bool = False,
@@ -254,6 +258,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     self._kernel_initializer = tf.keras.initializers.get(kernel_initializer)
     self._kernel_regularizer = tf.keras.regularizers.get(kernel_regularizer)
     self._transform_keys = transform_keys
+    self._share_key_transform = share_key_transform
     self._score_scaling = score_scaling
     self._transform_values_after_pooling = transform_values_after_pooling
 
@@ -267,9 +272,14 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       self._w_sender_node_to_key = None
       self._w_sender_edge_to_key = None
     else:
+      if self._share_key_transform:
+        key_width = per_head_channels
+      else:
+        key_width = per_head_channels * num_heads
+
       if self.takes_sender_node_input:
         self._w_sender_node_to_key = tf.keras.layers.Dense(
-            per_head_channels * num_heads,
+            key_width,
             kernel_initializer=tfgnn.keras.clone_initializer(
                 self._kernel_initializer),
             kernel_regularizer=kernel_regularizer,
@@ -279,7 +289,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
         self._w_sender_node_to_key = None
       if self.takes_sender_edge_input:
         self._w_sender_edge_to_key = tf.keras.layers.Dense(
-            per_head_channels * num_heads,
+            key_width,
             kernel_initializer=tfgnn.keras.clone_initializer(
                 self._kernel_initializer),
             kernel_regularizer=kernel_regularizer,
@@ -409,7 +419,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     assert receiver_input is not None, "__init__() should have checked this."
     queries = self._w_query(receiver_input)
     queries = self._attention_activation(queries)
-    queries = broadcast_from_receiver(self._split_heads(queries))
+    queries = broadcast_from_receiver(self._split_query_heads(queries))
 
     # Form the attention key for each head.
     # If transform_keys is true, the pieces of keys inputs are transformed to
@@ -432,20 +442,20 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       if sender_node_input is not None and sender_edge_input is None:
         # In this special case, we can apply the attention_activation first
         # and then broadcast its results.
-        keys = broadcast_from_sender_node(
-            self._split_heads(
-                self._attention_activation(
-                    self._w_sender_node_to_key(sender_node_input))))
+        keys = self._attention_activation(
+            self._w_sender_node_to_key(sender_node_input))
+        keys = self._split_key_heads(keys)
+        keys = broadcast_from_sender_node(keys)
       else:
         # In the general case, the attention_activation (if any) comes last.
         if sender_node_input is not None:
-          keys.append(
-              broadcast_from_sender_node(
-                  self._split_heads(
-                      self._w_sender_node_to_key(sender_node_input))))
+          node_keys = self._w_sender_node_to_key(sender_node_input)
+          node_keys = self._split_key_heads(node_keys)
+          keys.append(broadcast_from_sender_node(node_keys))
         if sender_edge_input is not None:
-          keys.append(
-              self._split_heads(self._w_sender_edge_to_key(sender_edge_input)))
+          edge_keys = self._w_sender_edge_to_key(sender_edge_input)
+          edge_keys = self._split_key_heads(edge_keys)
+          keys.append(edge_keys)
         keys = tf.add_n(keys)
         keys = self._attention_activation(keys)
 
@@ -501,11 +511,12 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       if sender_node_input is not None:
         value_terms.append(
             broadcast_from_sender_node(
-                self._split_heads(
+                self._split_value_heads(
                     self._w_sender_node_to_value(sender_node_input))))
       if sender_edge_input is not None:
         value_terms.append(
-            self._split_heads(self._w_sender_edge_to_value(sender_edge_input)))
+            self._split_value_heads(
+                self._w_sender_edge_to_value(sender_edge_input)))
       values = tf.add_n(value_terms)
       # Compute the weighed sum.
       # [num_receivers, *extra_dims, num_heads, per_head_channels]
@@ -540,8 +551,21 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     return pooled_values
 
   # The following helpers map back and forth between tensors with...
-  #  - a separate heads dimension: shape [..., num_heads, channels_per_head],
+  #  - a shape that is or can be broadcast to [..., num_heads,
+  #    channels_per_head],
   #  - all heads concatenated:    shape [..., num_heads * channels_per_head].
+
+  def _split_key_heads(self, key):
+    if self._share_key_transform:
+      return tf.expand_dims(key, axis=-2)
+    else:
+      return self._split_heads(key)
+
+  def _split_query_heads(self, query):
+    return self._split_heads(query)
+
+  def _split_value_heads(self, value):
+    return self._split_heads(value)
 
   def _split_heads(self, tensor):
     assert tensor.shape[-1] is not None

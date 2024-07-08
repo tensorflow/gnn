@@ -636,6 +636,97 @@ class MultiHeadAttentionTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(got.shape, (3, 6))
     self.assertAllClose(got, want, atol=.0001)
 
+  @parameterized.named_parameters(("", False), ("TransformAfter", True))
+  def testShareTransformKeys(self, transform_values_after_pooling):
+    """Extends testMultihead with shared key transformation."""
+    # The same test graph as in the testMultihead above.
+    gt_input = _get_test_bidi_cycle_graph(
+        tf.constant([
+            [1., 0., 0., 1.],
+            [0., 1., 0., 2.],
+            [0., 0., 1., 3.],
+        ]))
+
+    conv = multi_head_attention.MultiHeadAttentionConv(
+        num_heads=2,
+        per_head_channels=3,
+        receiver_tag=tfgnn.TARGET,
+        activation="relu",
+        use_bias=False,  # Don't create /bias variables.
+        score_scaling="none",  # Disable score scaling.
+        transform_values_after_pooling=transform_values_after_pooling,
+        share_key_transform=True,  # Share key transformation across heads.
+    )
+
+    _ = conv(gt_input, edge_set_name="edges")  # Build weights.
+    weights = {v.name: v for v in conv.trainable_weights}
+    self.assertLen(weights, 3)
+
+    weights["multi_head_attention_conv/query/kernel:0"].assign(
+        # Attention head 0 uses the first three dimensions, which are used
+        # in the same way as for the testMultihead test above.
+        # Attention head 1 uses the last three dimensions, in which we
+        # now favor the clockwise incoming edges.
+        [
+            [0., 1., 0., 0., 0., 1.],
+            [0., 0., 1., 1., 0., 0.],
+            [1., 0., 0., 0., 1., 0.],
+            [0., 0., 0., 0., 0., 0.],
+        ])
+
+    # No need for an inverse scaling factor as score scaling is disabled.
+    weights["multi_head_attention_conv/key_node/kernel:0"].assign(
+        # To favor the clockwise incoming edges, we use the three
+        # dimensions, and assign 100 and 0 to corresponding neighbors,
+        # which gives weights 1 to clockwise incoming edges and weights 0
+        # to counterclockwise incoming edges. Similar to testMultihead above.
+        [
+            [100., 0., 0.],
+            [0., 100., 0.],
+            [0., 0., 100.],
+            [0., 0., 0.],
+        ])
+
+    if not transform_values_after_pooling:
+      # No matter where the -1s are, they got eliminated by ReLU.
+      # What we expect to see from the two heads is the different
+      # scaling factor for the last dimension: 1.1 vs 1.0.
+      weights["multi_head_attention_conv/value_node/kernel:0"].assign([
+          [0., -1., 0., 0., -1., 0.],
+          [-1., 0., 0., -1., 0., 0.],
+          [-1., -1., 0., -1., -1., 0.],
+          [0., 0., 1.1, 0., 0., 1.],
+      ])
+    else:
+      # Same weights, but as Einsum kernel with axes "hvc".
+      weights["multi_head_attention_conv/value_pooled/kernel:0"].assign([[
+          [0., -1., 0.],
+          [-1., 0., 0.],
+          [-1., -1., 0.],
+          [0., 0., 1.1],
+      ], [
+          [0., -1., 0.],
+          [-1., 0., 0.],
+          [-1., -1., 0.],
+          [0., 0., 1.],
+      ]])
+
+    got = conv(gt_input, edge_set_name="edges")
+
+    # Attention head 0 generates the first four output dimensions, and attention
+    # head 1 the last two. Since we use the shared key transformation, and the
+    # same weights as for the second head in testMultihead above, both heads use
+    # weights 0 and 1. Attention head 1 has the same result as in testMultihead
+    # while the value transformation for attention head 0 scales by a factor of
+    # 1.1.
+    want = tf.constant([
+        [0., 0., 2.2, 0., 0., 3.0],
+        [0., 0., 3.3, 0., 0., 1.0],
+        [0., 0., 1.1, 0., 0., 2.0],
+    ])
+    self.assertAllEqual(got.shape, (3, 6))
+    self.assertAllClose(got, want, atol=.0001)
+
   @parameterized.named_parameters(
       ("", tftu.ModelReloading.SKIP, False),
       ("TransformAfter", tftu.ModelReloading.SKIP, True),
