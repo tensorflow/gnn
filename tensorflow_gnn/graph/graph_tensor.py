@@ -1260,7 +1260,7 @@ class GraphTensor(gp.GraphPieceBase):
 
   @property
   def edge_sets(self) -> Mapping[EdgeSetName, EdgeSet]:
-    """A read-only mapping from node set name to the node set."""
+    """A read-only mapping from edge set name to the edge set."""
     return _as_immutable_mapping(self._data[GraphTensor._DATAKEY_EDGE_SETS])
 
   @property
