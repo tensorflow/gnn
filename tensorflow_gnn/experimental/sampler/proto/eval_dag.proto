@@ -124,6 +124,8 @@ message Layer {
   // Names of the layer inputs. For composite layers those names must match
   // input layer names in the `eval_dag`.
   IOFeatures input_names = 5;
+  // Names of the layer outputs.
+  IOFeatures output_names = 6;
 
   // A mapping from input argument names to their spec.
   repeated ValueSpec inputs = 9;
