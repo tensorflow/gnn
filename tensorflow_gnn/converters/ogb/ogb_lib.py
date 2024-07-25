@@ -44,7 +44,7 @@ def generate_examples(features: DataTable,
         value = feat.float_list.value
       elif array.dtype.type in (numpy.bytes_,):
         value = feat.bytes_list.value
-      elif array.dtype.type in (numpy.string_, numpy.str_):
+      elif array.dtype.type in (numpy.bytes_, numpy.str_):
         value = [word.encode("utf-8") for word in feat.bytes_list.value]
       else:
         raise NotImplementedError(
