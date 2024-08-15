@@ -36,9 +36,6 @@ pytype_strict_library(
     name = "layers",
     srcs = ["layers.py"],
     srcs_version = "PY3",
-    visibility = [
-        ":__subpackages__",
-    ],
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
