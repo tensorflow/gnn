@@ -239,7 +239,7 @@ message EdgeSet {
   // This is metadata you can use to indicate how features are related.
   repeated string context = 5;
 
-  // Optional metadata associated with the node set.
+  // Optional metadata associated with the edge set.
   optional Metadata metadata = 6;
 }
 
