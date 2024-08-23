@@ -17,20 +17,10 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-import sys
-from typing import Callable, Mapping, Optional, Sequence, TypeVar, Union
+from typing import Callable, Mapping, Optional, Sequence, TypeVar, Union, Protocol, runtime_checkable
 
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
-
-# pylint:disable=g-import-not-at-top
-if sys.version_info >= (3, 8):
-  from typing import Protocol
-  from typing import runtime_checkable
-else:
-  from typing_extensions import Protocol
-  from typing_extensions import runtime_checkable
-# pylint:enable=g-import-not-at-top
 
 T = TypeVar("T")
 OneOrMappingOf = Union[T, Mapping[str, T]]
