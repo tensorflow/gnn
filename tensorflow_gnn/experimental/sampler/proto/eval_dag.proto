@@ -36,31 +36,54 @@
 // stages {
 //    id: 'hop1_edges'
 //    layer_id: 'edge_sampler'
-//    input_matchers { key: 'ids' value: 'seeds' }
+//    input_matchers { stage_id: 'seeds' output_index: 0 }
 // }
 // stages {
 //    id: 'hop2_edges'
 //    layer_id: 'edge_sampler'
-//    input_matchers { key: 'ids' value: 'hop1_edges/#target' }
+//    input_matchers { stage_id: 'hop1_edges' output_index: 2 }
 // }
 // stages {
 //    id: 'unique_node_ids'
-//    layer_id: 'unique'
-//    input_matchers { key: 'ids/0' value: 'seeds' }
-//    input_matchers { key: 'ids/1' value: 'hop1_edges/#target' }
-//    input_matchers { key: 'ids/2' value: 'hop2_edges/#target' }
+//    layer_id: 'unique_nodes'
+//    input_matchers { stage_id: 'seeds' output_index: 0 }
+//    input_matchers { stage_id: 'hop1_edges' output_index: 2 }
+//    input_matchers { stage_id: 'hop2_edges' output_index: 2 }
+// }
+// stages {
+//    id: 'unique_edges'
+//    layer_id: 'unique_edges'
+//    input_matchers { stage_id: 'hop1_edges' output_index: 1 }
+//    input_matchers { stage_id: 'hop1_edges' output_index: 2 }
+//    input_matchers { stage_id: 'hop2_edges' output_index: 1 }
+//    input_matchers { stage_id: 'hop2_edges' output_index: 2 }
 // }
 // stages {
 //    id: 'features'
 //    layer_id: 'node_features'
-//    input_matchers { key: 'ids' value: 'unique_node_ids' }
+//    input_matchers { stage_id: 'unique_node_ids' output_index: 0 }
 // }
 // stages {
-//    id: 'output'
+//    id: 'graph_tensor'
 //    layer_id: 'graph_tensor_builder'
-//    input_matchers { key: 'edge_sets/edges/0' value: 'hop1_edges' }
-//    input_matchers { key: 'edge_sets/edges/1' value: 'hop2_edges' }
-//    input_matchers { key: 'edge_sets/nodes' value: 'features' }
+//    input_matchers {stage_id: 'unique_edges' output_index: 0 }
+//    input_matchers {stage_id: 'unique_edges' output_index: 1 }
+//    input_matchers {stage_id: 'features' output_index: 0 }
+//    input_matchers {stage_id: 'features' output_index: 1 }
+//    input_matchers {stage_id: 'features' output_index: 2 }
+// }
+// stages {
+//    id: 'sink'
+//    layer_id: 'sink'
+//    input_matchers {stage_id: 'graph_tensor_builder' output_index: 0 }
+//    input_matchers {stage_id: 'graph_tensor_builder' output_index: 1 }
+//    input_matchers {stage_id: 'graph_tensor_builder' output_index: 2 }
+//    input_matchers {stage_id: 'graph_tensor_builder' output_index: 3 }
+//    input_matchers {stage_id: 'graph_tensor_builder' output_index: 4 }
+//    input_matchers {stage_id: 'graph_tensor_builder' output_index: 5 }
+//    input_matchers {stage_id: 'graph_tensor_builder' output_index: 6 }
+//    input_matchers {stage_id: 'graph_tensor_builder' output_index: 7 }
+//    input_matchers {stage_id: 'graph_tensor_builder' output_index: 8 }
 // }
 //
 
