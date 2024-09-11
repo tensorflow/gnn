@@ -16,7 +16,7 @@ states from incoming messages. Its main architectural choices are:
   * how to aggregate the incoming messages from each node set:
       * by element-wise averaging (reduce type `"mean"`),
       * by a concatenation of the average with other fixed expressions
-        (e.g., `"mean|max"`, `"mean|sum"`), or
+        (e.g., `"mean|max_no_inf"`, `"mean|sum"`), or
       * with attention, that is, a trained, data-dependent weighting;
   * whether to use residual connections for updating node states;
   * if and how to normalize node states.

@@ -47,7 +47,7 @@ def MtAlbisSimpleConv(  # To be called like a class initializer.  pylint: disabl
       If left unset for init, the tag must be passed at call time.
     reduce_type: Controls how messages are aggregated on an EdgeSet for each
       receiver node; defaults to `"mean"`. Can be any reduce_type understood by
-      `tfgnn.pool()`, including concatenations like `"mean|max"` (but mind the
+      `tfgnn.pool()`, including concatenations like `"mean|sum"` (but mind the
       increased dimension of the result and the growing number of model weights
       in the next-state layer).
     activation: The nonlinearity used on each message before pooling.
@@ -291,10 +291,10 @@ def MtAlbisGraphUpdate(  # To be called like a class initializer.  pylint: disab
     simple_conv_reduce_type: For attention_type `"none"`, controls how messages
       are aggregated on an EdgeSet for each receiver node. Defaults to `"mean"`;
       other recommended values are the concatenations `"mean|sum"`,
-      `"mean|max"`, and `"mean|sum|max"` (but mind the increased output
-      dimension and the corresponding increase in the number of weights in the
-      next-state layer). Technically, can be set to any reduce_type understood
-      by `tfgnn.pool()`.
+      `"mean|max_no_inf"`, and `"mean|sum|max_no_inf"` (but mind the increased
+      output dimension and the corresponding increase in the number of weights
+      in the next-state layer). Technically, can be set to any reduce_type
+      understood by `tfgnn.pool()`.
     simple_conv_use_receiver_state: For attention_type `"none"`, controls
       whether the receiver node state is used in computing each edge's message
       (in addition to the sender node state and possibly an `edge feature`).

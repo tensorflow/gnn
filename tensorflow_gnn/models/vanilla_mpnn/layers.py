@@ -74,7 +74,7 @@ def VanillaMPNNGraphUpdate(  # To be called like a class initializer.  pylint: d
       this input.
     reduce_type: How to pool the messages from edges to receiver nodes; defaults
       to `"sum"`. Can be any reduce_type understood by `tfgnn.pool()`, including
-      concatenations like `"sum|max"` (but mind the increased dimension of the
+      concatenations like `"sum|mean"` (but mind the increased dimension of the
       result and the growing number of model weights in the next-state layer).
     l2_regularization: The coefficient of L2 regularization for weights and
       biases.
