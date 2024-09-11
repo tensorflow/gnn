@@ -70,7 +70,7 @@ def add_params_mt_albis(
         prefix + "attention_type", ["none"])
     root.add_categorical_param(
         prefix + "simple_conv_reduce_type",
-        ["mean", "mean|sum", "mean|max", "mean|sum|max"],
+        ["mean", "mean|sum", "mean|max_no_inf", "mean|sum|max_no_inf"],
         default_value="mean|sum")
   else:
     root.add_categorical_param(
