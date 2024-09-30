@@ -46,9 +46,9 @@ tag_filters="-no_oss,-oss_excluded${TAG_FILTERS}"
 
 bazel clean
 pip install -r requirements-dev.txt --progress-bar off
-pip install tensorflow=="${TF_VERSION}" --progress-bar off --upgrade
+pip install --pre tensorflow=="${TF_VERSION}" --progress-bar off --upgrade
 if [[ "$TF_USE_LEGACY_KERAS" == 1 ]]; then
-  pip install tf-keras=="${TF_VERSION}" --progress-bar off --upgrade
+  pip install --pre tf-keras=="${TF_VERSION}" --progress-bar off --upgrade
 fi
 python3 setup.py bdist_wheel
 pip uninstall -y tensorflow_gnn
