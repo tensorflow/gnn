@@ -68,6 +68,8 @@ Key platform requirements:
     TF_USE_LEGACY_KERAS=1**,
     see our [Keras version](tensorflow_gnn/docs/guide/keras_version.md) guide for details.
   * Apache Beam for distributed graph sampling.
+  * For some tests or scripts that requires tensorflow.lite it is required to
+    install ai-edge-litert by using `pip install ai-edge-litert`
 
 TF-GNN is developed and tested on Linux. Running on other platforms supported
 by TensorFlow may be possible.

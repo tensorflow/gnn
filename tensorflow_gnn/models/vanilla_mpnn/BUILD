@@ -109,5 +109,6 @@ tf_py_test(
         ":vanilla_mpnn",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
+        "//:expect_ai_edge_litert_installed",
     ],
 )

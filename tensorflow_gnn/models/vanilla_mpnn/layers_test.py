@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for VanillaMPNN."""
 from absl.testing import parameterized
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models import vanilla_mpnn
+# pylint: disable=g-direct-tensorflow-import
+from ai_edge_litert import interpreter as tfl_interpreter
+# pylint: enable=g-direct-tensorflow-import
 
 
 # The components of VanillaMPNNGraphUpdate have been tested elsewhere.
@@ -139,7 +141,7 @@ class VanillaMPNNTFLiteTest(tf.test.TestCase, parameterized.TestCase):
 
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    interpreter = tf.lite.Interpreter(model_content=model_content)
+    interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     obtained = signature_runner(**test_graph_1_dict)["final_node_states"]
     self.assertAllClose(expected, obtained)
