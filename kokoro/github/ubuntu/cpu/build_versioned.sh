@@ -39,6 +39,9 @@ rm -rf "$TEST_ROOT"
 mkdir -p "$TEST_ROOT"
 ln -s "$(pwd)"/tensorflow_gnn "$TEST_ROOT"/tensorflow_gnn
 
+# Print the OS version
+cat /etc/os-release
+
 # Prepend common tag filters to a defined env_var
 # For example, tests for TF 2.8 shouldn't run RNG-dependent tests
 # These tag filters are enforced to start with a comma for separation

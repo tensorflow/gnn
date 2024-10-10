@@ -25,6 +25,9 @@ from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_ops as ops
 from tensorflow_gnn.graph import pool_ops
 from tensorflow_gnn.graph import readout
+# pylint: disable=g-direct-tensorflow-import
+from ai_edge_litert import interpreter as tfl_interpreter
+# pylint: enable=g-direct-tensorflow-import
 
 as_tensor = tf.convert_to_tensor
 as_ragged = tf.ragged.constant
@@ -642,7 +645,7 @@ class ReorderNodesTest(tf.test.TestCase, parameterized.TestCase):
                     f'got TF {tf.__version__}')
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    interpreter = tf.lite.Interpreter(model_content=model_content)
+    interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner('serving_default')
     obtained = signature_runner(**test_graph_dict)['final_edge_adjacency']
     self.assertAllEqual(expected, obtained)
@@ -1308,7 +1311,7 @@ class EdgeMaskingTest(tf.test.TestCase, parameterized.TestCase):
                     f'got TF {tf.__version__}')
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    interpreter = tf.lite.Interpreter(model_content=model_content)
+    interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner('serving_default')
     obtained = signature_runner(**test_graph_dict)['final_edge_adjacency']
     self.assertAllEqual(expected, obtained)
@@ -1680,7 +1683,7 @@ class LineGraphTest(tf.test.TestCase, parameterized.TestCase):
                     f'got TF {tf.__version__}')
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    interpreter = tf.lite.Interpreter(model_content=model_content)
+    interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner('serving_default')
     obtained = signature_runner(**test_graph_dict)['final_edge_adjacency']
     self.assertAllEqual(expected, obtained)

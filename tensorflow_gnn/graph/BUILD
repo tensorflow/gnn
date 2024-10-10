@@ -263,6 +263,7 @@ tf_py_test(
         ":graph_tensor_test_utils",
         "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
+        "//:expect_ai_edge_litert_installed",
     ],
 )
 
@@ -280,6 +281,7 @@ tf_py_test(
         ":readout",
         "//:expect_absl_installed_testing",
         "//:expect_tensorflow_installed",
+        "//:expect_ai_edge_litert_installed",
     ],
 )
 

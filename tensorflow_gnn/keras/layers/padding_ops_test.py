@@ -23,6 +23,9 @@ from tensorflow_gnn.graph import preprocessing_common
 from tensorflow_gnn.keras import keras_tensors  # For registration. pylint: disable=unused-import
 from tensorflow_gnn.keras.layers import padding_ops
 from tensorflow_gnn.utils import tf_test_utils as tftu
+# pylint: disable=g-direct-tensorflow-import
+from ai_edge_litert import interpreter as tfl_interpreter
+# pylint: enable=g-direct-tensorflow-import
 
 
 class PadToTotalSizesTest(tf.test.TestCase, parameterized.TestCase):
@@ -119,7 +122,7 @@ class PadToTotalSizesTFLiteTest(tf.test.TestCase, parameterized.TestCase):
     self.skipTest("Padding ops are unsupported in TFLite.")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    interpreter = tf.lite.Interpreter(model_content=model_content)
+    interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     obtained = signature_runner(**test_graph_1_dict)["final_node_states"]
     self.assertAllClose(expected, obtained)

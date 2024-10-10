@@ -13,13 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for hgt."""
 from absl.testing import parameterized
 import numpy as np
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models.hgt import layers
 from tensorflow_gnn.utils import tf_test_utils as tftu
+# pylint: disable=g-direct-tensorflow-import
+from ai_edge_litert import interpreter as tfl_interpreter
+# pylint: enable=g-direct-tensorflow-import
 
 
 def _homogeneous_cycle_graph(node_state, edge_state=None):
@@ -806,7 +808,7 @@ class HGTTFLiteTest(tf.test.TestCase, parameterized.TestCase):
 
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    interpreter = tf.lite.Interpreter(model_content=model_content)
+    interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     obtained = signature_runner(**test_graph_1_dict)["final_engine_states"]
     self.assertAllClose(expected, obtained)
