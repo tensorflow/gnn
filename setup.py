@@ -180,7 +180,7 @@ setup(
         # pylint:enable=g-line-too-long
         'apache-beam',
     ],
-    python_requires='>=3.8,<4',
+    python_requires='>=3.9,<4',
     packages=find_namespace_packages(
         exclude=['examples*', 'package*', 'testdata*'],
     ),
