@@ -119,6 +119,7 @@ tf_py_test(
         "//tensorflow_gnn/graph:adjacency",
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/graph:graph_tensor",
+        "//:expect_ai_edge_litert_installed",
     ],
 )
 
@@ -219,6 +220,7 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:graph_constants",
         "//tensorflow_gnn/utils:tf_test_utils",
+        "//:expect_ai_edge_litert_installed",
     ],
 )
 
@@ -257,6 +259,7 @@ tf_py_test(
         "//tensorflow_gnn/graph:preprocessing_common",
         "//tensorflow_gnn/keras:keras_tensors",
         "//tensorflow_gnn/utils:tf_test_utils",
+        "//:expect_ai_edge_litert_installed",
     ],
 )
 

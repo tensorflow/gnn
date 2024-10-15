@@ -44,6 +44,15 @@ py_library(
 )
 
 py_library(
+    name = "expect_ai_edge_litert_installed",
+    # This is a dummy rule used as a ai-edge-litert dependency in open-source.
+    # We expect ai-edge-litert to already be installed on the system, e.g. via
+    # `pip install ai-edge-litert`
+    visibility = ["//visibility:public"],
+    deps = [],
+)
+
+py_library(
     name = "expect_tf_keras_installed",
     # This is a dummy rule used as a tensorflow dependency in open-source.
     # We expect tensorflow to already be installed on the system, e.g. via

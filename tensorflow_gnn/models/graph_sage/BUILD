@@ -46,5 +46,6 @@ tf_py_test(
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
         "//tensorflow_gnn/utils:tf_test_utils",
+        "//:expect_ai_edge_litert_installed",
     ],
 )

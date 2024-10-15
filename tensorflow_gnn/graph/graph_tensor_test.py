@@ -25,6 +25,7 @@ from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_test_utils as tu
 
 # pylint: disable=g-direct-tensorflow-import
+from ai_edge_litert import interpreter as tfl_interpreter
 from tensorflow.python.framework import type_spec
 # pylint: enable=g-direct-tensorflow-import
 
@@ -1549,7 +1550,7 @@ class BatchingUnbatchingMergingTest(tf.test.TestCase, parameterized.TestCase):
                     f'got TF {tf.__version__}')
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    interpreter = tf.lite.Interpreter(model_content=model_content)
+    interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner('serving_default')
     obtained = signature_runner(
         **test_graph_dict)['private__make_graph_tensor_merged']
@@ -1752,7 +1753,7 @@ class SizesTFLiteTest(tf.test.TestCase):
 
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    interpreter = tf.lite.Interpreter(model_content=model_content)
+    interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner('serving_default')
     obtained = signature_runner(
         node_sizes=test_tensor)['node_set_sizes_to_test_results']

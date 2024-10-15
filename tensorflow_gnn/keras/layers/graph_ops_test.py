@@ -23,6 +23,9 @@ from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.keras.layers import graph_ops
+# pylint: disable=g-direct-tensorflow-import
+from ai_edge_litert import interpreter as tfl_interpreter
+# pylint: enable=g-direct-tensorflow-import
 
 
 class ReadoutTest(tf.test.TestCase, parameterized.TestCase):
@@ -170,7 +173,7 @@ class ReadoutTest(tf.test.TestCase, parameterized.TestCase):
                     f"got TF {tf.__version__}")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    interpreter = tf.lite.Interpreter(model_content=model_content)
+    interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     obtained = signature_runner(**test_graph_134_dict)["test_readout"]
     self.assertAllEqual(expected, obtained)
@@ -304,7 +307,7 @@ class ReadoutFirstNodeTest(tf.test.TestCase, parameterized.TestCase):
                     f"got TF {tf.__version__}")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    interpreter = tf.lite.Interpreter(model_content=model_content)
+    interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     obtained = signature_runner(**test_graph_22_dict)["test_readout_first"]
     self.assertAllEqual(expected, obtained)
@@ -431,7 +434,7 @@ class StructuredReadoutTest(tf.test.TestCase):
 
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    interpreter = tf.lite.Interpreter(model_content=model_content)
+    interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     actual = signature_runner(
         **test_graph_structured_readout_dict)["output_layer"]
@@ -565,7 +568,7 @@ class StructuredReadoutIntoFeatureTest(tf.test.TestCase):
 
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    interpreter = tf.lite.Interpreter(model_content=model_content)
+    interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     actual = signature_runner(
         **test_graph_structured_readout_dict)["output_layer"]
@@ -628,7 +631,7 @@ class AddReadoutFromFirstNodeTest(tf.test.TestCase):
 
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    interpreter = tf.lite.Interpreter(model_content=model_content)
+    interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     actual = signature_runner(
         **test_graph_structured_readout_dict)["output_layer"]
@@ -750,7 +753,7 @@ class AddSelfLoopsTest(tf.test.TestCase, parameterized.TestCase):
                     f"got TF {tf.__version__}")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    interpreter = tf.lite.Interpreter(model_content=model_content)
+    interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     obtained = signature_runner(**test_graph_134_dict)["final_edge_states"]
     self.assertAllEqual(expected, obtained)
@@ -952,7 +955,7 @@ class BroadcastTest(tf.test.TestCase, parameterized.TestCase):
                     f"got TF {tf.__version__}")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    interpreter = tf.lite.Interpreter(model_content=model_content)
+    interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     obtained = signature_runner(**test_values)["test_broadcast"]
     self.assertAllEqual(expected, obtained)
@@ -1260,7 +1263,7 @@ class PoolTest(tf.test.TestCase, parameterized.TestCase):
                     f"got TF {tf.__version__}")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    interpreter = tf.lite.Interpreter(model_content=model_content)
+    interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     obtained = signature_runner(**test_values)["test_pool"]
     self.assertAllEqual(expected, obtained)
