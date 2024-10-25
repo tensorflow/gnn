@@ -214,6 +214,7 @@ class TFModelStageTest(ExecutorTestBase):
         tf.__version__.startswith('2.15')
         or tf.__version__.startswith('2.16')
         or tf.__version__.startswith('2.17')
+        or tf.__version__.startswith('2.18')
         or '-dev' in tf.__version__  # tf-nightly
     ):
       self.skipTest('Fails with tf internal error since tf 2.15')
