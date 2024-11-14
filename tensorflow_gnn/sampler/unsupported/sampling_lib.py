@@ -103,7 +103,7 @@ _DETERMINISTIC_SAMPLING_STRATEGIES = {
 
 def is_deterministic(sampling_op: sampling_spec_pb2.SamplingOp) -> bool:
   """Returns `True` if sampling operation produces resample_for_each_path results."""
-  return _DETERMINISTIC_SAMPLING_STRATEGIES.get(sampling_op.strategy)
+  return _DETERMINISTIC_SAMPLING_STRATEGIES.get(sampling_op.strategy)  # pytype: disable=bad-return-type
 
 
 # Sampling frontier is a mapping from (sample id, node id) pair to the number
