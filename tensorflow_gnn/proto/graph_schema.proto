@@ -89,14 +89,13 @@ message Feature {
   // ragged features in this shape (e.g., to allow sentences of words per node),
   // but that an unknown rank is not allowed (so that parsing is well-defined).
   //
-  // Scalar tensors are defined by a shape with no dimensions (you can simply
-  // choose to leave the shape out entirely as well, it's the default value).
-  // Note that feature tensors which contain a single value per node (or per
-  // edge) should be defined as scalar tensors, and NOT defined as tensor with a
-  // single dimension of 1. A common mistake is to specify a shape of `shape {
-  // dim { size: 1 } }` but that would provide a ragged tensor of shape `[B, V,
-  // 1]` which has a redundant shape at the tail. Instead, leave the shape as a
-  // scalar to obtain a simpler (and equivalent) shape of `[B, V]`.
+  // For scalar features, as usual in TensorFlow, there is a choice between
+  // an empty shape [] (which is the proto default when this field is unset)
+  // and a shape [1] (which aligns it with a d-dimensional feature of d = 1).
+  // The encoding of values in a tf.Example is the same in both cases, but the
+  // code that parses the tf.Examples with this GraphSchema will see the
+  // respective different shapes (including batch size B, if applicable, and
+  // number of nodes Vi).
   optional tensorflow.TensorShapeProto shape = 3;
 
   // Free-form metadata describing the origin of this feature, any value is
