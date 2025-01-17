@@ -130,7 +130,8 @@ class ReadoutTest(tf.test.TestCase, parameterized.TestCase):
                           edges=dict(edge_set_name="edges"))[location]
     kwargs = dict(location_kwarg, feature_name="value", name="test_readout")
     config = graph_ops.Readout(**kwargs).get_config()
-    self.assertDictContainsSubset(kwargs, config)
+    self.assertEqual(kwargs, {k: v for k, v in config.items() if k in kwargs},
+                     msg="config is expected to contain kwargs as a subset.")
 
     readout = graph_ops.Readout.from_config(config)
     self.assertEqual("value", readout.feature_name)
@@ -273,7 +274,7 @@ class ReadoutFirstNodeTest(tf.test.TestCase, parameterized.TestCase):
     kwargs = dict(node_set_name="nodes", feature_name="dense",
                   name="test_readout_first")
     config = graph_ops.ReadoutFirstNode(**kwargs).get_config()
-    self.assertDictContainsSubset(kwargs, config)
+    self.assertEqual(config, {**config, **kwargs})
 
     readout = graph_ops.ReadoutFirstNode.from_config(config)
     self.assertEqual("dense", readout.feature_name)
@@ -910,7 +911,7 @@ class BroadcastTest(tf.test.TestCase, parameterized.TestCase):
     kwargs = dict(location, tag=tag, feature_name="value",
                   name="test_broadcast")
     config = graph_ops.Broadcast(**kwargs).get_config()
-    self.assertDictContainsSubset(kwargs, config)
+    self.assertEqual(config, {**config, **kwargs})
 
     broadcast = graph_ops.Broadcast.from_config(config)
     self.assertEqual(tag, broadcast.tag)
@@ -1190,7 +1191,7 @@ class PoolTest(tf.test.TestCase, parameterized.TestCase):
     kwargs = dict(location, reduce_type=reduce_type, tag=tag,
                   feature_name="value", name="test_pool")
     config = graph_ops.Pool(**kwargs).get_config()
-    self.assertDictContainsSubset(kwargs, config)
+    self.assertEqual(config, {**config, **kwargs})
 
     pool = graph_ops.Pool.from_config(config)
     self.assertEqual(tag, pool.tag)
