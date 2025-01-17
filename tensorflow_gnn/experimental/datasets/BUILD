@@ -26,6 +26,7 @@ py_strict_test(
     srcs = ["pyg_adapter_test.py"],
     python_version = "PY3",
     srcs_version = "PY3ONLY",
+    tags = ["no_oss"],  # Dependency conflict for numpy>=2.
     deps = [
         ":pyg_adapter",
         "//testing/pybase",
