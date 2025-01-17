@@ -4,11 +4,16 @@
 
 We recommend setting up a local environment with the needed dev tools.
 
-1.  [Bazel](https://bazel.build/) is the tool to build and test TFGNN. See the
-    [installation guide](https://docs.bazel.build/versions/4.0.0/install.html)
+1.  [Bazel](https://bazel.build/) is the tool to build and test TF-GNN. See the
+    [installation guide](https://bazel.build/install)
     for how to install and config bazel for your local environment.
 2.  [git](https://github.com/) for code repository management.
-3.  [python](https://www.python.org/) to build and code in TFGNN.
+3.  [python](https://www.python.org/) to build and code in TF-GNN.
+
+NOTE: TF-GNN 1.0 has been tested with bazel 7 but not bazel 8+.
+If you use [bazelisk](https://bazel.build/install/bazelisk), you can select a
+version by setting an environment variable like this:
+`export USE_BAZEL_VERSION=7.4.1`
 
 The following commands check the above tools are successfully installed. Note
 that tensorflow_gnn requires at least the version specified in [setup.py](https://github.com/tensorflow/gnn/setup.py).
