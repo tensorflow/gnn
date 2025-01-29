@@ -12,7 +12,6 @@ package(
 pytype_strict_library(
     name = "test_utils",
     srcs = ["test_utils.py"],
-    srcs_version = "PY3ONLY",
 )
 
 pytype_strict_library(

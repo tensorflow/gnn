@@ -12,7 +12,6 @@ package(
 pytype_strict_library(
     name = "keras_fit",
     srcs = ["keras_fit.py"],
-    srcs_version = "PY3",
     visibility = ["//tensorflow_gnn/runner:__pkg__"],
     deps = [
         "//:expect_tensorflow_installed",

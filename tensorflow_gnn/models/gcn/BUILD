@@ -16,7 +16,6 @@ package_group(name = "users")
 pytype_strict_library(
     name = "gcn",
     srcs = ["__init__.py"],
-    srcs_version = "PY3",
     visibility = [
         ":__subpackages__",
         ":users",
@@ -30,7 +29,6 @@ pytype_strict_library(
 pytype_strict_library(
     name = "gcn_conv",
     srcs = ["gcn_conv.py"],
-    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
@@ -40,7 +38,6 @@ pytype_strict_library(
 tf_py_test(
     name = "gcn_conv_test",
     srcs = ["gcn_conv_test.py"],
-    srcs_version = "PY3",
     deps = [
         ":gcn_conv",
         "//:expect_absl_installed_testing",

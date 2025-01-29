@@ -17,7 +17,6 @@ GOOGLE_INTERNAL_UNIGRAPH_DEPENDENCIES = []
 pytype_strict_library(
     name = "unigraph",
     srcs = ["unigraph.py"],
-    srcs_version = "PY3ONLY",
     deps = [
         "//third_party/py/apache_beam",
         "//third_party/py/pyarrow",
@@ -33,8 +32,6 @@ pytype_strict_contrib_test(
         "@tensorflow_gnn//testdata/heterogeneous",
         "@tensorflow_gnn//testdata/homogeneous",
     ],
-    python_version = "PY3",
-    srcs_version = "PY3ONLY",
     deps = [
         ":unigraph",
         "//:expect_absl_installed_testing",

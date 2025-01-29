@@ -37,7 +37,6 @@ pytype_strict_library(
 pytype_strict_library(
     name = "convolutions",
     srcs = ["convolutions.py"],
-    srcs_version = "PY3",
     deps = [
         ":convolution_base",
         "//:expect_tensorflow_installed",
@@ -49,7 +48,6 @@ pytype_strict_library(
 tf_py_test(
     name = "convolutions_test",
     srcs = ["convolutions_test.py"],
-    python_version = "PY3",
     deps = [
         ":convolutions",
         "//:expect_absl_installed_testing",
@@ -64,7 +62,6 @@ tf_py_test(
 pytype_strict_library(
     name = "convolution_base",
     srcs = ["convolution_base.py"],
-    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:broadcast_ops",
@@ -78,8 +75,6 @@ pytype_strict_library(
 tf_py_test(
     name = "convolution_base_test",
     srcs = ["convolution_base_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3",
     deps = [
         ":convolution_base",
         ":graph_update",
@@ -96,7 +91,6 @@ tf_py_test(
 pytype_strict_library(
     name = "graph_ops",
     srcs = ["graph_ops.py"],
-    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:broadcast_ops",
@@ -111,7 +105,6 @@ pytype_strict_library(
 tf_py_test(
     name = "graph_ops_test",
     srcs = ["graph_ops_test.py"],
-    python_version = "PY3",
     deps = [
         ":graph_ops",
         "//third_party/py/mock",
@@ -126,7 +119,6 @@ tf_py_test(
 pytype_strict_library(
     name = "graph_update",
     srcs = ["graph_update.py"],
-    srcs_version = "PY3",
     deps = [
         ":next_state",
         "//:expect_tensorflow_installed",
@@ -140,7 +132,6 @@ pytype_strict_library(
 tf_py_test(
     name = "graph_update_test",
     srcs = ["graph_update_test.py"],
-    python_version = "PY3",
     deps = [
         ":convolutions",
         ":graph_ops",
@@ -175,7 +166,6 @@ tf_py_test(
 pytype_strict_library(
     name = "map_features",
     srcs = ["map_features.py"],
-    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:dict_utils",
@@ -187,7 +177,6 @@ pytype_strict_library(
 tf_py_test(
     name = "map_features_test",
     srcs = ["map_features_test.py"],
-    python_version = "PY3",
     deps = [
         ":map_features",
         "//:expect_absl_installed_testing",
@@ -203,7 +192,6 @@ tf_py_test(
 pytype_strict_library(
     name = "next_state",
     srcs = ["next_state.py"],
-    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:graph_constants",
@@ -213,7 +201,6 @@ pytype_strict_library(
 tf_py_test(
     name = "next_state_test",
     srcs = ["next_state_test.py"],
-    python_version = "PY3",
     deps = [
         ":next_state",
         "//:expect_absl_installed_testing",
@@ -227,7 +214,6 @@ tf_py_test(
 pytype_strict_library(
     name = "parse_example",
     srcs = ["parse_example.py"],
-    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:graph_tensor",
@@ -248,7 +234,6 @@ pytype_strict_library(
 tf_py_test(
     name = "padding_ops_test",
     srcs = ["padding_ops_test.py"],
-    python_version = "PY3",
     deps = [
         ":padding_ops",
         "//:expect_absl_installed_testing",
@@ -266,7 +251,6 @@ tf_py_test(
 tf_py_test(
     name = "parse_example_test",
     srcs = ["parse_example_test.py"],
-    python_version = "PY3",
     deps = [
         ":parse_example",
         "//:expect_absl_installed_testing",

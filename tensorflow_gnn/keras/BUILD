@@ -31,7 +31,6 @@ pytype_strict_library(
 pytype_strict_library(
     name = "keras_tensors",
     srcs = ["keras_tensors.py"],
-    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:adjacency",
@@ -45,7 +44,6 @@ pytype_strict_library(
 tf_py_test(
     name = "keras_tensors_test",
     srcs = ["keras_tensors_test.py"],
-    python_version = "PY3",
     shard_count = 3,
     deps = [
         ":keras_tensors",
@@ -66,7 +64,6 @@ tf_py_test(
 pytype_strict_library(
     name = "builders",
     srcs = ["builders.py"],
-    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:adjacency",
@@ -80,7 +77,6 @@ pytype_strict_library(
 tf_py_test(
     name = "builders_test",
     srcs = ["builders_test.py"],
-    python_version = "PY3",
     deps = [
         ":builders",
         "//:expect_absl_installed_testing",
@@ -98,7 +94,6 @@ tf_py_test(
 pytype_strict_library(
     name = "initializers",
     srcs = ["initializers.py"],
-    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
     ],
@@ -107,7 +102,6 @@ pytype_strict_library(
 tf_py_test(
     name = "initializers_test",
     srcs = ["initializers_test.py"],
-    python_version = "PY3",
     deps = [
         ":initializers",
         "//:expect_absl_installed_testing",

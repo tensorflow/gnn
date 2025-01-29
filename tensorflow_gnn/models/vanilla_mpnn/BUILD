@@ -20,7 +20,6 @@ package_group(name = "users")
 pytype_strict_library(
     name = "vanilla_mpnn",
     srcs = ["__init__.py"],
-    srcs_version = "PY3",
     visibility = [
         ":__subpackages__",
         ":users",
@@ -58,7 +57,6 @@ exports_files(
 pytype_strict_contrib_test(
     name = "hparams_vizier_test",
     srcs = ["hparams_vizier_test.py"],
-    python_version = "PY3",
     deps = [
         ":hparams_vizier",
         "//:expect_vizier_service_pyvizier_installed",
@@ -69,7 +67,6 @@ pytype_strict_contrib_test(
 pytype_strict_library(
     name = "layers",
     srcs = ["layers.py"],
-    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
@@ -90,8 +87,6 @@ pytype_strict_library(
 tf_py_test(
     name = "config_dict_test",
     srcs = ["config_dict_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3",
     deps = [
         ":config_dict",
         ":layers",
@@ -103,8 +98,6 @@ tf_py_test(
 tf_py_test(
     name = "layers_test",
     srcs = ["layers_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3",
     deps = [
         ":vanilla_mpnn",
         "//:expect_tensorflow_installed",

@@ -18,7 +18,6 @@ package(
 pytype_strict_library(
     name = "mt_albis",
     srcs = ["__init__.py"],
-    srcs_version = "PY3",
     visibility = ["//visibility:public"],
     deps = [
         ":config_dict",
@@ -50,7 +49,6 @@ exports_files(
 pytype_strict_contrib_test(
     name = "hparams_vizier_test",
     srcs = ["hparams_vizier_test.py"],
-    python_version = "PY3",
     deps = [
         ":hparams_vizier",
         "//:expect_vizier_service_pyvizier_installed",
@@ -61,7 +59,6 @@ pytype_strict_contrib_test(
 pytype_strict_library(
     name = "layers",
     srcs = ["layers.py"],
-    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
@@ -73,8 +70,6 @@ pytype_strict_library(
 tf_py_test(
     name = "layers_test",
     srcs = ["layers_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3",
     deps = [
         ":layers",
         "//:expect_absl_installed_testing",
@@ -99,8 +94,6 @@ pytype_strict_library(
 tf_py_test(
     name = "config_dict_test",
     srcs = ["config_dict_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3",
     deps = [
         ":config_dict",
         ":layers",

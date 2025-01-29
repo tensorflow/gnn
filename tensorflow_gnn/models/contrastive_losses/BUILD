@@ -20,7 +20,6 @@ package_group(name = "users")
 pytype_strict_library(
     name = "contrastive_losses",
     srcs = ["__init__.py"],
-    srcs_version = "PY3",
     visibility = [
         ":users",
     ],
@@ -35,7 +34,6 @@ pytype_strict_library(
 pytype_strict_library(
     name = "layers",
     srcs = ["layers.py"],
-    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
@@ -45,8 +43,6 @@ pytype_strict_library(
 tf_py_test(
     name = "layers_test",
     srcs = ["layers_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3",
     deps = [
         ":layers",
         "//:expect_absl_installed_testing",
@@ -58,7 +54,6 @@ tf_py_test(
 pytype_strict_library(
     name = "losses",
     srcs = ["losses.py"],
-    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
     ],
@@ -67,8 +62,6 @@ pytype_strict_library(
 tf_py_test(
     name = "losses_test",
     srcs = ["losses_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3",
     deps = [
         ":tasks",
         "//:expect_absl_installed_testing",
@@ -80,7 +73,6 @@ tf_py_test(
 pytype_strict_library(
     name = "metrics",
     srcs = ["metrics.py"],
-    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
     ],
@@ -89,8 +81,6 @@ pytype_strict_library(
 tf_py_test(
     name = "metrics_test",
     srcs = ["metrics_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3",
     deps = [
         ":metrics",
         "//:expect_tensorflow_installed",
@@ -100,7 +90,6 @@ tf_py_test(
 pytype_strict_library(
     name = "utils",
     srcs = ["utils.py"],
-    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
@@ -110,8 +99,6 @@ pytype_strict_library(
 tf_py_test(
     name = "utils_test",
     srcs = ["utils_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3",
     deps = [
         ":utils",
         "//:expect_tensorflow_installed",
@@ -122,7 +109,6 @@ tf_py_test(
 pytype_strict_library(
     name = "tasks",
     srcs = ["tasks.py"],
-    srcs_version = "PY3",
     deps = [
         ":layers",
         ":losses",
@@ -137,8 +123,6 @@ pytype_strict_library(
 tf_py_test(
     name = "tasks_test",
     srcs = ["tasks_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3",
     deps = [
         ":tasks",
         "//:expect_absl_installed_testing",

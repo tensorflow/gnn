@@ -18,7 +18,6 @@ package(
 pytype_strict_library(
     name = "executor_lib",
     srcs = ["executor_lib.py"],
-    srcs_version = "PY3ONLY",
     deps = [
         ":utils",
         "//third_party/py/apache_beam",
@@ -33,8 +32,6 @@ pytype_strict_library(
 pytype_strict_contrib_test(
     name = "executor_lib_test",
     srcs = ["executor_lib_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3ONLY",
     deps = [
         ":executor_lib",
         "//third_party/py/absl/testing:absltest",
@@ -50,8 +47,6 @@ pytype_strict_contrib_test(
 pytype_strict_contrib_test(
     name = "subgraph_pipeline_test",
     srcs = ["subgraph_pipeline_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3ONLY",
     deps = [
         ":accessors",
         ":edge_samplers",
@@ -71,7 +66,6 @@ pytype_strict_contrib_test(
 pytype_strict_library(
     name = "accessors",
     srcs = ["accessors.py"],
-    srcs_version = "PY3ONLY",
     deps = [
         ":executor_lib",
         ":utils",
@@ -85,8 +79,6 @@ pytype_strict_library(
 pytype_strict_contrib_test(
     name = "accessors_test",
     srcs = ["accessors_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3ONLY",
     deps = [
         ":accessors",
         ":executor_lib",
@@ -103,7 +95,6 @@ pytype_strict_contrib_test(
 pytype_strict_library(
     name = "edge_samplers",
     srcs = ["edge_samplers.py"],
-    srcs_version = "PY3ONLY",
     deps = [
         ":executor_lib",
         ":utils",
@@ -119,8 +110,6 @@ pytype_strict_library(
 pytype_strict_contrib_test(
     name = "edge_samplers_test",
     srcs = ["edge_samplers_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3ONLY",
     deps = [
         ":accessors",
         ":edge_samplers",
@@ -138,7 +127,6 @@ pytype_strict_contrib_test(
 pytype_strict_library(
     name = "utils",
     srcs = ["utils.py"],
-    srcs_version = "PY3ONLY",
     deps = [
         "//third_party/py/apache_beam",
         "//:expect_numpy_installed",
@@ -150,8 +138,6 @@ pytype_strict_library(
 pytype_strict_contrib_test(
     name = "utils_test",
     srcs = ["utils_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3ONLY",
     deps = [
         ":utils",
         "//third_party/py/absl/testing:absltest",
@@ -167,7 +153,6 @@ pytype_strict_contrib_test(
 pytype_strict_library(
     name = "unigraph_utils",
     srcs = ["unigraph_utils.py"],
-    srcs_version = "PY3ONLY",
     deps = [
         ":executor_lib",
         "//third_party/py/apache_beam",
@@ -231,8 +216,6 @@ pytype_strict_contrib_test(
         "@tensorflow_gnn//testdata/heterogeneous",
         "@tensorflow_gnn//testdata/homogeneous",
     ],
-    python_version = "PY3",
-    srcs_version = "PY3ONLY",
     deps = [
         ":unigraph_utils",
         "//testing/pybase",

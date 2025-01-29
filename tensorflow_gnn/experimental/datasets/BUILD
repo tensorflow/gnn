@@ -13,7 +13,6 @@ package(
 pytype_strict_library(
     name = "pyg_adapter",
     srcs = ["pyg_adapter.py"],
-    srcs_version = "PY3ONLY",
     deps = [
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
@@ -24,8 +23,6 @@ pytype_strict_library(
 py_strict_test(
     name = "pyg_adapter_test",
     srcs = ["pyg_adapter_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3ONLY",
     tags = ["no_oss"],  # Dependency conflict for numpy>=2.
     deps = [
         ":pyg_adapter",

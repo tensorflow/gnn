@@ -14,7 +14,6 @@ package(
 pytype_strict_library(
     name = "experimental",
     srcs = ["__init__.py"],
-    srcs_version = "PY3",
     deps = [
         "//tensorflow_gnn/graph:readout",
         "//tensorflow_gnn/graph:tensor_utils",

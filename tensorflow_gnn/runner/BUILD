@@ -40,7 +40,6 @@ pytype_strict_library(
 pytype_strict_library(
     name = "interfaces",
     srcs = ["interfaces.py"],
-    srcs_version = "PY3",
     visibility = ["//tensorflow_gnn/runner:__subpackages__"],
     deps = [
         "//:expect_tensorflow_installed",
@@ -52,7 +51,6 @@ pytype_strict_library(
 pytype_strict_library(
     name = "orchestration",
     srcs = ["orchestration.py"],
-    srcs_version = "PY3",
     deps = [
         ":interfaces",
         "//:expect_tensorflow_installed",

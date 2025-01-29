@@ -15,7 +15,6 @@ package(
 pytype_strict_library(
     name = "datasets",
     srcs = ["datasets.py"],
-    srcs_version = "PY3",
     visibility = ["//tensorflow_gnn/runner:__pkg__"],
     deps = [
         "//:expect_tensorflow_installed",
@@ -26,7 +25,6 @@ pytype_strict_library(
 py_strict_test(
     name = "datasets_test",
     srcs = ["datasets_test.py"],
-    python_version = "PY3",
     deps = [
         ":datasets",
         "//:expect_absl_installed_testing",

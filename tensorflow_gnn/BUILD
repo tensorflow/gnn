@@ -31,7 +31,6 @@ config_setting(
 pytype_strict_library(
     name = "tensorflow_gnn",
     srcs = ["__init__.py"],
-    srcs_version = "PY3",
     visibility = ["//visibility:public"],
     deps = [
         ":version",
@@ -64,7 +63,6 @@ pytype_strict_library(
 pytype_strict_library(
     name = "version",
     srcs = ["version.py"],
-    srcs_version = "PY3",
     visibility = ["//visibility:private"],
 )
 

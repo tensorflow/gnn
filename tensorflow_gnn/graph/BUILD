@@ -30,7 +30,6 @@ package(
 pytype_strict_library(
     name = "graph_constants",
     srcs = ["graph_constants.py"],
-    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
     ],
@@ -39,7 +38,6 @@ pytype_strict_library(
 pytype_strict_library(
     name = "graph_tensor",
     srcs = ["graph_tensor.py"],
-    srcs_version = "PY3",
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -53,7 +51,6 @@ pytype_strict_library(
 pytype_strict_library(
     name = "graph_tensor_ops",
     srcs = ["graph_tensor_ops.py"],
-    srcs_version = "PY3",
     deps = [
         ":adjacency",
         ":broadcast_ops",
@@ -70,7 +67,6 @@ pytype_strict_library(
 pytype_strict_library(
     name = "graph_tensor_io",
     srcs = ["graph_tensor_io.py"],
-    srcs_version = "PY3",
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -83,7 +79,6 @@ pytype_strict_library(
 pytype_strict_library(
     name = "graph_tensor_encode",
     srcs = ["graph_tensor_encode.py"],
-    srcs_version = "PY3",
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -98,7 +93,6 @@ pytype_strict_library(
 pytype_strict_library(
     name = "graph_tensor_random",
     srcs = ["graph_tensor_random.py"],
-    srcs_version = "PY3",
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -111,7 +105,6 @@ pytype_strict_library(
 pytype_strict_library(
     name = "graph_tensor_pprint",
     srcs = ["graph_tensor_pprint.py"],
-    srcs_version = "PY3",
     deps = [
         ":graph_tensor",
         "//:expect_numpy_installed",
@@ -122,7 +115,6 @@ pytype_strict_library(
 pytype_strict_library(
     name = "tensor_utils",
     srcs = ["tensor_utils.py"],
-    srcs_version = "PY3",
     deps = [
         ":tf_internal",
         "//:expect_tensorflow_installed",
@@ -132,7 +124,6 @@ pytype_strict_library(
 tf_py_test(
     name = "tensor_utils_test",
     srcs = ["tensor_utils_test.py"],
-    python_version = "PY3",
     deps = [
         ":tensor_utils",
         "//:expect_absl_installed_testing",
@@ -144,7 +135,6 @@ tf_py_test(
 pytype_strict_library(
     name = "readout",
     srcs = ["readout.py"],
-    srcs_version = "PY3",
     deps = [
         ":adjacency",
         ":broadcast_ops",
@@ -159,7 +149,6 @@ pytype_strict_library(
 tf_py_test(
     name = "readout_test",
     srcs = ["readout_test.py"],
-    python_version = "PY3",
     deps = [
         ":adjacency",
         ":batching_utils",
@@ -175,7 +164,6 @@ tf_py_test(
 pytype_strict_library(
     name = "schema_utils",
     srcs = ["schema_utils.py"],
-    srcs_version = "PY3",
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -191,7 +179,6 @@ tf_py_test(
     name = "schema_utils_test",
     srcs = ["schema_utils_test.py"],
     data = ["@tensorflow_gnn//testdata/homogeneous"],
-    python_version = "PY3",
     deps = [
         ":adjacency",
         ":graph_tensor",
@@ -207,7 +194,6 @@ tf_py_test(
 pytype_strict_library(
     name = "schema_validation",
     srcs = ["schema_validation.py"],
-    srcs_version = "PY3",
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -222,7 +208,6 @@ pytype_strict_library(
 tf_py_test(
     name = "schema_validation_test",
     srcs = ["schema_validation_test.py"],
-    python_version = "PY3",
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -236,7 +221,6 @@ tf_py_test(
 pytype_strict_library(
     name = "graph_tensor_test_utils",
     srcs = ["graph_tensor_test_utils.py"],
-    srcs_version = "PY3",
     visibility = [
         "//tensorflow_gnn/compat:__subpackages__",
         "//tensorflow_gnn/tools:__subpackages__",
@@ -255,7 +239,6 @@ pytype_strict_library(
 tf_py_test(
     name = "graph_tensor_test",
     srcs = ["graph_tensor_test.py"],
-    python_version = "PY3",
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -270,7 +253,6 @@ tf_py_test(
 tf_py_test(
     name = "graph_tensor_ops_test",
     srcs = ["graph_tensor_ops_test.py"],
-    python_version = "PY3",
     deps = [
         ":adjacency",
         ":broadcast_ops",
@@ -288,7 +270,6 @@ tf_py_test(
 tf_py_test(
     name = "graph_tensor_io_test",
     srcs = ["graph_tensor_io_test.py"],
-    python_version = "PY3",
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -306,7 +287,6 @@ tf_py_test(
     name = "graph_tensor_encode_test",
     srcs = ["graph_tensor_encode_test.py"],
     data = ["@tensorflow_gnn//testdata:feature_repr"],
-    python_version = "PY3",
     deps = [
         ":graph_constants",
         ":graph_tensor",
@@ -325,7 +305,6 @@ tf_py_test(
     name = "graph_tensor_random_test",
     srcs = ["graph_tensor_random_test.py"],
     data = ["@tensorflow_gnn//testdata:feature_repr"],
-    python_version = "PY3",
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -343,7 +322,6 @@ tf_py_test(
     name = "graph_tensor_pprint_test",
     srcs = ["graph_tensor_pprint_test.py"],
     data = ["@tensorflow_gnn//testdata:feature_repr"],
-    python_version = "PY3",
     deps = [
         ":graph_tensor_pprint",
         ":graph_tensor_random",
@@ -357,7 +335,6 @@ tf_py_test(
 pytype_strict_library(
     name = "graph_piece",
     srcs = ["graph_piece.py"],
-    srcs_version = "PY3",
     deps = [
         ":graph_constants",
         ":tensor_utils",
@@ -369,7 +346,6 @@ pytype_strict_library(
 tf_py_test(
     name = "graph_piece_test",
     srcs = ["graph_piece_test.py"],
-    python_version = "PY3",
     deps = [
         ":graph_piece",
         ":tf_internal",
@@ -382,7 +358,6 @@ tf_py_test(
 pytype_strict_library(
     name = "adjacency",
     srcs = ["adjacency.py"],
-    srcs_version = "PY3",
     deps = [
         ":graph_constants",
         ":graph_piece",
@@ -395,7 +370,6 @@ pytype_strict_library(
 tf_py_test(
     name = "adjacency_test",
     srcs = ["adjacency_test.py"],
-    python_version = "PY3",
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -407,7 +381,6 @@ tf_py_test(
 pytype_strict_library(
     name = "normalization_ops",
     srcs = ["normalization_ops.py"],
-    srcs_version = "PY3",
     deps = [
         ":broadcast_ops",
         ":graph_constants",
@@ -421,8 +394,6 @@ pytype_strict_library(
 tf_py_test(
     name = "normalization_ops_test",
     srcs = ["normalization_ops_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3",
     deps = [
         ":adjacency",
         ":broadcast_ops",
@@ -437,21 +408,18 @@ tf_py_test(
 pytype_strict_library(
     name = "dict_utils",
     srcs = ["dict_utils.py"],
-    srcs_version = "PY3",
     deps = [],
 )
 
 pytype_strict_contrib_test(
     name = "dict_utils_test",
     srcs = ["dict_utils_test.py"],
-    srcs_version = "PY3",
     deps = [":dict_utils"],
 )
 
 pytype_strict_library(
     name = "preprocessing_common",
     srcs = ["preprocessing_common.py"],
-    srcs_version = "PY3",
     deps = [
         ":graph_constants",
         "//:expect_tensorflow_installed",
@@ -461,7 +429,6 @@ pytype_strict_library(
 tf_py_test(
     name = "preprocessing_common_test",
     srcs = ["preprocessing_common_test.py"],
-    python_version = "PY3",
     deps = [
         ":graph_constants",
         ":graph_tensor",
@@ -474,7 +441,6 @@ tf_py_test(
 pytype_strict_library(
     name = "padding_ops",
     srcs = ["padding_ops.py"],
-    srcs_version = "PY3",
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -491,7 +457,6 @@ pytype_strict_library(
 tf_py_test(
     name = "padding_ops_test",
     srcs = ["padding_ops_test.py"],
-    python_version = "PY3",
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -534,7 +499,6 @@ tf_py_test(
 pytype_strict_library(
     name = "batching_utils",
     srcs = ["batching_utils.py"],
-    srcs_version = "PY3",
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -599,7 +563,6 @@ tf_py_test(
     name = "batching_utils_test",
     size = "large",
     srcs = ["batching_utils_test.py"],
-    python_version = "PY3",
     deps = [
         ":adjacency",
         ":batching_utils",
