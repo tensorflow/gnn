@@ -51,6 +51,10 @@ perl  -i -lpe '$k+= s/tensorflow>=2\.[0-9]+\.[0-9]+(,<=?[0-9.]+)?;/tf-nightly;/g
 python3 setup.py bdist_wheel
 pip uninstall -y tensorflow_gnn
 pip install dist/tensorflow_gnn-*.whl
+
+echo "Final packages after all pip commands:"
+pip list
+
 # Check that tf-nightly is installed but tensorflow is not
 # Also check that tf-keras-nightly is installed.
 pip freeze | grep -q tf-nightly= && ! pip freeze | grep -q tensorflow=
