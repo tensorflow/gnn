@@ -14,8 +14,7 @@
 # ==============================================================================
 """The GraphUpdate layer and its pieces."""
 
-import sys
-from typing import Any, Callable, Mapping, Optional, Sequence
+from typing import Any, Callable, Mapping, Optional, Protocol, Sequence
 
 import tensorflow as tf
 
@@ -24,13 +23,6 @@ from tensorflow_gnn.graph import dict_utils as du
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.keras.layers import next_state as next_state_lib
-
-# pylint:disable=g-import-not-at-top
-if sys.version_info >= (3, 8):
-  from typing import Protocol
-else:
-  from typing_extensions import Protocol
-# pylint:enable=g-import-not-at-top
 
 
 # This file defines the canonical implementations of EdgeSetUpdate,

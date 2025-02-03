@@ -62,15 +62,6 @@ py_library(
 )
 
 py_library(
-    name = "expect_typing_extensions_installed",
-    # This is a dummy rule used as a typing extensions dependency in
-    # open-source. We expect typing extensions to already be installed on
-    # the system.
-    visibility = ["//visibility:public"],
-    deps = [],
-)
-
-py_library(
     name = "expect_vizier_service_pyvizier_installed",
     # This is a dummy rule used as a dependency on vizier.service.pyvizier in open-source.
     # We expect Vizier to already be installed on the system, e.g. via
