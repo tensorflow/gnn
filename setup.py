@@ -170,7 +170,7 @@ setup(
     ],
     namespace_packages=[],
     install_requires=[
-        'google-vizier>=0.0.13',
+        'google-vizier>=0.0.13,!=0.1.23,!=0.1.24',  # b/394062744
         'ml-collections',
         'networkx',
         'pyarrow',
