@@ -643,6 +643,7 @@ def run(*,
 
   run_result = RunResult(
       preprocess_model=parsing_and_preprocess_model,
+      raw_preprocess_model=preprocess_model,
       base_model=model.get_layer(_BASE_MODEL_TAG),
       trained_model=model)
 

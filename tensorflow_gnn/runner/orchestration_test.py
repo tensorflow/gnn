@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for orchestration."""
 from __future__ import annotations
 
 import os
@@ -427,7 +426,10 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(actual["s3"], actual["s4"]["output_1"])
     self.assertAllClose(actual["s3"], actual["s4"]["output_2"])
 
-  def test_multioutput(self):
+  @parameterized.named_parameters(
+      ("_full_preprocess", False),
+      ("_raw_preprocess", True))
+  def test_multioutput(self, use_raw_preprocess):
     gt = with_readout(random_graph_tensor())
     task = MultioutputSentinelTask()
     model_dir = self.create_tempdir()
@@ -452,7 +454,13 @@ class OrchestrationTests(tf.test.TestCase, parameterized.TestCase):
     def serialize(inputs):
       return tf.constant((tfgnn.write_example(inputs).SerializeToString(),))
 
-    xs, ys = run_result.preprocess_model(serialize(gt))
+    if not use_raw_preprocess:
+      preprocess_model = run_result.preprocess_model
+    else:
+      preprocess_model = orchestration._make_parsing_preprocessing_model(
+          gt.spec, run_result.raw_preprocess_model)
+
+    xs, ys = preprocess_model(serialize(gt))
     actual = run_result.trained_model(xs)
     self.assertIsInstance(ys, dict)
     self.assertIsInstance(actual, dict)
