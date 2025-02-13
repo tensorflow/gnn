@@ -87,15 +87,23 @@ pytype_strict_library(
     ],
 )
 
+pytype_strict_library(
+    name = "test_utils",
+    srcs = ["test_utils.py"],
+    deps = [
+        "//tensorflow_gnn/runner:interfaces",
+    ],
+)
+
 py_strict_test(
     name = "attribution_test",
     srcs = ["attribution_test.py"],
     deps = [
         ":attribution",
+        ":test_utils",
         "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-        "//tensorflow_gnn/runner:interfaces",
     ],
 )
 
@@ -104,11 +112,11 @@ py_strict_test(
     srcs = ["model_export_test.py"],
     deps = [
         ":model_export",
+        ":test_utils",
         "//:expect_absl_installed_testing",
         "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
-        "//tensorflow_gnn/runner:interfaces",
     ],
 )
 

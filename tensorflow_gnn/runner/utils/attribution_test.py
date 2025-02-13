@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for attribution."""
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
-from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner.utils import attribution
+from tensorflow_gnn.runner.utils import test_utils
 
 IntegratedGradientsExporter = attribution.IntegratedGradientsExporter
 
@@ -268,7 +267,8 @@ class AttributionTest(tf.test.TestCase):
     export_dir = self.create_tempdir()
     exporter = attribution.IntegratedGradientsExporter("output", steps=3)
 
-    run_result = interfaces.RunResult(preprocess_model, None, model)
+    run_result = test_utils.mock_run_result(preprocess_model=preprocess_model,
+                                            trained_model=model)
     exporter.save(run_result, export_dir)
 
     saved_model = tf.saved_model.load(export_dir)

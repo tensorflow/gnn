@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for model_export."""
 import itertools
 import os
 from typing import Any, Optional
@@ -21,8 +20,8 @@ from absl.testing import parameterized
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 
-from tensorflow_gnn.runner import interfaces
 from tensorflow_gnn.runner.utils import model_export
+from tensorflow_gnn.runner.utils import test_utils
 
 
 def _duplicate_submodules(name: str) -> tf.keras.Model:
@@ -182,7 +181,9 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
     exporter = model_export.KerasModelExporter(
         output_names=output_names,
         use_legacy_model_save=use_legacy_model_save)
-    exporter.save(interfaces.RunResult(None, None, model), export_dir)
+    exporter.save(
+        test_utils.mock_run_result(preprocess_model=None, trained_model=model),
+        export_dir)
 
     if expected_input_names is None:
       expected_input_names = [i.name for i in tf.nest.flatten(model.input)]
@@ -286,7 +287,9 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
         submodule_name,
         output_names=output_names,
         subdirectory=subdirectory)
-    exporter.save(interfaces.RunResult(None, None, model), export_dir)
+    exporter.save(
+        test_utils.mock_run_result(preprocess_model=None, trained_model=model),
+        export_dir)
 
     submodule = next(m for m in model.submodules if submodule_name == m.name)
 
@@ -341,9 +344,10 @@ class ModelExportTests(tf.test.TestCase, parameterized.TestCase):
       model: tf.keras.Model,
       submodule_name: str,
       expected_error: str):
+    run_result = test_utils.mock_run_result(preprocess_model=None,
+                                            trained_model=model)
     exporter = model_export.SubmoduleExporter(submodule_name)
     with self.assertRaisesRegex(ValueError, expected_error):
-      run_result = interfaces.RunResult(None, None, model)
       exporter.save(run_result, self.create_tempdir())
 
   def test_simple_graph_piece(self):

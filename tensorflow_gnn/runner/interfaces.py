@@ -40,7 +40,10 @@ Metrics = OneOrMappingOf[OneOrSequenceOf[Metric]]
 
 @dataclasses.dataclass
 class RunResult:
-  """Holds the return values of `run(...)`.
+  """Holds the return values of `run(...)` in an extensible way.
+
+  Users of the library should not create instances of this class directly,
+  because `run(...)` may return new non-Optional fields in the future.
 
   Attributes:
     preprocess_model: Keras model containing only the computation for
