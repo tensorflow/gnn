@@ -210,13 +210,7 @@ class TFModelStageTest(ExecutorTestBase):
   def test_any_composite(self):
 
     # TODO: b/294854329 - Re-enable when the TF fuzzing issue is resolved.
-    if (
-        tf.__version__.startswith('2.15')
-        or tf.__version__.startswith('2.16')
-        or tf.__version__.startswith('2.17')
-        or tf.__version__.startswith('2.18')
-        or '-dev' in tf.__version__  # tf-nightly
-    ):
+    if not any(tf.__version__.startswith(v) for v in ('2.12', '2.13', '2.14')):
       self.skipTest('Fails with tf internal error since tf 2.15')
 
     i = tf.keras.Input([2], name='input')
