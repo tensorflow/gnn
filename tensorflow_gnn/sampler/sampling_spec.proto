@@ -214,4 +214,7 @@ enum SamplingStrategy {
   // sampled.) The result is non-deterministic (even within the same source
   // node.)
   RANDOM_WEIGHTED = 2;
+  // Unimplemented. Extracts up to `sample_size` edges that were created or
+  // modified the latest before the sampling timestamp.
+  LATEST_K = 3;
 }
