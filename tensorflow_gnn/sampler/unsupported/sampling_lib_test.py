@@ -166,7 +166,11 @@ class TestReservoirEdgeSamplingFn(EdgeSamplingTestBase):
         lib.create_sampling_weight_fn(sampling_op, lib.get_weight_feature),
         sampling_op.sample_size,
         resample_for_each_path=not lib.is_deterministic(sampling_op))
-    with beam.Pipeline() as root:
+    # TODO: b/425868149 - Revert to the default (cloudpickle since beam 2.65).
+    options = beam.options.pipeline_options.PipelineOptions(
+        pickle_library="dill",
+    )
+    with beam.Pipeline(options=options) as root:
       nodes = _create_test_nodes([(b"sample.1", 1, [3, 2, 1]),
                                   (b"sample.1", 2, [2, 1]),
                                   (b"sample.2", 3, [2])])
@@ -194,7 +198,11 @@ class TestReservoirEdgeSamplingFn(EdgeSamplingTestBase):
         lib.create_sampling_weight_fn(sampling_op, lib.get_weight_feature),
         sampling_op.sample_size,
         resample_for_each_path=False)
-    with beam.Pipeline() as root:
+    # TODO: b/425868149 - Revert to the default (cloudpickle since beam 2.65).
+    options = beam.options.pipeline_options.PipelineOptions(
+        pickle_library="dill",
+    )
+    with beam.Pipeline(options=options) as root:
       nodes = _create_test_nodes([(b"sample.1", 1, [3, 2, 1]),
                                   (b"sample.1", 2, [2, 1]),
                                   (b"sample.2", 3, [2])])
@@ -226,7 +234,11 @@ class TestReservoirEdgeSamplingFn(EdgeSamplingTestBase):
         lib.create_sampling_weight_fn(sampling_op, lib.get_weight_feature),
         sampling_op.sample_size,
         resample_for_each_path=False)
-    with beam.Pipeline() as root:
+    # TODO: b/425868149 - Revert to the default (cloudpickle since beam 2.65).
+    options = beam.options.pipeline_options.PipelineOptions(
+        pickle_library="dill",
+    )
+    with beam.Pipeline(options=options) as root:
       nodes = _create_test_nodes([(b"sample.1", 1, [1, 2, 3, 1]),
                                   (b"sample.1", 2, [2, 1]),
                                   (b"sample.2", 3, [2])])
@@ -259,7 +271,11 @@ class TestReservoirEdgeSamplingFn(EdgeSamplingTestBase):
     sampling_op = _get_op(SamplingStrategy.RANDOM_UNIFORM, 1)
     sampling_fn = lib.ResevoirEdgeSamplingFn(
         mock_weight_fn, sampling_op.sample_size, resample_for_each_path=True)
-    with beam.Pipeline() as root:
+    # TODO: b/425868149 - Revert to the default (cloudpickle since beam 2.65).
+    options = beam.options.pipeline_options.PipelineOptions(
+        pickle_library="dill",
+    )
+    with beam.Pipeline(options=options) as root:
       nodes = _create_test_nodes([(b"sample.1", 1, [1, 2, 3])])
       sampled_edges, new_frontier = (
           root | beam.Create(self._add_num_paths(nodes, [3]))
