@@ -48,20 +48,30 @@ class PadToTotalSizesTest(tf.test.TestCase, parameterized.TestCase):
             features={"weight": tf.constant([1.0])})})
 
   @parameterized.named_parameters(
-      ("", tftu.ModelReloading.SKIP),
-      ("Restored", tftu.ModelReloading.SAVED_MODEL),
-      ("RestoredKeras", tftu.ModelReloading.KERAS))
-  def test(self, model_reloading):
+      ("", tftu.ModelReloading.SKIP, False),
+      ("ViaFeature", tftu.ModelReloading.SKIP, True),
+      ("Restored", tftu.ModelReloading.SAVED_MODEL, False),
+      ("RestoredKeras", tftu.ModelReloading.KERAS, False),
+      ("RestoredKerasViaFeature", tftu.ModelReloading.KERAS, True),
+  )
+  def test(self, model_reloading, via_feature):
     input_graph = self._make_test_graph()
     sc = preprocessing_common.SizeConstraints(
         total_num_components=2,
         total_num_nodes={"nodes": 3},
         total_num_edges={"edges": tf.constant(4)})  # Test conversion to int.
-    pad = padding_ops.PadToTotalSizes(sc)
 
     inputs = tf.keras.layers.Input(type_spec=input_graph.spec)
-    outputs = pad(inputs)
-    model = tf.keras.Model(inputs, outputs)
+    if via_feature:
+      pad = padding_ops.PadToTotalSizes(
+          sc, mask_output_feature_name="mask", return_mask=False)
+      padded_graph = pad(inputs)
+      padding_mask = padded_graph.context["mask"]
+    else:
+      pad = padding_ops.PadToTotalSizes(sc)
+      padded_graph, padding_mask = pad(inputs)
+      self.assertNotIn("mask", padded_graph.context.features)
+    model = tf.keras.Model(inputs, (padded_graph, padding_mask))
     model = tftu.maybe_reload_model(self, model, model_reloading,
                                     "padding-model")
 
