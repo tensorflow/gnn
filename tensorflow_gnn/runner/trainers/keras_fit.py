@@ -62,34 +62,35 @@ class KerasTrainer(interfaces.Trainer):
       strategy: tf.distribute.Strategy,
       *,
       model_dir: str,
-      checkpoint_options: Optional[KerasTrainerCheckpointOptions] = None,
-      backup_dir: Optional[str] = None,
       steps_per_epoch: Optional[int] = None,
       verbose: Union[int, str] = "auto",
+      backup_and_restore: bool = True,
+      backup_dir: Optional[str] = None,
       validation_steps: Optional[int] = None,
       validation_per_epoch: Optional[int] = None,
       validation_freq: Optional[int] = None,
       summarize_every_n_steps: Union[int, str] = 500,
       checkpoint_every_n_steps: Union[int, str] = "epoch",
-      backup_and_restore: bool = True,
-      callbacks: Optional[Sequence[tf.keras.callbacks.Callback]] = None,
       restore_best_weights: Optional[bool] = None,
+      checkpoint_options: Optional[KerasTrainerCheckpointOptions] = None,
+      callbacks: Optional[Sequence[tf.keras.callbacks.Callback]] = None,
       options: Optional[KerasTrainerOptions] = None):
     """Sets training parameters.
 
     Args:
       strategy: A `tf.distribute.Strategy.`
       model_dir: A model directory for summaries.
-      checkpoint_options: An optional configuration for checkpointing related
-        configs. If checkpoint_options.checkpoint_dir is unset;
-        `os.path.join(model_dir, "ckpnt")` is used.
-      backup_dir: An optional directory for backup, if unset;
-        `(os.path.join(model_dir, "backup"),)` is used.
       steps_per_epoch: The number of training steps per epoch. Optional,
         if unspecified: epochs are at `tf.data.Dataset` end.
       verbose: Forwarded to `tf.keras.Model.fit()`. Possible values are
         0 (silent), 1 (print progress bar), 2 (one line per epoch), and
         "auto" (default) defers to keras to select verbosity.
+      backup_and_restore: Whether to backup the training state and restore it
+        upon restarts (according to `tf.keras.callbacks.BackupAndRestore`).
+        The backups are stored in `backup_dir` and deleted when training is
+        finished. This is independent of `checkpoint_every_n_steps`.
+      backup_dir: Optionally, the temporary directory for backups; if unset,
+        `(os.path.join(model_dir, "backup"),)` is used.
       validation_steps: The number of steps used during validation. Optional,
         if unspecified: the entire validation `tf.data.Dataset` is evaluated.
       validation_per_epoch: The number of validations done per training epoch.
@@ -103,21 +104,26 @@ class KerasTrainer(interfaces.Trainer):
       summarize_every_n_steps: The frequency for writing TensorBoard summaries,
         as an integer number of steps, or "epoch" for once per epoch, or
         "never".
-      checkpoint_every_n_steps: The frequency for writing latest models, as an
-        integer number of steps, or "epoch" for once per epoch, or "never".
-        The best model will always be saved after each validation epoch except
-        when this parameter is set to "never", because the validation metric is
-        available only after validation epoch.
-      backup_and_restore: Whether to backup and restore (According to
-        `tf.keras.callbacks.BackupAndRestore`). The backup
-        directory is determined by `backup_dir`.
+      checkpoint_every_n_steps: The frequency for checkpointing model weights
+        for later use. (This is independent of `backup_and_restore`.)
+        If `"never"`, no checkpointing is done. Otherwise, checkpointing is done
+        with two instances of `tf.keras.callbacks.ModelCheckpoint`: one for the
+        best model and one for the latest. The checkpoint for the best model is
+        updated after each validation run in which the validation loss has
+        improved over the previous best. The latest model is checkpointed
+        unconditionally every `checkpoint_every_n_steps` if set to an integer,
+        or after every epoch if set to `"epoch"`.
+      restore_best_weights: If true, restores the best checkpointed weights
+        before exporting the model for inference; this requires a
+        `checkpoint_every_n_steps` other than `"never"` and the use of a
+        `valid_ds_provider` in `train()`. If false, the final training state is
+        exported unconditionally. If unspecified, the value is determined by
+        `train()` as `True if valid_ds_provider is not None else False`.
+      checkpoint_options: An optional configuration for checkpointing related
+        configs. If checkpoint_options.checkpoint_dir is unset;
+        `os.path.join(model_dir, "ckpnt")` is used.
       callbacks: Optional additional `tf.keras.callbacks.Callback` for
         `tf.keras.Model.fit.`
-      restore_best_weights: Requires a `checkpoint_every_n_steps` other than
-        "never." Whether to restore the best model weights as determined by
-        `tf.keras.callbacks.ModelCheckpoint` after training. If unspecified,
-        its value is determined at `train(...)` invocation: `True if
-        valid_ds_provider is not None else False`.
       options: A `KerasTrainerOptions.`
     """
     if restore_best_weights and checkpoint_every_n_steps == "never":
