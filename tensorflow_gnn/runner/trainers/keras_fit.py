@@ -21,7 +21,7 @@ from typing import Callable, Optional, Sequence, Union
 import tensorflow as tf
 from tensorflow_gnn.runner import interfaces
 
-BackupAndRestore = tf.keras.callbacks.experimental.BackupAndRestore
+BackupAndRestore = tf.keras.callbacks.BackupAndRestore
 DatasetProvider = interfaces.DatasetProvider
 
 
@@ -66,6 +66,7 @@ class KerasTrainer(interfaces.Trainer):
       verbose: Union[int, str] = "auto",
       backup_and_restore: bool = True,
       backup_dir: Optional[str] = None,
+      backup_every_n_steps: Union[int, str] = "epoch",
       validation_steps: Optional[int] = None,
       validation_per_epoch: Optional[int] = None,
       validation_freq: Optional[int] = None,
@@ -91,6 +92,9 @@ class KerasTrainer(interfaces.Trainer):
         finished. This is independent of `checkpoint_every_n_steps`.
       backup_dir: Optionally, the temporary directory for backups; if unset,
         `(os.path.join(model_dir, "backup"),)` is used.
+      backup_every_n_steps: If `backup_and_restore` is true, this specifies
+        the frequency of backups, as an integer number of steps, or `"epoch"`
+        for once per epoch.
       validation_steps: The number of steps used during validation. Optional,
         if unspecified: the entire validation `tf.data.Dataset` is evaluated.
       validation_per_epoch: The number of validations done per training epoch.
@@ -148,6 +152,7 @@ class KerasTrainer(interfaces.Trainer):
     self._model_dir = model_dir
     self._checkpoint_options = checkpoint_options
     self._backup_dir = backup_dir
+    self._backup_every_n_steps = backup_every_n_steps
     self._steps_per_epoch = steps_per_epoch
     self._verbose = verbose
     self._validation_steps = validation_steps
@@ -195,6 +200,7 @@ class KerasTrainer(interfaces.Trainer):
     """
 
     # Adjust the following given `epochs`:
+    # - `backup_every_n_steps`
     # - `summarize_every_n_steps`
     # - `checkpoint_every_n_steps`
     # - `steps_per_epoch`
@@ -203,6 +209,10 @@ class KerasTrainer(interfaces.Trainer):
       if self._steps_per_epoch is None:
         raise ValueError("`validation_per_epoch` requires a `steps_per_epoch`")
       # Preserve the user-visible notion of "epoch"...
+      if self._backup_every_n_steps == "epoch":
+        backup_every_n_steps = self._steps_per_epoch
+      else:
+        backup_every_n_steps = self._backup_every_n_steps
       if self._summarize_every_n_steps == "epoch":
         summarize_every_n_steps = self._steps_per_epoch
       else:
@@ -216,6 +226,7 @@ class KerasTrainer(interfaces.Trainer):
       steps_per_epoch = self._steps_per_epoch // self._validation_per_epoch
       validation_steps = self._validation_steps
     else:
+      backup_every_n_steps = self._backup_every_n_steps
       summarize_every_n_steps = self._summarize_every_n_steps
       checkpoint_every_n_steps = self._checkpoint_every_n_steps
       steps_per_epoch = self._steps_per_epoch
@@ -276,7 +287,8 @@ class KerasTrainer(interfaces.Trainer):
 
     if self._backup_and_restore:
       callbacks += [
-          BackupAndRestore(backup_dir=self._backup_dir)
+          BackupAndRestore(backup_dir=self._backup_dir,
+                           save_freq=backup_every_n_steps)
       ]
 
     if checkpoint_every_n_steps != "never":
