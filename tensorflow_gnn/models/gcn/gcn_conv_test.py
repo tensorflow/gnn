@@ -19,9 +19,11 @@ import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models.gcn import gcn_conv
 from tensorflow_gnn.utils import tf_test_utils as tftu
-# pylint: disable=g-direct-tensorflow-import
-from ai_edge_litert import interpreter as tfl_interpreter
-# pylint: enable=g-direct-tensorflow-import
+# pylint: disable=g-direct-tensorflow-import,g-import-not-at-top
+if not tf.__version__.startswith('2.20.'):  # TODO: b/441006328 - Remove this.
+  # The following import crashes with tf-nightly~=2.20.0.
+  from ai_edge_litert import interpreter as tfl_interpreter
+# pylint: enable=g-direct-tensorflow-import,g-import-not-at-top
 
 
 class GcnConvTest(tf.test.TestCase, parameterized.TestCase):
@@ -869,12 +871,11 @@ class GCNTFLiteTest(tf.test.TestCase, parameterized.TestCase):
     # The other unit tests should verify that this is correct
     expected = model(test_graph_1_dict).numpy()
 
-    # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith('2.10.'):
-      self.skipTest('GNN models are unsupported in TFLite until TF 2.11 but '
-                    f'got TF {tf.__version__}')
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
+    if tf.__version__.startswith('2.20.'):
+      self.skipTest('TODO: b/441006328 - tfl_interpreter cannot be imported '
+                    f'next to tf-nightly~=2.20.0; got TF {tf.__version__}')
     interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner('serving_default')
     obtained = signature_runner(**test_graph_1_dict)['final_node_states']

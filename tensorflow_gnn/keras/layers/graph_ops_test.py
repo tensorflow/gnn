@@ -23,9 +23,11 @@ from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.keras.layers import graph_ops
-# pylint: disable=g-direct-tensorflow-import
-from ai_edge_litert import interpreter as tfl_interpreter
-# pylint: enable=g-direct-tensorflow-import
+# pylint: disable=g-direct-tensorflow-import,g-import-not-at-top
+if not tf.__version__.startswith("2.20."):  # TODO: b/441006328 - Remove this.
+  # The following import crashes with tf-nightly~=2.20.0.
+  from ai_edge_litert import interpreter as tfl_interpreter
+# pylint: enable=g-direct-tensorflow-import,g-import-not-at-top
 
 
 class ReadoutTest(tf.test.TestCase, parameterized.TestCase):
@@ -168,12 +170,11 @@ class ReadoutTest(tf.test.TestCase, parameterized.TestCase):
     model = tf.keras.Model(inputs, outputs)
     expected = model(test_graph_134_dict)
 
-    # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith("2.10."):
-      self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
-                    f"got TF {tf.__version__}")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
+    if tf.__version__.startswith("2.20."):
+      self.skipTest("TODO: b/441006328 - tfl_interpreter cannot be imported "
+                    f"next to tf-nightly~=2.20.0; got TF {tf.__version__}")
     interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     obtained = signature_runner(**test_graph_134_dict)["test_readout"]
@@ -303,11 +304,11 @@ class ReadoutFirstNodeTest(tf.test.TestCase, parameterized.TestCase):
     expected = model(test_graph_22_dict)
 
     # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith("2.10."):
-      self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
-                    f"got TF {tf.__version__}")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
+    if tf.__version__.startswith("2.20."):
+      self.skipTest("TODO: b/441006328 - tfl_interpreter cannot be imported "
+                    f"next to tf-nightly~=2.20.0; got TF {tf.__version__}")
     interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     obtained = signature_runner(**test_graph_22_dict)["test_readout_first"]
@@ -435,6 +436,9 @@ class StructuredReadoutTest(tf.test.TestCase):
 
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
+    if tf.__version__.startswith("2.20."):
+      self.skipTest("TODO: b/441006328 - tfl_interpreter cannot be imported "
+                    f"next to tf-nightly~=2.20.0; got TF {tf.__version__}")
     interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     actual = signature_runner(
@@ -569,6 +573,9 @@ class StructuredReadoutIntoFeatureTest(tf.test.TestCase):
 
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
+    if tf.__version__.startswith("2.20."):
+      self.skipTest("TODO: b/441006328 - tfl_interpreter cannot be imported "
+                    f"next to tf-nightly~=2.20.0; got TF {tf.__version__}")
     interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     actual = signature_runner(
@@ -632,6 +639,9 @@ class AddReadoutFromFirstNodeTest(tf.test.TestCase):
 
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
+    if tf.__version__.startswith("2.20."):
+      self.skipTest("TODO: b/441006328 - tfl_interpreter cannot be imported "
+                    f"next to tf-nightly~=2.20.0; got TF {tf.__version__}")
     interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     actual = signature_runner(
@@ -748,12 +758,11 @@ class AddSelfLoopsTest(tf.test.TestCase, parameterized.TestCase):
     model = tf.keras.Model(inputs, outputs)
     expected = model(test_graph_134_dict).numpy()
 
-    # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith("2.10."):
-      self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
-                    f"got TF {tf.__version__}")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
+    if tf.__version__.startswith("2.20."):
+      self.skipTest("TODO: b/441006328 - tfl_interpreter cannot be imported "
+                    f"next to tf-nightly~=2.20.0; got TF {tf.__version__}")
     interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     obtained = signature_runner(**test_graph_134_dict)["final_edge_states"]
@@ -950,12 +959,11 @@ class BroadcastTest(tf.test.TestCase, parameterized.TestCase):
     model = tf.keras.Model(inputs, outputs)
     expected = model(test_values)
 
-    # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith("2.10."):
-      self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
-                    f"got TF {tf.__version__}")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
+    if tf.__version__.startswith("2.20."):
+      self.skipTest("TODO: b/441006328 - tfl_interpreter cannot be imported "
+                    f"next to tf-nightly~=2.20.0; got TF {tf.__version__}")
     interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     obtained = signature_runner(**test_values)["test_broadcast"]
@@ -1258,12 +1266,11 @@ class PoolTest(tf.test.TestCase, parameterized.TestCase):
     model = tf.keras.Model(inputs, outputs)
     expected = model(test_values)
 
-    # TODO(b/276291104): Remove when TF 2.11+ is required by all of TFGNN
-    if tf.__version__.startswith("2.10."):
-      self.skipTest("GNN models are unsupported in TFLite until TF 2.11 but "
-                    f"got TF {tf.__version__}")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
+    if tf.__version__.startswith("2.20."):
+      self.skipTest("TODO: b/441006328 - tfl_interpreter cannot be imported "
+                    f"next to tf-nightly~=2.20.0; got TF {tf.__version__}")
     interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     obtained = signature_runner(**test_values)["test_pool"]

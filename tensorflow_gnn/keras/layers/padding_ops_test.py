@@ -23,9 +23,11 @@ from tensorflow_gnn.graph import preprocessing_common
 from tensorflow_gnn.keras import keras_tensors  # For registration. pylint: disable=unused-import
 from tensorflow_gnn.keras.layers import padding_ops
 from tensorflow_gnn.utils import tf_test_utils as tftu
-# pylint: disable=g-direct-tensorflow-import
-from ai_edge_litert import interpreter as tfl_interpreter
-# pylint: enable=g-direct-tensorflow-import
+# pylint: disable=g-direct-tensorflow-import,g-import-not-at-top
+if not tf.__version__.startswith("2.20."):  # TODO: b/441006328 - Remove this.
+  # The following import crashes with tf-nightly~=2.20.0.
+  from ai_edge_litert import interpreter as tfl_interpreter
+# pylint: enable=g-direct-tensorflow-import,g-import-not-at-top
 
 
 class PadToTotalSizesTest(tf.test.TestCase, parameterized.TestCase):

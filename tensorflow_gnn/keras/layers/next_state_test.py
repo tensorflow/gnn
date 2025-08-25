@@ -19,9 +19,11 @@ import tensorflow as tf
 from tensorflow_gnn.graph import graph_constants as const
 from tensorflow_gnn.keras.layers import next_state as next_state_lib
 from tensorflow_gnn.utils import tf_test_utils as tftu
-# pylint: disable=g-direct-tensorflow-import
-from ai_edge_litert import interpreter as tfl_interpreter
-# pylint: enable=g-direct-tensorflow-import
+# pylint: disable=g-direct-tensorflow-import,g-import-not-at-top
+if not tf.__version__.startswith("2.20."):  # TODO: b/441006328 - Remove this.
+  # The following import crashes with tf-nightly~=2.20.0.
+  from ai_edge_litert import interpreter as tfl_interpreter
+# pylint: enable=g-direct-tensorflow-import,g-import-not-at-top
 
 
 class NextStateFromConcatTest(tf.test.TestCase, parameterized.TestCase):
@@ -182,6 +184,9 @@ class ResidualNextStateTest(tf.test.TestCase, parameterized.TestCase):
 
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
+    if tf.__version__.startswith("2.20."):
+      self.skipTest("TODO: b/441006328 - tfl_interpreter cannot be imported "
+                    f"next to tf-nightly~=2.20.0; got TF {tf.__version__}")
     interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner("serving_default")
     obtained = signature_runner(**test_input_dict)["residual_next_state"]
