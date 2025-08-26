@@ -262,7 +262,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     self._score_scaling = score_scaling
     self._transform_values_after_pooling = transform_values_after_pooling
 
-    # The creation of queries transfomations is deferred to the first call of
+    # The creation of queries transformations is deferred to the first call of
     # `Convolve()` (see there).
     self._w_query = None
 
