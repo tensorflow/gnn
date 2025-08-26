@@ -8,7 +8,6 @@ sh_binary(
         "//tensorflow_gnn/proto:examples_py_proto",
         "//tensorflow_gnn/proto:graph_schema_py_proto",
         "//tensorflow_gnn/sampler:sampling_spec_py_proto",
-        "//tensorflow_gnn/sampler/unsupported:subgraph_py_proto",
         "//tensorflow_gnn/tools:sampled_stats_py_proto",
     ],
 )
