@@ -107,11 +107,11 @@ WARNING: Beware of `DT_DOUBLE` in the `GraphSchema`. It gets stored as a
 
 Three of the features are implicitly defined:
 
-*   **Size features.** These features provide the number of nodes in a set.
-    These are important and should always appear if a set is not empty, because
-    it is possible for node sets to have no feature data but only aggregate
-    features from incoming edges. We call these “latent nodes.” Size features
-    are always of type `tf.int64` and are encoded as the following
+*   **Size features.** These features provide the number of nodes or edges in a
+    set. These are important and should always appear if a set is not empty,
+    because it is possible for node sets to have no feature data but only
+    aggregate features from incoming edges. We call these “latent nodes.” Size
+    features are always of type `tf.int64` and are encoded as the following
     `tf.train.Feature` name:
 
     ```
@@ -138,9 +138,9 @@ Three of the features are implicitly defined:
     edges/<set_name>.#target
     ```
 
-    Recall that the notion of "source" and "target" captures the direction
-    of an edge in the graph (as a data structure), but does not prescribe
-    which way a GNN model can send information along the edge.
+    Recall that the notion of "source" and "target" captures the direction of an
+    edge in the graph (as a data structure), but does not prescribe which way a
+    GNN model can send information along the edge.
 
 Note: Serialization for hyper-adjacency — edges with more than two endpoints —
 is not currently supported, and when support for it is added, some modifications
@@ -226,7 +226,7 @@ The values `[3, 1, 4]` refer to the number of items in each row. Notice how
 those sizes—the ragged dimension—are provided as a feature with a special name:
 
 ```
-edges/<set_name>.d<dim>
+edges/<set_name>.<feature_name>.d<dim>
 ```
 
 where `<dim>` is the index of the ragged dimension. In the example, the shape of
