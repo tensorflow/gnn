@@ -36,15 +36,17 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gnn/"
 
 PIP_TEST_PREFIX=bazel_pip
 
-python -m venv venv
-source venv/bin/activate
+python -m venv build_venv
+source build_venv/bin/activate
 
 # Check the python version
 python --version
-python3 --version
 
 # update pip
 pip install --upgrade pip
+
+# Install build
+pip install build
 
 TEST_ROOT=$(pwd)/${PIP_TEST_PREFIX}
 rm -rf "$TEST_ROOT"
@@ -59,14 +61,20 @@ if [[ -n "${USE_BAZEL_VERSION}" && $(bazel --version) != *${USE_BAZEL_VERSION}* 
 fi
 
 bazel clean
-pip install -r requirements-dev.txt --progress-bar off
-pip install tf-keras-nightly tf-nightly --progress-bar off --upgrade
-# We need to remove the dependency on tensorflow to test nightly
-# The dependencies will be provided by tf-nightly
-perl  -i -lpe '$k+= s/tensorflow>=2\.[0-9]+\.[0-9]+(,<=?[0-9.]+)?;/tf-nightly;/g; END{exit($k != 1)}' setup.py
-python3 setup.py bdist_wheel
-pip uninstall -y tensorflow_gnn
+pip install --group test-nightly --progress-bar off --upgrade
+python3 -m build --wheel
+deactivate
+
+# Start the test environment.
+python3 -m venv test_venv
+source test_venv/bin/activate
+
+# Check the python version
+python --version
+
+pip install --upgrade pip
 pip install dist/tensorflow_gnn-*.whl
+pip install --group test-nightly --progress-bar off --upgrade
 
 echo "Final packages after all pip commands:"
 pip list
