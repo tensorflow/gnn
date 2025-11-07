@@ -160,7 +160,7 @@ message ValueSpec {
   oneof type {
     // The dense tensor of any rank.
     TensorSpec tensor = 1;
-    // The ragged tensor of any ragged rank.
+    // The ragged tensor of any positive ragged rank.
     RaggedTensorSpec ragged_tensor = 2;
     // Any composite tensor flattened to the list of its tensor components as
     // `tf.nest.flatten(composite_tensor, expand_compisites=True)`.
