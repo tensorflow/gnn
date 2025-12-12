@@ -438,6 +438,27 @@ class Classification(tf.test.TestCase, parameterized.TestCase):
         ],
         metric_names)
 
+  def test_binary_metrics(self):
+    task = classification.GraphBinaryClassification(
+        "nodes", label_fn=label_fn(2), recall_at_precisions=(0.1, 0.4, 0.7, 0.9)
+    )
+    metric_names = [metric.name for metric in task.metrics()]
+    self.assertEqual(
+        [
+            "from_logits_precision",
+            "from_logits_recall",
+            "from_logits_recall_at_p10",
+            "from_logits_recall_at_p40",
+            "from_logits_recall_at_p70",
+            "from_logits_recall_at_p90",
+            "auc_roc",
+            "auc_pr",
+            "binary_accuracy",
+            "binary_crossentropy",
+        ],
+        metric_names,
+    )
+
   def test_invalid_both_num_classes_and_class_names(self):
     with self.assertRaisesRegex(
         ValueError,
