@@ -1,6 +1,4 @@
 mock
 wheel
-torch_geometric
-torch < 2
 # includes glibcxx older than 3.4.29
 ai-edge-litert-nightly
