@@ -16,23 +16,31 @@
 set -e
 set -x
 
+PYENV_ROOT="/home/kbuilder/.pyenv"
+PYTHON_VERSION=${PYTHON_VERSION:-"3.11"}
+
+echo "Installing pyenv.."
+git clone https://github.com/pyenv/pyenv.git "$PYENV_ROOT"
+export PATH="/home/kbuilder/.local/bin:$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init --path)"
+
+echo "Python setup..."
+pyenv install -s "$PYTHON_VERSION"
+pyenv global "$PYTHON_VERSION"
+
 cd "${KOKORO_ARTIFACTS_DIR}/github/gnn/"
 
-sudo apt-get install -y "python${PYTHON_VERSION}"
-
-# Update alternatives, taken from corresponding Keras OSS test script
-sudo update-alternatives --install /usr/bin/python3 python3 "/usr/bin/python$PYTHON_VERSION" 1
-sudo apt-get install -y python$PYTHON_VERSION-venv
-
-PYTHON_BINARY="/usr/bin/python${PYTHON_VERSION}"
 PIP_TEST_PREFIX=bazel_pip
 
-"${PYTHON_BINARY}" -m venv venv
+python -m venv venv
 source venv/bin/activate
 
 # Debug messages to indicate the python version
 python --version
 python3 --version
+
+# update pip
+pip install --upgrade pip
 
 TEST_ROOT=$(pwd)/${PIP_TEST_PREFIX}
 rm -rf "$TEST_ROOT"

@@ -178,7 +178,8 @@ setup(
         'tensorflow>=2.12.0,<3; platform_machine != "arm64" or platform_system != "Darwin"',
         'tensorflow-macos>=2.12.0,<3; platform_machine == "arm64" and platform_system == "Darwin"',
         # pylint:enable=g-line-too-long
-        'apache-beam',
+        'apache-beam>=2.54.0',
+        'crcmod>=1.7,<2',
     ],
     python_requires='>=3.9,<4',
     packages=find_namespace_packages(
