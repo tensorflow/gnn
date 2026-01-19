@@ -16,8 +16,8 @@
 set -e
 set -x
 
-# TODO: b/465442394 – Remove when fixed.
-echo "Build disabled with tf-nightly due to b/465442394."
+# TODO: b/476991278 – Remove when fixed.
+echo "Build disabled with tf-nightly due to b/476991278."
 exit 0
 
 PYENV_ROOT="/home/kbuilder/.pyenv"
