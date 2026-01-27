@@ -51,9 +51,10 @@ pyenv global "$PYTHON_VERSION"
 cd "${KOKORO_ARTIFACTS_DIR}/github/gnn/"
 
 PIP_TEST_PREFIX=bazel_pip
+VENV_DIR="venv"
 
-python -m venv venv
-source venv/bin/activate
+python -m venv "${VENV_DIR}"
+source "${VENV_DIR}/bin/activate"
 
 # Debug messages to indicate the python version
 python --version
@@ -101,9 +102,16 @@ pip install dist/tensorflow_gnn-*.whl
 echo "Final packages after all pip commands:"
 pip list
 
+# Deactivate venv before running tests to avoid issues with test environments
+deactivate
+
+# Run tests
 bazel test --test_env=TF_USE_LEGACY_KERAS --build_tag_filters="${tag_filters}" --test_tag_filters="${tag_filters}" --test_output=errors --verbose_failures=true --build_tests_only --define=no_tfgnn_py_deps=true --keep_going --experimental_repo_remote_exec //bazel_pip/tensorflow_gnn/...
 
-# --- START Remove Bazel Symlinks ---
+# --- START Cleanup Symlinks and venv ---
 echo "Removing Bazel-generated symlinks..."
 rm -f bazel-bin bazel-out bazel-genfiles bazel-testlogs bazel-gnn
-# --- END Remove Bazel Symlinks ---
+
+echo "Removing venv directory..."
+rm -rf "${VENV_DIR}"
+# --- END Cleanup Symlinks and venv ---
