@@ -16,26 +16,6 @@
 set -e
 set -x
 
-# --- START Bazel Version Management ---
-USE_BAZEL_VERSION=${USE_BAZEL_VERSION:-"7.4.1"}
-BAZEL_INSTALL_DIR="/tmp/bazel/${USE_BAZEL_VERSION}"
-BAZEL_BIN="${BAZEL_INSTALL_DIR}/bin/bazel"
-
-if ! [[ -x "${BAZEL_BIN}" && $(${BAZEL_BIN} --version) == *${USE_BAZEL_VERSION}* ]]; then
-  echo "Bazel ${USE_BAZEL_VERSION} not found or version mismatch. Installing..."
-  mkdir -p "${BAZEL_INSTALL_DIR}/bin"
-  curl -fLo "${BAZEL_INSTALL_DIR}/bin/bazel" "https://releases.bazel.build/${USE_BAZEL_VERSION}/release/bazel-${USE_BAZEL_VERSION}-linux-x86_64"
-  chmod +x "${BAZEL_INSTALL_DIR}/bin/bazel"
-  echo "Bazel ${USE_BAZEL_VERSION} installed."
-else
-  echo "Using cached Bazel ${USE_BAZEL_VERSION}"
-fi
-
-export PATH="${BAZEL_INSTALL_DIR}/bin:${PATH}"
-echo "Bazel version check:"
-bazel --version
-# --- END Bazel Version Management ---
-
 PYENV_ROOT="/home/kbuilder/.pyenv"
 PYTHON_VERSION=${PYTHON_VERSION:-"3.11"}
 
@@ -51,10 +31,9 @@ pyenv global "$PYTHON_VERSION"
 cd "${KOKORO_ARTIFACTS_DIR}/github/gnn/"
 
 PIP_TEST_PREFIX=bazel_pip
-VENV_DIR="venv"
 
-python -m venv "${VENV_DIR}"
-source "${VENV_DIR}/bin/activate"
+python -m venv venv
+source venv/bin/activate
 
 # Debug messages to indicate the python version
 python --version
@@ -66,14 +45,7 @@ pip install --upgrade pip
 TEST_ROOT=$(pwd)/${PIP_TEST_PREFIX}
 rm -rf "$TEST_ROOT"
 mkdir -p "$TEST_ROOT"
-
-# --- START Fixed Symlink ---
-# Create a relative symlink.
-# From $(pwd)/bazel_pip, tensorflow_gnn is one level up.
-ln -s ../tensorflow_gnn "${TEST_ROOT}"/tensorflow_gnn
-echo "Created symlink:"
-ls -l "${TEST_ROOT}"/tensorflow_gnn
-# --- END Fixed Symlink ---
+ln -s "$(pwd)"/tensorflow_gnn "$TEST_ROOT"/tensorflow_gnn
 
 # Print the OS version
 cat /etc/os-release
@@ -102,16 +74,4 @@ pip install dist/tensorflow_gnn-*.whl
 echo "Final packages after all pip commands:"
 pip list
 
-# Deactivate venv before running tests to avoid issues with test environments
-deactivate
-
-# Run tests
 bazel test --test_env=TF_USE_LEGACY_KERAS --build_tag_filters="${tag_filters}" --test_tag_filters="${tag_filters}" --test_output=errors --verbose_failures=true --build_tests_only --define=no_tfgnn_py_deps=true --keep_going --experimental_repo_remote_exec //bazel_pip/tensorflow_gnn/...
-
-# --- START Cleanup Symlinks and venv ---
-echo "Removing Bazel-generated symlinks..."
-rm -f bazel-bin bazel-out bazel-genfiles bazel-testlogs bazel-gnn
-
-echo "Removing venv directory..."
-rm -rf "${VENV_DIR}"
-# --- END Cleanup Symlinks and venv ---
