@@ -16,6 +16,26 @@
 set -e
 set -x
 
+# --- START Bazel Version Management ---
+USE_BAZEL_VERSION=${USE_BAZEL_VERSION:-"7.4.1"}
+BAZEL_INSTALL_DIR="/tmp/bazel/${USE_BAZEL_VERSION}"
+BAZEL_BIN="${BAZEL_INSTALL_DIR}/bin/bazel"
+
+if ! [[ -x "${BAZEL_BIN}" && $(${BAZEL_BIN} --version) == *${USE_BAZEL_VERSION}* ]]; then
+  echo "Bazel ${USE_BAZEL_VERSION} not found or version mismatch. Installing..."
+  mkdir -p "${BAZEL_INSTALL_DIR}/bin"
+  curl -fLo "${BAZEL_INSTALL_DIR}/bin/bazel" "https://releases.bazel.build/${USE_BAZEL_VERSION}/release/bazel-${USE_BAZEL_VERSION}-linux-x86_64"
+  chmod +x "${BAZEL_INSTALL_DIR}/bin/bazel"
+  echo "Bazel ${USE_BAZEL_VERSION} installed."
+else
+  echo "Using cached Bazel ${USE_BAZEL_VERSION}"
+fi
+
+export PATH="${BAZEL_INSTALL_DIR}/bin:${PATH}"
+echo "Bazel version check:"
+bazel --version
+# --- END Bazel Version Management ---
+
 PYENV_ROOT="/home/kbuilder/.pyenv"
 PYTHON_VERSION=${PYTHON_VERSION:-"3.11"}
 
@@ -45,7 +65,14 @@ pip install --upgrade pip
 TEST_ROOT=$(pwd)/${PIP_TEST_PREFIX}
 rm -rf "$TEST_ROOT"
 mkdir -p "$TEST_ROOT"
-ln -s "$(pwd)"/tensorflow_gnn "$TEST_ROOT"/tensorflow_gnn
+
+# --- START Fixed Symlink ---
+# Create a relative symlink.
+# From $(pwd)/bazel_pip, we need to go up two levels to get to the parent of tensorflow_gnn
+ln -s ../../tensorflow_gnn "${TEST_ROOT}"/tensorflow_gnn
+echo "Created symlink:"
+ls -l "${TEST_ROOT}"/tensorflow_gnn
+# --- END Fixed Symlink ---
 
 # Print the OS version
 cat /etc/os-release
