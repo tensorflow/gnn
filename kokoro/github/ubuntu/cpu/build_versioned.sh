@@ -68,8 +68,8 @@ mkdir -p "$TEST_ROOT"
 
 # --- START Fixed Symlink ---
 # Create a relative symlink.
-# From $(pwd)/bazel_pip, we need to go up two levels to get to the parent of tensorflow_gnn
-ln -s ../../tensorflow_gnn "${TEST_ROOT}"/tensorflow_gnn
+# From $(pwd)/bazel_pip, tensorflow_gnn is one level up.
+ln -s ../tensorflow_gnn "${TEST_ROOT}"/tensorflow_gnn
 echo "Created symlink:"
 ls -l "${TEST_ROOT}"/tensorflow_gnn
 # --- END Fixed Symlink ---
@@ -102,3 +102,8 @@ echo "Final packages after all pip commands:"
 pip list
 
 bazel test --test_env=TF_USE_LEGACY_KERAS --build_tag_filters="${tag_filters}" --test_tag_filters="${tag_filters}" --test_output=errors --verbose_failures=true --build_tests_only --define=no_tfgnn_py_deps=true --keep_going --experimental_repo_remote_exec //bazel_pip/tensorflow_gnn/...
+
+# --- START Remove Bazel Symlinks ---
+echo "Removing Bazel-generated symlinks..."
+rm -f bazel-bin bazel-out bazel-genfiles bazel-testlogs bazel-gnn
+# --- END Remove Bazel Symlinks ---
