@@ -16,10 +16,6 @@
 set -e
 set -x
 
-# TODO: b/476991278 – Remove when fixed.
-echo "Build disabled with tf-nightly due to b/476991278."
-exit 0
-
 PYENV_ROOT="/home/kbuilder/.pyenv"
 PYTHON_VERSION=${PYTHON_VERSION:-"3.11"}
 
@@ -36,15 +32,17 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gnn/"
 
 PIP_TEST_PREFIX=bazel_pip
 
-python -m venv venv
-source venv/bin/activate
+python -m venv build_venv
+source build_venv/bin/activate
 
 # Check the python version
 python --version
-python3 --version
 
 # update pip
 pip install --upgrade pip
+
+# Install build
+pip install build
 
 TEST_ROOT=$(pwd)/${PIP_TEST_PREFIX}
 rm -rf "$TEST_ROOT"
@@ -59,21 +57,34 @@ if [[ -n "${USE_BAZEL_VERSION}" && $(bazel --version) != *${USE_BAZEL_VERSION}* 
 fi
 
 bazel clean
-pip install -r requirements-dev.txt --progress-bar off
-pip install tf-keras-nightly tf-nightly --progress-bar off --upgrade
-# We need to remove the dependency on tensorflow to test nightly
-# The dependencies will be provided by tf-nightly
-perl  -i -lpe '$k+= s/tensorflow>=2\.[0-9]+\.[0-9]+(,<=?[0-9.]+)?;/tf-nightly;/g; END{exit($k != 1)}' setup.py
-python3 setup.py bdist_wheel
-pip uninstall -y tensorflow_gnn
+pip install --group test-nightly --progress-bar off --upgrade
+python3 -m build --wheel
+deactivate
+
+# Start the test environment.
+python3 -m venv test_venv
+source test_venv/bin/activate
+
+# Check the python version
+python --version
+
+pip install --upgrade pip
 pip install dist/tensorflow_gnn-*.whl
+pip uninstall -y tensorflow tf-keras
+pip install --group test-nightly --progress-bar off --upgrade
 
 echo "Final packages after all pip commands:"
 pip list
 
 # Check that tf-nightly is installed but tensorflow is not
 # Also check that tf-keras-nightly is installed.
-pip freeze | grep -q tf-nightly= && ! pip freeze | grep -q tensorflow=
-pip freeze | grep -q tf-keras-nightly= && ! pip freeze | grep -q tf-keras=
+if pip freeze | grep -q tf-nightly= && ! pip freeze | grep -q tensorflow=; then
+  echo "Found tensorflow and tf-nightly in the environment."
+  exit 1
+fi
+if pip freeze | grep -q tf-keras-nightly= && ! pip freeze | grep -q tf-keras=; then
+  echo "Found tf-keras and tf-keras-nightly in the environment."
+  exit 1
+fi
 # The env variable is needed to ensure that TF keras still behaves like keras 2
 bazel test --test_env="TF_USE_LEGACY_KERAS=1" --build_tag_filters="${tag_filters}" --test_tag_filters="${tag_filters}" --test_output=errors --verbose_failures=true --build_tests_only --define=no_tfgnn_py_deps=true --keep_going --experimental_repo_remote_exec //bazel_pip/tensorflow_gnn/...
