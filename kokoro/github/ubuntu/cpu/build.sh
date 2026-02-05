@@ -16,10 +16,6 @@
 set -e
 set -x
 
-# TODO: b/476991278 – Remove when fixed.
-echo "Build disabled with tf-nightly due to b/476991278."
-exit 0
-
 PYENV_ROOT="/home/kbuilder/.pyenv"
 PYTHON_VERSION=${PYTHON_VERSION:-"3.11"}
 
@@ -64,6 +60,10 @@ pip install tf-keras-nightly tf-nightly --progress-bar off --upgrade
 # We need to remove the dependency on tensorflow to test nightly
 # The dependencies will be provided by tf-nightly
 perl  -i -lpe '$k+= s/tensorflow>=2\.[0-9]+\.[0-9]+(,<=?[0-9.]+)?;/tf-nightly;/g; END{exit($k != 1)}' setup.py
+# tf-nightly 2.21 lifted the protobuf version to what google-vizier 0.1.24 wants
+# but what google-vizier 0.1.21 together with apache-beam does not allow.
+# TODO: b/482003228 - Replace this patch by a proper dependency cleanup.
+perl  -i -lpe '$k+= s/google-vizier>=0.0.13,!=0.1.23,!=0.1.24/google-vizier>=0.0.13,!=0.1.23/g; END{exit($k != 1)}' setup.py
 python3 setup.py bdist_wheel
 pip uninstall -y tensorflow_gnn
 pip install dist/tensorflow_gnn-*.whl
