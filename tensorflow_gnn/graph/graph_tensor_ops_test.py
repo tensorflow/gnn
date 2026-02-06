@@ -25,11 +25,9 @@ from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_ops as ops
 from tensorflow_gnn.graph import pool_ops
 from tensorflow_gnn.graph import readout
-# pylint: disable=g-direct-tensorflow-import,g-import-not-at-top
-if not tf.__version__.startswith('2.20.'):  # TODO: b/441006328 - Remove this.
-  # The following import crashes with tf-nightly~=2.20.0.
-  from ai_edge_litert import interpreter as tfl_interpreter
-# pylint: enable=g-direct-tensorflow-import,g-import-not-at-top
+# pylint: disable=g-direct-tensorflow-import
+from ai_edge_litert import interpreter as tfl_interpreter
+# pylint: enable=g-direct-tensorflow-import
 
 as_tensor = tf.convert_to_tensor
 as_ragged = tf.ragged.constant
@@ -643,9 +641,6 @@ class ReorderNodesTest(tf.test.TestCase, parameterized.TestCase):
 
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    if tf.__version__.startswith('2.20.'):
-      self.skipTest('TODO: b/441006328 - tfl_interpreter cannot be imported '
-                    f'next to tf-nightly~=2.20.0; got TF {tf.__version__}')
     interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner('serving_default')
     obtained = signature_runner(**test_graph_dict)['final_edge_adjacency']
@@ -1308,9 +1303,6 @@ class EdgeMaskingTest(tf.test.TestCase, parameterized.TestCase):
 
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    if tf.__version__.startswith('2.20.'):
-      self.skipTest('TODO: b/441006328 - tfl_interpreter cannot be imported '
-                    f'next to tf-nightly~=2.20.0; got TF {tf.__version__}')
     interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner('serving_default')
     obtained = signature_runner(**test_graph_dict)['final_edge_adjacency']
@@ -1679,9 +1671,6 @@ class LineGraphTest(tf.test.TestCase, parameterized.TestCase):
 
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     model_content = converter.convert()
-    if tf.__version__.startswith('2.20.'):
-      self.skipTest('TODO: b/441006328 - tfl_interpreter cannot be imported '
-                    f'next to tf-nightly~=2.20.0; got TF {tf.__version__}')
     interpreter = tfl_interpreter.Interpreter(model_content=model_content)
     signature_runner = interpreter.get_signature_runner('serving_default')
     obtained = signature_runner(**test_graph_dict)['final_edge_adjacency']
