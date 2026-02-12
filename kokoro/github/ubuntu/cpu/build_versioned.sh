@@ -19,6 +19,18 @@ set -x
 PYENV_ROOT="/home/kbuilder/.pyenv"
 PYTHON_VERSION=${PYTHON_VERSION:-"3.11"}
 
+function force_tensorflow_version() {
+  if [[ -z "${TF_VERSION}" ]]; then
+    echo "TF_VERSION is not set. Not forcing tensorflow version."
+    return
+  fi
+
+  pip install tensorflow=="${TF_VERSION}" --progress-bar off --upgrade
+  if [[ "$TF_USE_LEGACY_KERAS" == 1 ]]; then
+    pip install tf-keras=="${TF_VERSION}" --progress-bar off --upgrade
+  fi
+}
+
 echo "Installing pyenv.."
 git clone https://github.com/pyenv/pyenv.git "$PYENV_ROOT"
 export PATH="/home/kbuilder/.local/bin:$PYENV_ROOT/bin:$PATH"
@@ -32,15 +44,17 @@ cd "${KOKORO_ARTIFACTS_DIR}/github/gnn/"
 
 PIP_TEST_PREFIX=bazel_pip
 
-python -m venv venv
-source venv/bin/activate
+python -m venv build_venv
+source build_venv/bin/activate
 
 # Debug messages to indicate the python version
 python --version
-python3 --version
 
 # update pip
 pip install --upgrade pip
+
+# Install build
+pip install build
 
 TEST_ROOT=$(pwd)/${PIP_TEST_PREFIX}
 rm -rf "$TEST_ROOT"
@@ -62,13 +76,27 @@ if [[ -n "${USE_BAZEL_VERSION}" && $(bazel --version) != *${USE_BAZEL_VERSION}* 
 fi
 
 bazel clean
-pip install -r requirements-dev.txt --progress-bar off
-pip install tensorflow=="${TF_VERSION}" --progress-bar off --upgrade
+force_tensorflow_version
+python3 -m build --wheel
+deactivate
+
+# Start the test environment.
+python3 -m venv test_venv
+source test_venv/bin/activate
+
+# Check the python version
+python --version
+
+# update pip
+pip install --upgrade pip
+force_tensorflow_version
+
 if [[ "$TF_USE_LEGACY_KERAS" == 1 ]]; then
-  pip install tf-keras=="${TF_VERSION}" --progress-bar off --upgrade
+  pip install --group test-tf216plus --progress-bar off --upgrade
+else
+  pip install --group test-pre-tf216 --progress-bar off --upgrade
 fi
-python3 setup.py bdist_wheel
-pip uninstall -y tensorflow_gnn
+
 pip install dist/tensorflow_gnn-*.whl
 
 echo "Final packages after all pip commands:"
