@@ -75,10 +75,7 @@ def to_edge_list(tf_gnn_graph):
   node_cnt = 0
 
   for node_set_name, node_set in sorted(tf_gnn_graph.node_sets.items()):
-    if len(node_set.sizes) > 1:
-      size = int(node_set.sizes[0])
-    else:
-      size = int(node_set.sizes)
+    size = int(node_set.sizes[0])
     if '#id' in node_set.features and list(node_set.features['#id']):
       id_range = [str(x.numpy()).encode('utf-8') for x in node_set['#id']]
     else:
