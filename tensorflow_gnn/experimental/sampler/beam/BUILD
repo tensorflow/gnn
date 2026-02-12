@@ -203,6 +203,7 @@ pytype_strict_contrib_test(
 py_binary(
     name = "sampler",
     srcs = ["sampler.py"],
+    # strict_deps = False,
     deps = [
         ":sampler-lib",
         "//third_party/py/google/protobuf:use_fast_cpp_protos",  # Automatically added go/proto_python_upb_flip

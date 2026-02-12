@@ -13,13 +13,13 @@ py_library(
     name = "proto",
     srcs = ["__init__.py"],
     srcs_version = "PY3",
+    # strict_deps = False,
     visibility = ["//visibility:public"],
     deps = [
         ":eval_dag_py_proto",
         "//tensorflow_gnn/utils:api_utils",
     ],
 )
-
 
 proto_library(
     name = "eval_dag_proto",

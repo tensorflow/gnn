@@ -13,6 +13,7 @@ py_library(
     name = "proto",
     srcs = ["__init__.py"],
     srcs_version = "PY3",
+    # strict_deps = False,
     visibility = ["//visibility:public"],
     deps = [
         ":graph_schema",
@@ -39,6 +40,7 @@ py_library(
     name = "graph_schema",
     srcs = ["graph_schema.py"],
     srcs_version = "PY3",
+    # strict_deps = False,
     deps = [
         ":graph_schema_py_proto",
     ],
