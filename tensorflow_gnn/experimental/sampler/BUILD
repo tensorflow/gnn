@@ -6,6 +6,7 @@ py_test(
     name = "core_test",
     srcs = ["core_test.py"],
     python_version = "PY3",
+    # strict_deps = False,
     deps = [],
 )
 
@@ -13,6 +14,7 @@ py_test(
     name = "ext_ops_test",
     srcs = ["ext_ops_test.py"],
     python_version = "PY3",
+    # strict_deps = False,
     deps = [],
 )
 
@@ -20,5 +22,6 @@ py_test(
     name = "eval_dag_test",
     srcs = ["eval_dag_test.py"],
     python_version = "PY3",
+    # strict_deps = False,
     deps = [],
 )

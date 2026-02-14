@@ -59,10 +59,10 @@ class NetworkxTest(tf.test.TestCase):
 
     nx_graph = networkx_io.to_networkx_graph(tf_gnn_graph)
 
-    num_tf_nodes = int(tf_gnn_graph.node_sets['nodes'].sizes) + int(
-        tf_gnn_graph.node_sets['node_set2'].sizes
+    num_tf_nodes = int(tf_gnn_graph.node_sets['nodes'].sizes[0]) + int(
+        tf_gnn_graph.node_sets['node_set2'].sizes[0]
     )
-    num_tf_edges = int(tf_gnn_graph.edge_sets['edges'].sizes)
+    num_tf_edges = int(tf_gnn_graph.edge_sets['edges'].sizes[0])
 
     self.assertEqual(num_tf_nodes, nx_graph.number_of_nodes())
     self.assertEqual(num_tf_edges, nx_graph.number_of_edges())
@@ -92,8 +92,8 @@ class NetworkxTest(tf.test.TestCase):
 
     nx_graph = networkx_io.to_networkx_graph(tf_gnn_graph)
 
-    num_tf_nodes = int(tf_gnn_graph.node_sets['nodes'].sizes)
-    num_tf_edges = int(tf_gnn_graph.edge_sets['edges'].sizes)
+    num_tf_nodes = int(tf_gnn_graph.node_sets['nodes'].sizes[0])
+    num_tf_edges = int(tf_gnn_graph.edge_sets['edges'].sizes[0])
 
     self.assertEqual(num_tf_nodes, nx_graph.number_of_nodes())
     self.assertEqual(num_tf_edges, nx_graph.number_of_edges())

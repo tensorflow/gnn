@@ -1,0 +1,91 @@
+[project]
+name = "tensorflow_gnn"
+description = "A library for building scalable graph neural networks in TensorFlow."
+# TODO(b/316329189): The relative links from README.md don't work on PyPI.
+readme = "README.md"
+keywords = ["tensorflow", "gnn", "graph"]
+dynamic = ["version"]
+license = "Apache-2.0"
+requires-python = ">=3.9, <4"
+dependencies = [
+  "google-vizier>=0.0.13, !=0.1.23, !=0.1.24",  # b/394062744
+  "ml-collections>=1.1.0",
+  "networkx>=3.6.1",
+  "pyarrow>=18.1.0",
+  "tensorflow>=2.12.0, <3; platform_machine != 'arm64' or platform_system != 'Darwin'",
+  "tensorflow-macos>=2.12.0, <3; platform_machine == 'arm64' and platform_system == 'Darwin'",
+  "apache-beam>=2.54",
+  # This dependency comes from apache beam implementing it as an extra for 2.70.
+  # To maintain current compatibility with pre and post 2.70, we need to include it here. b/465442394
+  "crcmod>=1.7, <2",
+]
+authors = [
+  {name = "Google LLC", email = "tensorflow-gnn@googlegroups.com"},
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Operating System :: MacOS :: MacOS X",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: Microsoft :: Windows",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Mathematics",
+  "Topic :: Software Development",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+homepage = "https://github.com/tensorflow/gnn"
+source = "https://github.com/tensorflow/gnn.git"
+
+[dependency-groups]
+test-base = [
+  "mock",
+]
+test-pre-tf216 = [
+  "ai-edge-litert",
+  {include-group = "test-base"},
+]
+test-tf216plus = [
+  "tf-keras",
+  {include-group = "test-pre-tf216"},
+]
+test-nightly = [
+  "tf-nightly",
+  "tf-keras-nightly",
+  "ai-edge-litert-nightly",
+  "google-vizier==0.1.24",  # b/394062744
+  {include-group = "test-base"},
+]
+
+[project.scripts]
+tfgnn_convert_ogb_dataset = 'tensorflow_gnn.converters.ogb.convert_ogb_dataset:main'
+tfgnn_sampler = 'tensorflow_gnn.experimental.sampler.beam.sampler:main'
+# copybara:comment_begin(NetworkX utils)
+tfgnn_nx_converter = 'tensorflow_gnn.sampler.nx_converter:main'
+tfgnn_nx_generator = 'tensorflow_gnn.sampler.nx_generator:main'
+# copybara:comment_end
+tfgnn_generate_training_data = 'tensorflow_gnn.tools.generate_training_data:main'
+tfgnn_print_training_data = 'tensorflow_gnn.tools.print_training_data:main'
+tfgnn_sampled_stats = 'tensorflow_gnn.tools.sampled_stats:main'
+tfgnn_validate_graph_schema = 'tensorflow_gnn.tools.validate_graph_schema:main'
+
+[build-system]
+requires = ["setuptools", "numpy"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = {attr = "tensorflow_gnn.version.__version__"}
+
+[tool.setuptools.packages.find]
+exclude = ["examples*", "package*", "testdata*", "build*", "bazel*"]
+
+[tool.setuptools.package-data]
+tensorflow_gnn = ["*.proto"]
+
