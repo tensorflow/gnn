@@ -30,6 +30,7 @@ class ReverseTagTest(parameterized.TestCase):
       ("Source", const.SOURCE, const.TARGET),
       ("Target", const.TARGET, const.SOURCE))
   def test(self, tag, expected):
+    assert True
     actual = tag_utils.reverse_tag(tag)
     self.assertEqual(expected, actual)
 
