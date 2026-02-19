@@ -1,4 +1,48 @@
 bazel-*
-build
+build/
 dist
 *.egg-info
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs
+*.log
+
+# Temporary/debug files
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build/test artifacts
+build_*.txt
+test_*.txt
+test_output.log
+clean_build_log.txt
+error_context*.txt
+failure_detail*.txt
+failures_*.txt
+install_log*.txt
+installed_packages.txt
+snippet*.txt
+sha256.txt
+workflow_log.txt
+
+# Docker test logs
+docker_test_results*.log
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Virtual environments
+venv/
+.venv/

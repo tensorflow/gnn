@@ -48,10 +48,26 @@ del _check_keras_version
 
 # pylint: disable=line-too-long
 
+import typing as _typing
+
 from tensorflow_gnn import experimental  # Exposed as submodule. pylint: disable=unused-import
 from tensorflow_gnn import keras  # Exposed as submodule. pylint: disable=unused-import
-from tensorflow_gnn import proto  # Exposed as submodule. pylint: disable=unused-import
-from tensorflow_gnn import sampler  # Exposed as submodule. pylint: disable=unused-import
+
+if _typing.TYPE_CHECKING:
+  from tensorflow_gnn import proto
+else:
+  try:
+    from tensorflow_gnn import proto  # Exposed as submodule. pylint: disable=unused-import
+  except ImportError:
+    proto = None
+
+if _typing.TYPE_CHECKING:
+  from tensorflow_gnn import sampler
+else:
+  try:
+    from tensorflow_gnn import sampler  # Exposed as submodule. pylint: disable=unused-import
+  except ImportError:
+    sampler = None
 from tensorflow_gnn import version
 from tensorflow_gnn.graph import adjacency
 from tensorflow_gnn.graph import batching_utils
@@ -68,8 +84,13 @@ from tensorflow_gnn.graph import padding_ops
 from tensorflow_gnn.graph import pool_ops
 from tensorflow_gnn.graph import preprocessing_common
 from tensorflow_gnn.graph import readout
-from tensorflow_gnn.graph import schema_utils
-from tensorflow_gnn.graph import schema_validation
+# schema_utils and schema_validation depend on proto; import conditionally.
+if proto is not None:
+  from tensorflow_gnn.graph import schema_utils
+  from tensorflow_gnn.graph import schema_validation
+else:
+  schema_utils = None
+  schema_validation = None
 from tensorflow_gnn.graph import tag_utils
 from tensorflow_gnn.graph import tensor_utils
 from tensorflow_gnn.utils import api_utils
@@ -138,8 +159,13 @@ GraphTensorSpec = graph_tensor.GraphTensorSpec
 homogeneous = graph_tensor.homogeneous
 
 # Legacy aliases from before tfgnn.proto.*.
-GraphSchema = proto.GraphSchema
-Feature = proto.Feature
+# Legacy aliases from before tfgnn.proto.*.
+if proto is not None:
+  GraphSchema = proto.GraphSchema
+  Feature = proto.Feature
+else:
+  GraphSchema = _typing.Any
+  Feature = _typing.Any
 
 # Preprocessing (batching and padding) types.
 FeatureDefaultValues = preprocessing_common.FeatureDefaultValues
@@ -214,20 +240,22 @@ readout_named = readout.structured_readout
 readout_named_into_feature = readout.structured_readout_into_feature
 
 # Schema conversion and I/O functions.
-parse_schema = schema_utils.parse_schema
-read_schema = schema_utils.read_schema
-write_schema = schema_utils.write_schema
-check_compatible_with_schema_pb = schema_utils.check_compatible_with_schema_pb
-create_graph_spec_from_schema_pb = schema_utils.create_graph_spec_from_schema_pb
-create_schema_pb_from_graph_spec = schema_utils.create_schema_pb_from_graph_spec
-iter_sets = schema_utils.iter_sets
-iter_features = schema_utils.iter_features
+if schema_utils is not None:
+  parse_schema = schema_utils.parse_schema
+  read_schema = schema_utils.read_schema
+  write_schema = schema_utils.write_schema
+  check_compatible_with_schema_pb = schema_utils.check_compatible_with_schema_pb
+  create_graph_spec_from_schema_pb = schema_utils.create_graph_spec_from_schema_pb
+  create_schema_pb_from_graph_spec = schema_utils.create_schema_pb_from_graph_spec
+  iter_sets = schema_utils.iter_sets
+  iter_features = schema_utils.iter_features
 
 # Schema validation.
-ValidationError = schema_validation.ValidationError
-validate_schema = schema_validation.validate_schema
-check_required_features = schema_validation.check_required_features
-assert_constraints = schema_validation.assert_constraints
+if schema_validation is not None:
+  ValidationError = schema_validation.ValidationError
+  validate_schema = schema_validation.validate_schema
+  check_required_features = schema_validation.check_required_features
+  assert_constraints = schema_validation.assert_constraints
 
 # Tensor Validation Utils
 check_scalar_graph_tensor = graph_tensor.check_scalar_graph_tensor
@@ -247,10 +275,11 @@ disable_graph_tensor_validation = graph_constants.disable_graph_tensor_validatio
 disable_graph_tensor_validation_at_runtime = graph_constants.disable_graph_tensor_validation_at_runtime
 
 # Remove all names added by module imports, unless explicitly allowed here.
-api_utils.remove_submodules_except(__name__, [
-    "experimental",
-    "keras",
-    "proto",
-    "sampler",
-])
+_allowed = ["experimental", "keras"]
+if proto is not None:
+  _allowed.append("proto")
+if sampler is not None:
+  _allowed.append("sampler")
+api_utils.remove_submodules_except(__name__, _allowed)
+del _allowed
 # LINT.ThenChange(api_def/tfgnn-symbols.txt)
