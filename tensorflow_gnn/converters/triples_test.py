@@ -30,8 +30,8 @@ class TriplesTest(tf.test.TestCase):
             ["nns", "are", "awesome"]]
 
     gt = triples.triple_to_graphtensor(triples=spos)
-    is_source = int(gt.edge_sets["is"].adjacency.source)
-    is_target = int(gt.edge_sets["is"].adjacency.target)
+    is_source = int(gt.edge_sets["is"].adjacency.source[0])
+    is_target = int(gt.edge_sets["is"].adjacency.target[0])
 
     self.assertLen(gt.node_sets, 1)
     self.assertLen(gt.edge_sets, 2)

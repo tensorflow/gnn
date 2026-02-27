@@ -57,6 +57,7 @@ exports_files(
 pytype_strict_contrib_test(
     name = "hparams_vizier_test",
     srcs = ["hparams_vizier_test.py"],
+    tags = ["vizier"],
     deps = [
         ":hparams_vizier",
         "//:expect_vizier_service_pyvizier_installed",
