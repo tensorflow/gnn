@@ -34,6 +34,7 @@ pytype_strict_library(
     visibility = ["//visibility:public"],
     deps = [
         ":version",
+        "//:expect_tensorflow_installed",
         "//tensorflow_gnn/experimental",
         "//tensorflow_gnn/graph:adjacency",
         "//tensorflow_gnn/graph:batching_utils",

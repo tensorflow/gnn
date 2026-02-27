@@ -16,19 +16,21 @@
 
 import os
 import platform
+import shutil
 import subprocess
 import sys
 
 import setuptools
-from setuptools import find_namespace_packages
+# from setuptools import find_namespace_packages
 from setuptools import setup
 from setuptools.command.install import install
 from setuptools.dist import Distribution
 # pylint:disable=g-bad-import-order
 # setuptools must be imported prior to distutils.
 # TODO(b/317036825): Stop using distutils, Python 3.12 doesn't have it.
-from distutils import spawn
+# pylint: disable=deprecated-module
 from distutils.command import build
+# pylint: enable=deprecated-module
 # pylint:enable=g-bad-import-order
 
 
@@ -46,7 +48,6 @@ class _BuildCommand(build.build):
     - pip install . (which invokes bdist_wheel)
     - python setup.py install (which invokes install command)
     - python setup.py bdist_wheel (which invokes bdist_wheel command)
-
   """
 
   def _build_cc_extensions(self):
@@ -57,7 +58,8 @@ class _BuildCommand(build.build):
   # sequentially when running a "build" command, if the second item in the tuple
   # (predicate method) is evaluated to true.
   sub_commands = [
-      ('bazel_build', _build_cc_extensions)] + build.build.sub_commands
+      ('bazel_build', _build_cc_extensions)
+  ] + build.build.sub_commands
 
 
 class _BazelBuildCommand(setuptools.Command):
@@ -71,12 +73,13 @@ class _BazelBuildCommand(setuptools.Command):
     pass
 
   def finalize_options(self):
-    self._bazel_cmd = spawn.find_executable('bazel')
+    self._bazel_cmd = shutil.which('bazel')
     if not self._bazel_cmd:
       raise RuntimeError(
           'Could not find "bazel" binary. Please visit '
           'https://docs.bazel.build/versions/master/install.html for '
-          'installation instruction.')
+          'installation instruction.'
+      )
     self._additional_build_options = []
     if platform.system() == 'Darwin':
       self._additional_build_options = ['--macos_minimum_os=10.9']
@@ -85,14 +88,14 @@ class _BazelBuildCommand(setuptools.Command):
 
   def run(self):
     subprocess.check_call(
-        [self._bazel_cmd,
-         'run', '-c', 'opt', '--experimental_repo_remote_exec'] +
-        self._additional_build_options +
-        ['@tensorflow_gnn//package:move_generated_files'],
+        [self._bazel_cmd, 'run', '-c', 'opt', '--experimental_repo_remote_exec']
+        + self._additional_build_options
+        + ['package:move_generated_files'],
         # Bazel should be invoked in a directory containing bazel WORKSPACE
         # file, which is the root directory.
         cwd=os.path.dirname(os.path.realpath(__file__)),
-        env=dict(os.environ, PYTHON_BIN_PATH=sys.executable))
+        env=dict(os.environ, PYTHON_BIN_PATH=sys.executable),
+    )
 
 
 # TFDV is not a purelib. However because of the extension module is not built
@@ -121,90 +124,17 @@ def get_version():
   sys.path.insert(0, version_path)
   # pytype: disable=import-error  # pylint: disable=g-import-not-at-top
   from version import __version__ as v
+
   return v
-
-
-# Get the long description from the README file.
-# TODO(b/316329189): The relative links from README.md don't work on PyPI.
-with open('README.md') as fp:
-  _LONG_DESCRIPTION = fp.read()
-
-
-console_scripts = [
-    'tensorflow_gnn.converters.ogb.convert_ogb_dataset',
-    'tensorflow_gnn.experimental.sampler.beam.sampler',
-    # copybara:uncomment_begin(NetworkX utils)
-    # 'tensorflow_gnn.sampler.nx_converter',
-    # 'tensorflow_gnn.sampler.nx_generator',
-    # copybara:uncomment_end
-    'tensorflow_gnn.tools.generate_training_data',
-    'tensorflow_gnn.tools.print_training_data',
-    'tensorflow_gnn.tools.sampled_stats',
-    'tensorflow_gnn.tools.validate_graph_schema',
-]
 
 
 setup(
     name='tensorflow-gnn',
     version=get_version(),
-    author='Google LLC',
-    author_email='tensorflow-gnn@googlegroups.com',
-    license='Apache 2.0',
-    classifiers=[
-        'Development Status :: 5 - Production/Stable',
-        'Intended Audience :: Developers',
-        'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: Apache Software License',
-        'Operating System :: MacOS :: MacOS X',
-        'Operating System :: POSIX :: Linux',
-        'Operating System :: Microsoft :: Windows',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3 :: Only',
-        'Topic :: Scientific/Engineering',
-        'Topic :: Scientific/Engineering :: Artificial Intelligence',
-        'Topic :: Scientific/Engineering :: Mathematics',
-        'Topic :: Software Development',
-        'Topic :: Software Development :: Libraries',
-        'Topic :: Software Development :: Libraries :: Python Modules',
-    ],
-    namespace_packages=[],
-    install_requires=[
-        'google-vizier>=0.0.13,!=0.1.23,!=0.1.24',  # b/394062744
-        'ml-collections',
-        'networkx',
-        'pyarrow',
-        # pylint:disable=g-line-too-long
-        'tensorflow>=2.12.0,<3; platform_machine != "arm64" or platform_system != "Darwin"',
-        'tensorflow-macos>=2.12.0,<3; platform_machine == "arm64" and platform_system == "Darwin"',
-        # pylint:enable=g-line-too-long
-        'apache-beam>=2.54.0',
-        'crcmod>=1.7,<2',
-    ],
-    python_requires='>=3.9,<4',
-    packages=find_namespace_packages(
-        exclude=['examples*', 'package*', 'testdata*'],
-    ),
-    include_package_data=True,
-    package_data={'': ['*.proto']},
-    zip_safe=False,
     distclass=_SourceDistributionWithProtos,
-    description='A library for building scalable graph neural networks in TensorFlow.',
-    long_description=_LONG_DESCRIPTION,
-    long_description_content_type='text/markdown',
-    keywords='tensorflow gnn graph',
-    url='https://github.com/tensorflow/gnn',
-    download_url='https://github.com/tensorflow/gnn.git',
-    requires=[],
     cmdclass={
         'install': _InstallPlatlibCommand,
         'build': _BuildCommand,
         'bazel_build': _BazelBuildCommand,
     },
-    entry_points={
-        'console_scripts': [
-            'tfgnn_{}={}:main'.format(libname.split('.')[-1], libname)
-            for libname in console_scripts
-        ],
-    }
 )

@@ -10,7 +10,7 @@ load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "distribute_py_test")
 
 package(
     default_applicable_licenses = ["//tensorflow_gnn:license"],
-    default_visibility = ["//visibility:private"],
+    default_visibility = ["//visibility:public"],
 )
 
 licenses(["notice"])
@@ -20,9 +20,7 @@ package_group(name = "users")
 pytype_strict_library(
     name = "contrastive_losses",
     srcs = ["__init__.py"],
-    visibility = [
-        ":users",
-    ],
+    visibility = ["//visibility:public"],
     deps = [
         ":layers",
         ":metrics",

@@ -22,7 +22,7 @@ from tensorflow_gnn.graph import graph_constants as gc
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_io as io
 from tensorflow_gnn.keras import keras_tensors as kt
-import tensorflow_gnn.proto.graph_schema_pb2 as schema_pb2
+from tensorflow_gnn.proto import graph_schema_pb2 as schema_pb2
 
 from google.protobuf import text_format
 

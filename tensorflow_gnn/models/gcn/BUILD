@@ -8,7 +8,7 @@ load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "tf_py_test")
 licenses(["notice"])
 
 package(
-    default_visibility = [":__subpackages__"],
+    default_visibility = ["//visibility:public"],
 )
 
 package_group(name = "users")
@@ -16,10 +16,7 @@ package_group(name = "users")
 pytype_strict_library(
     name = "gcn",
     srcs = ["__init__.py"],
-    visibility = [
-        ":__subpackages__",
-        ":users",
-    ],
+    visibility = ["//visibility:public"],
     deps = [
         ":gcn_conv",
         "//tensorflow_gnn/utils:api_utils",

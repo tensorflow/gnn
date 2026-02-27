@@ -2,8 +2,25 @@ workspace(name = "tensorflow_gnn")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
+http_archive(
+    name = "platforms",
+    sha256 = "29742e87275809b5e598dc2f04d86960cc7a55b3067d97221c9abbc9926bff0f",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/platforms/releases/download/0.0.11/platforms-0.0.11.tar.gz",
+        "https://github.com/bazelbuild/platforms/releases/download/0.0.11/platforms-0.0.11.tar.gz",
+    ],
+)
+
+# Load custom Python configuration to override local_config_python
+load("//:python_configure.bzl", "python_repository")
+
+python_repository(name = "local_config_python")
+
+register_toolchains("@local_config_python//:py_toolchain")
+
 # Define the TensorFlow archive.
 load("@tensorflow_gnn//package:tfdep.bzl", "tf_setup")
+
 tf_setup()
 
 http_archive(
@@ -25,15 +42,23 @@ http_archive(
 # Initialize the TensorFlow repository and all dependencies.
 # See @org_tensorflow//WORKSPACE for details.
 load("@org_tensorflow//tensorflow:workspace3.bzl", "tf_workspace3")
+
 tf_workspace3()
+
 load("@org_tensorflow//tensorflow:workspace2.bzl", "tf_workspace2")
+
 tf_workspace2()
+
 load("@org_tensorflow//tensorflow:workspace1.bzl", "tf_workspace1")
+
 tf_workspace1()
+
 load("@org_tensorflow//tensorflow:workspace0.bzl", "tf_workspace0")
+
 tf_workspace0()
 
 load("@rules_python//python:repositories.bzl", "py_repositories")
+
 py_repositories()
 
 # This seems required to avoid a proxy setup.

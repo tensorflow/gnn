@@ -3,7 +3,7 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 def tf_setup():
-    """Define tensorflow>=2.13.0 dependency for Bazel build.
+    """Define tensorflow>=2.15.0 dependency for Bazel build.
 
     This downloads the TensorFlow files required for building TFGNN protos
     (examples and graph_schema).This TF version should always be within our supported range and gets
@@ -13,9 +13,9 @@ def tf_setup():
     """
     http_archive(
         name = "org_tensorflow",
-        sha256 = "e58c939079588623e6fa1d054aec2f90f95018266e0a970fd353a5244f5173dc",
+        sha256 = "9cec5acb0ecf2d47b16891f8bc5bc6fbfdffe1700bdadc0d9ebe27ea34f0c220",
         urls = [
-            "https://github.com/tensorflow/tensorflow/archive/refs/tags/v2.13.0.tar.gz",
+            "https://github.com/tensorflow/tensorflow/archive/refs/tags/v2.15.0.tar.gz",
         ],
-        strip_prefix = "tensorflow-2.13.0",
+        strip_prefix = "tensorflow-2.15.0",
     )

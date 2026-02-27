@@ -4,6 +4,7 @@ load("@rules_proto//proto:defs.bzl", "proto_library")
 
 # buildifier: disable=out-of-order-load, disable=same-origin-load
 load("@rules_python//python:proto.bzl", "py_proto_library")
+load("@rules_python//python:defs.bzl", "py_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -13,6 +14,7 @@ py_library(
     name = "proto",
     srcs = ["__init__.py"],
     srcs_version = "PY3",
+    # strict_deps = False,
     visibility = ["//visibility:public"],
     deps = [
         ":graph_schema",
@@ -39,6 +41,7 @@ py_library(
     name = "graph_schema",
     srcs = ["graph_schema.py"],
     srcs_version = "PY3",
+    # strict_deps = False,
     deps = [
         ":graph_schema_py_proto",
     ],

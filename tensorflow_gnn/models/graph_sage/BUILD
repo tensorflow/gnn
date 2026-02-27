@@ -7,17 +7,14 @@ load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "tf_py_test")
 
 licenses(["notice"])
 
-package(default_visibility = [
-    "//tensorflow_gnn:__pkg__",
-    "//tensorflow_gnn/graph:__subpackages__",
-])
+package(default_visibility = ["//visibility:public"])
 
 package_group(name = "users")
 
 pytype_strict_library(
     name = "graph_sage",
     srcs = ["__init__.py"],
-    visibility = [":users"],
+    visibility = ["//visibility:public"],
     deps = [
         ":layers",
         "//tensorflow_gnn/utils:api_utils",
