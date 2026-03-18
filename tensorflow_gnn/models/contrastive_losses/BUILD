@@ -144,7 +144,8 @@ distribute_py_test(
     xla_enable_strict_auto_jit = False,
     deps = [
         ":tasks",
-        "//:expect_tensorflow_installed",
+        "//:expect_absl_installed_testing",
+        "//:expect_tensorflow_installed:tensorflow_no_contrib",
         "//tensorflow_gnn",
         "//tensorflow_gnn/models/vanilla_mpnn",
         "//tensorflow_gnn/runner",
