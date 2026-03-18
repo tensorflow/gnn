@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2022 Google LLC
+# Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,11 @@
 set -e
 set -x
 
-PYENV_ROOT="/home/kbuilder/.pyenv"
+# For pyenv python installation on ml-build image
+sudo apt-get update
+sudo apt-get install -y libbz2-dev liblzma-dev libncurses-dev libffi-dev libssl-dev libreadline-dev libsqlite3-dev zlib1g-dev
+
+PYENV_ROOT="$HOME/.pyenv"
 PYTHON_VERSION=${PYTHON_VERSION:-"3.11"}
 
 function force_tensorflow_version() {
@@ -31,18 +35,14 @@ function force_tensorflow_version() {
   fi
 }
 
-if [[ ! -d "$PYENV_ROOT" ]]; then
-  echo "Installing pyenv.."
-  git clone https://github.com/pyenv/pyenv.git "$PYENV_ROOT"
-fi
-export PATH="/home/kbuilder/.local/bin:$PYENV_ROOT/bin:$PATH"
+echo "Installing pyenv.."
+git clone https://github.com/pyenv/pyenv.git "$PYENV_ROOT"
+export PATH="$HOME/.local/bin:$PYENV_ROOT/bin:$PATH"
 eval "$(pyenv init --path)"
 
 echo "Python setup..."
 pyenv install -s "$PYTHON_VERSION"
 pyenv global "$PYTHON_VERSION"
-
-cd "${KOKORO_ARTIFACTS_DIR}/github/gnn/"
 
 PIP_TEST_PREFIX=bazel_pip
 
@@ -78,7 +78,13 @@ if [[ -n "${USE_BAZEL_VERSION}" && $(bazel --version) != *${USE_BAZEL_VERSION}* 
 fi
 
 bazel clean
-force_tensorflow_version
+
+if [[ "$TEST_TF_NIGHTLY" == "true" ]]; then
+  pip install --group test-nightly --progress-bar off --upgrade
+else
+  force_tensorflow_version
+fi
+
 python3 -m build --wheel
 deactivate
 
@@ -91,17 +97,34 @@ python --version
 
 # update pip
 pip install --upgrade pip
-force_tensorflow_version
 
-if [[ "$TF_USE_LEGACY_KERAS" == 1 ]]; then
-  pip install --group test-tf216plus --progress-bar off --upgrade
+if [[ "$TEST_TF_NIGHTLY" == "true" ]]; then
+  pip install dist/tensorflow_gnn-*.whl
+  pip uninstall -y tensorflow tf-keras ai-edge-litert
+  pip install --group test-nightly --progress-bar off --upgrade
+
+  # Check that tf-nightly is installed but tensorflow is not
+  # Also check that tf-keras-nightly is installed.
+  if [[ $(pip freeze | grep -q tf_nightly=; echo $?) -eq 0 && $(pip freeze | grep -q tensorflow=; echo $?) -eq 0 ]]; then
+    echo "Found tensorflow and tf_nightly in the environment."
+    exit 1
+  fi
+  if [[ $(pip freeze | grep -q tf_keras-nightly=; echo $?) -eq 0 && $(pip freeze | grep -q tf_keras=; echo $?) -eq 0 ]]; then
+    echo "Found tf_keras and tf_keras-nightly in the environment."
+    exit 1
+  fi
+
 else
-  pip install --group test-pre-tf216 --progress-bar off --upgrade
-fi
+  force_tensorflow_version
 
-# Installing wheel without vizier extra. This because vizier requires recent
-# versions of tensorflow to avoid dependency conflicts. b/394062744
-pip install dist/tensorflow_gnn-*.whl
+  if [[ "$TF_USE_LEGACY_KERAS" == 1 ]]; then
+    pip install --group test-tf216plus --progress-bar off --upgrade
+  else
+    pip install --group test-pre-tf216 --progress-bar off --upgrade
+  fi
+
+  pip install dist/tensorflow_gnn-*.whl
+fi
 
 echo "Final packages after all pip commands:"
 pip list
