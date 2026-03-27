@@ -70,7 +70,9 @@ distribute_py_test(
     ],
     xla_enable_strict_auto_jit = False,
     deps = [
+        ":interfaces",
         ":orchestration",
+        "//:expect_absl_installed_testing",
         "//third_party/py/immutabledict",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",

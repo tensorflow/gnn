@@ -11,6 +11,7 @@ load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "tf_py_test")
 licenses(["notice"])
 
 package(
+    default_applicable_licenses = ["//tensorflow_gnn:license"],
     default_visibility = [":__subpackages__"],
 )
 
@@ -56,6 +57,7 @@ exports_files(
 pytype_strict_contrib_test(
     name = "hparams_vizier_test",
     srcs = ["hparams_vizier_test.py"],
+    tags = ["vizier"],
     deps = [
         ":hparams_vizier",
         "//:expect_vizier_service_pyvizier_installed",
