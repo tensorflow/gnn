@@ -129,7 +129,7 @@ class MetricsTest(tf.test.TestCase, parameterized.TestCase):
       dict(
           testcase_name="coherence_collapsed",
           metric_fn=metrics.coherence,
-          inputs=tf.ones((20, 2)),
+          inputs=tf.constant([[1.0, 2.0]] + [[1.0, 1.0]] * 19),
           expected=10.0,
       ),
       dict(
