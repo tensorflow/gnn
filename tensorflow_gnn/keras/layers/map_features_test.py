@@ -16,6 +16,7 @@
 
 import collections
 import functools
+import sys
 
 from absl.testing import parameterized
 import tensorflow as tf
@@ -154,7 +155,12 @@ class MapFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
     # Nodes keep "n_dense" unchanged, lose "n_ragged".
     self.assertCountEqual(["n_dense"], nodes.features.keys())
-    self.assertAllEqual([[11., 12.], [21., 22.]], nodes["n_dense"])
+    # Provoke a failure on GitHub but not inside Google.
+    # TODO: b/477311944 - Revert this.
+    if sys.version_info >= (3, 12):
+      self.assertAllEqual([[11., 12.], [21., 22.]], nodes["n_dense"])
+    else:
+      self.assertAllEqual([[11., 12.], [99., 99.]], nodes["n_dense"])
 
     # Edges lose all features.
     self.assertEmpty(edges.features)
