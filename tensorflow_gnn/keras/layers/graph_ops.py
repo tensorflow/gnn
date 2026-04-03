@@ -127,7 +127,7 @@ class Readout(tf.keras.layers.Layer):
     if not location:
       raise ValueError(
           "The Readout layer requires one of edge_set_name, node_set_name or "
-          "from_context to be set at init or call time")
+          "from_context to be set at init or call time.")
 
     _check_init_call_arg_consistency("Readout", "feature_name",
                                      self._feature_name, feature_name)
