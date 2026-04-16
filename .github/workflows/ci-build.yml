@@ -39,10 +39,10 @@ jobs:
     with:
       job_name: 'build-and-test-oldest'
       python_version: '3.11'
-      tf_version_spec: '2.12.*'
-      legacy_keras: '0'
+      tf_version_spec: '2.16.*'
+      legacy_keras: '1'
       # Disable Vizier tests by default since vizier is now an extra dependency (b/394062744).
-      tag_filters: ',-tf_at_least_2_13,-vizier'
+      tag_filters: ',-vizier'
 
   build-and-test-newest-stable:
     name: build-and-test-newest-stable

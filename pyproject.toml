@@ -6,13 +6,13 @@ readme = "README.md"
 keywords = ["tensorflow", "gnn", "graph"]
 dynamic = ["version"]
 license = "Apache-2.0"
-requires-python = ">=3.9, <4"
+requires-python = ">=3.11, <4"
 dependencies = [
   "ml-collections>=1.1.0",
   "networkx>=3.6.1",
   "pyarrow>=18.1.0",
-  "tensorflow>=2.12.0, <3; platform_machine != 'arm64' or platform_system != 'Darwin'",
-  "tensorflow-macos>=2.12.0, <3; platform_machine == 'arm64' and platform_system == 'Darwin'",
+  "tensorflow>=2.16.0, <3; platform_machine != 'arm64' or platform_system != 'Darwin'",
+  "tensorflow-macos>=2.16.0, <3; platform_machine == 'arm64' and platform_system == 'Darwin'",
   # TODO(b/490166623): Lift restriction once unit tests are fixed.
   "apache-beam>=2.54, <=2.67",
   # This dependency comes from apache beam implementing it as an extra for 2.70.
