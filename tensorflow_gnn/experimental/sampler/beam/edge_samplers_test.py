@@ -159,7 +159,7 @@ class EdgeSamplersTest(ExecutorTestBase, parameterized.TestCase):
         b's1': [[np.array([1]), np.array([1], np.int64)]],
         b's2': [[np.array([2]), np.array([1], np.int64)]],
     }
-    with beam.Pipeline() as root:
+    with beam.Pipeline('FnApiRunner') as root:
       seeds = root | 'seeds' >> beam.Create(seeds)
       edges = root | 'edges' >> beam.Create(edges)
       feats = root | 'feats' >> beam.Create(feats)

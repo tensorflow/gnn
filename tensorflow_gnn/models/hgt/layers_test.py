@@ -13,12 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+import sys
+
 from absl.testing import parameterized
 import numpy as np
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.models.hgt import layers
 from tensorflow_gnn.utils import tf_test_utils as tftu
+
 # pylint: disable=g-direct-tensorflow-import
 from ai_edge_litert import interpreter as tfl_interpreter
 # pylint: enable=g-direct-tensorflow-import
@@ -703,6 +706,25 @@ class HgtTest(tf.test.TestCase, parameterized.TestCase):
       ),
   )
   def test_hgtconv_saving(self, model_reloading, kernel_initializer):
+    if (
+        # Check if running on Python 3.12 or later.
+        sys.version_info[:2] >= (3, 12)
+        # Check if running on TF pre 2.21.
+        and any(
+            tf.__version__.startswith(v)
+            for v in ("2.17.", "2.18.", "2.19.", "2.20.")
+        )
+        # Check if doing the KERAS parameterized test.
+        and model_reloading == tftu.ModelReloading.KERAS
+    ):
+      # The test fails on python 3.12+ and TF <2.21 due to a missing check on
+      # TF's side. Basically TF fails to recognize that a DictWrapper is not
+      # a TF type, thus causing an error when attempting to reload the model
+      # using the KERAS format. This is fixed in TF 2.21.
+      self.skipTest(
+          "Skipping test of KERAS reloading for TF <2.21 and python >=3.12"
+      )
+
     # Build a Model around the Layer, possibly saved and restored.
     inputs = tf.keras.layers.Input(
         type_spec=_heterogeneous_example_graph().spec)

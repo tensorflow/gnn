@@ -108,7 +108,7 @@ class TFModelStageTest(ExecutorTestBase):
             np.array([2], np.int64),
         ]],
     }
-    with beam.Pipeline() as root:
+    with beam.Pipeline('FnApiRunner') as root:
       values = root | beam.Create(values)
       result = executor_lib.execute(
           program, {'input': values}, artifacts_path=temp_dir
@@ -179,7 +179,7 @@ class TFModelStageTest(ExecutorTestBase):
         ]],
     }
 
-    with beam.Pipeline() as root:
+    with beam.Pipeline('FnApiRunner') as root:
       i1_values = root | 'i1' >> beam.Create(i1_values)
       i2_values = root | 'i2' >> beam.Create(i2_values)
       result = executor_lib.execute(

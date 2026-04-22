@@ -35,8 +35,10 @@ function force_tensorflow_version() {
   fi
 }
 
-echo "Installing pyenv.."
-git clone https://github.com/pyenv/pyenv.git "$PYENV_ROOT"
+if [[ ! -d "$PYENV_ROOT" ]]; then
+  echo "Installing pyenv.."
+  git clone https://github.com/pyenv/pyenv.git "$PYENV_ROOT"
+fi
 export PATH="$HOME/.local/bin:$PYENV_ROOT/bin:$PATH"
 eval "$(pyenv init --path)"
 
@@ -46,8 +48,8 @@ pyenv global "$PYTHON_VERSION"
 
 PIP_TEST_PREFIX=bazel_pip
 
-python -m venv build_venv
-source build_venv/bin/activate
+python -m venv "build_py${PYTHON_VERSION}_venv"
+source build_py${PYTHON_VERSION}_venv/bin/activate
 
 # Debug messages to indicate the python version
 python --version
@@ -89,8 +91,8 @@ python3 -m build --wheel
 deactivate
 
 # Start the test environment.
-python3 -m venv test_venv
-source test_venv/bin/activate
+python3 -m venv test_py${PYTHON_VERSION}_venv
+source test_py${PYTHON_VERSION}_venv/bin/activate
 
 # Check the python version
 python --version

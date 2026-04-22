@@ -109,7 +109,7 @@ class SubgraphPipelineTest(tf.test.TestCase, parameterized.TestCase):
         })
     ]
 
-    with beam.Pipeline() as root:
+    with beam.Pipeline('FnApiRunner') as root:
       result = executor_lib.execute(
           program,
           {'Input': root | 'seeds' >> beam.Create(seeds)},

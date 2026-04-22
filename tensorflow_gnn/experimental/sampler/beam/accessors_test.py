@@ -108,7 +108,7 @@ class KeyToBytesAccessorTest(ExecutorTestBase):
             np.array([0], np.int64),
         ]],
     }
-    with beam.Pipeline() as root:
+    with beam.Pipeline('FnApiRunner') as root:
       keys = root | 'keys' >> beam.Create(keys)
 
       table = root | 'table' >> beam.Create(table)
@@ -233,7 +233,7 @@ class KeyToBytesAccessorTest(ExecutorTestBase):
             np.array([1], np.int32),
         ]],
     }
-    with beam.Pipeline() as root:
+    with beam.Pipeline('FnApiRunner') as root:
       keys = root | 'keys' >> beam.Create(keys)
 
       table = root | 'table' >> beam.Create(table)

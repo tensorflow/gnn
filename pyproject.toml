@@ -6,18 +6,19 @@ readme = "README.md"
 keywords = ["tensorflow", "gnn", "graph"]
 dynamic = ["version"]
 license = "Apache-2.0"
-requires-python = ">=3.9, <4"
+requires-python = ">=3.10, <4"
 dependencies = [
   "ml-collections>=1.1.0",
-  "networkx>=3.6.1",
+  "networkx>=3.4.2",
   "pyarrow>=18.1.0",
   "tensorflow>=2.12.0, <3; platform_machine != 'arm64' or platform_system != 'Darwin'",
   "tensorflow-macos>=2.12.0, <3; platform_machine == 'arm64' and platform_system == 'Darwin'",
-  # TODO(b/490166623): Lift restriction once unit tests are fixed.
-  "apache-beam>=2.54, <=2.67",
+  # Raised lower bound to 2.57 to enable python 3.12+ support.
+  "apache-beam>=2.57, <3",
   # This dependency comes from apache beam implementing it as an extra for 2.70.
   # To maintain current compatibility with pre and post 2.70, we need to include it here. b/465442394
   "crcmod>=1.7, <2",
+  "tensorboard",
 ]
 authors = [
   {name = "Google LLC", email = "tensorflow-gnn@googlegroups.com"},
