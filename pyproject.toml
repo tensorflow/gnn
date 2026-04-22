@@ -11,14 +11,14 @@ dependencies = [
   "ml-collections>=1.1.0",
   "networkx>=3.4.2",
   "pyarrow>=18.1.0",
-  "tensorflow>=2.12.0, <3; platform_machine != 'arm64' or platform_system != 'Darwin'",
-  "tensorflow-macos>=2.12.0, <3; platform_machine == 'arm64' and platform_system == 'Darwin'",
+  "tensorflow>=2.17.0, <3",
   # Raised lower bound to 2.57 to enable python 3.12+ support.
   "apache-beam>=2.57, <3",
   # This dependency comes from apache beam implementing it as an extra for 2.70.
   # To maintain current compatibility with pre and post 2.70, we need to include it here. b/465442394
   "crcmod>=1.7, <2",
   "tensorboard",
+  "tf-keras>=2.17.0, <3",
 ]
 authors = [
   {name = "Google LLC", email = "tensorflow-gnn@googlegroups.com"},

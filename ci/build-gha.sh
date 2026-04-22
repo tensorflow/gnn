@@ -30,9 +30,7 @@ function force_tensorflow_version() {
   fi
 
   pip install tensorflow=="${TF_VERSION}" --progress-bar off --upgrade
-  if [[ "$TF_USE_LEGACY_KERAS" == 1 ]]; then
-    pip install tf-keras=="${TF_VERSION}" --progress-bar off --upgrade
-  fi
+  pip install tf-keras=="${TF_VERSION}" --progress-bar off --upgrade
 }
 
 if [[ ! -d "$PYENV_ROOT" ]]; then
@@ -127,4 +125,4 @@ fi
 echo "Final packages after all pip commands:"
 pip list
 
-bazel test --test_env=TF_USE_LEGACY_KERAS --build_tag_filters="${tag_filters}" --test_tag_filters="${tag_filters}" --test_output=errors --verbose_failures=true --build_tests_only --define=no_tfgnn_py_deps=true --keep_going --experimental_repo_remote_exec //bazel_pip/tensorflow_gnn/...
+bazel test --test_env=TF_USE_LEGACY_KERAS=1 --build_tag_filters="${tag_filters}" --test_tag_filters="${tag_filters}" --test_output=errors --verbose_failures=true --build_tests_only --define=no_tfgnn_py_deps=true --keep_going --experimental_repo_remote_exec //bazel_pip/tensorflow_gnn/...

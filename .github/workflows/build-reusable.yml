@@ -40,11 +40,6 @@ on:
         required: false
         type: boolean
         default: false
-      legacy_keras:
-        description: 'Value for TF_USE_LEGACY_KERAS'
-        required: false
-        type: string
-        default: '0'
       tag_filters:
         description: 'Bazel test tag filters'
         required: false
@@ -87,7 +82,6 @@ jobs:
           TF_VERSION: ${{ inputs.tf_version_spec }}
           KERAS_VERSION_SPEC: ${{ inputs.keras_version_spec }}
           TAG_FILTERS: ${{ inputs.tag_filters }}
-          TF_USE_LEGACY_KERAS: ${{ inputs.legacy_keras }}
           TEST_TF_NIGHTLY: ${{ inputs.test_tf_nightly }}
 
         run: ./ci/build-gha.sh
