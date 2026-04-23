@@ -52,21 +52,26 @@ it is a separate package with separate static registries and class hierarchies,
 so it does not mix well with user code that uses `import keras` and objects
 from `keras.*`. Hence we recommend to not use `keras.*` in user code.
 
+This advice applies to TF-GNN up to release 1.0. Future releases of TF-GNN
+will not support TensorFlow 2.15 anymore.
+
 ### For TensorFlow 2.12, 2.13 and 2.14
 
 Nothing special is required: These TF 2.x versions depend on the matching
 version of Keras 2.x and define `tf.keras` with it. The environment
 variable `TF_USE_LEGACY_KERAS` is ignored.
 
+This advice applies to TF-GNN up to release 1.0. Future releases of TF-GNN
+will not support these old TensorFlow versions anymore.
 
 ## Writing compatible code
 
 ### For all supported TensorFlow versions
 
-For use of TF-GNN under any supported version of TensorFlow, we recommend that
-user code does `import tensorflow as tf` and uses the Keras API at `tf.keras.*`.
-The installation instructions above make sure this is Keras v2, as required
-by the TF-GNN library itself.
+For use of TF-GNN 1.0 under any supported version of TensorFlow (including those
+before TF2.16), we recommend that user code does `import tensorflow as tf` and
+uses the Keras API at `tf.keras.*`. The installation instructions above make
+sure this is Keras v2, as required by the TF-GNN library itself.
 
 Do not import and use `keras.*` directly: it will break for TF 2.16 and above.
 

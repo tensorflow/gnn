@@ -58,10 +58,11 @@ pip install tensorflow-gnn
 For installation from source, see our [Developer
 Guide](tensorflow_gnn/docs/guide/developer.md).
 
-Key platform requirements:
+Key platform requirements (as of release 1.0):
 
   * TensorFlow 2.12 or higher, and any GPU drivers it needs
     [[instructions](https://www.tensorflow.org/install)].
+    (Future releases will raise the required TF version.)
   * Keras v2, as traditionally included with TensorFlow 2.x.
     TF-GNN does not work with the new multi-backend Keras v3.<br/>
     **Users of TF2.16+ must also `pip install tf-keras` and set
