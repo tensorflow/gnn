@@ -167,7 +167,6 @@ sh_test(
         ":saved_model_gen_testdata",
         ":saved_model_load_testdata",
     ],
-    tags = ["tf_at_least_2_13"],
 )
 
 sh_test(

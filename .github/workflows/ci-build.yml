@@ -41,7 +41,7 @@ jobs:
       python_version: '3.10'
       tf_version_spec: '2.17.*'
       # Disable Vizier tests by default since vizier is now an extra dependency (b/394062744).
-      tag_filters: ',-tf_at_least_2_13,-vizier'
+      tag_filters: ',-vizier'
 
   build-and-test-newest-stable:
     name: build-and-test-newest-stable
