@@ -11,6 +11,7 @@ load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "tf_py_test")
 licenses(["notice"])
 
 package(
+    default_applicable_licenses = ["//tensorflow_gnn:license"],  # copybara:strip
     default_visibility = [":__subpackages__"],
 )
 
