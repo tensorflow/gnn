@@ -59,6 +59,13 @@ class FromLogitsRecall(_FromLogitsMixIn, tf.keras.metrics.Recall):
   pass
 
 
+@tf.keras.utils.register_keras_serializable(package="GNN")
+class FromLogitsRecallAtPrecision(
+    _FromLogitsMixIn, tf.keras.metrics.RecallAtPrecision
+):
+  pass
+
+
 class _PerClassMetricMixIn(tf.keras.metrics.Metric):
   """Mixin for `tf.keras.metrics.Metric` with a sparse_class_id option.
 
@@ -179,19 +186,36 @@ class _Classification(interfaces.Task):
 class _BinaryClassification(_Classification):
   """Binary classification."""
 
-  def __init__(self, units: int = 1, **kwargs):
+  def __init__(
+      self,
+      units: int = 1,
+      *,
+      recall_at_precisions: Sequence[float] = (),
+      **kwargs,
+  ):
     super().__init__(units, **kwargs)
+    self._recall_at_precisions = recall_at_precisions
 
   def losses(self) -> interfaces.Losses:
     return tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
   def metrics(self) -> interfaces.Metrics:
-    return (FromLogitsPrecision(from_logits=True),
-            FromLogitsRecall(from_logits=True),
-            tf.keras.metrics.AUC(from_logits=True, name="auc_roc"),
-            tf.keras.metrics.AUC(curve="PR", from_logits=True, name="auc_pr"),
-            tf.keras.metrics.BinaryAccuracy(),
-            tf.keras.losses.BinaryCrossentropy(from_logits=True))
+    metrics_list = [
+        FromLogitsPrecision(from_logits=True),
+        FromLogitsRecall(from_logits=True),
+    ]
+    for p in self._recall_at_precisions:
+      name = f"from_logits_recall_at_p{int(p*100)}"
+      metrics_list.append(
+          FromLogitsRecallAtPrecision(from_logits=True, precision=p, name=name)
+      )
+    metrics_list.extend([
+        tf.keras.metrics.AUC(from_logits=True, name="auc_roc"),
+        tf.keras.metrics.AUC(curve="PR", from_logits=True, name="auc_pr"),
+        tf.keras.metrics.BinaryAccuracy(),
+        tf.keras.losses.BinaryCrossentropy(from_logits=True),
+    ])
+    return tuple(metrics_list)
 
 
 class _MulticlassClassification(_Classification):
@@ -372,16 +396,19 @@ class _NodeClassification(_Classification):
 class GraphBinaryClassification(_GraphClassification, _BinaryClassification):
   """Graph binary (or multi-label) classification from pooled node states."""
 
-  def __init__(self,
-               node_set_name: str,
-               units: int = 1,
-               *,
-               state_name: str = tfgnn.HIDDEN_STATE,
-               reduce_type: str = "mean",
-               name: str = "classification_logits",
-               label_fn: Optional[LabelFn] = None,
-               label_feature_name: Optional[str] = None,
-               kernel_regularizer: Any = None):
+  def __init__(
+      self,
+      node_set_name: str,
+      units: int = 1,
+      *,
+      state_name: str = tfgnn.HIDDEN_STATE,
+      reduce_type: str = "mean",
+      name: str = "classification_logits",
+      label_fn: Optional[LabelFn] = None,
+      label_feature_name: Optional[str] = None,
+      kernel_regularizer: Any = None,
+      recall_at_precisions: Sequence[float] = (),
+  ):
     """Graph binary (or multi-label) classification.
 
     This task performs binary classification (or multiple independent ones:
@@ -401,9 +428,10 @@ class GraphBinaryClassification(_GraphClassification, _BinaryClassification):
       label_feature_name: A label feature name for readout from the auxiliary
         '_readout' node set. Readout does not mutate the input `GraphTensor`.
         Mutually exclusive with `label_fn`.
-      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
-        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood by
+        `tf.keras.layers.Dense` etc. to perform weight regularization of the
         classification logits layer.
+      recall_at_precisions: Precisions for which to compute RecallAtPrecision.
     """
     super().__init__(
         node_set_name,
@@ -414,6 +442,7 @@ class GraphBinaryClassification(_GraphClassification, _BinaryClassification):
         label_fn=label_fn,
         label_feature_name=label_feature_name,
         kernel_regularizer=kernel_regularizer,
+        recall_at_precisions=recall_at_precisions,
     )
 
 
@@ -474,15 +503,18 @@ class RootNodeBinaryClassification(_RootNodeClassification,
                                    _BinaryClassification):
   """Root node binary (or multi-label) classification."""
 
-  def __init__(self,
-               node_set_name: str,
-               units: int = 1,
-               *,
-               state_name: str = tfgnn.HIDDEN_STATE,
-               name: str = "classification_logits",
-               label_fn: Optional[LabelFn] = None,
-               label_feature_name: Optional[str] = None,
-               kernel_regularizer: Any = None):
+  def __init__(
+      self,
+      node_set_name: str,
+      units: int = 1,
+      *,
+      state_name: str = tfgnn.HIDDEN_STATE,
+      name: str = "classification_logits",
+      label_fn: Optional[LabelFn] = None,
+      label_feature_name: Optional[str] = None,
+      kernel_regularizer: Any = None,
+      recall_at_precisions: Sequence[float] = (),
+  ):
     """Root node binary (or multi-label) classification.
 
     This task performs binary classification (or multiple independent ones:
@@ -505,9 +537,10 @@ class RootNodeBinaryClassification(_RootNodeClassification,
       label_feature_name: A label feature name for readout from the auxiliary
         '_readout' node set. Readout does not mutate the input `GraphTensor`.
         Mutually exclusive with `label_fn`.
-      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
-        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood by
+        `tf.keras.layers.Dense` etc. to perform weight regularization of the
         classification logits layer.
+      recall_at_precisions: Precisions for which to compute RecallAtPrecision.
     """
     super().__init__(
         node_set_name,
@@ -517,6 +550,7 @@ class RootNodeBinaryClassification(_RootNodeClassification,
         label_fn=label_fn,
         label_feature_name=label_feature_name,
         kernel_regularizer=kernel_regularizer,
+        recall_at_precisions=recall_at_precisions,
     )
 
 
@@ -577,17 +611,20 @@ class RootNodeMulticlassClassification(_RootNodeClassification,
 class NodeBinaryClassification(_NodeClassification, _BinaryClassification):
   """Node binary (or multi-label) classification via structured readout."""
 
-  def __init__(self,
-               key: str = "seed",
-               units: int = 1,
-               *,
-               feature_name: str = tfgnn.HIDDEN_STATE,
-               readout_node_set: tfgnn.NodeSetName = "_readout",
-               validate: bool = True,
-               name: str = "classification_logits",
-               label_fn: Optional[LabelFn] = None,
-               label_feature_name: Optional[str] = None,
-               kernel_regularizer: Any = None):
+  def __init__(
+      self,
+      key: str = "seed",
+      units: int = 1,
+      *,
+      feature_name: str = tfgnn.HIDDEN_STATE,
+      readout_node_set: tfgnn.NodeSetName = "_readout",
+      validate: bool = True,
+      name: str = "classification_logits",
+      label_fn: Optional[LabelFn] = None,
+      label_feature_name: Optional[str] = None,
+      kernel_regularizer: Any = None,
+      recall_at_precisions: Sequence[float] = (),
+  ):
     """Node binary (or multi-label) classification.
 
     This task performs binary classification (or multiple independent ones:
@@ -613,9 +650,10 @@ class NodeBinaryClassification(_NodeClassification, _BinaryClassification):
       label_feature_name: A label feature name for readout from the auxiliary
         '_readout' node set. Readout does not mutate the input `GraphTensor`.
         Mutually exclusive with `label_fn`.
-      kernel_regularizer: Can be set to a `kernel_regularizer` as understood
-        by `tf.keras.layers.Dense` etc. to perform weight regularization of the
+      kernel_regularizer: Can be set to a `kernel_regularizer` as understood by
+        `tf.keras.layers.Dense` etc. to perform weight regularization of the
         classification logits layer.
+      recall_at_precisions: Precisions for which to compute RecallAtPrecision.
     """
     super().__init__(
         key,
@@ -627,6 +665,7 @@ class NodeBinaryClassification(_NodeClassification, _BinaryClassification):
         label_fn=label_fn,
         label_feature_name=label_feature_name,
         kernel_regularizer=kernel_regularizer,
+        recall_at_precisions=recall_at_precisions,
     )
 
 
