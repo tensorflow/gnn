@@ -18,14 +18,13 @@ import os
 import apache_beam as beam
 from apache_beam.testing import util
 
+from google.protobuf import text_format
 import numpy as np
 import tensorflow as tf
 
 from tensorflow_gnn.experimental import sampler
 from tensorflow_gnn.experimental.sampler.beam import accessors  # pylint: disable=unused-import
 from tensorflow_gnn.experimental.sampler.beam import executor_lib
-
-from google.protobuf import text_format
 
 PCollection = beam.PCollection
 

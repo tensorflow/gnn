@@ -17,12 +17,11 @@
 from __future__ import annotations
 
 from absl.testing import parameterized
+from google.protobuf import text_format
 import tensorflow as tf
 import tensorflow_gnn
 from tensorflow_gnn.experimental.sampler.beam import sampler
 import tensorflow_gnn.sampler as sampler_lib
-
-from google.protobuf import text_format
 
 
 class TestGetSamplingModel(tf.test.TestCase, parameterized.TestCase):

@@ -20,12 +20,11 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import apache_beam as beam
 from apache_beam.testing import util
+from google.protobuf import text_format
 import numpy as np
 import tensorflow as tf
 from tensorflow_gnn.experimental.sampler import proto as pb
 from tensorflow_gnn.experimental.sampler.beam import utils
-
-from google.protobuf import text_format
 
 PCollection = beam.PCollection
 

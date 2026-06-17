@@ -21,12 +21,11 @@ from absl.testing import parameterized
 import apache_beam as beam
 from apache_beam.testing import test_pipeline
 from apache_beam.testing import util
+from google.protobuf import text_format
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.data import unigraph
 from tensorflow_gnn.utils import test_utils
-
-from google.protobuf import text_format
 
 
 class TestUnigraph(tf.test.TestCase):

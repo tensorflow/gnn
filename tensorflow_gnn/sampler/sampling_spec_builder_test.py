@@ -17,11 +17,10 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 
+from google.protobuf import text_format
 import tensorflow_gnn.proto.graph_schema_pb2 as schema_pb2
 from tensorflow_gnn.sampler import sampling_spec_builder
 from tensorflow_gnn.sampler import sampling_spec_pb2
-
-from google.protobuf import text_format
 
 
 def get_schema(edge_sets=('AA', 'AB', 'AC', 'BC', 'CD'),

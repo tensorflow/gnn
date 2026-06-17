@@ -22,13 +22,12 @@ from apache_beam.coders import typecoders
 from apache_beam.testing import util
 from apache_beam.typehints import trivial_inference
 
+from google.protobuf import text_format
 import numpy as np
 import tensorflow as tf
 
 from tensorflow_gnn.experimental import sampler
 from tensorflow_gnn.experimental.sampler.beam import executor_lib
-
-from google.protobuf import text_format
 
 PCollection = beam.PCollection
 

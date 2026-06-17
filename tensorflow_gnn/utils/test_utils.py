@@ -19,6 +19,7 @@ from os import path
 from typing import Any
 
 from google.protobuf import text_format
+
 # Google-internal import(s).
 
 

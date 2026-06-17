@@ -17,14 +17,13 @@
 import apache_beam as beam
 from apache_beam.testing import test_pipeline
 from apache_beam.testing import util
+from google.protobuf import text_format
 import numpy as np
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.data import unigraph
 from tensorflow_gnn.experimental.sampler.beam import unigraph_utils
 from tensorflow_gnn.utils import test_utils
-
-from google.protobuf import text_format
 
 
 _CUSTOMER_IDS = b"""

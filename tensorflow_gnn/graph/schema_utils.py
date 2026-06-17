@@ -16,6 +16,7 @@
 
 from typing import Any, Iterator, Mapping, Optional, Text, Tuple, Union
 
+from google.protobuf import text_format
 import tensorflow as tf
 from tensorflow_gnn.graph import adjacency
 from tensorflow_gnn.graph import graph_constants as gc
@@ -23,8 +24,6 @@ from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import graph_tensor_io as io
 from tensorflow_gnn.keras import keras_tensors as kt
 import tensorflow_gnn.proto.graph_schema_pb2 as schema_pb2
-
-from google.protobuf import text_format
 
 
 def parse_schema(schema_text: Union[bytes, str]) -> schema_pb2.GraphSchema:

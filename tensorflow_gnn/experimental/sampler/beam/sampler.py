@@ -29,6 +29,7 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.portability import fn_api_runner
+from google.protobuf import text_format
 import tensorflow as tf
 import tensorflow_gnn as tfgnn
 from tensorflow_gnn.data import unigraph
@@ -40,7 +41,6 @@ from tensorflow_gnn.experimental.sampler.beam import unigraph_utils
 from tensorflow_gnn.proto import graph_schema_pb2
 import tensorflow_gnn.sampler as sampler_lib
 
-from google.protobuf import text_format
 # Placeholder for Google-internal Beam runner
 
 

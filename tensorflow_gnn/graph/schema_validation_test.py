@@ -18,6 +18,7 @@ import copy
 from typing import List
 
 from absl import logging
+from google.protobuf import text_format
 import mock
 import tensorflow as tf
 
@@ -26,8 +27,6 @@ from tensorflow_gnn.graph import graph_constants as gc
 from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import schema_validation as sv
 import tensorflow_gnn.proto.graph_schema_pb2 as schema_pb2
-
-from google.protobuf import text_format
 
 
 as_tensor = tf.convert_to_tensor
