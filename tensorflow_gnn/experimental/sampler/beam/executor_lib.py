@@ -268,11 +268,11 @@ class CombineInputs(beam.PTransform):
         self, inputs: Tuple[bytes, Tuple[str, Values]]
     ) -> Iterator[Tuple[bytes, Values]]:
       example_id, (stage_id, values) = inputs
-      inputs = []
+      inputs = []  # pyrefly: ignore[bad-assignment]
       for matcher in self._stage.input_matchers:
         assert matcher.stage_id == stage_id, example_id
-        inputs.append(values[matcher.output_index])
-      yield (example_id, inputs)
+        inputs.append(values[matcher.output_index])  # pyrefly: ignore[missing-attribute]
+      yield (example_id, inputs)  # pyrefly: ignore[invalid-yield]
 
   @beam_typehints.with_input_types(
       Tuple[ExampleId, Iterable[Tuple[str, Values]]]
@@ -289,11 +289,11 @@ class CombineInputs(beam.PTransform):
     ) -> Iterator[Tuple[bytes, Values]]:
       example_id, outputs = inputs
       outputs = dict(outputs)
-      inputs = []
+      inputs = []  # pyrefly: ignore[bad-assignment]
       for matcher in self._stage.input_matchers:
         values = outputs[matcher.stage_id]
-        inputs.append(values[matcher.output_index])
-      yield (example_id, inputs)
+        inputs.append(values[matcher.output_index])  # pyrefly: ignore[missing-attribute]
+      yield (example_id, inputs)  # pyrefly: ignore[invalid-yield]
 
   def __init__(self, stage: pb.Stage):
     self._stage = stage
@@ -364,11 +364,11 @@ class CompositeStage(beam.PTransform):
   def expand(
       self, inputs: Tuple[Dict[str, PValues], Dict[str, PFeed]]
   ) -> PValues:
-    inputs, feeds = inputs
+    inputs, feeds = inputs  # pyrefly: ignore[bad-assignment]
     return _execute(
         self._eval_dag,
         self._layers,
-        inputs,
+        inputs,  # pyrefly: ignore[bad-argument-type]
         feeds=feeds,
         artifacts_path=self._artifacts_path,
     )

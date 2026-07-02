@@ -199,9 +199,9 @@ class HyperAdjacency(gp.GraphPieceBase):
     assert isinstance(flat_adj, HyperAdjacency)
 
     def flatten_indices(node_tag_key, index: Field) -> Field:
-      node_set_name = self.spec._metadata[node_tag_key]  # pylint: disable=protected-access
-      return utils.flatten_indices(index, num_edges_per_example,
-                                   num_nodes_per_example[node_set_name])
+      node_set_name = self.spec._metadata[node_tag_key]  # pylint: disable=protected-access  # pyrefly: ignore[unsupported-operation]
+      return utils.flatten_indices(index, num_edges_per_example,  # pyrefly: ignore[bad-argument-type]
+                                   num_nodes_per_example[node_set_name])  # pyrefly: ignore[bad-argument-type, bad-index]
 
     new_data = {
         node_tag_key: flatten_indices(node_tag_key, index)
@@ -324,7 +324,7 @@ class HyperAdjacencySpec(gp.GraphPieceSpecBase):
 
   def node_set_name(self, node_set_tag: IncidentNodeTag) -> NodeSetName:
     """Returns a node set name for the given node set tag."""
-    return self._metadata[_node_tag_to_index_key(node_set_tag)]
+    return self._metadata[_node_tag_to_index_key(node_set_tag)]  # pyrefly: ignore[bad-return, unsupported-operation]
 
   @property
   def total_size(self) -> Optional[int]:
@@ -477,7 +477,7 @@ class AdjacencySpec(HyperAdjacencySpec):
   """A type spec for `tfgnn.Adjacency`."""
 
   @classmethod
-  def from_incident_node_sets(
+  def from_incident_node_sets(  # pyrefly: ignore[bad-override]
       cls,
       source_node_set: NodeSetName,
       target_node_set: NodeSetName,
@@ -602,10 +602,10 @@ def _validate_indices(indices: Indices, allow_tf_assertions: bool) -> Indices:
 
     raise ValueError(err_message)
 
-  indices = sorted(list(indices.items()), key=lambda i: i[0])
+  indices = sorted(list(indices.items()), key=lambda i: i[0])  # pyrefly: ignore[bad-assignment]
   tag_0, (name_0, index_0) = indices[0]
   check_index(tag_0, name_0, index_0)
-  for tag_i, (name_i, index_i) in indices[1:]:
+  for tag_i, (name_i, index_i) in indices[1:]:  # pyrefly: ignore[bad-index]
     check_index(tag_i, name_i, index_i)
     check_compatibility(tag_0, name_0, index_0, tag_i, name_i, index_i)
 
@@ -613,14 +613,14 @@ def _validate_indices(indices: Indices, allow_tf_assertions: bool) -> Indices:
   # executed in the graph mode.
   if not assert_ops:
     result = {
-        node_tag: (node_set, index) for node_tag, (node_set, index) in indices
+        node_tag: (node_set, index) for node_tag, (node_set, index) in indices  # pyrefly: ignore[not-iterable]
     }
   else:
     assert allow_tf_assertions
     with tf.control_dependencies(assert_ops):
       result = {
           node_tag: (node_set, tf.identity(index))
-          for node_tag, (node_set, index) in indices
+          for node_tag, (node_set, index) in indices  # pyrefly: ignore[not-iterable]
       }
 
   return result

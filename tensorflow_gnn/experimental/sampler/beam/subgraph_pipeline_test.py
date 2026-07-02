@@ -44,7 +44,7 @@ class SubgraphPipelineTest(tf.test.TestCase, parameterized.TestCase):
     graph_schema.node_sets['a'].description = 'node set b'
     graph_schema.edge_sets['a->b'].source = 'a'
     graph_schema.edge_sets['a->b'].target = 'b'
-    graph_schema.edge_sets['a->a'].features['weights'].dtype = 1
+    graph_schema.edge_sets['a->a'].features['weights'].dtype = 1  # pyrefly: ignore[bad-assignment]
 
     sampling_spec = tfgnn.sampler.SamplingSpec()
     sampling_spec.seed_op.op_name = 'seed'
@@ -57,7 +57,7 @@ class SubgraphPipelineTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(sampling_op.edge_set_name, 'a->b')
       if ids_dtype == tf.string:
         accessor = sampler.InMemStringKeyToBytesAccessor(
-            keys_to_values={b'a': b''}
+            keys_to_values={b'a': b''}  # pyrefly: ignore[bad-argument-type]
         )
       else:
         accessor = sampler.InMemIntegerKeyToBytesAccessor(

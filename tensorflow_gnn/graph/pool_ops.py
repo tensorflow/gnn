@@ -322,7 +322,7 @@ def pool_v2(
     else:
       msg_lines.extend([
           f"  node set '{name}' has feature shape {shape.as_list()}"
-          for name, shape in zip(node_set_names, feature_shapes)])
+          for name, shape in zip(node_set_names, feature_shapes)])  # pyrefly: ignore[bad-argument-type]
     raise ValueError("\n".join(msg_lines))
 
   return _pool_internal(
@@ -477,15 +477,15 @@ def get_pool_args_as_sequences(
   elif feature_value is not None:
     feature_values = [feature_value]
   elif edge_set_names is not None:
-    feature_values = [graph.edge_sets[edge_set_name][feature_name]
+    feature_values = [graph.edge_sets[edge_set_name][feature_name]  # pyrefly: ignore[bad-index]
                       for edge_set_name in edge_set_names]
   else:
-    feature_values = [graph.node_sets[node_set_name][feature_name]
-                      for node_set_name in node_set_names]
+    feature_values = [graph.node_sets[node_set_name][feature_name]  # pyrefly: ignore[bad-index]
+                      for node_set_name in node_set_names]  # pyrefly: ignore[not-iterable]
   if edge_set_names is not None:
     _check_same_length("edge_set_names", edge_set_names, feature_values)
   else:
-    _check_same_length("node_set_names", node_set_names, feature_values)
+    _check_same_length("node_set_names", node_set_names, feature_values)  # pyrefly: ignore[bad-argument-type]
 
   return edge_set_names, node_set_names, feature_values, got_sequence_args
 
@@ -537,24 +537,24 @@ class GraphPieceReducer(abc.ABC):
       if edge_set_name is not None:
         node_or_edge_set = graph.edge_sets[edge_set_name]
       else:
-        node_or_edge_set = graph.node_sets[node_set_name]
+        node_or_edge_set = graph.node_sets[node_set_name]  # pyrefly: ignore[bad-index]
       sizes = node_or_edge_set.sizes
       return self.unsorted_segment_op(
           feature_value,
           utils.row_lengths_to_row_ids(
-              sizes, sum_row_lengths_hint=node_or_edge_set.spec.total_size),
-          utils.outer_dimension_size(sizes))
+              sizes, sum_row_lengths_hint=node_or_edge_set.spec.total_size),  # pyrefly: ignore[bad-argument-type]
+          utils.outer_dimension_size(sizes))  # pyrefly: ignore[bad-argument-type]
 
     # Pooling from edges to node.
-    adjacency = graph.edge_sets[edge_set_name].adjacency
+    adjacency = graph.edge_sets[edge_set_name].adjacency  # pyrefly: ignore[bad-index]
     if isinstance(adjacency, (kt.HyperAdjacencyKerasTensor,  # TODO(b/283404258)
                               adj.HyperAdjacency)):
-      node_set = graph.node_sets[adjacency.node_set_name(to_tag)]
+      node_set = graph.node_sets[adjacency.node_set_name(to_tag)]  # pyrefly: ignore[bad-argument-type]
       total_node_count = node_set.spec.total_size
       if total_node_count is None:
         total_node_count = node_set.total_size
       return self.unsorted_segment_op(feature_value,
-                                      adjacency[to_tag],
+                                      adjacency[to_tag],  # pyrefly: ignore[bad-argument-type, bad-index]
                                       total_node_count)
     else:
       raise ValueError(f"Edge set '{edge_set_name}' has unknown "

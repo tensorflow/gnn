@@ -141,7 +141,7 @@ class NextStateFromConcat(tf.keras.layers.Layer):
       ]) -> const.FieldOrFields:
     net = tf.nest.flatten(inputs)
     net = tf.concat(net, axis=-1)
-    net = self._transformation(net)
+    net = self._transformation(net)  # pyrefly: ignore[not-callable]
     return net
 
 
@@ -239,7 +239,7 @@ class ResidualNextState(tf.keras.layers.Layer):
     # Compute the state update.
     net = tf.nest.flatten(inputs)
     net = tf.concat(net, axis=-1)
-    net = self._residual_block(net)
+    net = self._residual_block(net)  # pyrefly: ignore[not-callable]
     if skip_connection_feature.shape[1:].num_elements() == 0:
       tf.get_logger().warning(
           "ResidualNextState() called on empty input state (latent node set?); "
@@ -253,7 +253,7 @@ class ResidualNextState(tf.keras.layers.Layer):
           f"from {skip_connection_msg}.")
     else:
       net = tf.add(net, skip_connection_feature)
-    net = self._activation(net)
+    net = self._activation(net)  # pyrefly: ignore[not-callable]
     return net
 
 

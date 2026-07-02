@@ -322,7 +322,7 @@ def assert_constraints(graph: gt.GraphTensor) -> tf.Operation:
 def _assert_constraints_feature_shape_prefix(
     graph: gt.GraphTensor) -> tf.Operation:
   """Validates the number of nodes or edges of feature tensors."""
-  with tf.name_scope("constraints_feature_shape_prefix"):
+  with tf.name_scope("constraints_feature_shape_prefix"):  # pyrefly: ignore[bad-instantiation]
     checks = []
     for set_type, set_dict in [("node", graph.node_sets),
                                ("edge", graph.edge_sets)]:
@@ -354,7 +354,7 @@ def _assert_constraints_edge_indices_range(
     graph: gt.GraphTensor) -> tf.Operation:
   """Validates that edge indices are within the bounds of node set sizes."""
 
-  with tf.name_scope("constraints_edge_indices_range"):
+  with tf.name_scope("constraints_edge_indices_range"):  # pyrefly: ignore[bad-instantiation]
     checks = []
     for set_name, edge_set in graph.edge_sets.items():
       adjacency = edge_set.adjacency
@@ -390,7 +390,7 @@ def _assert_constraints_edge_indices_range(
 
 def _assert_constraints_edge_shapes(graph: gt.GraphTensor) -> tf.Operation:
   """Validates edge shapes and that they contain a scalar index per node."""
-  with tf.name_scope("constraints_edge_indices_range"):
+  with tf.name_scope("constraints_edge_indices_range"):  # pyrefly: ignore[bad-instantiation]
     checks = []
     for set_name, edge_set in graph.edge_sets.items():
       adjacency = edge_set.adjacency

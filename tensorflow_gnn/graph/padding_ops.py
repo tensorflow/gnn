@@ -181,7 +181,7 @@ def pad_to_total_sizes(
               tf.ones([total_num_components], dtype=tf.bool),
               tf.zeros([num_padded], dtype=tf.bool)
           ],
-          axis=0), target_total_num_components)
+          axis=0), target_total_num_components)  # pyrefly: ignore[bad-argument-type]
   return padded_graph_tensor, cast(tf.Tensor, padding_mask)
 
 
@@ -269,7 +269,7 @@ def _(context: gt.Context, *,
   """Pads graph context to the target number of graph components."""
 
   diff = tf.ones(
-      shape=[target_total_num_components - context.total_num_components],
+      shape=[target_total_num_components - context.total_num_components],  # pyrefly: ignore[unsupported-operation]
       dtype=context.spec.sizes_spec.dtype)
   sizes = tf.concat([context.sizes, diff], axis=0)
   sizes = tensor_utils.ensure_static_nrows(
@@ -415,7 +415,7 @@ def _pad_adjacency_index_with_linspace(index: const.Field, target_size: int,
       target_size, dtype=index.dtype) - tf.size(index, index.dtype)
   diff = tf.linspace(
       start=tf.cast(min_index, tf.float32),
-      stop=tf.cast(max_index + 1, tf.float32),
+      stop=tf.cast(max_index + 1, tf.float32),  # pyrefly: ignore[unsupported-operation]
       num=diff_size)
   diff = tf.cast(diff, index.dtype)
   diff = tf.clip_by_value(diff, min_index, max_index)
@@ -522,14 +522,14 @@ def _satisfies_size_constraints_internal(
   # np.ndarray and tf.Tensor they could be evaluated statically on in the
   # runtime depending on its arguments.
   total_num_components = graph_tensor.total_num_components
-  could_add_new_component = _fold_constants(lambda x, y: x < y,
+  could_add_new_component = _fold_constants(lambda x, y: x < y,  # pyrefly: ignore[bad-argument-type, unsupported-operation]
                                             total_num_components,
-                                            total_sizes.total_num_components)
-  num_fake_components = total_sizes.total_num_components - graph_tensor.total_num_components
+                                            total_sizes.total_num_components)  # pyrefly: ignore[bad-argument-type]
+  num_fake_components = total_sizes.total_num_components - graph_tensor.total_num_components  # pyrefly: ignore[unsupported-operation]
   assert_ops = [
       check_fn(
           _fold_constants(
-              lambda x, y: x <= y, total_num_components,
+              lambda x, y: x <= y, total_num_components,  # pyrefly: ignore[bad-argument-type, unsupported-operation]
               tf.convert_to_tensor(
                   total_sizes.total_num_components,
                   dtype=total_num_components.dtype)),
@@ -581,21 +581,21 @@ def _satisfies_size_constraints_internal(
     # because the weaker case may support constant folding.
     assert_ops.append(
         check_fn(
-            _fold_constants(lambda x, y: x <= y, total_size,
+            _fold_constants(lambda x, y: x <= y, total_size,  # pyrefly: ignore[bad-argument-type, unsupported-operation]
                             target_total_size),
             overflow_msg))
 
     assert_ops.append(
         check_fn(
-            _fold_constants(lambda x, y: x <= y, padded_size,
+            _fold_constants(lambda x, y: x <= y, padded_size,  # pyrefly: ignore[bad-argument-type, unsupported-operation]
                             target_total_size),
             overflow_msg))
 
     assert_ops.append(
         check_fn(
             _fold_constants(
-                lambda x, y: x | y, could_add_new_component,
-                _fold_constants(lambda x, y: x == y, padded_size,
+                lambda x, y: x | y, could_add_new_component,  # pyrefly: ignore[unsupported-operation]
+                _fold_constants(lambda x, y: x == y, padded_size,  # pyrefly: ignore[bad-argument-type]
                                 target_total_size)),
             (f'Could not pad <{entity_name}> {entity_type}. To do this, at'
              ' least one graph component must be added to the input graph.'
@@ -611,28 +611,28 @@ def _satisfies_size_constraints_internal(
     _check_sizes(
         'nodes',
         name,
-        item.sizes,
+        item.sizes,  # pyrefly: ignore[bad-argument-type]
         total_size,
-        target_total_size,
-        min_entities_per_component=min_nodes_per_component.get(name, 0))
+        target_total_size,  # pyrefly: ignore[bad-argument-type]
+        min_entities_per_component=min_nodes_per_component.get(name, 0))  # pyrefly: ignore[bad-argument-type]
 
   for name, item in graph_tensor.edge_sets.items():
     total_size = item.total_size
     target_total_size = total_sizes.total_num_edges.get(name, None)
-    _check_sizes('edges', name, item.sizes, total_size, target_total_size,
+    _check_sizes('edges', name, item.sizes, total_size, target_total_size,  # pyrefly: ignore[bad-argument-type]
                  min_entities_per_component=0)
 
     assert target_total_size is not None
-    has_all_edges = _fold_constants(lambda x, y: x == y, total_size,
-                                    target_total_size)
+    has_all_edges = _fold_constants(lambda x, y: x == y, total_size,  # pyrefly: ignore[bad-argument-type]
+                                    target_total_size)  # pyrefly: ignore[bad-argument-type]
     indices = item.adjacency.get_indices_dict()
     for _, (incident_node_set_name, _) in indices.items():
       permits_new_incident_nodes = _fold_constants(
-          lambda x, y: x < y, total_num_nodes[incident_node_set_name],
-          total_sizes.total_num_nodes[incident_node_set_name])
+          lambda x, y: x < y, total_num_nodes[incident_node_set_name],  # pyrefly: ignore[bad-argument-type, unsupported-operation]
+          total_sizes.total_num_nodes[incident_node_set_name])  # pyrefly: ignore[bad-argument-type]
       assert_ops.append(
           check_fn(
-              _fold_constants(lambda x, y: x | y, has_all_edges,
+              _fold_constants(lambda x, y: x | y, has_all_edges,  # pyrefly: ignore[unsupported-operation]
                               permits_new_incident_nodes),
               ('Could not create fake incident edges for the node set'
                f' {incident_node_set_name}. This could happen when the'

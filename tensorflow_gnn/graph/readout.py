@@ -422,7 +422,7 @@ def context_readout_into_feature(
         "Pass tfgnn.context_readout_into_feature(..., overwrite=True) "
         "to discard the old value."
     )
-  readout_features[new_feature_name] = input_feature
+  readout_features[new_feature_name] = input_feature  # pyrefly: ignore[unsupported-operation]
 
   return graph.replace_features(node_sets={readout_node_set: readout_features},
                                 context=context_features)

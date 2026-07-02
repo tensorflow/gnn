@@ -39,7 +39,7 @@ def outer_dimension_size(value: Value) -> Union[int, tf.Tensor]:
     return outer_dimension_size(value.row_lengths())
 
   if is_dense_tensor(value):
-    return dims_list(value)[0]
+    return dims_list(value)[0]  # pyrefly: ignore[bad-argument-type]
 
   raise ValueError(f'Unsupported type {type(value).__name__}')
 
@@ -168,7 +168,7 @@ def flatten_indices(indices: tf.Tensor, indices_row_lengths: tf.Tensor,
   _assert_rank1_int(values_row_lengths, 'values_row_lengths')
 
   indices_total = outer_dimension_size(indices)
-  indices_row_ids = row_lengths_to_row_ids(indices_row_lengths, indices_total)
+  indices_row_ids = row_lengths_to_row_ids(indices_row_lengths, indices_total)  # pyrefly: ignore[bad-argument-type]
 
   values_row_starts = tf.math.cumsum(values_row_lengths, axis=0, exclusive=True)
   offsets = tf.gather(values_row_starts, indices_row_ids)

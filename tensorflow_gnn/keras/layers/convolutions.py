@@ -145,6 +145,6 @@ class SimpleConv(convolution_base.AnyToAnyConvolutionBase):
     combined_input = ops.combine_values(inputs, self._combine_type)
 
     # Compute the result.
-    messages = self._message_fn(combined_input)
+    messages = self._message_fn(combined_input)  # pyrefly: ignore[not-callable]
     pooled_messages = pool_to_receiver(messages, reduce_type=self._reduce_type)
     return pooled_messages

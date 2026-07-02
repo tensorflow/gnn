@@ -254,7 +254,7 @@ class EdgeSamplersTest(ExecutorTestBase, parameterized.TestCase):
     edges_layer = sampler.UniformEdgesSampler(
         sampler.KeyToTfExampleAccessor(
             sampler.InMemStringKeyToBytesAccessor(
-                keys_to_values={b'?': b''}, name='edges'
+                keys_to_values={b'?': b''}, name='edges'  # pyrefly: ignore[bad-argument-type]
             ),
             features_spec={
                 '#target': tf.TensorSpec([None], tf.string),
@@ -313,7 +313,7 @@ class EdgeSamplersTest(ExecutorTestBase, parameterized.TestCase):
     edges_layer = sampler.UniformEdgesSampler(
         sampler.KeyToTfExampleAccessor(
             sampler.InMemStringKeyToBytesAccessor(
-                keys_to_values={b'?': b''}, name='edges'
+                keys_to_values={b'?': b''}, name='edges'  # pyrefly: ignore[bad-argument-type]
             ),
             features_spec={
                 '#target': tf.TensorSpec([None], tf.int64),
@@ -437,7 +437,7 @@ class EdgeSamplersTest(ExecutorTestBase, parameterized.TestCase):
     edges_layer = sampler.UniformEdgesSampler(
         sampler.KeyToTfExampleAccessor(
             sampler.InMemStringKeyToBytesAccessor(
-                keys_to_values={b'?': b''}, name='edges'
+                keys_to_values={b'?': b''}, name='edges'  # pyrefly: ignore[bad-argument-type]
             ),
             features_spec={
                 '#target': tf.TensorSpec([None], tf.string),
@@ -504,7 +504,7 @@ class EdgeSamplersTest(ExecutorTestBase, parameterized.TestCase):
     edges_layer = sampler.UniformEdgesSampler(
         sampler.KeyToTfExampleAccessor(
             sampler.InMemStringKeyToBytesAccessor(
-                keys_to_values={b'?': b''}, name='edges'
+                keys_to_values={b'?': b''}, name='edges'  # pyrefly: ignore[bad-argument-type]
             ),
             features_spec={
                 'neighbors': tf.TensorSpec([None], tf.int64),

@@ -68,7 +68,7 @@ class KeyToBytesAccessorTest(ExecutorTestBase):
     }
     layer = sampler.KeyToTfExampleAccessor(
         sampler.InMemStringKeyToBytesAccessor(
-            keys_to_values=table, name='table'
+            keys_to_values=table, name='table'  # pyrefly: ignore[bad-argument-type]
         ),
         features_spec={
             's': tf.TensorSpec([], tf.int64),

@@ -100,9 +100,9 @@ def add_self_loops(
   #    |E1|          |N1|         |E2|        |N2|
   segment_indicator = utils.repeat(
       tf.range(tf.shape(alternate_sizes)[0], dtype=tf.int32), alternate_sizes,
-      repeats_sum_hint=tf.get_static_value(num_nodes + num_edges))
+      repeats_sum_hint=tf.get_static_value(num_nodes + num_edges))  # pyrefly: ignore[unsupported-operation]
 
-  node_indicator = segment_indicator % 2  # Marks odd (i.e. node positions)
+  node_indicator = segment_indicator % 2  # Marks odd (i.e. node positions)  # pyrefly: ignore[unsupported-operation]
   edge_indicator = 1 - node_indicator     # Marks even (i.e. edge positions)
 
   # [0, 1, 2,..,  x, x, ...,  |E1|, |E1|+1,..,  x, x, x, ...];  "x" = dont care.
@@ -148,7 +148,7 @@ def add_self_loops(
       self_loop_edge_feature = utils.repeat(
           tf.expand_dims(self_loop_edge_feature, axis=0),
           tf.expand_dims(num_nodes, axis=0),
-          repeats_sum_hint=tf.get_static_value(num_nodes + 0))
+          repeats_sum_hint=tf.get_static_value(num_nodes + 0))  # pyrefly: ignore[unsupported-operation]
       # Transposing twice so that we get broadcasting for free (instead of
       # reshaping, adding 1's on some axis dimensions).
       # TODO(b/309749041): What if there are no existing feature values?
@@ -293,7 +293,7 @@ def mask_edges(
       masked_info_features[feature_name] = masked_info_feature
 
     component_ids = utils.row_lengths_to_row_ids(
-        edge_set.sizes, sum_row_lengths_hint=edge_set.spec.total_size)
+        edge_set.sizes, sum_row_lengths_hint=edge_set.spec.total_size)  # pyrefly: ignore[bad-argument-type]
     num_remaining_edges = tf.math.unsorted_segment_sum(
         tf.cast(boolean_edge_mask, edge_set.sizes.dtype), component_ids,
         edge_set.num_components)
@@ -592,7 +592,7 @@ def shuffle_nodes(graph_tensor: GraphTensor,
 
   def index_shuffle_generic(node_set: gt.NodeSet) -> tf.Tensor:
     row_ids = utils.row_lengths_to_row_ids(
-        node_set.sizes, sum_row_lengths_hint=node_set.spec.total_size)
+        node_set.sizes, sum_row_lengths_hint=node_set.spec.total_size)  # pyrefly: ignore[bad-argument-type]
     return utils.segment_random_index_shuffle(segment_ids=row_ids, seed=seed)
 
   if graph_tensor.spec.total_num_components == 1:
@@ -902,7 +902,7 @@ def _get_line_graph_edges(
       # e.g. [0 0 1 1 2 2 2 3 3 3]
       idx_line_source = utils.repeat(
           edge_idx_sorted_source,
-          utils.repeat(num_neighbors_target, num_neighbors_source),
+          utils.repeat(num_neighbors_target, num_neighbors_source),  # pyrefly: ignore[bad-argument-type]
       )
 
       # Repeat target line idx according to the number of neighbors per node

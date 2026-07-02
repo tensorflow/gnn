@@ -277,7 +277,7 @@ class AnyToAnyConvolutionBase(tf.keras.layers.Layer, abc.ABC):
         # Pooling from NodeSet to Context, no EdgeSet involved.
         name_kwarg = dict(node_set_name=node_set_name)
         edge_set = None
-        sender_node_set = graph.node_sets[node_set_name]
+        sender_node_set = graph.node_sets[node_set_name]  # pyrefly: ignore[bad-index]
         # Values are computed per sender node, no need to broadcast
         broadcast_from_sender_node = lambda feature_value: feature_value
       receiver_piece = graph.context
@@ -319,19 +319,19 @@ class AnyToAnyConvolutionBase(tf.keras.layers.Layer, abc.ABC):
     if self._receiver_feature is not None:
       receiver_input = receiver_piece[self._receiver_feature]
     if None not in [sender_node_set, self._sender_node_feature]:
-      sender_node_input = sender_node_set[self._sender_node_feature]
+      sender_node_input = sender_node_set[self._sender_node_feature]  # pyrefly: ignore[bad-index, unsupported-operation]
     if None not in [edge_set, self._sender_edge_feature]:
-      sender_edge_input = edge_set[self._sender_edge_feature]
+      sender_edge_input = edge_set[self._sender_edge_feature]  # pyrefly: ignore[bad-index, unsupported-operation]
 
     return self.convolve(
-        sender_node_input=sender_node_input,
-        sender_edge_input=sender_edge_input,
-        receiver_input=receiver_input,
-        broadcast_from_sender_node=broadcast_from_sender_node,
+        sender_node_input=sender_node_input,  # pyrefly: ignore[bad-argument-type]
+        sender_edge_input=sender_edge_input,  # pyrefly: ignore[bad-argument-type]
+        receiver_input=receiver_input,  # pyrefly: ignore[bad-argument-type]
+        broadcast_from_sender_node=broadcast_from_sender_node,  # pyrefly: ignore[bad-argument-type]
         broadcast_from_receiver=broadcast_from_receiver,
         pool_to_receiver=pool_to_receiver,
         **extra_receiver_ops_kwarg,
-        training=training)
+        training=training)  # pyrefly: ignore[bad-argument-type]
 
   @abc.abstractmethod
   def convolve(self, *,

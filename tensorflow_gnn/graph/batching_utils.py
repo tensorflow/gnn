@@ -145,7 +145,7 @@ def dynamic_batch(dataset: tf.data.Dataset,
   def exceeds_budget(state: _ScanState,
                      graph_tensor: gt.GraphTensor) -> tf.Tensor:
     budget = _set_min_nodes_per_component(state.budget_left,
-                                          min_nodes_per_component)
+                                          min_nodes_per_component)  # pyrefly: ignore[bad-argument-type]
     within_budget = padding_ops.satisfies_size_constraints(graph_tensor, budget)
     return tf.math.logical_not(within_budget)
 
@@ -631,9 +631,9 @@ def _set_min_nodes_per_component(
 
   return SizeConstraints(
       total_num_components=size_constraints.total_num_components,
-      total_num_nodes=size_constraints.total_num_nodes.copy(),
-      total_num_edges=size_constraints.total_num_edges.copy(),
-      min_nodes_per_component=min_nodes_per_component.copy())
+      total_num_nodes=size_constraints.total_num_nodes.copy(),  # pyrefly: ignore[missing-attribute]
+      total_num_edges=size_constraints.total_num_edges.copy(),  # pyrefly: ignore[missing-attribute]
+      min_nodes_per_component=min_nodes_per_component.copy())  # pyrefly: ignore[missing-attribute]
 
 
 def _make_room_for_padding(
@@ -876,4 +876,4 @@ def dataset_from_generator(generator) -> tf.data.Dataset:
       yield value
 
   return tf.data.Dataset.from_generator(
-      restored_generator, output_signature=relaxed_spec)
+      restored_generator, output_signature=relaxed_spec)  # pyrefly: ignore[bad-argument-type]

@@ -207,8 +207,8 @@ class GraphUpdate(tf.keras.layers.Layer):
           "to trigger deferred initialization before it can be saved.")
     return dict(
         # Sublayers need to be top-level objects in the config (b/209560043).
-        **du.with_key_prefix(self._edge_set_updates, "edge_sets/"),
-        **du.with_key_prefix(self._node_set_updates, "node_sets/"),
+        **du.with_key_prefix(self._edge_set_updates, "edge_sets/"),  # pyrefly: ignore[bad-argument-type]
+        **du.with_key_prefix(self._node_set_updates, "node_sets/"),  # pyrefly: ignore[bad-argument-type]
         context=self._context_update,
         **super().get_config())
 
@@ -221,7 +221,7 @@ class GraphUpdate(tf.keras.layers.Layer):
   def call(self, graph: gt.GraphTensor) -> gt.GraphTensor:
     if not self._is_initialized:
       with tf.init_scope():
-        self._init_from_updates(**self._deferred_init_callback(graph.spec))
+        self._init_from_updates(**self._deferred_init_callback(graph.spec))  # pyrefly: ignore[not-callable]
         self._deferred_init_callback = None  # Enable garbage collection.
     assert self._is_initialized
 

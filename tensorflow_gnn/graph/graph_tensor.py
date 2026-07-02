@@ -513,7 +513,7 @@ class ContextSpec(_GraphPieceWithFeaturesSpec):
             shape=sizes_shape,
             ragged_rank=shape.rank + 1,
             dtype=indices_dtype,
-            row_splits_dtype=indicative_feature_spec.row_splits_dtype)
+            row_splits_dtype=indicative_feature_spec.row_splits_dtype)  # pyrefly: ignore[missing-attribute]
       else:
         sizes_spec = tf.TensorSpec(shape=sizes_shape, dtype=indices_dtype)
 
@@ -1244,9 +1244,9 @@ class GraphTensor(gp.GraphPieceBase):
     return self.__class__.from_pieces(
         context=self.context._merge_batch_to_components(),  # pylint: disable=protected-access
         node_sets=tf.nest.map_structure(
-            lambda n: n._merge_batch_to_components(), self.node_sets.copy()),  # pylint: disable=protected-access
+            lambda n: n._merge_batch_to_components(), self.node_sets.copy()),  # pylint: disable=protected-access  # pyrefly: ignore[missing-attribute]
         edge_sets=tf.nest.map_structure(edge_set_merge_batch_to_components,
-                                        self.edge_sets.copy()))
+                                        self.edge_sets.copy()))  # pyrefly: ignore[missing-attribute]
 
   @property
   def context(self) -> Context:
@@ -1363,7 +1363,7 @@ class GraphTensor(gp.GraphPieceBase):
       new_context = self.context.replace_features(context)
 
     if node_sets is None:
-      new_node_sets = self.node_sets.copy()
+      new_node_sets = self.node_sets.copy()  # pyrefly: ignore[missing-attribute]
     else:
       not_present = set(node_sets.keys()) - set(self.node_sets.keys())
       if not_present:
@@ -1376,7 +1376,7 @@ class GraphTensor(gp.GraphPieceBase):
       }
 
     if edge_sets is None:
-      new_edge_sets = self.edge_sets.copy()
+      new_edge_sets = self.edge_sets.copy()  # pyrefly: ignore[missing-attribute]
     else:
       not_present = set(edge_sets.keys()) - set(self.edge_sets.keys())
       if not_present:
@@ -1778,7 +1778,7 @@ def _fields_and_size_from_fieldorfields(
   """Returns a mapping from a default feature name if needed."""
   if isinstance(features, collections.abc.Mapping):
     num_entities = tf.stack(
-        [utils.outer_dimension_size(_get_indicative_feature(features))])
+        [utils.outer_dimension_size(_get_indicative_feature(features))])  # pyrefly: ignore[bad-argument-type]
   elif features is None:
     features, num_entities = {}, None
   else:
@@ -1833,11 +1833,11 @@ def homogeneous(
     raise ValueError('source and target must be rank-1 dense tensors')
 
   node_features, num_nodes = _fields_and_size_from_fieldorfields(
-      node_features, HIDDEN_STATE)
+      node_features, HIDDEN_STATE)  # pyrefly: ignore[bad-argument-type]
   edge_features, _ = _fields_and_size_from_fieldorfields(
-      edge_features, HIDDEN_STATE)
+      edge_features, HIDDEN_STATE)  # pyrefly: ignore[bad-argument-type]
   context_features, _ = _fields_and_size_from_fieldorfields(
-      context_features, HIDDEN_STATE)
+      context_features, HIDDEN_STATE)  # pyrefly: ignore[bad-argument-type]
 
   num_edges = tf.shape(source)
   node_sizes = (num_nodes if node_set_sizes is None else node_set_sizes)

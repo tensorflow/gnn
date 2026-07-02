@@ -74,4 +74,4 @@ class ItemDropout(tf.keras.layers.Layer):
     if self._dropout.noise_shape.rank != inputs.shape.rank:
       raise ValueError(f"Built for rank {self._dropout.noise_shape.rank}, "
                        f"called with input of rank {inputs.shape.rank}")
-    return self._dropout(inputs)
+    return self._dropout(inputs)  # pyrefly: ignore[not-callable]

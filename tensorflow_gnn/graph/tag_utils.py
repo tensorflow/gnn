@@ -103,7 +103,7 @@ def get_edge_or_node_set_name_args_for_tag(
   if tag != const.CONTEXT:
     incident_node_set_names = {
         spec.edge_sets_spec[e].adjacency_spec.node_set_name(tag)
-        for e in edge_set_names}
+        for e in edge_set_names}  # pyrefly: ignore[not-iterable]
     if len(incident_node_set_names) > 1:
       raise ValueError(
           f"{function_name} requires the same endpoint for all named edge sets "

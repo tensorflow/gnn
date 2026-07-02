@@ -214,16 +214,16 @@ class TFModelStageTest(ExecutorTestBase):
 
     i = tf.keras.Input([2], name='input')
     o = i
-    o = tf.keras.layers.Lambda(tf.sparse.from_dense)(o)
-    o = tf.keras.layers.Lambda(tf.math.negative)(o)
+    o = tf.keras.layers.Lambda(tf.sparse.from_dense)(o)  # pyrefly: ignore[not-callable]
+    o = tf.keras.layers.Lambda(tf.math.negative)(o)  # pyrefly: ignore[not-callable]
     # Add identity composite layer which splits eval data on five pieces:
     # <input> => <to negative sparse> => identity -> <to dense> => output.
-    o = Identity()(o)
+    o = Identity()(o)  # pyrefly: ignore[not-callable]
 
     def fn(t):
       return tf.sparse.to_dense(t)
 
-    o = tf.keras.layers.Lambda(fn)(o)
+    o = tf.keras.layers.Lambda(fn)(o)  # pyrefly: ignore[not-callable]
     model = tf.keras.Model(inputs=i, outputs=o)
     program, artifacts = sampler.create_program(model)
     self.assertLen(program.eval_dag.stages, 5)

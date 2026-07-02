@@ -36,7 +36,7 @@ def parse_schema(schema_text: Union[bytes, str]) -> schema_pb2.GraphSchema:
   Returns:
     A `GraphSchema` instance.
   """
-  return text_format.Parse(schema_text, schema_pb2.GraphSchema())
+  return text_format.Parse(schema_text, schema_pb2.GraphSchema())  # pyrefly: ignore[bad-specialization]
 
 
 def read_schema(filename: str) -> schema_pb2.GraphSchema:

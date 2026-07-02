@@ -257,21 +257,21 @@ def parse_tf_example(
     `[c.numpy() for c in [*rt.flat_values, *rt.nested_row_lengths()]]`.
   """
   if spec.HasField('tensor'):
-    spec = spec.tensor
+    spec = spec.tensor  # pyrefly: ignore[bad-assignment]
     return [
         _parse_tf_feature(
             example,
             name,
-            get_np_dtype(spec.dtype),
-            tuple(dim.size for dim in spec.shape.dim),
+            get_np_dtype(spec.dtype),  # pyrefly: ignore[missing-attribute]
+            tuple(dim.size for dim in spec.shape.dim),  # pyrefly: ignore[missing-attribute]
         )
     ]
   elif spec.HasField('ragged_tensor'):
-    spec = spec.ragged_tensor
-    dtype = get_np_dtype(spec.dtype)
-    ragged_rank = spec.ragged_rank
-    row_splits_dtype = get_np_dtype(spec.row_splits_dtype)
-    shape = tuple(dim.size for dim in spec.shape.dim)
+    spec = spec.ragged_tensor  # pyrefly: ignore[bad-assignment]
+    dtype = get_np_dtype(spec.dtype)  # pyrefly: ignore[missing-attribute]
+    ragged_rank = spec.ragged_rank  # pyrefly: ignore[missing-attribute]
+    row_splits_dtype = get_np_dtype(spec.row_splits_dtype)  # pyrefly: ignore[missing-attribute]
+    shape = tuple(dim.size for dim in spec.shape.dim)  # pyrefly: ignore[missing-attribute]
 
     flat_value = _parse_tf_feature(example, name, dtype, shape[ragged_rank:])
 

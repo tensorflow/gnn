@@ -135,7 +135,7 @@ def get_sampling_model(
       node_set_name: tfgnn.NodeSetName,
   ) -> sampler.KeyToTfExampleAccessor:
     if not graph_schema.node_sets[node_set_name].features:
-      return None
+      return None  # pyrefly: ignore[bad-return]
 
     node_features = graph_schema.node_sets[node_set_name].features
 

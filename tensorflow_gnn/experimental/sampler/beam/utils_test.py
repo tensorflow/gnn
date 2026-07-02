@@ -134,9 +134,9 @@ class RaggedSliceTest(tf.test.TestCase, parameterized.TestCase):
       limit: int,
       expected: np.ndarray,
   ):
-    value = [value]
-    expected = [expected]
-    actual = utils.ragged_slice(value, start, limit)
+    value = [value]  # pyrefly: ignore[bad-assignment]
+    expected = [expected]  # pyrefly: ignore[bad-assignment]
+    actual = utils.ragged_slice(value, start, limit)  # pyrefly: ignore[bad-argument-type]
     tf.nest.map_structure(self.assertAllEqual, actual, expected)
 
   @parameterized.named_parameters([
@@ -194,9 +194,9 @@ class RaggedSliceTest(tf.test.TestCase, parameterized.TestCase):
           lambda t: t.numpy(), [r.flat_values, *r.nested_row_lengths()]
       )
 
-    value = as_value(value)
-    expected = as_value(expected)
-    actual = utils.ragged_slice(value, start, limit)
+    value = as_value(value)  # pyrefly: ignore[bad-assignment]
+    expected = as_value(expected)  # pyrefly: ignore[bad-assignment]
+    actual = utils.ragged_slice(value, start, limit)  # pyrefly: ignore[bad-argument-type]
     tf.nest.map_structure(self.assertAllEqual, actual, expected)
 
 

@@ -178,7 +178,7 @@ def _broadcast_context(graph_tensor: GraphTensor,
   # TODO(b/184021442): cache result.
   return utils.repeat(
       context_value,
-      node_or_edge_set.sizes,
+      node_or_edge_set.sizes,  # pyrefly: ignore[bad-argument-type]
       repeats_sum_hint=node_or_edge_set.spec.total_size)
 
 
@@ -250,11 +250,11 @@ def broadcast_v2(
                 for name in edge_set_names]
     else:
       result = [broadcast_context_to_nodes(graph_tensor, name, **feature_kwargs)
-                for name in node_set_names]
+                for name in node_set_names]  # pyrefly: ignore[not-iterable]
   else:
     result = [
         broadcast_node_to_edges(graph_tensor, name, from_tag, **feature_kwargs)
-        for name in edge_set_names]
+        for name in edge_set_names]  # pyrefly: ignore[not-iterable]
 
   if got_sequence_args:
     return result

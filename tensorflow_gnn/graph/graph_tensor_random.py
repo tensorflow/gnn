@@ -88,7 +88,7 @@ def random_ragged_tensor(
     sample_values_tensor = tf.convert_to_tensor(sample_values, dtype=dtype)
     flat_values = tf.gather(sample_values_tensor, indices)
   else:
-    flat_values = typed_random_values(size, dtype)
+    flat_values = typed_random_values(size, dtype)  # pyrefly: ignore[bad-argument-type]
 
   # Now, build up the ragged tensor inside out.
   #
@@ -222,7 +222,7 @@ def random_graph_tensor(
   # Create random context features.
   context = gt.Context.from_fields(
       features=_gen_features(
-          gc.CONTEXT, None, spec.context_spec.features_spec, num_components
+          gc.CONTEXT, None, spec.context_spec.features_spec, num_components  # pyrefly: ignore[bad-argument-type]
       )
   )
 
@@ -231,7 +231,7 @@ def random_graph_tensor(
   for set_name, node_set_spec in spec.node_sets_spec.items():
     min_nodes, max_nodes = row_lengths_range
     sizes = _random_sizes(
-        num_components, min_nodes, max_nodes, spec.indices_dtype
+        num_components, min_nodes, max_nodes, spec.indices_dtype  # pyrefly: ignore[bad-argument-type]
     )
     node_sets[set_name] = gt.NodeSet.from_fields(
         sizes=sizes,
@@ -260,7 +260,7 @@ def random_graph_tensor(
     min_edges = tf.cast(sum_sizes / 1.5, spec.indices_dtype)
     max_edges = tf.cast(sum_sizes * 2.25, spec.indices_dtype)
     sizes = _random_sizes(
-        num_components, min_edges, max_edges, spec.indices_dtype
+        num_components, min_edges, max_edges, spec.indices_dtype  # pyrefly: ignore[bad-argument-type]
     )
 
     # Randomly generate the actual node indices.
@@ -334,7 +334,7 @@ def _random_sizes(
 ) -> tf.Tensor:
   """Random sizes with constraints on the number of items in each component."""
   minval = tf.convert_to_tensor(num_items_min, dtype)
-  length = tf.convert_to_tensor(num_items_max - num_items_min, dtype)
+  length = tf.convert_to_tensor(num_items_max - num_items_min, dtype)  # pyrefly: ignore[unsupported-operation]
   alpha = tf.random.uniform([num_components], dtype=tf.float64)
   return minval + tf.cast(alpha * tf.cast(length, tf.float64), dtype)
 

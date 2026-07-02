@@ -211,9 +211,9 @@ class MapFeatures(tf.keras.layers.Layer):
       self._context_fn = None
       self._node_sets_fn = None
       self._edge_sets_fn = None
-      self._context_model = context_model
-      self._node_set_models = node_set_models
-      self._edge_set_models = edge_set_models
+      self._context_model = context_model  # pyrefly: ignore[unbound-name]
+      self._node_set_models = node_set_models  # pyrefly: ignore[unbound-name]
+      self._edge_set_models = edge_set_models  # pyrefly: ignore[unbound-name]
       self._is_initialized = True
     self._allowed_aux_node_sets_pattern = allowed_aux_node_sets_pattern
     self._allowed_aux_edge_sets_pattern = allowed_aux_edge_sets_pattern
@@ -225,8 +225,8 @@ class MapFeatures(tf.keras.layers.Layer):
     return dict(
         context_model=self._context_model,
         # Sublayers need to be top-level objects in the config (b/209560043).
-        **du.with_key_prefix(self._node_set_models, "node_set_models/"),
-        **du.with_key_prefix(self._edge_set_models, "edge_set_models/"),
+        **du.with_key_prefix(self._node_set_models, "node_set_models/"),  # pyrefly: ignore[bad-argument-type]
+        **du.with_key_prefix(self._edge_set_models, "edge_set_models/"),  # pyrefly: ignore[bad-argument-type]
         allowed_aux_node_sets_pattern=self._allowed_aux_node_sets_pattern,
         allowed_aux_edge_sets_pattern=self._allowed_aux_edge_sets_pattern,
         **super().get_config())
@@ -274,7 +274,7 @@ class MapFeatures(tf.keras.layers.Layer):
     node_set_features = {}
     for node_set_name, node_set in graph.node_sets.items():
       try:
-        model = self._node_set_models[node_set_name]
+        model = self._node_set_models[node_set_name]  # pyrefly: ignore[unsupported-operation]
         if model is None: continue  # Was explicitly ignored in initialization.
       except KeyError as e:
         if self._ignore_node_set(node_set_name):
@@ -287,7 +287,7 @@ class MapFeatures(tf.keras.layers.Layer):
     edge_set_features = {}
     for edge_set_name, edge_set in graph.edge_sets.items():
       try:
-        model = self._edge_set_models[edge_set_name]
+        model = self._edge_set_models[edge_set_name]  # pyrefly: ignore[unsupported-operation]
         if model is None: continue  # Was explicitly ignored in initialization.
       except KeyError as e:
         if self._ignore_edge_set(edge_set_name):

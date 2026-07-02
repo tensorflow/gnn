@@ -57,7 +57,7 @@ def compute_basic_stats(dataset: tf.data.Dataset) -> BasicStats:
   def reduce_fn(old_state: Tuple[tf.Tensor, Any],
                 new_element) -> Tuple[tf.Tensor, Any]:
     old_count, old_stats = old_state
-    new_count = old_count + 1
+    new_count = old_count + 1  # pyrefly: ignore[unsupported-operation]
     alpha = 1.0 / tf.cast(new_count, tf.float64)
     new_stats = BasicStats(
         minimum=tf.nest.map_structure(tf.minimum, old_stats.minimum,
@@ -71,7 +71,7 @@ def compute_basic_stats(dataset: tf.data.Dataset) -> BasicStats:
             lambda s, e: s + (tf.cast(e, tf.float64) - s) * alpha,
             old_stats.mean, new_element),
     )
-    return (new_count, new_stats)
+    return (new_count, new_stats)  # pyrefly: ignore[bad-return]
 
   def cast_to_float32_or_float64(value_spec, value):
     if value_spec.dtype == value.dtype:
@@ -154,7 +154,7 @@ def dataset_filter_with_summary(
     pred = predicate(value)
     ema_update = tf.cast(tf.logical_not(pred), old_ema.dtype)
 
-    in_count = old_in_count + 1
+    in_count = old_in_count + 1  # pyrefly: ignore[unsupported-operation]
     out_count = old_out_count + tf.cast(pred, old_out_count.dtype)
 
     # Exponential moving average (EMA) is updated according to the rule
@@ -178,7 +178,7 @@ def dataset_filter_with_summary(
     ema = tf.cond(in_count % summary_steps == 0,
                   lambda: report(ema, step=report_step), lambda: ema)
 
-    return (in_count, out_count, ema), (pred, value)
+    return (in_count, out_count, ema), (pred, value)  # pyrefly: ignore[bad-return]
 
   state0 = (tf.constant(0, tf.int64), tf.constant(0, tf.int64),
             tf.constant(0., tf.float64))
