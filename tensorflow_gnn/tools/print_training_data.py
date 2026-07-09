@@ -60,11 +60,11 @@ def define_flags():
 
 def get_dataset(pattern: str, file_format: str) -> tf.data.Dataset:
   """Create a dataset from the given filenames."""
-  fn_dataset = tf.data.Dataset.list_files(pattern)
+  fn_dataset = tf.data.Dataset.list_files(pattern)  # pyrefly: ignore[bad-argument-type]
   if file_format == 'tfrecord':
     dataset = fn_dataset.interleave(tf.data.TFRecordDataset)
   # Placeholder for Google-internal file format datasets
-  return dataset
+  return dataset  # pyrefly: ignore[unbound-name]
 
 
 def app_main(_):

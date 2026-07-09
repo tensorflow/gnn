@@ -120,9 +120,9 @@ class GraphSAGEAggregatorConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     assert extra_receiver_ops is None, "Internal error: bad super().__init__()"
     assert sender_node_input is not None, "sender_node_input can't be None."
     result = broadcast_from_sender_node(sender_node_input)
-    result = self._dropout(result, training=training)
+    result = self._dropout(result, training=training)  # pyrefly: ignore[not-callable]
     result = pool_to_receiver(result, reduce_type=self._reduce_type)
-    result = self._transform_neighbor_fn(result)
+    result = self._transform_neighbor_fn(result)  # pyrefly: ignore[not-callable]
     return result
 
 
@@ -251,11 +251,11 @@ class GraphSAGEPoolingConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     assert extra_receiver_ops is None, "Internal error: bad super().__init__()"
     assert sender_node_input is not None, "sender_node_input can't be None."
     result = broadcast_from_sender_node(sender_node_input)
-    result = self._dropout(result, training=training)
+    result = self._dropout(result, training=training)  # pyrefly: ignore[not-callable]
     # The "Pooling aggregator" from Eq. (3) of the paper, plus dropout.
-    result = self._pooling_transform_fn(result)
+    result = self._pooling_transform_fn(result)  # pyrefly: ignore[not-callable]
     result = pool_to_receiver(result, reduce_type=self._reduce_type)
-    result = self._transform_neighbor_fn(result)
+    result = self._transform_neighbor_fn(result)  # pyrefly: ignore[not-callable]
     return result
 
 
@@ -431,12 +431,12 @@ class GCNGraphSAGENodeSetUpdate(tf.keras.layers.Layer):
           tfgnn.reverse_tag(self._receiver_tag))
       sender_node_values = graph.node_sets[sender_node_set_name][
           self._sender_node_feature]
-      sender_node_values = self._dropout(sender_node_values)
+      sender_node_values = self._dropout(sender_node_values)  # pyrefly: ignore[not-callable]
       if not self._share_weights:
         sender_node_values = self._transform_edge_fn_dict[edge_set_name](
             sender_node_values)
       else:
-        sender_node_values = self._node_transform_fn(sender_node_values)
+        sender_node_values = self._node_transform_fn(sender_node_values)  # pyrefly: ignore[not-callable]
       broadcasted_sender_values = tfgnn.broadcast_node_to_edges(
           graph,
           edge_set_name,
@@ -463,8 +463,8 @@ class GCNGraphSAGENodeSetUpdate(tf.keras.layers.Layer):
     # aggregate with self node states only if add_self_loop is enabled.
     if self._add_self_loop:
       self_node_values = graph.node_sets[node_set_name][self._self_node_feature]
-      self_node_values = self._dropout(self_node_values)
-      self_node_values = self._node_transform_fn(self_node_values)
+      self_node_values = self._dropout(self_node_values)  # pyrefly: ignore[not-callable]
+      self_node_values = self._node_transform_fn(self_node_values)  # pyrefly: ignore[not-callable]
       pooled_node_states_list.append(self_node_values)
       if self._reduce_type == "mean":
         edge_set_in_degrees_list.append(tf.ones(total_size))
@@ -557,7 +557,7 @@ def GraphSAGEGraphUpdate(  # To be called like a class initializer.  pylint: dis
           sender_node_feature=feature_name,
           reduce_type=reduce_type,
           units=units,
-          hidden_units=hidden_units,
+          hidden_units=hidden_units,  # pyrefly: ignore[bad-argument-type]
           use_bias=use_bias,
           dropout_rate=dropout_rate,
           **kwargs)
@@ -739,8 +739,8 @@ class GraphSAGENextState(tf.keras.layers.Layer):
     if unused_context_state:
       raise ValueError(
           "Input from context is not supported by GraphSAGENextState")
-    result = self._dropout(old_node_state, training=training)
-    result = self._self_transform(result)
+    result = self._dropout(old_node_state, training=training)  # pyrefly: ignore[not-callable]
+    result = self._self_transform(result)  # pyrefly: ignore[not-callable]
     result = [result, *[v for _, v in sorted(edge_inputs_dict.items())]]
     result = tfgnn.combine_values(result, self._combine_type)
     if self._use_bias:

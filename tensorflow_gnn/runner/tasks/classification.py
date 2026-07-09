@@ -149,7 +149,7 @@ class _Classification(interfaces.Task):
   def gather_activations(self, inputs: GraphTensor) -> Field:
     raise NotImplementedError()
 
-  def predict(self, inputs: tfgnn.GraphTensor) -> interfaces.Predictions:
+  def predict(self, inputs: tfgnn.GraphTensor) -> interfaces.Predictions:  # pyrefly: ignore[bad-override]
     """Apply a linear head for classification.
 
     Args:
@@ -160,7 +160,7 @@ class _Classification(interfaces.Task):
     """
     tfgnn.check_scalar_graph_tensor(inputs, name="Classification")
     activations = self.gather_activations(inputs)
-    logits = tf.keras.layers.Dense(
+    logits = tf.keras.layers.Dense(  # pyrefly: ignore[not-callable]
         self._units, kernel_regularizer=self._kernel_regularizer,
         name=self._name)(activations)
     return logits
@@ -169,7 +169,7 @@ class _Classification(interfaces.Task):
     if self._label_fn is not None:
       return self._label_fn(inputs)
     x = inputs
-    y = tfgnn.keras.layers.Readout(
+    y = tfgnn.keras.layers.Readout(  # pyrefly: ignore[not-callable]
         feature_name=self._label_feature_name,
         node_set_name="_readout")(inputs)
     return x, y
@@ -197,7 +197,7 @@ class _BinaryClassification(_Classification):
     self._recall_at_precisions = recall_at_precisions
 
   def losses(self) -> interfaces.Losses:
-    return tf.keras.losses.BinaryCrossentropy(from_logits=True)
+    return tf.keras.losses.BinaryCrossentropy(from_logits=True)  # pyrefly: ignore[bad-return]
 
   def metrics(self) -> interfaces.Metrics:
     metrics_list = [
@@ -210,13 +210,13 @@ class _BinaryClassification(_Classification):
       metrics_list.append(
           FromLogitsRecallAtPrecision(from_logits=True, precision=p, name=name)
       )
-    metrics_list.extend([
+    metrics_list.extend([  # pyrefly: ignore[bad-argument-type]
         tf.keras.metrics.AUC(from_logits=True, name="auc_roc"),
         tf.keras.metrics.AUC(curve="PR", from_logits=True, name="auc_pr"),
         tf.keras.metrics.BinaryAccuracy(),
         tf.keras.losses.BinaryCrossentropy(from_logits=True),
     ])
-    return tuple(metrics_list)
+    return tuple(metrics_list)  # pyrefly: ignore[bad-return]
 
 
 class _MulticlassClassification(_Classification):
@@ -232,7 +232,7 @@ class _MulticlassClassification(_Classification):
       raise ValueError(
           "Exactly one of `num_classes` or `class_names` must be specified")
     if num_classes is None:
-      num_classes = len(class_names)
+      num_classes = len(class_names)  # pyrefly: ignore[bad-argument-type]
     super().__init__(num_classes, **kwargs)
     if class_names is None:
       self._class_names = [f"class_{i}" for i in range(num_classes)]
@@ -242,7 +242,7 @@ class _MulticlassClassification(_Classification):
 
   def losses(self) -> interfaces.Losses:
     """Sparse categorical crossentropy loss."""
-    return tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+    return tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)  # pyrefly: ignore[bad-return]
 
   def metrics(self) -> interfaces.Metrics:
     """Sparse categorical metrics."""
@@ -292,7 +292,7 @@ class _GraphClassification(_Classification):
     self._reduce_type = reduce_type
 
   def gather_activations(self, inputs: GraphTensor) -> Field:
-    return tfgnn.keras.layers.Pool(
+    return tfgnn.keras.layers.Pool(  # pyrefly: ignore[not-callable]
         tfgnn.CONTEXT,
         self._reduce_type,
         node_set_name=self._node_set_name,
@@ -330,7 +330,7 @@ class _RootNodeClassification(_Classification):
 
   def gather_activations(self, inputs: GraphTensor) -> Field:
     """Gather activations from root nodes."""
-    return tfgnn.keras.layers.ReadoutFirstNode(
+    return tfgnn.keras.layers.ReadoutFirstNode(  # pyrefly: ignore[not-callable]
         node_set_name=self._node_set_name,
         feature_name=self._state_name)(inputs)
 
@@ -377,7 +377,7 @@ class _NodeClassification(_Classification):
   def gather_activations(self, inputs: GraphTensor) -> Field:
     """Gather activations from auxiliary node (and edge) sets."""
     try:
-      return tfgnn.keras.layers.StructuredReadout(
+      return tfgnn.keras.layers.StructuredReadout(  # pyrefly: ignore[not-callable]
           self._key,
           feature_name=self._feature_name,
           readout_node_set=self._readout_node_set,

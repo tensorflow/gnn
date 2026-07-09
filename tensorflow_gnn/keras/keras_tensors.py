@@ -29,7 +29,7 @@ from tensorflow_gnn.graph import graph_tensor as gt
 from tensorflow_gnn.graph import tf_internal
 
 
-class GraphPieceKerasTensor(tf_internal.KerasTensor):
+class GraphPieceKerasTensor(tf_internal.KerasTensor):  # pyrefly: ignore[invalid-inheritance]
   """Base class for graph pieces Keras tensors.
 
   Each graph piece (e.g. `tfgnn.Context`, `tfgnn.NodeSet`, etc.) must define
@@ -156,7 +156,7 @@ class _GraphPieceClassMethodDispatcher(tf_internal.OpDispatcher):
       )
 
     layer_args, layer_kwargs, args_index = _pack_args(args, kwargs)
-    return _GraphPieceClassMethod(
+    return _GraphPieceClassMethod(  # pyrefly: ignore[not-callable]
         cls._type_spec_cls(), self._cls_method_name, args_index
     )(layer_args, **layer_kwargs)
 
@@ -335,7 +335,7 @@ class _TFGNNOpDispatcher:
       return self._op(*args, **kwargs)
 
     layer_args, layer_kwargs, args_index = _pack_args(args, kwargs)
-    return TFGNNOpLambda(self._resistry_key, args_index)(
+    return TFGNNOpLambda(self._resistry_key, args_index)(  # pyrefly: ignore[not-callable]
         layer_args, **layer_kwargs
     )
 
@@ -440,7 +440,7 @@ def delegate_keras_tensors(target=None, name: Optional[str] = None):
   def decorator(target=None):
     impl = _TFGNNOpDispatcher(target, name)
 
-    @functools.wraps(target)
+    @functools.wraps(target)  # pyrefly: ignore[bad-argument-type]
     def fn(*argw, **kwargs):
       return impl(*argw, **kwargs)
 
@@ -478,7 +478,7 @@ def disallow_keras_tensors(
   def decorator(target=None):
     impl = _NotSupportedDispatcher(target, name=name, alternative=alternative)
 
-    @functools.wraps(target)
+    @functools.wraps(target)  # pyrefly: ignore[bad-argument-type]
     def fn(*argw, **kwargs):
       return impl(*argw, **kwargs)
 

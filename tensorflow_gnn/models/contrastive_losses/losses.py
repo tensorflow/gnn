@@ -128,11 +128,11 @@ def vicreg_loss(
         )
     )
   if tf.get_static_value(var_weight) != 0.0:
-    losses.append(var_weight * _variance_loss(representations_clean))
-    losses.append(var_weight * _variance_loss(representations_corrupted))
+    losses.append(var_weight * _variance_loss(representations_clean))  # pyrefly: ignore[unsupported-operation]
+    losses.append(var_weight * _variance_loss(representations_corrupted))  # pyrefly: ignore[unsupported-operation]
   if tf.get_static_value(cov_weight) != 0.0:
-    losses.append(cov_weight * _covariance_loss(representations_clean))
-    losses.append(cov_weight * _covariance_loss(representations_corrupted))
+    losses.append(cov_weight * _covariance_loss(representations_clean))  # pyrefly: ignore[unsupported-operation]
+    losses.append(cov_weight * _covariance_loss(representations_corrupted))  # pyrefly: ignore[unsupported-operation]
   return tf.add_n(losses)
 
 
@@ -176,12 +176,12 @@ def barlow_twins_loss(
   loss_matrix = tf.pow(correlation - tf.eye(feature_dim), 2)
   loss_diagonal_sum = tf.linalg.trace(loss_matrix)
   loss_sum = tf.reduce_sum(loss_matrix)
-  return (1.0 - lambda_) * loss_diagonal_sum + lambda_ * loss_sum
+  return (1.0 - lambda_) * loss_diagonal_sum + lambda_ * loss_sum  # pyrefly: ignore[unsupported-operation]
 
 
 # Implementation inspired from https://arxiv.org/pdf/1503.03832.pdf
 def triplet_loss(positive_distance: tf.Tensor, negative_distance: tf.Tensor,
                  margin: float = 1.0) -> tf.Tensor:
-  loss = positive_distance - negative_distance
+  loss = positive_distance - negative_distance  # pyrefly: ignore[unsupported-operation]
   loss = tf.maximum(loss + margin, tf.zeros_like(loss))
   return tf.reduce_sum(loss)

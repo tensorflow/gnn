@@ -185,16 +185,16 @@ class GCNConv(tf.keras.layers.Layer):
     # Calculate the diagonal of the degree matrix
     # Broadcasting this diagonal is more efficient than forming
     # the diagonal matrix
-    edge_adj = graph.edge_sets[edge_set_name].adjacency
+    edge_adj = graph.edge_sets[edge_set_name].adjacency  # pyrefly: ignore[bad-index]
     sender_name = edge_adj.node_set_name(self._sender)
     if edge_adj.node_set_name(self._receiver) != sender_name:
       raise ValueError('source and target node sets must be the same '
                        f'for edge set {edge_set_name} ')
 
-    edge_set = graph.edge_sets[edge_set_name]
+    edge_set = graph.edge_sets[edge_set_name]  # pyrefly: ignore[bad-index]
     if self._edge_weight_feature_name is not None:
       try:
-        edge_weights = graph.edge_sets[edge_set_name][
+        edge_weights = graph.edge_sets[edge_set_name][  # pyrefly: ignore[bad-index]
             self._edge_weight_feature_name
         ]
       except KeyError as e:
@@ -255,10 +255,10 @@ class GCNConv(tf.keras.layers.Layer):
 
     if sender_scale is not None:
       normalized_values = (
-          sender_scale * graph.node_sets[sender_name][self._node_feature]
+          sender_scale * graph.node_sets[sender_name][self._node_feature]  # pyrefly: ignore[bad-index]
       )
     else:
-      normalized_values = graph.node_sets[sender_name][self._node_feature]
+      normalized_values = graph.node_sets[sender_name][self._node_feature]  # pyrefly: ignore[bad-index]
 
     source_bcast = tfgnn.broadcast_node_to_edges(
         graph,
@@ -279,7 +279,7 @@ class GCNConv(tf.keras.layers.Layer):
       else:
         pooled += normalized_values
 
-    return self._filter(pooled)
+    return self._filter(pooled)  # pyrefly: ignore[not-callable]
 
 
 def GCNHomGraphUpdate(*,  # To be called like a class initializer.  pylint: disable=invalid-name

@@ -78,7 +78,7 @@ class _Regression(interfaces.Task):
   def gather_activations(self, inputs: GraphTensor) -> Field:
     raise NotImplementedError()
 
-  def predict(self, inputs: tfgnn.GraphTensor) -> interfaces.Predictions:
+  def predict(self, inputs: tfgnn.GraphTensor) -> interfaces.Predictions:  # pyrefly: ignore[bad-override]
     """Apply a linear head for regression.
 
     Args:
@@ -89,7 +89,7 @@ class _Regression(interfaces.Task):
     """
     tfgnn.check_scalar_graph_tensor(inputs, name="_Regression")
     activations = self.gather_activations(inputs)
-    logits = tf.keras.layers.Dense(
+    logits = tf.keras.layers.Dense(  # pyrefly: ignore[not-callable]
         self._units, kernel_regularizer=self._kernel_regularizer,
         name=self._name)(activations)
     return logits
@@ -98,7 +98,7 @@ class _Regression(interfaces.Task):
     if self._label_fn is not None:
       return self._label_fn(inputs)
     x = inputs
-    y = tfgnn.keras.layers.Readout(
+    y = tfgnn.keras.layers.Readout(  # pyrefly: ignore[not-callable]
         feature_name=self._label_feature_name,
         node_set_name="_readout")(inputs)
     return x, y
@@ -131,7 +131,7 @@ class _GraphRegression(_Regression):
     self._reduce_type = reduce_type
 
   def gather_activations(self, inputs: GraphTensor) -> tf.Tensor:
-    return tfgnn.keras.layers.Pool(
+    return tfgnn.keras.layers.Pool(  # pyrefly: ignore[not-callable]
         tfgnn.CONTEXT,
         self._reduce_type,
         node_set_name=self._node_set_name,
@@ -152,7 +152,7 @@ class _RootNodeRegression(_Regression):
     self._state_name = state_name
 
   def gather_activations(self, inputs: GraphTensor) -> tf.Tensor:
-    return tfgnn.keras.layers.ReadoutFirstNode(
+    return tfgnn.keras.layers.ReadoutFirstNode(  # pyrefly: ignore[not-callable]
         node_set_name=self._node_set_name,
         feature_name=self._state_name)(inputs)
 
@@ -197,7 +197,7 @@ class _NodeRegression(_Regression):
   def gather_activations(self, inputs: GraphTensor) -> Field:
     """Gather activations from auxiliary node (and edge) sets."""
     try:
-      return tfgnn.keras.layers.StructuredReadout(
+      return tfgnn.keras.layers.StructuredReadout(  # pyrefly: ignore[not-callable]
           self._key,
           feature_name=self._feature_name,
           readout_node_set=self._readout_node_set,
@@ -218,28 +218,28 @@ class _MeanAbsoluteErrorLossMixIn:
   """Mean absolute error task."""
 
   def losses(self) -> interfaces.Losses:
-    return tf.keras.losses.MeanAbsoluteError()
+    return tf.keras.losses.MeanAbsoluteError()  # pyrefly: ignore[bad-return]
 
 
 class _MeanAbsolutePercentageErrorLossMixIn:
   """Mean absolute percentage error task."""
 
   def losses(self) -> interfaces.Losses:
-    return tf.keras.losses.MeanAbsolutePercentageError()
+    return tf.keras.losses.MeanAbsolutePercentageError()  # pyrefly: ignore[bad-return]
 
 
 class _MeanSquaredErrorLossMixIn:
   """Mean squared error task."""
 
   def losses(self) -> interfaces.Losses:
-    return tf.keras.losses.MeanSquaredError()
+    return tf.keras.losses.MeanSquaredError()  # pyrefly: ignore[bad-return]
 
 
 class _MeanSquaredLogarithmicErrorLossMixIn:
   """Mean squared logarithmic error task."""
 
   def losses(self) -> interfaces.Losses:
-    return tf.keras.losses.MeanSquaredLogarithmicError()
+    return tf.keras.losses.MeanSquaredLogarithmicError()  # pyrefly: ignore[bad-return]
 
 
 class MeanSquaredLogScaledError(tf.keras.losses.Loss):
@@ -297,7 +297,7 @@ class _MeanSquaredLogScaledErrorLossMixIn:
     self._name = name
 
   def losses(self) -> interfaces.Losses:
-    return MeanSquaredLogScaledError(
+    return MeanSquaredLogScaledError(  # pyrefly: ignore[bad-return]
         self._reduction,
         self._name,
         alpha_loss_param=self._alpha_loss_param,

@@ -10,7 +10,7 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License.
+# limitations under the License./tensorflow_gnn/copy.bara.sky
 # ==============================================================================
 """Utility functions to simplify construction of GNN layers."""
 
@@ -216,7 +216,7 @@ class ConvGNNBuilder:
             node_set, receiver_to_inputs[node_set], next_state)
       return dict(node_sets=node_set_updates)
 
-    return self._graph_update_factory(deferred_init_callback=_init, name=name)
+    return self._graph_update_factory(deferred_init_callback=_init, name=name)  # pyrefly: ignore[bad-argument-type]
 
 
 def _default_node_set_update_factory(

@@ -172,7 +172,7 @@ class CompositeLayer(
           self.name, self._wrapped_model_input_spec, input_spec
       )
 
-    return self._model(tf.nest.flatten([args, kwargs]), training=training)
+    return self._model(tf.nest.flatten([args, kwargs]), training=training)  # pyrefly: ignore[not-callable]
 
   def _build_wrapped_model(self):
     assert not self._wrapped_model_is_built
@@ -239,7 +239,7 @@ class _InMemKeyToBytesAccessor(
     keys = list(keys_to_values.keys())
     values = [default_value] * num_oov + list(keys_to_values.values())
     self._keys_to_index = index_cls(vocabulary=keys, num_oov_indices=num_oov)
-    self._index_to_values = _BytesArray(values)
+    self._index_to_values = _BytesArray(values)  # pyrefly: ignore[bad-argument-type]
 
   @property
   def resource_name(self) -> str:
@@ -247,7 +247,7 @@ class _InMemKeyToBytesAccessor(
 
   def get_config(self):
     return {
-        'default_value': base64.b64encode(self._default_value).decode('utf-8'),
+        'default_value': base64.b64encode(self._default_value).decode('utf-8'),  # pyrefly: ignore[bad-argument-type]
         'index_to_values': self._index_to_values,
         'keys_to_index': self._keys_to_index,
         **super().get_config(),
@@ -407,8 +407,8 @@ class KeyToTfExampleAccessor(CompositeLayer, interfaces.KeyToFeaturesAccessor):
     """
     super().__init__(**kwargs)
     self._key_to_serialized = cast(tf.keras.layers.Layer, key_to_serialized)
-    self._features_spec = features_spec.copy()
-    self._default_values = default_values.copy() if default_values else {}
+    self._features_spec = features_spec.copy()  # pyrefly: ignore[missing-attribute]
+    self._default_values = default_values.copy() if default_values else {}  # pyrefly: ignore[missing-attribute]
 
     self._parser = TfExamplesParser(
         features_spec, default_values=self._default_values
@@ -427,8 +427,8 @@ class KeyToTfExampleAccessor(CompositeLayer, interfaces.KeyToFeaturesAccessor):
     )
 
   def symbolic_call(self, keys):
-    values = self._key_to_serialized(keys)
-    return self._parser(values)
+    values = self._key_to_serialized(keys)  # pyrefly: ignore[not-callable]
+    return self._parser(values)  # pyrefly: ignore[not-callable]
 
   def call(self, keys: tf.RaggedTensor) -> Features:
     return super().call(keys)
@@ -613,14 +613,14 @@ class UniformEdgesSampler(CompositeLayer, interfaces.UniformEdgesSampler):
     )
 
   def symbolic_call(self, source_node_ids):
-    outgoing_edges = self._outgoing_edges_accessor(source_node_ids)
+    outgoing_edges = self._outgoing_edges_accessor(source_node_ids)  # pyrefly: ignore[not-callable]
     if self._edge_target_feature_name not in outgoing_edges:
       raise ValueError(
           f'Expected {self._edge_target_feature_name} feature '
           'with target node ids of an outgoing edges.'
       )
 
-    return self._sampler([source_node_ids, outgoing_edges])
+    return self._sampler([source_node_ids, outgoing_edges])  # pyrefly: ignore[not-callable]
 
   def call(self, source_node_ids: tf.RaggedTensor) -> Features:
     return super().call(source_node_ids)
@@ -776,8 +776,8 @@ class InMemUniformEdgesSampler(
     source_node_set = graph_tensor.node_sets[adj.node_set_name(source_tag)]
     return cls(
         num_source_nodes=source_node_set.total_size,
-        source=adj[source_tag],
-        target=adj[target_tag],
+        source=adj[source_tag],  # pyrefly: ignore[bad-argument-type]
+        target=adj[target_tag],  # pyrefly: ignore[bad-argument-type]
         edge_features=edge_set.features,
         name=name,
         sample_size=sample_size,
@@ -848,8 +848,8 @@ class TfExamplesParser(tf.keras.layers.Layer):
       **kwargs: Other arguments for the tf.keras.layers.Layer base class.
     """
     super().__init__(**kwargs)
-    self._features_spec = features_spec.copy()
-    self._default_values = default_values.copy() if default_values else {}
+    self._features_spec = features_spec.copy()  # pyrefly: ignore[missing-attribute]
+    self._default_values = default_values.copy() if default_values else {}  # pyrefly: ignore[missing-attribute]
 
   def get_config(self):
     return dict(
@@ -1017,7 +1017,7 @@ def build_graph_tensor(
         })
   """
   layer = GraphTensorBuilder(
-      indices_dtype=indices_dtype,
+      indices_dtype=indices_dtype,  # pyrefly: ignore[bad-argument-type]
       remove_parallel_edges=remove_parallel_edges,
       validate=validate,
   )
@@ -1026,7 +1026,7 @@ def build_graph_tensor(
       node_sets=node_sets or {},
       edge_sets=edge_sets or {},
   )
-  return layer(layer_input)
+  return layer(layer_input)  # pyrefly: ignore[not-callable]
 
 
 @tf.keras.utils.register_keras_serializable(package='GNN')
@@ -1141,7 +1141,7 @@ class GraphTensorBuilder(tf.keras.layers.Layer):
     for node_set_name, features in node_sets_with_id.items():
       features_ = {}
       sizes_ = None
-      for fname, fvalue in join(features).items():
+      for fname, fvalue in join(features).items():  # pyrefly: ignore[bad-argument-type]
         if fname == NODE_ID_NAME:
           check_ops = []
           if self._validate and node_set_name not in latent_node_sets:
@@ -1521,7 +1521,7 @@ class TopKEdgesSampler(CompositeLayer, interfaces.TopKEdgesSampler):
     )
 
   def symbolic_call(self, source_node_ids):
-    outgoing_edges = self._outgoing_edges_accessor(source_node_ids)
+    outgoing_edges = self._outgoing_edges_accessor(source_node_ids)  # pyrefly: ignore[not-callable]
     if self._edge_target_feature_name not in outgoing_edges:
       raise ValueError(
           f'Expected {self._edge_target_feature_name} feature '
@@ -1533,7 +1533,7 @@ class TopKEdgesSampler(CompositeLayer, interfaces.TopKEdgesSampler):
           'with weights of outgoing edges.'
       )
 
-    return self._sampler([source_node_ids, outgoing_edges])
+    return self._sampler([source_node_ids, outgoing_edges])  # pyrefly: ignore[not-callable]
 
   def call(self, source_node_ids: tf.RaggedTensor) -> Features:
     return super().call(source_node_ids)
@@ -1676,7 +1676,7 @@ def _get_unique_parallel_edges_indices(
     assert isinstance(adj, tfgnn.Adjacency), edge_set_name
     # Pack edges (source, target) into int64 ids, such that `ids[i] = ids[j]` if
     # and only if `(source[i], target[i]) = (source[j], target[j])`.
-    edge_ids = _edges_to_ids(adj.source, adj.target)
+    edge_ids = _edges_to_ids(adj.source, adj.target)  # pyrefly: ignore[bad-argument-type]
     unique_edge_ids, unique_edge_idx = tf.unique(edge_ids, tf.int64)
     # unique_edge_ids contains flattened unique edges for graph0, graph1, ...
     # unique_edge_idx[i] is an index in unique_edge_ids for original edge `i`

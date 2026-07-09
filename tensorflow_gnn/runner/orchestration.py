@@ -137,8 +137,8 @@ def _make_padding_preprocessing_model(
     `Field`, `Field`) as model input, label and mask, respectively.
   """
   inputs = tf.keras.Input(type_spec=gtspec)
-  gt, mask = tfgnn.keras.layers.PadToTotalSizes(size_constraints)(inputs)
-  gt, labels = preprocessing_model(gt)
+  gt, mask = tfgnn.keras.layers.PadToTotalSizes(size_constraints)(inputs)  # pyrefly: ignore[not-callable]
+  gt, labels = preprocessing_model(gt)  # pyrefly: ignore[not-callable]
   return tf.keras.Model(inputs, (gt, labels, mask))
 
 
@@ -150,9 +150,9 @@ def _make_parsing_preprocessing_model(
       shape=(),
       dtype=tf.string,
       name="examples")  # Name seen in SignatureDef.
-  parsed = tfgnn.keras.layers.ParseExample(gtspec)(examples)
+  parsed = tfgnn.keras.layers.ParseExample(gtspec)(examples)  # pyrefly: ignore[not-callable]
   parsed = parsed.merge_batch_to_components()
-  return tf.keras.Model(examples, preprocessing_model(parsed))
+  return tf.keras.Model(examples, preprocessing_model(parsed))  # pyrefly: ignore[not-callable]
 
 
 def _make_preprocessing_model(
@@ -276,7 +276,7 @@ def _make_preprocessing_model(
   ref_to_index = dict((x.ref(), i) for i, x in enumerate(outputs))
   #  Strip features on aux graph pieces (notably: labels).
   woauxfeatures = _without_aux_graph_piece_features()
-  outputs = tuple(woauxfeatures(x) for x in outputs)
+  outputs = tuple(woauxfeatures(x) for x in outputs)  # pyrefly: ignore[not-callable]
   # For each task, report the output indices of its `Task.preprocess(...)`
   # results.
   oimap = tf.nest.map_structure(lambda x: ref_to_index[x.ref()], gt_processed)
@@ -574,8 +574,8 @@ def run(*,
         tf_data_service_config if use_data_service_for_validation else None
     )
     valid_ds_provider = _WrappedDatasetProvider(
-        valid_apply_fn,
-        valid_ds_provider,
+        valid_apply_fn,  # pyrefly: ignore[unbound-name]
+        valid_ds_provider,  # pyrefly: ignore[bad-argument-type]
         drop_remainder,
         global_batch_size,
         valid_tf_data_service_config,
@@ -591,7 +591,7 @@ def run(*,
 
     if isinstance(task, collections.abc.Mapping):
       outputs = {
-          k: v.predict(*[outputs[i] for i in tf.nest.flatten(oimap[k])])
+          k: v.predict(*[outputs[i] for i in tf.nest.flatten(oimap[k])])  # pyrefly: ignore[bad-index]
           for k, v in task.items()
       }
     else:

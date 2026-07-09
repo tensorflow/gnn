@@ -412,7 +412,7 @@ class _SamplingStep(object):
       if len(sample_size) > 1:
         next_step = _SamplingStep(
             to_node_set_name, edge_set_name, parent=self,
-            sample_size=sample_size[0], strategy=strategy,
+            sample_size=sample_size[0], strategy=strategy,  # pyrefly: ignore[bad-argument-type]
             op_name=op_name, builder=self.builder)
         self.children.append(next_step)
         return next_step.sample(
@@ -424,7 +424,7 @@ class _SamplingStep(object):
 
     step = _SamplingStep(
         to_node_set_name, edge_set_name, parent=self, sample_size=sample_size,
-        strategy=strategy, op_name=op_name, builder=self.builder)
+        strategy=strategy, op_name=op_name, builder=self.builder)  # pyrefly: ignore[bad-argument-type]
 
     self.children.append(step)
     return step
@@ -447,7 +447,7 @@ class _SamplingStep(object):
     return new_step
 
   def join(self, other_steps) -> 'Join':
-    return Join([self] + list(other_steps))
+    return Join([self] + list(other_steps))  # pyrefly: ignore[bad-argument-type]
 
 
 class Join:

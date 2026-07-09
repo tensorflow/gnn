@@ -138,7 +138,7 @@ class SimpleDatasetProvider(interfaces.DatasetProvider):
     else:
       filenames = self._filenames
     return _process_dataset(
-        tf.data.Dataset.from_tensor_slices(filenames),
+        tf.data.Dataset.from_tensor_slices(filenames),  # pyrefly: ignore[bad-argument-type]
         num_shards=context.num_input_pipelines,
         index=context.input_pipeline_id,
         shuffle_dataset=self._shuffle_filenames,
@@ -199,11 +199,11 @@ def _process_sampled_dataset(
         dataset_fn(principal_dataset).repeat()
     ]
     sampled_dataset = tf.data.Dataset.sample_from_datasets(
-        datasets,
+        datasets,  # pyrefly: ignore[bad-argument-type]
         weights=weights,
         stop_on_empty_dataset=False)
     weight = (principal_weight or 1 / len(datasets))
-    count = int(principal_cardinality / weight)
+    count = int(principal_cardinality / weight)  # pyrefly: ignore[unsupported-operation]
     sampled_dataset = sampled_dataset.take(count)
   else:
     count = tf.int64.max
@@ -217,7 +217,7 @@ def _process_sampled_dataset(
         dataset_fn(principal_dataset)
     ]
     sampled_dataset = tf.data.Dataset.sample_from_datasets(
-        datasets,
+        datasets,  # pyrefly: ignore[bad-argument-type]
         weights=weights,
         stop_on_empty_dataset=True)
 
@@ -352,7 +352,7 @@ class SimpleSampleDatasetsProvider(interfaces.DatasetProvider):
     self._shuffle_filenames = shuffle_filenames
     self._interleave_fn = interleave_fn
     if examples_shuffle_size is not None:
-      denominator = len(extra_file_patterns) + 1
+      denominator = len(extra_file_patterns) + 1  # pyrefly: ignore[bad-argument-type]
       self._examples_shuffle_size = examples_shuffle_size // denominator
     else:
       self._examples_shuffle_size = None
@@ -418,14 +418,14 @@ class SimpleSampleDatasetsProvider(interfaces.DatasetProvider):
                                                   "principal file pattern")
       extra_filenames = [
           _sorted_glob_or_raise(f, "extra file pattern")
-          for f in self._extra_file_patterns
+          for f in self._extra_file_patterns  # pyrefly: ignore[not-iterable]
       ]
     else:
       principal_filenames = self._principal_filenames
       extra_filenames = self._extra_filenames
     return _process_sampled_dataset(
-        tf.data.Dataset.from_tensor_slices(principal_filenames),
-        [tf.data.Dataset.from_tensor_slices(f) for f in extra_filenames],
+        tf.data.Dataset.from_tensor_slices(principal_filenames),  # pyrefly: ignore[bad-argument-type]
+        [tf.data.Dataset.from_tensor_slices(f) for f in extra_filenames],  # pyrefly: ignore[bad-argument-type, not-iterable]
         self._principal_weight,
         self._extra_weights,
         num_shards=context.num_input_pipelines,

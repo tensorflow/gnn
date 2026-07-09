@@ -239,7 +239,7 @@ def export_model(model: tf.keras.Model,
     nested_args, nested_kwargs = tf.nest.pack_sequence_as(
         (nested_arg_specs, nested_kwarg_specs),
         flat_args)
-    nested_outputs = model(*nested_args, **nested_kwargs)
+    nested_outputs = model(*nested_args, **nested_kwargs)  # pyrefly: ignore[not-callable]
     return dict(zip(flat_output_names, tf.nest.flatten(nested_outputs)))
 
   # Do the export.
@@ -270,7 +270,7 @@ def _export_model(export_dir: str,
   """Exports a Keras model."""
   if preprocess_model and include_preprocessing:
     xs, *_ = preprocess_model.output
-    model = tf.keras.Model(preprocess_model.input, model(xs))
+    model = tf.keras.Model(preprocess_model.input, model(xs))  # pyrefly: ignore[not-callable]
   if subdirectory:
     export_dir = os.path.join(export_dir, subdirectory)
   export_model(model, export_dir, output_names=output_names, options=options,

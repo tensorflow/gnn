@@ -45,11 +45,11 @@ def main(argv: Sequence[str]) -> None:
 
   gt = tfgnn.homogeneous(source, target, node_features={tfgnn.HIDDEN_STATE: h})
   def fn(inputs, **unused_kwargs):
-    return tf.keras.layers.Dense(
+    return tf.keras.layers.Dense(  # pyrefly: ignore[not-callable]
         2,
         kernel_initializer="ones")(inputs[tfgnn.HIDDEN_STATE])
-  outputs = tfgnn.keras.layers.MapFeatures(None, fn, None)(gt)
-  outputs = tfgnn.keras.layers.Pool(
+  outputs = tfgnn.keras.layers.MapFeatures(None, fn, None)(gt)  # pyrefly: ignore[not-callable]
+  outputs = tfgnn.keras.layers.Pool(  # pyrefly: ignore[not-callable]
       tfgnn.CONTEXT,
       "mean",
       node_set_name="nodes")(outputs)

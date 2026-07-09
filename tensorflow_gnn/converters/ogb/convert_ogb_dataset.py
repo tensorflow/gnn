@@ -95,7 +95,7 @@ def extract_features_dict(graph: Dict[str, Dict[str, Array]],
     array_dict = graph.get(name, None)
     if array_dict is None:
       continue
-    array = array_dict.pop(set_name, None)
+    array = array_dict.pop(set_name, None)  # pyrefly: ignore[no-matching-overload]
     if array is None:
       continue
     assert array.shape[0] == num_items
@@ -412,7 +412,7 @@ def convert_dataset(dataset: Any, output_dir: str):
   if isinstance(is_heterogeneous, str):
     is_heterogeneous = (is_heterogeneous == "True")
   if is_heterogeneous:
-    schema = convert_heterogeneous_graph(graph, output_dir)
+    schema = convert_heterogeneous_graph(graph, output_dir)  # pyrefly: ignore[bad-argument-type]
   else:
     schema = convert_homogeneous_graph(graph, len(dataset), output_dir)
 
@@ -440,11 +440,11 @@ def create_dataset(dataset: str, datasets_root: Optional[str] = None) -> Any:
   problem_type = dataset.split("-")[0]
   kwargs = dict(name=dataset, root=datasets_root)
   if problem_type == "ogbn":
-    dataset = ogb.nodeproppred.NodePropPredDataset(**kwargs)
+    dataset = ogb.nodeproppred.NodePropPredDataset(**kwargs)  # pyrefly: ignore[bad-assignment]
   elif problem_type == "ogbl":
-    dataset = ogb.linkproppred.LinkPropPredDataset(**kwargs)
+    dataset = ogb.linkproppred.LinkPropPredDataset(**kwargs)  # pyrefly: ignore[bad-assignment]
   elif problem_type == "ogbg":
-    dataset = ogb.graphproppred.GraphPropPredDataset(**kwargs)
+    dataset = ogb.graphproppred.GraphPropPredDataset(**kwargs)  # pyrefly: ignore[bad-assignment]
   else:
     raise ValueError("Invalid problem type for {}".format(FLAGS.dataset))
   return dataset

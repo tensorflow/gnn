@@ -221,7 +221,7 @@ class Sink(tf.keras.layers.Layer, interfaces.SamplingPrimitive):
 
   def __init__(self, *, io_config: Optional[Mapping[str, int]] = None):
     super().__init__()
-    self._io_config = io_config.copy() if io_config else {}
+    self._io_config = io_config.copy() if io_config else {}  # pyrefly: ignore[missing-attribute]
 
   @property
   def io_config(self) -> Mapping[str, int]:
@@ -272,13 +272,13 @@ def _create_eval_dag(
     if _requires_io_adapter_layer(output):
       # Some output tensors must be created using TF ops.
       adapter = tf.keras.layers.Lambda(flatten_to_dict, name='io_adapter')
-      output = adapter(output)
+      output = adapter(output)  # pyrefly: ignore[not-callable]
     else:
       # All output tensors could be trivially extracted from the model output.
       output = flatten_to_dict(output)
     io_config = _create_io_config(output)
 
-  sink = (Sink(io_config=io_config)(output)).node
+  sink = (Sink(io_config=io_config)(output)).node  # pyrefly: ignore[not-callable]
 
   nodes_dag: nx.DiGraph = build_ordered_dag(sink)
   stages_dag: nx.DiGraph = create_stages_dag(nodes_dag)
@@ -569,14 +569,14 @@ def create_tf_stage_model(
 
   # NOTE: we must call flatten on real tensors, so within Keras call.
   model_args_struct = get_spec(inputs)
-  inputs_spec = get_spec(tf.keras.layers.Lambda(_to_executor_values)(inputs))
+  inputs_spec = get_spec(tf.keras.layers.Lambda(_to_executor_values)(inputs))  # pyrefly: ignore[not-callable]
   flattened_inputs_spec = tf.nest.flatten(inputs_spec)
 
   @tf.function(input_signature=([flattened_inputs_spec]))
   def serving(argw):
     inputs = tf.nest.pack_sequence_as(inputs_spec, argw)
     inputs = _from_executor_values(model_args_struct, inputs)
-    outputs = model(inputs)
+    outputs = model(inputs)  # pyrefly: ignore[not-callable]
     outputs = _to_executor_values(outputs)
     return tf.nest.flatten(outputs)
 
@@ -829,7 +829,7 @@ def _get_spec_pb(edge: Edge) -> pb.ValueSpec:
     )
   else:
     result.flattened.components.extend(
-        [_get_spec_pb(piece).tensor for piece in _FLATTEN_LAYER(edge)]
+        [_get_spec_pb(piece).tensor for piece in _FLATTEN_LAYER(edge)]  # pyrefly: ignore[not-callable]
     )
 
   return result

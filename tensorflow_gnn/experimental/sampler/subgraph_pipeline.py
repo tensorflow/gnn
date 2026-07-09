@@ -367,7 +367,7 @@ class LinkSamplingPipeline:
         [inputs[tfgnn.SOURCE_NAME], inputs[tfgnn.TARGET_NAME]], axis=-1
     )
     subgraph = self._sampling_pipeline(seed_nodes)
-    return AddLinkReadoutStruct(
+    return AddLinkReadoutStruct(  # pyrefly: ignore[not-callable]
         readout_node_set=self._readout_node_set,
         seed_node_set=self._seed_node_set,
     )((subgraph, inputs))
@@ -417,13 +417,13 @@ class AddLinkReadoutStruct(tf.keras.layers.Layer):
     ids = seed_node_set[core.NODE_ID_NAME]
     link_source_idx = tf.cast(
         ext_ops.ragged_lookup(
-            readout_features[tfgnn.SOURCE_NAME], ids, global_indices=False
+            readout_features[tfgnn.SOURCE_NAME], ids, global_indices=False  # pyrefly: ignore[bad-argument-type]
         ),
         graph_tensor.indices_dtype,
     )
     link_target_idx = tf.cast(
         ext_ops.ragged_lookup(
-            readout_features[tfgnn.TARGET_NAME], ids, global_indices=False
+            readout_features[tfgnn.TARGET_NAME], ids, global_indices=False  # pyrefly: ignore[bad-argument-type]
         ),
         graph_tensor.indices_dtype,
     )

@@ -80,7 +80,7 @@ class StringIdsSampler:
     node_degree = self.counts[edge_set_name].lookup(node_id)
     sample_indices = tf.random.shuffle(
         tf.range(tf.maximum(node_degree, sample_size)))[:sample_size]
-    query_keys = node_id + '.' + tf.strings.as_string(sample_indices)
+    query_keys = node_id + '.' + tf.strings.as_string(sample_indices)  # pyrefly: ignore[unsupported-operation]
     return self.edges[edge_set_name].lookup(query_keys)
 
   def sample_edges(self, sample_size: int, edge_set_name: tfgnn.EdgeSetName,
@@ -175,7 +175,7 @@ class _TestNodeFeatureAccessor(
   def resource_name(self) -> str:
     return '_TestNodeFeatureAccessor'
 
-  def call(self, keys: tf.RaggedTensor) -> interfaces.Features:
+  def call(self, keys: tf.RaggedTensor) -> interfaces.Features:  # pyrefly: ignore[bad-override]
     return {
         '#id': keys,  # 'dog', 'cat', ...
         '#ID': tf.ragged.map_flat_values(  # 'DOG', 'CAT', ...
@@ -341,7 +341,7 @@ class EdgeFeaturesTest(tf.test.TestCase):
     graph_schema.node_sets['a'].description = 'test node set'
     graph_schema.edge_sets['a->a'].source = 'a'
     graph_schema.edge_sets['a->a'].target = 'a'
-    graph_schema.edge_sets['a->a'].features['f'].dtype = 1
+    graph_schema.edge_sets['a->a'].features['f'].dtype = 1  # pyrefly: ignore[bad-assignment]
 
     sampling_spec = sampling_spec_pb2.SamplingSpec()
     sampling_spec.seed_op.op_name = 'seed'
@@ -353,10 +353,10 @@ class EdgeFeaturesTest(tf.test.TestCase):
     def edge_sampler_factory(sampling_op):
       self.assertEqual(sampling_op.edge_set_name, 'a->a')
       return core.InMemUniformEdgesSampler(
-          num_source_nodes=3,
+          num_source_nodes=3,  # pyrefly: ignore[bad-argument-type]
           source=tf.constant([2, 0], tf.int32),
           target=tf.constant([0, 1], tf.int32),
-          edge_features={'f': [2.0, 0.0]},
+          edge_features={'f': [2.0, 0.0]},  # pyrefly: ignore[bad-argument-type]
           seed=42,
           sample_size=sampling_op.sample_size,
           name=sampling_op.edge_set_name,
@@ -368,7 +368,7 @@ class EdgeFeaturesTest(tf.test.TestCase):
         edge_sampler_factory,
         seed_node_dtype=tf.int32,
     )
-    result = sampling_model(tf.ragged.constant([[2], [0]]))
+    result = sampling_model(tf.ragged.constant([[2], [0]]))  # pyrefly: ignore[not-callable]
     self.assertIn('a', result.node_sets)
     self.assertIn('a->a', result.edge_sets)
     edge_features = result.edge_sets['a->a'].get_features_dict()
@@ -385,7 +385,7 @@ class EvalDagTest(tf.test.TestCase, parameterized.TestCase):
     graph_schema.node_sets['a'].description = 'node set b'
     graph_schema.edge_sets['a->b'].source = 'a'
     graph_schema.edge_sets['a->b'].target = 'b'
-    graph_schema.edge_sets['a->a'].features['weights'].dtype = 1
+    graph_schema.edge_sets['a->a'].features['weights'].dtype = 1  # pyrefly: ignore[bad-assignment]
 
     sampling_spec = sampling_spec_pb2.SamplingSpec()
     sampling_spec.seed_op.op_name = 'seed'
@@ -398,7 +398,7 @@ class EvalDagTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(sampling_op.edge_set_name, 'a->b')
       if ids_dtype == tf.string:
         accessor = core.InMemStringKeyToBytesAccessor(
-            keys_to_values={b'a': b''}
+            keys_to_values={b'a': b''}  # pyrefly: ignore[bad-argument-type]
         )
       else:
         accessor = core.InMemIntegerKeyToBytesAccessor(keys_to_values={0: b''})
@@ -448,7 +448,7 @@ def _get_test_link_edges_sampler_schema_spec():
   sampler = StringIdsSampler({'reviews': reviews_edges})
 
   graph_schema = tfgnn.GraphSchema()
-  graph_schema.node_sets['_readout'].features['label'].dtype = 1
+  graph_schema.node_sets['_readout'].features['label'].dtype = 1  # pyrefly: ignore[bad-assignment]
   graph_schema.edge_sets['reviews'].source = 'authors'
   graph_schema.edge_sets['reviews'].target = 'authors'
   graph_schema.edge_sets['_readout/source'].target = '_readout'

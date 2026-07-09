@@ -198,7 +198,7 @@ class MtAlbisNextNodeState(tf.keras.layers.Layer):
     # Collect and combine pooled messages (conv results) from edge sets.
     if edge_set_inputs:
       edge_input = self._combine_edge_inputs(edge_set_inputs)
-      edge_input = self._dropout(edge_input)
+      edge_input = self._dropout(edge_input)  # pyrefly: ignore[not-callable]
       flat_inputs.append(edge_input)
     # Collect a context input, if any. (Empty Mapping means none.)
     if isinstance(context_input, Mapping) and not context_input:
@@ -206,12 +206,12 @@ class MtAlbisNextNodeState(tf.keras.layers.Layer):
     else:
       context_input = _require_single_tensor(context_input,
                                              "input from context")
-      context_input = self._dropout(context_input)
+      context_input = self._dropout(context_input)  # pyrefly: ignore[not-callable]
       flat_inputs.append(context_input)
 
     net = tf.concat(flat_inputs, axis=-1)
-    net = self._dense(net)
-    net = self._dropout(net)
+    net = self._dense(net)  # pyrefly: ignore[not-callable]
+    net = self._dropout(net)  # pyrefly: ignore[not-callable]
 
     if (self._next_state_type == "residual" and
         input_state.shape[1:].num_elements() != 0):
@@ -223,7 +223,7 @@ class MtAlbisNextNodeState(tf.keras.layers.Layer):
             f"output shape {net.shape.as_list()}.")
       net = tf.add(net, input_state)
 
-    net = self._normalization(net)
+    net = self._normalization(net)  # pyrefly: ignore[not-callable]
     return net
 
   def _combine_edge_inputs(self, edge_set_inputs):

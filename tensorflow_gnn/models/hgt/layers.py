@@ -252,7 +252,7 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     self._key_projections = {}
     assert self._message_projections is None
     self._message_projections = {}
-    for node_set_name in self._senders:
+    for node_set_name in self._senders:  # pyrefly: ignore[not-iterable]
       self._key_projections[node_set_name] = tf.keras.layers.Dense(
           units,
           kernel_initializer=tfgnn.keras.clone_initializer(
@@ -274,7 +274,7 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     self._skip_connection_weights = {}
     assert self._norms is None
     self._norms = {}
-    for node_set_name in self._receivers:
+    for node_set_name in self._receivers:  # pyrefly: ignore[not-iterable]
       self._query_projections[node_set_name] = tf.keras.layers.Dense(
           units,
           kernel_initializer=tfgnn.keras.clone_initializer(
@@ -296,7 +296,7 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
         self._norms[node_set_name] = tf.keras.layers.Layer(
             name='no_normalization'
         )
-      if self._is_state_size_constant[node_set_name]:
+      if self._is_state_size_constant[node_set_name]:  # pyrefly: ignore[unsupported-operation]
         if self._use_weighted_skip:
           self._skip_connection_weights[node_set_name] = self.add_weight(
               shape=(),
@@ -313,7 +313,7 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     self._edge_type_message_projections = {}
     assert self._edge_type_priors is None
     self._edge_type_priors = {}
-    for edge_set_name in self._edge_set_names:
+    for edge_set_name in self._edge_set_names:  # pyrefly: ignore[not-iterable]
       self._edge_type_attention_projections[
           edge_set_name] = tf.keras.layers.EinsumDense(
               equation='...jk,jkl->...jl',
@@ -373,21 +373,21 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
     # Compute keys and messages for senders
     keys_by_sender = {}
     messages_by_sender = {}
-    for node_set_name in self._senders:
+    for node_set_name in self._senders:  # pyrefly: ignore[not-iterable]
       x = graph.node_sets[node_set_name][self._feature_name]
       keys_by_sender[node_set_name] = self._split_heads(
-          self._key_projections[node_set_name](x)
+          self._key_projections[node_set_name](x)  # pyrefly: ignore[unsupported-operation]
       )
       messages_by_sender[node_set_name] = self._split_heads(
-          self._message_projections[node_set_name](x)
+          self._message_projections[node_set_name](x)  # pyrefly: ignore[unsupported-operation]
       )
 
     # Compute queries for receivers
     queries_by_receiver = {}
-    for node_set_name in self._receivers:
+    for node_set_name in self._receivers:  # pyrefly: ignore[not-iterable]
       x = graph.node_sets[node_set_name][self._feature_name]
       queries_by_receiver[node_set_name] = self._split_heads(
-          self._query_projections[node_set_name](x),
+          self._query_projections[node_set_name](x),  # pyrefly: ignore[unsupported-operation]
       )
 
     # Broadcast the scores and messages over the edge sets
@@ -402,7 +402,7 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
       sender_name = edge_set.adjacency.node_set_name(sender_tag)
       receiver_name = edge_set.adjacency.node_set_name(receiver_tag)
 
-      messages = self._edge_type_message_projections[edge_set_name](
+      messages = self._edge_type_message_projections[edge_set_name](  # pyrefly: ignore[unsupported-operation]
           messages_by_sender[sender_name])
       messages_by_edge_set[edge_set_name] = tfgnn.broadcast_node_to_edges(
           graph,
@@ -416,7 +416,7 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
           sender_tag,
           feature_value=keys_by_sender[sender_name],
       )
-      queries = self._edge_type_attention_projections[edge_set_name](
+      queries = self._edge_type_attention_projections[edge_set_name](  # pyrefly: ignore[unsupported-operation]
           queries_by_receiver[receiver_name])
       queries = tfgnn.broadcast_node_to_edges(
           graph,
@@ -425,13 +425,13 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
           feature_value=queries,
       )
       scores = (tf.einsum('...i,...i->...', queries, keys)
-                * self._edge_type_priors[edge_set_name]
+                * self._edge_type_priors[edge_set_name]  # pyrefly: ignore[unsupported-operation]
                 * rsqrt_dim)
       scores_by_receiver[receiver_name][edge_set_name] = scores
 
     # Apply softmax to the scores to get the attention coefficients
     coefficients_by_receiver = {}
-    for node_set_name in self._receivers:
+    for node_set_name in self._receivers:  # pyrefly: ignore[not-iterable]
       edge_set_names, scores = zip(*scores_by_receiver[node_set_name].items())
       coefficients = tfgnn.softmax(graph, receiver_tag,
                                    edge_set_name=edge_set_names,
@@ -460,24 +460,24 @@ class HGTGraphUpdate(tf.keras.layers.Layer):
 
     updated_node_features = {}
     # Update the receiver node states
-    for node_set_name in self._receivers:
+    for node_set_name in self._receivers:  # pyrefly: ignore[not-iterable]
       node_set = graph.node_sets[node_set_name]
       res = tf.add_n(pooled_messages_by_receiver[node_set_name])
-      res = self._aggr_projections[node_set_name](self._activation(res))
-      res = self._dropout(res)
+      res = self._aggr_projections[node_set_name](self._activation(res))  # pyrefly: ignore[unsupported-operation]
+      res = self._dropout(res)  # pyrefly: ignore[not-callable]
       # Shapes should be the same in order to add a residual connection
       # Otherwise, the features are empty (like in latent features) or the
       # initialization function would have thrown an error
-      if self._is_state_size_constant[node_set_name]:
+      if self._is_state_size_constant[node_set_name]:  # pyrefly: ignore[unsupported-operation]
         if self._use_weighted_skip:
-          alpha = tf.sigmoid(self._skip_connection_weights[node_set_name])
+          alpha = tf.sigmoid(self._skip_connection_weights[node_set_name])  # pyrefly: ignore[unsupported-operation]
           res = res * alpha + tf.cast(
               node_set[self._feature_name], self.compute_dtype
           ) * (1 - alpha)
         else:
           res = res + tf.cast(node_set[self._feature_name], self.compute_dtype)
       features = graph.node_sets[node_set_name].get_features_dict()  # Copy
-      features[self._feature_name] = self._norms[node_set_name](res)
+      features[self._feature_name] = self._norms[node_set_name](res)  # pyrefly: ignore[unsupported-operation]
       updated_node_features[node_set_name] = features
 
     return graph.replace_features(node_sets=updated_node_features)

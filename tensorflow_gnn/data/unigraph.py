@@ -634,15 +634,15 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
       output_record = example = Example()
       if isinstance(fset, tfgnn.proto.NodeSet):
         example.features.feature[NODE_ID].bytes_list.value.append(
-            _to_bytes(node_id))
+            _to_bytes(node_id))  # pyrefly: ignore[unbound-name]
       elif isinstance(fset, tfgnn.proto.EdgeSet):
         source_feature_name = _TRANSLATIONS[cls.SOURCE_COLUMN]
         target_feature_name = _TRANSLATIONS[cls.TARGET_COLUMN]
 
         example.features.feature[source_feature_name].bytes_list.value.append(
-            _to_bytes(source_id))
+            _to_bytes(source_id))  # pyrefly: ignore[unbound-name]
         example.features.feature[target_feature_name].bytes_list.value.append(
-            _to_bytes(target_id))
+            _to_bytes(target_id))  # pyrefly: ignore[unbound-name]
 
       for feature_name, feature in fset.features.items():
         # In case client encodes `id`, `source` or `target` explicitly in the
@@ -662,11 +662,11 @@ class ReadUnigraphPieceFromBigQuery(beam.PTransform):
         example_feature = example.features.feature[tf_feature_name]
         try:
           if feature.dtype == tf.float32.as_datatype_enum:
-            example_feature.float_list.value.append(float(feature_value))
+            example_feature.float_list.value.append(float(feature_value))  # pyrefly: ignore[bad-argument-type]
           elif feature.dtype == tf.bool.as_datatype_enum:
-            example_feature.int64_list.value.append(int(feature_value))
+            example_feature.int64_list.value.append(int(feature_value))  # pyrefly: ignore[bad-argument-type]
           elif feature.dtype == tf.int64.as_datatype_enum:
-            example_feature.int64_list.value.append(int(feature_value))
+            example_feature.int64_list.value.append(int(feature_value))  # pyrefly: ignore[bad-argument-type]
           elif feature.dtype == tf.string.as_datatype_enum:
             example_feature.bytes_list.value.append(
                 str(row.get(feature_name, "")).encode("utf-8"))
@@ -885,7 +885,7 @@ class DictStreams:
           Union[tfgnn.proto.NodeSet, tfgnn.proto.EdgeSet]] = None
       ) -> Iterable[Example]:
     """Yields `tf.Example` from tfrecord file."""
-    for example in tf.data.TFRecordDataset(file_path):
+    for example in tf.data.TFRecordDataset(file_path):  # pyrefly: ignore[bad-instantiation]
       yield Example.FromString(example.numpy())
 
   @staticmethod
@@ -899,7 +899,7 @@ class DictStreams:
       converters = build_converter_from_schema(fset.features)
     else:
       converters = None
-    csv_records = csv.DictReader(gfile.GFile(file_path, "r"))
+    csv_records = csv.DictReader(gfile.GFile(file_path, "r"))  # pyrefly: ignore[bad-argument-type]
     for csv_record in csv_records:
       yield _csv_fields_to_example(csv_record.items(), converters=converters)
 
@@ -1016,7 +1016,7 @@ class DictStreams:
             fset=node_schema, output_bq_row=True)
         records = map(extract_example_fn, records)
 
-      dict_streams[node_set_name] = records
+      dict_streams[node_set_name] = records  # pyrefly: ignore[unbound-name]
 
     return dict_streams
 
@@ -1048,7 +1048,7 @@ class DictStreams:
             fset=edge_schema, edge_reversed=is_reversed, output_bq_row=True)
         records = map(extract_example_fn, records)
 
-      dict_streams[edge_set_name] = records
+      dict_streams[edge_set_name] = records  # pyrefly: ignore[unbound-name]
     return dict_streams
 
   @staticmethod
@@ -1066,7 +1066,7 @@ class DictStreams:
           str, Union[
               Iterable[Tuple[bytes, bytes, Example]],
               Iterable[Tuple[bytes, Example]]]]]:
-    return {
+    return {  # pyrefly: ignore[bad-return]
         tfgnn.NODES: DictStreams.iter_nodes_via_schema(schema),
         tfgnn.EDGES: DictStreams.iter_edges_via_schema(schema),
     }

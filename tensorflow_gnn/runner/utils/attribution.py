@@ -64,27 +64,27 @@ def reduce_graph_sequence(
   elif initializer:
     graphs = (initializer,)
 
-  if not all(initializer.spec == g.spec for g in graphs):
+  if not all(initializer.spec == g.spec for g in graphs):  # pyrefly: ignore[missing-attribute]
     raise ValueError("reduce_graph_sequence() with graphs of different spec")
 
   context, edge_sets, node_sets = {}, {}, {}
 
-  for k in initializer.context.features.keys():
+  for k in initializer.context.features.keys():  # pyrefly: ignore[missing-attribute]
     context[k] = context_fn([g.context.features[k] for g in graphs])
 
-  for k, v in initializer.edge_sets.items():
+  for k, v in initializer.edge_sets.items():  # pyrefly: ignore[missing-attribute]
     features = {}
     for kk in v.features.keys():
       features[kk] = edge_set_fn([g.edge_sets[k].features[kk] for g in graphs])
     edge_sets[k] = features
 
-  for k, v in initializer.node_sets.items():
+  for k, v in initializer.node_sets.items():  # pyrefly: ignore[missing-attribute]
     features = {}
     for kk in v.features.keys():
       features[kk] = node_set_fn([g.node_sets[k].features[kk] for g in graphs])
     node_sets[k] = features
 
-  return initializer.replace_features(
+  return initializer.replace_features(  # pyrefly: ignore[missing-attribute]
       context=context,
       edge_sets=edge_sets,
       node_sets=node_sets)
@@ -182,7 +182,7 @@ def interpolate_graph_features(
   delta = subtract_graph_features(graph, baseline)
 
   def interpolate_(alpha):
-    fn = lambda inputs: tf.math.multiply(*inputs, alpha)
+    fn = lambda inputs: tf.math.multiply(*inputs, alpha)  # pyrefly: ignore[bad-argument-count]
     return sum_graph_features((
         baseline,
         reduce_graph_sequence(
@@ -259,7 +259,7 @@ def integrated_gradients(
   @tf.function(input_signature=_input_signature(preprocess_model))
   def fn(inputs):
     try:
-      graph, labels = preprocess_model(inputs)
+      graph, labels = preprocess_model(inputs)  # pyrefly: ignore[not-callable]
       if isinstance(graph, Sequence): graph, *_ = graph
     except ValueError as error:
       msg = "Integrated gradients requires both examples and labels"
@@ -274,7 +274,7 @@ def integrated_gradients(
     for interpolation in interpolations:
       with tf.GradientTape(persistent=True) as tape:
         tape.watch(interpolation)
-        logits = model(interpolation)
+        logits = model(interpolation)  # pyrefly: ignore[not-callable]
         loss = model.compiled_loss(
             labels,
             logits,
@@ -374,7 +374,7 @@ class IntegratedGradientsExporter(interfaces.ModelExporter):
       raise ValueError("`model` is expected to have been built")
 
     xs, *_ = preprocess_model.output
-    model_for_export = tf.keras.Model(preprocess_model.input, model(xs))
+    model_for_export = tf.keras.Model(preprocess_model.input, model(xs))  # pyrefly: ignore[not-callable]
 
     ig = integrated_gradients(
         preprocess_model,

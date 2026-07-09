@@ -48,10 +48,10 @@ class KerasTrainerCheckpointOptions:
   latest_checkpoint: str = "latest"
 
   def best_checkpoint_filepath(self) -> str:
-    return os.path.join(self.checkpoint_dir, self.best_checkpoint)
+    return os.path.join(self.checkpoint_dir, self.best_checkpoint)  # pyrefly: ignore[no-matching-overload]
 
   def latest_checkpoint_filepath(self) -> str:
-    return os.path.join(self.checkpoint_dir, self.latest_checkpoint)
+    return os.path.join(self.checkpoint_dir, self.latest_checkpoint)  # pyrefly: ignore[no-matching-overload]
 
 
 class KerasTrainer(interfaces.Trainer):

@@ -264,7 +264,7 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     # Form the attention query for each head.
     # [num_items, *extra_dims, num_heads, channels_per_head]
     assert receiver_input is not None, "__init__() should have checked this."
-    query = broadcast_from_receiver(self._split_heads(self._w_query(
+    query = broadcast_from_receiver(self._split_heads(self._w_query(  # pyrefly: ignore[not-callable]
         receiver_input)))
 
     # Form the attention value by transforming the configured inputs
@@ -273,10 +273,10 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     value_terms = []
     if sender_node_input is not None:
       value_terms.append(broadcast_from_sender_node(
-          self._split_heads(self._w_sender_node(sender_node_input))))
+          self._split_heads(self._w_sender_node(sender_node_input))))  # pyrefly: ignore[not-callable]
     if sender_edge_input is not None:
       value_terms.append(
-          self._split_heads(self._w_sender_edge(sender_edge_input)))
+          self._split_heads(self._w_sender_edge(sender_edge_input)))  # pyrefly: ignore[not-callable]
     assert value_terms, "Internal error: no values, __init__ should catch this."
     value = tf.add_n(value_terms)
 
@@ -286,8 +286,8 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
 
     # Compute the attention logits and softmax to get the coefficients.
     # [num_items, *extra_dims, num_heads, 1]
-    logits = tf.expand_dims(self._attention_logits_fn(attention_features), -1)
-    attention_coefficients = extra_receiver_ops["softmax"](logits)
+    logits = tf.expand_dims(self._attention_logits_fn(attention_features), -1)  # pyrefly: ignore[not-callable]
+    attention_coefficients = extra_receiver_ops["softmax"](logits)  # pyrefly: ignore[unsupported-operation]
 
     if self._edge_dropout_layer is not None:
       # If requested, add layer with dropout to the normalized attention
@@ -295,7 +295,7 @@ class GATv2Conv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       # have the same effect as edge dropout.
       # Also, note that `keras.layers.Dropout` upscales the remaining values,
       # which should maintain the sum-up-to-1 per node in expectation.
-      attention_coefficients = self._edge_dropout_layer(attention_coefficients,
+      attention_coefficients = self._edge_dropout_layer(attention_coefficients,  # pyrefly: ignore[not-callable]
                                                         **kwargs)
 
     # Apply the attention coefficients to the transformed query.

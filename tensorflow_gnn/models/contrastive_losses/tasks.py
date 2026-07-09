@@ -108,7 +108,7 @@ class ContrastiveLossTask(runner.Task):
       self, inputs: GraphTensor
   ) -> tuple[Sequence[GraphTensor], runner.Predictions]:
     """Applies a `Corruptor` and returns empty pseudo-labels."""
-    x = (inputs, self._corruptor(inputs))
+    x = (inputs, self._corruptor(inputs))  # pyrefly: ignore[not-callable]
     y = tf.zeros((inputs.num_components, 0), dtype=tf.int32)
     return x, y
 
@@ -134,16 +134,16 @@ class ContrastiveLossTask(runner.Task):
       )
 
     # Clean representations.
-    x_clean = tf.keras.layers.Layer(name=self._representations_layer_name)(
-        self._readout(gt_clean)
+    x_clean = tf.keras.layers.Layer(name=self._representations_layer_name)(  # pyrefly: ignore[not-callable]
+        self._readout(gt_clean)  # pyrefly: ignore[not-callable]
     )
     # Corrupted representations.
-    x_corrupted = self._readout(gt_corrupted)
+    x_corrupted = self._readout(gt_corrupted)  # pyrefly: ignore[not-callable]
     if self._projector:
       x_clean = self._projector(x_clean)
       x_corrupted = self._projector(x_corrupted)
     outputs = tf.stack((x_clean, x_corrupted), axis=1)
-    return self.make_contrastive_layer()(outputs)
+    return self.make_contrastive_layer()(outputs)  # pyrefly: ignore[not-callable]
 
   @abc.abstractmethod
   def make_contrastive_layer(self) -> tf.keras.layers.Layer:
@@ -168,7 +168,7 @@ class _DgiPassthrough(tf.keras.layers.Layer):
 
   def call(self, inputs: tf.Tensor) -> runner.Predictions:
     return {
-        "predictions": self._logits_layer(inputs),
+        "predictions": self._logits_layer(inputs),  # pyrefly: ignore[not-callable]
         "representations": inputs,
     }
 
@@ -206,7 +206,7 @@ class DeepGraphInfomaxTask(ContrastiveLossTask):
     # Wrap the predictions to have dictionary names as Keras names for loss
     # and metric reporting (e.g., in TensorBoard).
     return {
-        k: tf.keras.layers.Layer(name=k)(v)
+        k: tf.keras.layers.Layer(name=k)(v)  # pyrefly: ignore[not-callable]
         for k, v in super().predict(*args).items()
     }
 
@@ -214,19 +214,19 @@ class DeepGraphInfomaxTask(ContrastiveLossTask):
       self, inputs: GraphTensor
   ) -> tuple[Sequence[GraphTensor], Mapping[str, Field]]:
     """Creates labels--i.e., (positive, negative)--for Deep Graph Infomax."""
-    x = (inputs, self._corruptor(inputs))
+    x = (inputs, self._corruptor(inputs))  # pyrefly: ignore[not-callable]
     y_dgi = tf.tile(tf.constant([[0, 1]]), (inputs.num_components, 1))
     y_empty = tf.zeros((inputs.num_components, 0), dtype=tf.int32)
     return x, {"predictions": y_dgi, "representations": y_empty}
 
   def losses(self) -> runner.Losses:
-    return {
+    return {  # pyrefly: ignore[bad-return]
         "predictions": tf.keras.losses.BinaryCrossentropy(from_logits=True),
         "representations": _ZeroLoss(),
     }
 
   def metrics(self) -> runner.Metrics:
-    return {
+    return {  # pyrefly: ignore[bad-return]
         "predictions": (
             tf.keras.metrics.BinaryCrossentropy(from_logits=True),
             tf.keras.metrics.BinaryAccuracy(),
@@ -278,7 +278,7 @@ class BarlowTwinsTask(ContrastiveLossTask):
     return loss_fn
 
   def metrics(self) -> runner.Metrics:
-    return (metrics.AllSvdMetrics(y_pred_transform_fn=_UNSTACK_FN),)
+    return (metrics.AllSvdMetrics(y_pred_transform_fn=_UNSTACK_FN),)  # pyrefly: ignore[bad-return]
 
 
 class VicRegTask(ContrastiveLossTask):
@@ -312,7 +312,7 @@ class VicRegTask(ContrastiveLossTask):
     return loss_fn
 
   def metrics(self) -> runner.Metrics:
-    return (metrics.AllSvdMetrics(y_pred_transform_fn=_UNSTACK_FN),)
+    return (metrics.AllSvdMetrics(y_pred_transform_fn=_UNSTACK_FN),)  # pyrefly: ignore[bad-return]
 
 
 class TripletLossTask(ContrastiveLossTask):
@@ -329,8 +329,8 @@ class TripletLossTask(ContrastiveLossTask):
   def _unstack_graph_tensor(
       self, inputs: GraphTensor
   ) -> tuple[GraphTensor, GraphTensor]:
-    anchor = self._unstack_graph_tensor_at_index(inputs, 0)
-    positive_sample = self._unstack_graph_tensor_at_index(inputs, 1)
+    anchor = self._unstack_graph_tensor_at_index(inputs, 0)  # pyrefly: ignore[not-callable]
+    positive_sample = self._unstack_graph_tensor_at_index(inputs, 1)  # pyrefly: ignore[not-callable]
     return (anchor, positive_sample)
 
   def preprocess(
@@ -350,7 +350,7 @@ class TripletLossTask(ContrastiveLossTask):
       corrupted_sample) and unused pseudo-labels.
     """
     anchor, positive_sample = self._unstack_graph_tensor(inputs)
-    x = (anchor, positive_sample, self._corruptor(positive_sample))
+    x = (anchor, positive_sample, self._corruptor(positive_sample))  # pyrefly: ignore[not-callable]
     y = tf.zeros((inputs.num_components, 0), dtype=tf.int32)
     return x, y
 
@@ -383,18 +383,18 @@ class TripletLossTask(ContrastiveLossTask):
       )
 
     # Clean representations.
-    x_positive = tf.keras.layers.Layer(name=self._representations_layer_name)(
-        self._readout(positive_sample)
+    x_positive = tf.keras.layers.Layer(name=self._representations_layer_name)(  # pyrefly: ignore[not-callable]
+        self._readout(positive_sample)  # pyrefly: ignore[not-callable]
     )
-    x_anchor = self._readout(anchor)
+    x_anchor = self._readout(anchor)  # pyrefly: ignore[not-callable]
     # Corrupted representations.
-    x_corrupted = self._readout(negative_sample)
+    x_corrupted = self._readout(negative_sample)  # pyrefly: ignore[not-callable]
     if self._projector:
       x_positive = self._projector(x_positive)
       x_anchor = self._projector(x_anchor)
       x_corrupted = self._projector(x_corrupted)
     outputs = tf.stack((x_anchor, x_positive, x_corrupted), axis=1)
-    return self.make_contrastive_layer()(outputs)
+    return self.make_contrastive_layer()(outputs)  # pyrefly: ignore[not-callable]
 
   def losses(self) -> runner.Losses:
     def loss_fn(_, x):
@@ -408,4 +408,4 @@ class TripletLossTask(ContrastiveLossTask):
     return loss_fn
 
   def metrics(self) -> runner.Metrics:
-    return (metrics.TripletLossMetrics(),)
+    return (metrics.TripletLossMetrics(),)  # pyrefly: ignore[bad-return]

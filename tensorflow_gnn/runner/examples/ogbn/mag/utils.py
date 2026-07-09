@@ -63,5 +63,5 @@ def mask_paper_labels(
         label_feature,
     )
   seed_starts = tf.math.cumsum(node_set.sizes, exclusive=True)
-  return mask_by_indices(label_feature, seed_starts, mask_value)
+  return mask_by_indices(label_feature, seed_starts, mask_value)  # pyrefly: ignore[bad-argument-type]
 

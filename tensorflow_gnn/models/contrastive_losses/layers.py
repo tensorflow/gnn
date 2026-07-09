@@ -161,7 +161,7 @@ class ShuffleFeaturesGlobally(Corruptor[float]):
 
   def __init__(self, *args, seed: Optional[float] = None, **kwargs):
     self._seed = seed
-    seeded_fn = _seed_wrapper(_shuffle_tensor, seed=seed)
+    seeded_fn = _seed_wrapper(_shuffle_tensor, seed=seed)  # pyrefly: ignore[bad-argument-type]
     super().__init__(*args, corruption_fn=seeded_fn, default=1.0, **kwargs)
 
 
@@ -169,7 +169,7 @@ class DropoutFeatures(Corruptor[float]):
 
   def __init__(self, *args, seed: Optional[float] = None, **kwargs):
     self._seed = seed
-    seeded_fn = _seed_wrapper(tf.nn.dropout, seed=seed)
+    seeded_fn = _seed_wrapper(tf.nn.dropout, seed=seed)  # pyrefly: ignore[bad-argument-type]
     super().__init__(*args, corruption_fn=seeded_fn, default=0.0, **kwargs)
 
 
@@ -226,7 +226,7 @@ def _shuffle_tensor(
     )
   if tfgnn.is_ragged_tensor(tensor):
     # Not sure this is optimal.
-    batch_size = _ragged_dim_list(tensor)[0]
+    batch_size = _ragged_dim_list(tensor)[0]  # pyrefly: ignore[bad-argument-type]
     num_rows_to_shuffle = tf.cast(
         tf.math.ceil(tf.cast(batch_size, tf.float32) * rate), tf.int64
     )
@@ -301,10 +301,10 @@ class DeepGraphInfomaxLogits(tf.keras.layers.Layer):
     # Summary.
     summary = tf.math.reduce_mean(x_clean, axis=0, keepdims=True)
     # Clean logits.
-    logits_clean = tf.matmul(x_clean, self._bilinear(summary), transpose_b=True)
+    logits_clean = tf.matmul(x_clean, self._bilinear(summary), transpose_b=True)  # pyrefly: ignore[not-callable]
     # Corrupted logits.
     logits_corrupted = tf.matmul(
-        x_corrupted, self._bilinear(summary), transpose_b=True
+        x_corrupted, self._bilinear(summary), transpose_b=True  # pyrefly: ignore[not-callable]
     )
     return tf.keras.layers.Concatenate()((logits_clean, logits_corrupted))
 
