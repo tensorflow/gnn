@@ -306,7 +306,7 @@ GraphTensor.
 Graph Neural Networks can be built by interspersing broadcast and pool
 operations with trainable transformations of hidden states on nodes and
 possibly edges. (Most users of TF-GNN will not need to write code at this level
-themselves; please see the [modeling guide](gnn_modeling).) A tensor of values
+themselves; please see the [modeling guide](gnn_modeling.md).) A tensor of values
 for all nodes in a node set or all edges in an edge set is the basic unit of
 work on which low-level TensorFlow operations are performed, much like a batch
 of intermediate activations in a plain feed-forward network. That gives us a
