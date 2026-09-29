@@ -448,7 +448,7 @@ class Context(_GraphPieceWithFeatures):
         sizes = tf.ones(shape=size_dims, dtype=indices_dtype)
       else:
         sizes = utils.ones_like_leading_dims(
-            indicative_feature, shape.rank + 1, dtype=indices_dtype)
+            indicative_feature, shape.rank + 1, dtype=indices_dtype)  # pyrefly: ignore[bad-argument-type]
 
     return cls._from_features_and_sizes(
         features=features, sizes=sizes, validate=validate
@@ -1067,13 +1067,13 @@ class GraphTensor(gp.GraphPieceBase):
           'Context has to be instance of tfgnn.Context, got'
           f' {type(context).__name__}'
       )
-    for name, node_set in node_sets.items():
+    for name, node_set in node_sets.items():  # pyrefly: ignore[missing-attribute]
       if not isinstance(node_set, NodeSet):
         raise ValueError(
             f'Node set {name} has to be instance of tfgnn.NodeSet, got'
             f' {type(node_set).__name__}'
         )
-    for name, edge_set in edge_sets.items():
+    for name, edge_set in edge_sets.items():  # pyrefly: ignore[missing-attribute]
       if not isinstance(edge_set, EdgeSet):
         raise ValueError(
             f'Edge set {name} has to be instance of tfgnn.EdgeSet, got'
@@ -1102,8 +1102,8 @@ class GraphTensor(gp.GraphPieceBase):
 
     data = {
         GraphTensor._DATAKEY_CONTEXT: context,
-        GraphTensor._DATAKEY_NODE_SETS: dict(node_sets),
-        GraphTensor._DATAKEY_EDGE_SETS: dict(edge_sets),
+        GraphTensor._DATAKEY_NODE_SETS: dict(node_sets),  # pyrefly: ignore[no-matching-overload]
+        GraphTensor._DATAKEY_EDGE_SETS: dict(edge_sets),  # pyrefly: ignore[no-matching-overload]
     }
 
     indices_dtype = gp.get_max_indices_dtype(data)
@@ -1120,7 +1120,7 @@ class GraphTensor(gp.GraphPieceBase):
 
     result = cls._from_data(
         data=data,
-        shape=context.shape,
+        shape=context.shape,  # pyrefly: ignore[missing-attribute]
         indices_dtype=indices_dtype,
         row_splits_dtype=row_splits_dtype,
         validate=validate,
@@ -1534,8 +1534,8 @@ class GraphTensorSpec(gp.GraphPieceSpecBase):
     # pylint: disable=protected-access
     data_spec = {
         GraphTensor._DATAKEY_CONTEXT: context_spec,
-        GraphTensor._DATAKEY_NODE_SETS: dict(node_sets_spec),
-        GraphTensor._DATAKEY_EDGE_SETS: dict(edge_sets_spec),
+        GraphTensor._DATAKEY_NODE_SETS: dict(node_sets_spec),  # pyrefly: ignore[no-matching-overload]
+        GraphTensor._DATAKEY_EDGE_SETS: dict(edge_sets_spec),  # pyrefly: ignore[no-matching-overload]
     }
     indices_dtype = gp.get_max_indices_dtype(data_spec)
     row_splits_dtype = gp.get_max_row_splits_dtype(data_spec)
@@ -1551,7 +1551,7 @@ class GraphTensorSpec(gp.GraphPieceSpecBase):
     # pylint: disable=protected-access
     return cls._from_data_spec(
         data_spec=data_spec,
-        shape=context_spec.shape,
+        shape=context_spec.shape,  # pyrefly: ignore[missing-attribute]
         indices_dtype=indices_dtype,
         row_splits_dtype=row_splits_dtype,
     )
