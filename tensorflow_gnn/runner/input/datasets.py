@@ -138,7 +138,7 @@ class SimpleDatasetProvider(interfaces.DatasetProvider):
     else:
       filenames = self._filenames
     return _process_dataset(
-        tf.data.Dataset.from_tensor_slices(filenames),  # pyrefly: ignore[bad-argument-type]
+        tf.data.Dataset.from_tensor_slices(filenames),
         num_shards=context.num_input_pipelines,
         index=context.input_pipeline_id,
         shuffle_dataset=self._shuffle_filenames,
@@ -199,7 +199,7 @@ def _process_sampled_dataset(
         dataset_fn(principal_dataset).repeat()
     ]
     sampled_dataset = tf.data.Dataset.sample_from_datasets(
-        datasets,  # pyrefly: ignore[bad-argument-type]
+        datasets,
         weights=weights,
         stop_on_empty_dataset=False)
     weight = (principal_weight or 1 / len(datasets))
@@ -217,7 +217,7 @@ def _process_sampled_dataset(
         dataset_fn(principal_dataset)
     ]
     sampled_dataset = tf.data.Dataset.sample_from_datasets(
-        datasets,  # pyrefly: ignore[bad-argument-type]
+        datasets,
         weights=weights,
         stop_on_empty_dataset=True)
 
@@ -424,8 +424,8 @@ class SimpleSampleDatasetsProvider(interfaces.DatasetProvider):
       principal_filenames = self._principal_filenames
       extra_filenames = self._extra_filenames
     return _process_sampled_dataset(
-        tf.data.Dataset.from_tensor_slices(principal_filenames),  # pyrefly: ignore[bad-argument-type]
-        [tf.data.Dataset.from_tensor_slices(f) for f in extra_filenames],  # pyrefly: ignore[bad-argument-type, not-iterable]
+        tf.data.Dataset.from_tensor_slices(principal_filenames),
+        [tf.data.Dataset.from_tensor_slices(f) for f in extra_filenames],  # pyrefly: ignore[not-iterable]
         self._principal_weight,
         self._extra_weights,
         num_shards=context.num_input_pipelines,

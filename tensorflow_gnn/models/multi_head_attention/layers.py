@@ -377,11 +377,11 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
                **kwargs) -> tf.Tensor:
 
     # Apply dropout on the inputs.
-    receiver_input = self._inputs_dropout_layer(receiver_input)  # pyrefly: ignore[not-callable]
+    receiver_input = self._inputs_dropout_layer(receiver_input)
     if sender_node_input is not None:
-      sender_node_input = self._inputs_dropout_layer(sender_node_input)  # pyrefly: ignore[not-callable]
+      sender_node_input = self._inputs_dropout_layer(sender_node_input)
     if sender_edge_input is not None:
-      sender_edge_input = self._inputs_dropout_layer(sender_edge_input)  # pyrefly: ignore[not-callable]
+      sender_edge_input = self._inputs_dropout_layer(sender_edge_input)
 
     # Determine the width of transformed queries and create transfomations.
     # If transform_keys is true, queries will be transformed to
@@ -417,7 +417,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     # [num_items, *extra_dims, num_heads, channels_per_head]
     # Otherwise, the shape is: [num_items, *extra_dims, num_heads, keys_width].
     assert receiver_input is not None, "__init__() should have checked this."
-    queries = self._w_query(receiver_input)  # pyrefly: ignore[not-callable]
+    queries = self._w_query(receiver_input)
     queries = self._attention_activation(queries)
     queries = broadcast_from_receiver(self._split_query_heads(queries))
 
@@ -491,7 +491,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
     # should have the same effect as edge dropout. Also, note that
     # `keras.layers.Dropout` upscales the remaining values, which should
     # maintain the sum-up-to-1 per node in expectation.
-    attention_coefficients = self._edge_dropout_layer(attention_coefficients,  # pyrefly: ignore[not-callable]
+    attention_coefficients = self._edge_dropout_layer(attention_coefficients,
                                                       **kwargs)
 
     # Compute the pooled values by
@@ -541,7 +541,7 @@ class MultiHeadAttentionConv(tfgnn.keras.layers.AnyToAnyConvolutionBase):
       pooled_inputs = pool_to_receiver(weighted_inputs, reduce_type="sum")
       # Apply the transformation.
       # [num_receivers, *extra_dims, num_heads, per_head_channels]
-      pooled_values = self._w_sender_pooled_to_value(pooled_inputs)  # pyrefly: ignore[not-callable]
+      pooled_values = self._w_sender_pooled_to_value(pooled_inputs)
 
     # Apply the nonlinearity on the final result.
     pooled_values = self._activation(pooled_values)

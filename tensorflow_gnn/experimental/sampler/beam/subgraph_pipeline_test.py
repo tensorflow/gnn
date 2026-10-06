@@ -57,7 +57,7 @@ class SubgraphPipelineTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(sampling_op.edge_set_name, 'a->b')
       if ids_dtype == tf.string:
         accessor = sampler.InMemStringKeyToBytesAccessor(
-            keys_to_values={b'a': b''}  # pyrefly: ignore[bad-argument-type, bad-assignment]
+            keys_to_values={b'a': b''}  # pyrefly: ignore[bad-assignment]
         )
       else:
         accessor = sampler.InMemIntegerKeyToBytesAccessor(

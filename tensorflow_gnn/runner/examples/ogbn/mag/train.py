@@ -290,7 +290,7 @@ def main(
       logging.info("Utilizing training labels as features for training.")
       # Mask for validation and test node labels.
       year_feature = node_set["year"]
-      extra_label_mask = year_feature >= 2018  # pyrefly: ignore[unsupported-operation]
+      extra_label_mask = year_feature >= 2018
       if _MASKED_LABELS.value == "causal":
         logging.info(
             "Masking neighbours published after or in the same year as seed"
@@ -312,20 +312,20 @@ def main(
   def  process_node_features(node_set: tfgnn.NodeSet, node_set_name: str):
     if node_set_name == "field_of_study":
       return {
-          "hashed_id": tf.keras.layers.Hashing(_FIELD_OF_STUDY_BINS)(  # pyrefly: ignore[not-callable]
+          "hashed_id": tf.keras.layers.Hashing(_FIELD_OF_STUDY_BINS)(
               node_set["#id"]
           )
       }
     if node_set_name == "institution":
       return {
-          "hashed_id": tf.keras.layers.Hashing(_INSTITUTION_BINS)(  # pyrefly: ignore[not-callable]
+          "hashed_id": tf.keras.layers.Hashing(_INSTITUTION_BINS)(
               node_set["#id"]
           )
       }
     if node_set_name == "paper":
       return process_paper_node_features(node_set)
     if node_set_name == "author":
-      return {"empty_state": tfgnn.keras.layers.MakeEmptyFeature()(node_set)}  # pyrefly: ignore[not-callable]
+      return {"empty_state": tfgnn.keras.layers.MakeEmptyFeature()(node_set)}
     raise KeyError(f"Unexpected node_set_name='{node_set_name}'")
 
   def set_paper_node_state(node_set: tfgnn.NodeSet):
@@ -337,12 +337,12 @@ def main(
     else:
       logging.info("Applying dense layer %d to paper.", _PAPER_DIM.value)
       embedding_list.append(
-          tf.keras.layers.Dense(_PAPER_DIM.value, "relu")(node_set["feat"])  # pyrefly: ignore[not-callable]
+          tf.keras.layers.Dense(_PAPER_DIM.value, "relu")(node_set["feat"])
       )
     # Masked label
     if _MASKED_LABELS.value:
       embedding_list.append(
-          tf.keras.layers.Embedding(_NUM_CLASSES + 1, 64)(  # pyrefly: ignore[not-callable]
+          tf.keras.layers.Embedding(_NUM_CLASSES + 1, 64)(
               node_set["masked_labels"]
           )
       )
@@ -350,11 +350,11 @@ def main(
 
   def set_initial_node_states(node_set: tfgnn.NodeSet, node_set_name: str):
     if node_set_name == "field_of_study":
-      return tf.keras.layers.Embedding(_FIELD_OF_STUDY_BINS, 32)(  # pyrefly: ignore[not-callable]
+      return tf.keras.layers.Embedding(_FIELD_OF_STUDY_BINS, 32)(
           node_set["hashed_id"]
       )
     if node_set_name == "institution":
-      return tf.keras.layers.Embedding(_INSTITUTION_BINS, 16)(  # pyrefly: ignore[not-callable]
+      return tf.keras.layers.Embedding(_INSTITUTION_BINS, 16)(
           node_set["hashed_id"]
       )
     if node_set_name == "paper":
@@ -367,18 +367,18 @@ def main(
   task = runner.RootNodeMulticlassClassification(
       node_set_name=task_node_set_name,
       num_classes=_NUM_CLASSES,
-      label_fn=runner.RootNodeLabelFn("paper", feature_name="labels"))  # pyrefly: ignore[bad-argument-type]
+      label_fn=runner.RootNodeLabelFn("paper", feature_name="labels"))
 
   def model_fn(gtspec: tfgnn.GraphTensorSpec):
     model_inputs = tf.keras.layers.Input(type_spec=gtspec)
-    graph = gnn_inputs = tfgnn.keras.layers.MapFeatures(  # pyrefly: ignore[not-callable]
+    graph = gnn_inputs = tfgnn.keras.layers.MapFeatures(
         node_sets_fn=set_initial_node_states)(model_inputs)
     # Do 4 rounds of graph updates, each time with fresh weights.
     # The last round before readout only needs to update "papers";
     # updates to other node sets wouldn't make it into the readout anyways.
     for _ in range(3):
-      graph = _graph_update_from_config(_CONFIG.value)(graph)  # pyrefly: ignore[not-callable]
-    graph = _graph_update_from_config(_CONFIG.value,  # pyrefly: ignore[not-callable]
+      graph = _graph_update_from_config(_CONFIG.value)(graph)
+    graph = _graph_update_from_config(_CONFIG.value,
                                       node_set_names=["paper"])(graph)
     if _READOUT_USE_SKIP_CONNECTION.value:
       # TODO(b/234563300): Allow `graph = MapFeatures(...)(graph, gnn_inputs)`.
@@ -448,7 +448,7 @@ def main(
       gtspec=gtspec,
       global_batch_size=global_batch_size,
       export_dirs=export_dirs,
-      feature_processors=[  # pyrefly: ignore[bad-argument-type]
+      feature_processors=[
           tfgnn.keras.layers.MapFeatures(
               context_fn=drop_all_features,
               node_sets_fn=process_node_features,

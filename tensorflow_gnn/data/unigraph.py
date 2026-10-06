@@ -45,7 +45,7 @@ import tensorflow_gnn as tfgnn
 # Placeholder for optional Google-internal sorted string file format utils
 try:
   # pylint: disable-next=g-import-not-at-top
-  import google.cloud.bigquery_storage_v1 as bq_storage  # pytype: disable=import-error
+  import google.cloud.bigquery_storage_v1 as bq_storage  # pyrefly: ignore[missing-import]
 except ImportError:
   bq_storage = None
 
@@ -885,7 +885,7 @@ class DictStreams:
           Union[tfgnn.proto.NodeSet, tfgnn.proto.EdgeSet]] = None
       ) -> Iterable[Example]:
     """Yields `tf.Example` from tfrecord file."""
-    for example in tf.data.TFRecordDataset(file_path):  # pyrefly: ignore[bad-instantiation]
+    for example in tf.data.TFRecordDataset(file_path):
       yield Example.FromString(example.numpy())
 
   @staticmethod
@@ -899,7 +899,7 @@ class DictStreams:
       converters = build_converter_from_schema(fset.features)
     else:
       converters = None
-    csv_records = csv.DictReader(gfile.GFile(file_path, "r"))  # pyrefly: ignore[bad-argument-type]
+    csv_records = csv.DictReader(gfile.GFile(file_path, "r"))
     for csv_record in csv_records:
       yield _csv_fields_to_example(csv_record.items(), converters=converters)
 
@@ -1066,7 +1066,7 @@ class DictStreams:
           str, Union[
               Iterable[Tuple[bytes, bytes, Example]],
               Iterable[Tuple[bytes, Example]]]]]:
-    return {  # pyrefly: ignore[bad-return]
+    return {
         tfgnn.NODES: DictStreams.iter_nodes_via_schema(schema),  # pyrefly: ignore[bad-assignment]
         tfgnn.EDGES: DictStreams.iter_edges_via_schema(schema),  # pyrefly: ignore[bad-assignment]
     }

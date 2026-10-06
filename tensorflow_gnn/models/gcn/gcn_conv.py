@@ -279,7 +279,7 @@ class GCNConv(tf.keras.layers.Layer):
       else:
         pooled += normalized_values
 
-    return self._filter(pooled)  # pyrefly: ignore[not-callable]
+    return self._filter(pooled)
 
 
 def GCNHomGraphUpdate(*,  # To be called like a class initializer.  pylint: disable=invalid-name

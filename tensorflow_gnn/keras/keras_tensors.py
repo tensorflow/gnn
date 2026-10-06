@@ -156,7 +156,7 @@ class _GraphPieceClassMethodDispatcher(tf_internal.OpDispatcher):
       )
 
     layer_args, layer_kwargs, args_index = _pack_args(args, kwargs)
-    return _GraphPieceClassMethod(  # pyrefly: ignore[not-callable]
+    return _GraphPieceClassMethod(
         cls._type_spec_cls(), self._cls_method_name, args_index
     )(layer_args, **layer_kwargs)
 
@@ -335,7 +335,7 @@ class _TFGNNOpDispatcher:
       return self._op(*args, **kwargs)
 
     layer_args, layer_kwargs, args_index = _pack_args(args, kwargs)
-    return TFGNNOpLambda(self._resistry_key, args_index)(  # pyrefly: ignore[not-callable]
+    return TFGNNOpLambda(self._resistry_key, args_index)(
         layer_args, **layer_kwargs
     )
 
