@@ -367,7 +367,7 @@ class LinkSamplingPipeline:
         [inputs[tfgnn.SOURCE_NAME], inputs[tfgnn.TARGET_NAME]], axis=-1
     )
     subgraph = self._sampling_pipeline(seed_nodes)
-    return AddLinkReadoutStruct(  # pyrefly: ignore[not-callable]
+    return AddLinkReadoutStruct(
         readout_node_set=self._readout_node_set,
         seed_node_set=self._seed_node_set,
     )((subgraph, inputs))

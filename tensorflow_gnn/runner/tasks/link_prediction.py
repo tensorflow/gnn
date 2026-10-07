@@ -136,16 +136,16 @@ class _LinkPrediction(interfaces.Task):
     _validate_readout_for_link_prediction(
         gt, readout_node_set_name=self._readout_node_set_name)
     x = gt
-    y = tfgnn.keras.layers.Readout(  # pyrefly: ignore[not-callable]
+    y = tfgnn.keras.layers.Readout(
         feature_name=self._readout_label_feature_name,
         node_set_name=self._readout_node_set_name)(gt)
     return x, y
 
   def predict(self, graph: tfgnn.GraphTensor) -> interfaces.Predictions:  # pyrefly: ignore[bad-override]
     tfgnn.check_scalar_graph_tensor(graph, name='LinkPrediction')
-    src_features = tfgnn.keras.layers.StructuredReadout(  # pyrefly: ignore[not-callable]
+    src_features = tfgnn.keras.layers.StructuredReadout(
         key='source', feature_name=self._node_feature_name)(graph)
-    tgt_features = tfgnn.keras.layers.StructuredReadout(  # pyrefly: ignore[not-callable]
+    tgt_features = tfgnn.keras.layers.StructuredReadout(
         key='target', feature_name=self._node_feature_name)(graph)
     scores = self._compute_edge_scores(src_features, tgt_features)
 
@@ -153,7 +153,7 @@ class _LinkPrediction(interfaces.Task):
 
   def losses(self) -> interfaces.Losses:
     """Binary cross-entropy."""
-    return tf.keras.losses.BinaryCrossentropy(from_logits=True)  # pyrefly: ignore[bad-return]
+    return tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
   def metrics(self) -> interfaces.Metrics:
     return tf.keras.metrics.BinaryAccuracy()
@@ -186,5 +186,5 @@ class HadamardProductLinkPrediction(_LinkPrediction):
       raise ValueError('HadamardProductLinkPrediction is only supported for '
                        'matrix Tensors (batch size x feature size). Did you '
                        'mean to reshape?')
-    hadamard = src_features * tgt_features  # pyrefly: ignore[unsupported-operation]
-    return self._dense_layer(hadamard)  # pyrefly: ignore[not-callable]
+    hadamard = src_features * tgt_features
+    return self._dense_layer(hadamard)

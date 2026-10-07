@@ -59,14 +59,13 @@ OpDispatcher = tf.__internal__.dispatch.OpDispatcher
 ## Part 2: Keras symbols, compatible with `tf.keras.*`
 ##
 
-# pytype: disable=import-error
 
 if tf.__version__.startswith("2.12."):
   # tf.keras is keras 2.12, which does not yet have the `src` subdirectory.
-  from keras import backend as keras_backend
-  from keras.engine import input_layer
-  from keras.engine import keras_tensor as kt
-  from keras.layers import core as core_layers
+  from keras import backend as keras_backend  # pyrefly: ignore[missing-import]
+  from keras.engine import input_layer  # pyrefly: ignore[missing-import]
+  from keras.engine import keras_tensor as kt  # pyrefly: ignore[missing-import]
+  from keras.layers import core as core_layers  # pyrefly: ignore[missing-import]
   # In 2.12, these symbols are not exposed yet under tf.keras.__internal__.
   KerasTensor = kt.KerasTensor
   RaggedKerasTensor = kt.RaggedKerasTensor
@@ -76,10 +75,10 @@ elif tf.__version__.startswith("2.13.") or tf.__version__.startswith("2.14."):
   RaggedKerasTensor = tf.keras.__internal__.RaggedKerasTensor
   # tf.keras is keras.
   # For TF 2.14, there also exists a tf_keras package, but TF does not use it.
-  from keras.src import backend as keras_backend
-  from keras.src.engine import input_layer
-  from keras.src.engine import keras_tensor as kt
-  from keras.src.layers import core as core_layers
+  from keras.src import backend as keras_backend  # pyrefly: ignore[missing-import]
+  from keras.src.engine import input_layer  # pyrefly: ignore[missing-import]
+  from keras.src.engine import keras_tensor as kt  # pyrefly: ignore[missing-import]
+  from keras.src.layers import core as core_layers  # pyrefly: ignore[missing-import]
 
 elif tf.__version__.startswith("2.15."):
   KerasTensor = tf.keras.__internal__.KerasTensor
@@ -89,15 +88,15 @@ elif tf.__version__.startswith("2.15."):
   # so it is essential that we pick the right one by replicating the logic from
   # https://github.com/tensorflow/tensorflow/blob/r2.15/tensorflow/python/util/lazy_loader.py#L96
   if os.environ.get("TF_USE_LEGACY_KERAS", None) in ("true", "True", "1"):
-    from tf_keras.src import backend as keras_backend
-    from tf_keras.src.layers import core as core_layers
-    from tf_keras.src.engine import input_layer
-    from tf_keras.src.engine import keras_tensor as kt
+    from tf_keras.src import backend as keras_backend  # pyrefly: ignore[missing-import]
+    from tf_keras.src.layers import core as core_layers  # pyrefly: ignore[missing-import]
+    from tf_keras.src.engine import input_layer  # pyrefly: ignore[missing-import]
+    from tf_keras.src.engine import keras_tensor as kt  # pyrefly: ignore[missing-import]
   else:
-    from keras.src import backend as keras_backend
-    from keras.src.layers import core as core_layers
-    from keras.src.engine import input_layer
-    from keras.src.engine import keras_tensor as kt
+    from keras.src import backend as keras_backend  # pyrefly: ignore[missing-import]
+    from keras.src.layers import core as core_layers  # pyrefly: ignore[missing-import]
+    from keras.src.engine import input_layer  # pyrefly: ignore[missing-import]
+    from keras.src.engine import keras_tensor as kt  # pyrefly: ignore[missing-import]
 
 elif hasattr(tf, "_keras_internal"):  # Special case: internal.
   KerasTensor = tf.keras.__internal__.KerasTensor
@@ -113,12 +112,11 @@ else:  # TF2.16 and onwards.
   # the selection logic.
   KerasTensor = tf.keras.__internal__.KerasTensor
   RaggedKerasTensor = tf.keras.__internal__.RaggedKerasTensor
-  from tf_keras.src import backend as keras_backend
-  from tf_keras.src.layers import core as core_layers
-  from tf_keras.src.engine import input_layer
-  from tf_keras.src.engine import keras_tensor as kt
+  from tf_keras.src import backend as keras_backend  # pyrefly: ignore[missing-import]
+  from tf_keras.src.layers import core as core_layers  # pyrefly: ignore[missing-import]
+  from tf_keras.src.engine import input_layer  # pyrefly: ignore[missing-import]
+  from tf_keras.src.engine import keras_tensor as kt  # pyrefly: ignore[missing-import]
 
-# pytype: enable=import-error
 
 register_keras_tensor_specialization = kt.register_keras_tensor_specialization
 delegate_property = core_layers._delegate_property  # pylint: disable=protected-access

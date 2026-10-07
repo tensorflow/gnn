@@ -167,13 +167,13 @@ def sample_link_prediction_featureless_subgraph(
 
   spec = source_graphs.merge_batch_to_components().spec.relax(
       num_nodes=True, num_edges=True, num_components=True)
-  merged_graphs = tf.keras.layers.Lambda(  # pyrefly: ignore[not-callable]
+  merged_graphs = tf.keras.layers.Lambda(
       functools.partial(
           tf.map_fn,
           merge_graphs_into_one_component,
           fn_output_signature=spec))([source_graphs, target_graphs])
 
-  merged_graphs = tf.keras.layers.Lambda(  # pyrefly: ignore[not-callable]
+  merged_graphs = tf.keras.layers.Lambda(
       functools.partial(
           tf.map_fn,
           uniqify_featureless_nodes,
@@ -187,7 +187,7 @@ def sample_link_prediction_featureless_subgraph(
 
   readout_spec = _add_readout_to_spec(spec, source_pipeline.seed_node_set_name,
                                       target_pipeline.seed_node_set_name)
-  merged_graphs = tf.keras.layers.Lambda(  # pyrefly: ignore[not-callable]
+  merged_graphs = tf.keras.layers.Lambda(
       functools.partial(
           tf.map_fn,
           add_readout_lambda,

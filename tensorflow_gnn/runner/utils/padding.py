@@ -83,7 +83,7 @@ class FitOrSkipPadding(_GraphTensorPadding):
 
   def get_size_constraints(self, target_batch_size: int) -> SizeConstraints:
     dataset = self._dataset_provider.get_dataset(tf.distribute.InputContext())
-    return tfgnn.learn_fit_or_skip_size_constraints(  # pytype: disable=bad-return-type
+    return tfgnn.learn_fit_or_skip_size_constraints(  # pyrefly: ignore[bad-return]
         parsing_utils.maybe_parse_graph_tensor_dataset(dataset, self._gtspec),
         target_batch_size,
         min_nodes_per_component=self._min_nodes_per_component,

@@ -269,7 +269,7 @@ def _(context: gt.Context, *,
   """Pads graph context to the target number of graph components."""
 
   diff = tf.ones(
-      shape=[target_total_num_components - context.total_num_components],  # pyrefly: ignore[unsupported-operation]
+      shape=[target_total_num_components - context.total_num_components],
       dtype=context.spec.sizes_spec.dtype)
   sizes = tf.concat([context.sizes, diff], axis=0)
   sizes = tensor_utils.ensure_static_nrows(
@@ -415,7 +415,7 @@ def _pad_adjacency_index_with_linspace(index: const.Field, target_size: int,
       target_size, dtype=index.dtype) - tf.size(index, index.dtype)
   diff = tf.linspace(
       start=tf.cast(min_index, tf.float32),
-      stop=tf.cast(max_index + 1, tf.float32),  # pyrefly: ignore[unsupported-operation]
+      stop=tf.cast(max_index + 1, tf.float32),
       num=diff_size)
   diff = tf.cast(diff, index.dtype)
   diff = tf.clip_by_value(diff, min_index, max_index)
@@ -522,14 +522,16 @@ def _satisfies_size_constraints_internal(
   # np.ndarray and tf.Tensor they could be evaluated statically on in the
   # runtime depending on its arguments.
   total_num_components = graph_tensor.total_num_components
-  could_add_new_component = _fold_constants(lambda x, y: x < y,  # pyrefly: ignore[bad-argument-type, unsupported-operation]
+  could_add_new_component = _fold_constants(lambda x, y: x < y,  # pyrefly: ignore[bad-argument-type]
                                             total_num_components,
                                             total_sizes.total_num_components)  # pyrefly: ignore[bad-argument-type]
-  num_fake_components = total_sizes.total_num_components - graph_tensor.total_num_components  # pyrefly: ignore[unsupported-operation]
+  num_fake_components = (
+      total_sizes.total_num_components - graph_tensor.total_num_components
+  )
   assert_ops = [
       check_fn(
           _fold_constants(
-              lambda x, y: x <= y, total_num_components,  # pyrefly: ignore[bad-argument-type, unsupported-operation]
+              lambda x, y: x <= y, total_num_components,  # pyrefly: ignore[bad-argument-type]
               tf.convert_to_tensor(
                   total_sizes.total_num_components,
                   dtype=total_num_components.dtype)),
@@ -581,21 +583,21 @@ def _satisfies_size_constraints_internal(
     # because the weaker case may support constant folding.
     assert_ops.append(
         check_fn(
-            _fold_constants(lambda x, y: x <= y, total_size,  # pyrefly: ignore[bad-argument-type, unsupported-operation]
+            _fold_constants(lambda x, y: x <= y, total_size,  # pyrefly: ignore[bad-argument-type]
                             target_total_size),
             overflow_msg))
 
     assert_ops.append(
         check_fn(
-            _fold_constants(lambda x, y: x <= y, padded_size,  # pyrefly: ignore[bad-argument-type, unsupported-operation]
+            _fold_constants(lambda x, y: x <= y, padded_size,  # pyrefly: ignore[bad-argument-type]
                             target_total_size),
             overflow_msg))
 
     assert_ops.append(
         check_fn(
             _fold_constants(
-                lambda x, y: x | y, could_add_new_component,  # pyrefly: ignore[bad-argument-type, unsupported-operation]
-                _fold_constants(lambda x, y: x == y, padded_size,  # pyrefly: ignore[bad-argument-type]
+                lambda x, y: x | y, could_add_new_component,  # pyrefly: ignore[bad-argument-type]
+                _fold_constants(lambda x, y: x == y, padded_size,
                                 target_total_size)),
             (f'Could not pad <{entity_name}> {entity_type}. To do this, at'
              ' least one graph component must be added to the input graph.'
@@ -623,16 +625,16 @@ def _satisfies_size_constraints_internal(
                  min_entities_per_component=0)
 
     assert target_total_size is not None
-    has_all_edges = _fold_constants(lambda x, y: x == y, total_size,  # pyrefly: ignore[bad-argument-type]
+    has_all_edges = _fold_constants(lambda x, y: x == y, total_size,
                                     target_total_size)  # pyrefly: ignore[bad-argument-type]
     indices = item.adjacency.get_indices_dict()
     for _, (incident_node_set_name, _) in indices.items():
       permits_new_incident_nodes = _fold_constants(
-          lambda x, y: x < y, total_num_nodes[incident_node_set_name],  # pyrefly: ignore[bad-argument-type, unsupported-operation]
+          lambda x, y: x < y, total_num_nodes[incident_node_set_name],  # pyrefly: ignore[bad-argument-type]
           total_sizes.total_num_nodes[incident_node_set_name])  # pyrefly: ignore[bad-argument-type]
       assert_ops.append(
           check_fn(
-              _fold_constants(lambda x, y: x | y, has_all_edges,  # pyrefly: ignore[bad-argument-type, unsupported-operation]
+              _fold_constants(lambda x, y: x | y, has_all_edges,  # pyrefly: ignore[bad-argument-type]
                               permits_new_incident_nodes),
               ('Could not create fake incident edges for the node set'
                f' {incident_node_set_name}. This could happen when the'

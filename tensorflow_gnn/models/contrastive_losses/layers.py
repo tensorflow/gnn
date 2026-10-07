@@ -301,10 +301,10 @@ class DeepGraphInfomaxLogits(tf.keras.layers.Layer):
     # Summary.
     summary = tf.math.reduce_mean(x_clean, axis=0, keepdims=True)
     # Clean logits.
-    logits_clean = tf.matmul(x_clean, self._bilinear(summary), transpose_b=True)  # pyrefly: ignore[not-callable]
+    logits_clean = tf.matmul(x_clean, self._bilinear(summary), transpose_b=True)
     # Corrupted logits.
     logits_corrupted = tf.matmul(
-        x_corrupted, self._bilinear(summary), transpose_b=True  # pyrefly: ignore[not-callable]
+        x_corrupted, self._bilinear(summary), transpose_b=True
     )
     return tf.keras.layers.Concatenate()((logits_clean, logits_corrupted))
 

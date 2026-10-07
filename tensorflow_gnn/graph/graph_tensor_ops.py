@@ -100,9 +100,9 @@ def add_self_loops(
   #    |E1|          |N1|         |E2|        |N2|
   segment_indicator = utils.repeat(
       tf.range(tf.shape(alternate_sizes)[0], dtype=tf.int32), alternate_sizes,
-      repeats_sum_hint=tf.get_static_value(num_nodes + num_edges))  # pyrefly: ignore[unsupported-operation]
+      repeats_sum_hint=tf.get_static_value(num_nodes + num_edges))
 
-  node_indicator = segment_indicator % 2  # Marks odd (i.e. node positions)  # pyrefly: ignore[unsupported-operation]
+  node_indicator = segment_indicator % 2  # Marks odd (i.e. node positions)
   edge_indicator = 1 - node_indicator     # Marks even (i.e. edge positions)
 
   # [0, 1, 2,..,  x, x, ...,  |E1|, |E1|+1,..,  x, x, x, ...];  "x" = dont care.
@@ -148,7 +148,7 @@ def add_self_loops(
       self_loop_edge_feature = utils.repeat(
           tf.expand_dims(self_loop_edge_feature, axis=0),
           tf.expand_dims(num_nodes, axis=0),
-          repeats_sum_hint=tf.get_static_value(num_nodes + 0))  # pyrefly: ignore[unsupported-operation]
+          repeats_sum_hint=tf.get_static_value(num_nodes + 0))
       # Transposing twice so that we get broadcasting for free (instead of
       # reshaping, adding 1's on some axis dimensions).
       # TODO(b/309749041): What if there are no existing feature values?

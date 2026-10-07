@@ -43,12 +43,10 @@ from tensorflow_gnn.graph import graph_constants as gc
 from tensorflow_gnn.graph import graph_piece as gp
 from tensorflow_gnn.graph import graph_tensor as gt
 
-# pytype: disable=attribute-error
 IOFeature = Union[tf.io.FixedLenFeature, tf.io.RaggedFeature]
-RaggedPartition = Union[tf.io.RaggedFeature.RowLengths,
-                        tf.io.RaggedFeature.UniformRowLength]
+RaggedPartition = Union[tf.io.RaggedFeature.RowLengths,  # pyrefly: ignore[missing-attribute]
+                        tf.io.RaggedFeature.UniformRowLength]  # pyrefly: ignore[missing-attribute]
 AssertOp = Any
-# pytype: enable=attribute-error
 
 
 def parse_example(spec: gt.GraphTensorSpec,
@@ -161,12 +159,10 @@ def get_io_spec(spec: gt.GraphTensorSpec,
       fname: str, shape: tf.TensorShape) -> Tuple[RaggedPartition, ...]:
     partitions = []
     for i, dim in enumerate(shape.as_list()[1:], start=1):
-      # pytype: disable=attribute-error
       if dim is None:
-        partitions.append(tf.io.RaggedFeature.RowLengths(f'{fname}.d{i}'))
+        partitions.append(tf.io.RaggedFeature.RowLengths(f'{fname}.d{i}'))  # pyrefly: ignore[missing-attribute]
       else:
-        partitions.append(tf.io.RaggedFeature.UniformRowLength(dim))
-      # pytype: enable=attribute-error
+        partitions.append(tf.io.RaggedFeature.UniformRowLength(dim))  # pyrefly: ignore[missing-attribute]
     return tuple(partitions)
 
   def get_io_feature(fname: str, value_spec: gt.FieldSpec) -> IOFeature:
@@ -196,11 +192,9 @@ def get_io_spec(spec: gt.GraphTensorSpec,
         # For single example parsing this result in a dense tensor, for multiple
         # examples parsing - in ragged.
         partitions = get_io_ragged_partitions(fname, value_spec.shape)
-        # pytype: disable=attribute-error
         assert all(
-            isinstance(p, tf.io.RaggedFeature.UniformRowLength)
+            isinstance(p, tf.io.RaggedFeature.UniformRowLength)  # pyrefly: ignore[missing-attribute]
             for p in partitions)
-        # pytype: enable=attribute-error
         return tf.io.RaggedFeature(
             value_key=fname,
             dtype=io_dtype,

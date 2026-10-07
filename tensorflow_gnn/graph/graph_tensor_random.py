@@ -334,7 +334,7 @@ def _random_sizes(
 ) -> tf.Tensor:
   """Random sizes with constraints on the number of items in each component."""
   minval = tf.convert_to_tensor(num_items_min, dtype)
-  length = tf.convert_to_tensor(num_items_max - num_items_min, dtype)  # pyrefly: ignore[unsupported-operation]
+  length = tf.convert_to_tensor(num_items_max - num_items_min, dtype)
   alpha = tf.random.uniform([num_components], dtype=tf.float64)
   return minval + tf.cast(alpha * tf.cast(length, tf.float64), dtype)
 

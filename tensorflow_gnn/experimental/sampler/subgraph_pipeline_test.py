@@ -80,7 +80,7 @@ class StringIdsSampler:
     node_degree = self.counts[edge_set_name].lookup(node_id)
     sample_indices = tf.random.shuffle(
         tf.range(tf.maximum(node_degree, sample_size)))[:sample_size]
-    query_keys = node_id + '.' + tf.strings.as_string(sample_indices)  # pyrefly: ignore[unsupported-operation]
+    query_keys = node_id + '.' + tf.strings.as_string(sample_indices)
     return self.edges[edge_set_name].lookup(query_keys)
 
   def sample_edges(self, sample_size: int, edge_set_name: tfgnn.EdgeSetName,
@@ -353,10 +353,10 @@ class EdgeFeaturesTest(tf.test.TestCase):
     def edge_sampler_factory(sampling_op):
       self.assertEqual(sampling_op.edge_set_name, 'a->a')
       return core.InMemUniformEdgesSampler(
-          num_source_nodes=3,  # pyrefly: ignore[bad-argument-type]
+          num_source_nodes=3,
           source=tf.constant([2, 0], tf.int32),
           target=tf.constant([0, 1], tf.int32),
-          edge_features={'f': [2.0, 0.0]},  # pyrefly: ignore[bad-argument-type]
+          edge_features={'f': [2.0, 0.0]},
           seed=42,
           sample_size=sampling_op.sample_size,
           name=sampling_op.edge_set_name,
@@ -368,7 +368,7 @@ class EdgeFeaturesTest(tf.test.TestCase):
         edge_sampler_factory,
         seed_node_dtype=tf.int32,
     )
-    result = sampling_model(tf.ragged.constant([[2], [0]]))  # pyrefly: ignore[not-callable]
+    result = sampling_model(tf.ragged.constant([[2], [0]]))
     self.assertIn('a', result.node_sets)
     self.assertIn('a->a', result.edge_sets)
     edge_features = result.edge_sets['a->a'].get_features_dict()
@@ -398,7 +398,7 @@ class EvalDagTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(sampling_op.edge_set_name, 'a->b')
       if ids_dtype == tf.string:
         accessor = core.InMemStringKeyToBytesAccessor(
-            keys_to_values={b'a': b''}  # pyrefly: ignore[bad-argument-type, bad-assignment]
+            keys_to_values={b'a': b''}  # pyrefly: ignore[bad-assignment]
         )
       else:
         accessor = core.InMemIntegerKeyToBytesAccessor(keys_to_values={0: b''})

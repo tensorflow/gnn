@@ -259,7 +259,7 @@ def integrated_gradients(
   @tf.function(input_signature=_input_signature(preprocess_model))
   def fn(inputs):
     try:
-      graph, labels = preprocess_model(inputs)  # pyrefly: ignore[not-callable]
+      graph, labels = preprocess_model(inputs)
       if isinstance(graph, Sequence): graph, *_ = graph
     except ValueError as error:
       msg = "Integrated gradients requires both examples and labels"
@@ -274,7 +274,7 @@ def integrated_gradients(
     for interpolation in interpolations:
       with tf.GradientTape(persistent=True) as tape:
         tape.watch(interpolation)
-        logits = model(interpolation)  # pyrefly: ignore[not-callable]
+        logits = model(interpolation)
         loss = model.compiled_loss(
             labels,
             logits,
@@ -374,7 +374,7 @@ class IntegratedGradientsExporter(interfaces.ModelExporter):
       raise ValueError("`model` is expected to have been built")
 
     xs, *_ = preprocess_model.output
-    model_for_export = tf.keras.Model(preprocess_model.input, model(xs))  # pyrefly: ignore[not-callable]
+    model_for_export = tf.keras.Model(preprocess_model.input, model(xs))
 
     ig = integrated_gradients(
         preprocess_model,

@@ -160,7 +160,7 @@ class _Classification(interfaces.Task):
     """
     tfgnn.check_scalar_graph_tensor(inputs, name="Classification")
     activations = self.gather_activations(inputs)
-    logits = tf.keras.layers.Dense(  # pyrefly: ignore[not-callable]
+    logits = tf.keras.layers.Dense(
         self._units, kernel_regularizer=self._kernel_regularizer,
         name=self._name)(activations)
     return logits
@@ -169,7 +169,7 @@ class _Classification(interfaces.Task):
     if self._label_fn is not None:
       return self._label_fn(inputs)
     x = inputs
-    y = tfgnn.keras.layers.Readout(  # pyrefly: ignore[not-callable]
+    y = tfgnn.keras.layers.Readout(
         feature_name=self._label_feature_name,
         node_set_name="_readout")(inputs)
     return x, y
@@ -197,7 +197,7 @@ class _BinaryClassification(_Classification):
     self._recall_at_precisions = recall_at_precisions
 
   def losses(self) -> interfaces.Losses:
-    return tf.keras.losses.BinaryCrossentropy(from_logits=True)  # pyrefly: ignore[bad-return]
+    return tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
   def metrics(self) -> interfaces.Metrics:
     metrics_list = [
@@ -216,7 +216,7 @@ class _BinaryClassification(_Classification):
         tf.keras.metrics.BinaryAccuracy(),
         tf.keras.losses.BinaryCrossentropy(from_logits=True),
     ])
-    return tuple(metrics_list)  # pyrefly: ignore[bad-return]
+    return tuple(metrics_list)
 
 
 class _MulticlassClassification(_Classification):
@@ -242,7 +242,7 @@ class _MulticlassClassification(_Classification):
 
   def losses(self) -> interfaces.Losses:
     """Sparse categorical crossentropy loss."""
-    return tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)  # pyrefly: ignore[bad-return]
+    return tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
   def metrics(self) -> interfaces.Metrics:
     """Sparse categorical metrics."""
@@ -292,7 +292,7 @@ class _GraphClassification(_Classification):
     self._reduce_type = reduce_type
 
   def gather_activations(self, inputs: GraphTensor) -> Field:
-    return tfgnn.keras.layers.Pool(  # pyrefly: ignore[not-callable]
+    return tfgnn.keras.layers.Pool(
         tfgnn.CONTEXT,
         self._reduce_type,
         node_set_name=self._node_set_name,
@@ -330,7 +330,7 @@ class _RootNodeClassification(_Classification):
 
   def gather_activations(self, inputs: GraphTensor) -> Field:
     """Gather activations from root nodes."""
-    return tfgnn.keras.layers.ReadoutFirstNode(  # pyrefly: ignore[not-callable]
+    return tfgnn.keras.layers.ReadoutFirstNode(
         node_set_name=self._node_set_name,
         feature_name=self._state_name)(inputs)
 
@@ -377,7 +377,7 @@ class _NodeClassification(_Classification):
   def gather_activations(self, inputs: GraphTensor) -> Field:
     """Gather activations from auxiliary node (and edge) sets."""
     try:
-      return tfgnn.keras.layers.StructuredReadout(  # pyrefly: ignore[not-callable]
+      return tfgnn.keras.layers.StructuredReadout(
           self._key,
           feature_name=self._feature_name,
           readout_node_set=self._readout_node_set,

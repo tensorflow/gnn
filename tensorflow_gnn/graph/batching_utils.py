@@ -876,4 +876,4 @@ def dataset_from_generator(generator) -> tf.data.Dataset:
       yield value
 
   return tf.data.Dataset.from_generator(
-      restored_generator, output_signature=relaxed_spec)  # pyrefly: ignore[bad-argument-type]
+      restored_generator, output_signature=relaxed_spec)

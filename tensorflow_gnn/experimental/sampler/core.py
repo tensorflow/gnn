@@ -172,7 +172,7 @@ class CompositeLayer(
           self.name, self._wrapped_model_input_spec, input_spec
       )
 
-    return self._model(tf.nest.flatten([args, kwargs]), training=training)  # pyrefly: ignore[not-callable]
+    return self._model(tf.nest.flatten([args, kwargs]), training=training)
 
   def _build_wrapped_model(self):
     assert not self._wrapped_model_is_built
@@ -427,8 +427,8 @@ class KeyToTfExampleAccessor(CompositeLayer, interfaces.KeyToFeaturesAccessor):
     )
 
   def symbolic_call(self, keys):
-    values = self._key_to_serialized(keys)  # pyrefly: ignore[not-callable]
-    return self._parser(values)  # pyrefly: ignore[not-callable]
+    values = self._key_to_serialized(keys)
+    return self._parser(values)
 
   def call(self, keys: tf.RaggedTensor) -> Features:
     return super().call(keys)
@@ -613,14 +613,14 @@ class UniformEdgesSampler(CompositeLayer, interfaces.UniformEdgesSampler):
     )
 
   def symbolic_call(self, source_node_ids):
-    outgoing_edges = self._outgoing_edges_accessor(source_node_ids)  # pyrefly: ignore[not-callable]
+    outgoing_edges = self._outgoing_edges_accessor(source_node_ids)
     if self._edge_target_feature_name not in outgoing_edges:
       raise ValueError(
           f'Expected {self._edge_target_feature_name} feature '
           'with target node ids of an outgoing edges.'
       )
 
-    return self._sampler([source_node_ids, outgoing_edges])  # pyrefly: ignore[not-callable]
+    return self._sampler([source_node_ids, outgoing_edges])
 
   def call(self, source_node_ids: tf.RaggedTensor) -> Features:
     return super().call(source_node_ids)
@@ -776,8 +776,8 @@ class InMemUniformEdgesSampler(
     source_node_set = graph_tensor.node_sets[adj.node_set_name(source_tag)]
     return cls(
         num_source_nodes=source_node_set.total_size,
-        source=adj[source_tag],  # pyrefly: ignore[bad-argument-type]
-        target=adj[target_tag],  # pyrefly: ignore[bad-argument-type]
+        source=adj[source_tag],
+        target=adj[target_tag],
         edge_features=edge_set.features,
         name=name,
         sample_size=sample_size,
@@ -1026,7 +1026,7 @@ def build_graph_tensor(
       node_sets=node_sets or {},
       edge_sets=edge_sets or {},
   )
-  return layer(layer_input)  # pyrefly: ignore[not-callable]
+  return layer(layer_input)
 
 
 @tf.keras.utils.register_keras_serializable(package='GNN')
@@ -1257,9 +1257,9 @@ def _get_io_spec(
   partitions = []
   for dim in spec.shape[1:]:
     if dim is not None:
-      partitions.append(tf.io.RaggedFeature.UniformRowLength(dim))  # pytype: disable=attribute-error
+      partitions.append(tf.io.RaggedFeature.UniformRowLength(dim))  # pyrefly: ignore[missing-attribute]
     else:
-      partitions.append(tf.io.RaggedFeature.RowLengths(f'd.{dim}'))  # pytype: disable=attribute-error
+      partitions.append(tf.io.RaggedFeature.RowLengths(f'd.{dim}'))  # pyrefly: ignore[missing-attribute]
 
   return tf.io.RaggedFeature(
       value_key=name,
@@ -1521,7 +1521,7 @@ class TopKEdgesSampler(CompositeLayer, interfaces.TopKEdgesSampler):
     )
 
   def symbolic_call(self, source_node_ids):
-    outgoing_edges = self._outgoing_edges_accessor(source_node_ids)  # pyrefly: ignore[not-callable]
+    outgoing_edges = self._outgoing_edges_accessor(source_node_ids)
     if self._edge_target_feature_name not in outgoing_edges:
       raise ValueError(
           f'Expected {self._edge_target_feature_name} feature '
@@ -1533,7 +1533,7 @@ class TopKEdgesSampler(CompositeLayer, interfaces.TopKEdgesSampler):
           'with weights of outgoing edges.'
       )
 
-    return self._sampler([source_node_ids, outgoing_edges])  # pyrefly: ignore[not-callable]
+    return self._sampler([source_node_ids, outgoing_edges])
 
   def call(self, source_node_ids: tf.RaggedTensor) -> Features:
     return super().call(source_node_ids)

@@ -767,7 +767,6 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
 
     batched_data_spec = tf.nest.map_structure(batch_fn, self._data_spec)
     shape = tf.TensorShape([batch_size]).concatenate(self._shape)
-    # pytype: disable=not-instantiable
     return self.__class__(
         batched_data_spec,
         shape,
@@ -792,7 +791,6 @@ class GraphPieceSpecBase(tf_internal.BatchableTypeSpec, metaclass=abc.ABCMeta):
     unbatched_data_spec = tf.nest.map_structure(unbatch_fn, self._data_spec)
 
     shape = self._shape[1:]
-    # pytype: disable=not-instantiable
     return self.__class__(
         unbatched_data_spec,
         shape,
