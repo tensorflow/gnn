@@ -58,6 +58,6 @@ jobs:
     uses: ./.github/workflows/build-reusable.yml
     with:
       job_name: 'build-and-test-nightly'
-      python_version: '3.13'
+      python_version: '3.14'
       test_tf_nightly: true
       tag_filters: ''

@@ -8,16 +8,19 @@ dynamic = ["version"]
 license = "Apache-2.0"
 requires-python = ">=3.10, <4"
 dependencies = [
+  # Keep non-TF dependencies in sync with test-nightly below.
+  # LINT.IfChange(non_tf_dependencies)
   "ml-collections>=1.1.0",
   "networkx>=3.4.2",
   "pyarrow>=18.1.0",
-  "tensorflow>=2.17.0, <3",
   # Raised lower bound to 2.57 to enable python 3.12+ support.
   "apache-beam>=2.57, <3",
   # This dependency comes from apache beam implementing it as an extra for 2.70.
   # To maintain current compatibility with pre and post 2.70, we need to include it here. b/465442394
   "crcmod>=1.7, <2",
   "tensorboard",
+  # LINT.ThenChange(:test_nightly_non_tf_dependencies)
+  "tensorflow>=2.17.0, <3",
   "tf-keras>=2.17.0, <3",
 ]
 authors = [
@@ -47,7 +50,10 @@ source = "https://github.com/tensorflow/gnn.git"
 
 [project.optional-dependencies]
 vizier = [
+  # Keep in sync with test-nightly below.
+  # LINT.IfChange(vizier_dependency)
   "google-vizier>=0.0.13, !=0.1.23",  # Moved to extras due to dependency conflicts. b/394062744
+  # LINT.ThenChange(:test_nightly_vizier_dependency)
   "tensorflow>=2.18.0, <3",
 ]
 
@@ -59,10 +65,25 @@ test-released = [
   "ai-edge-litert",
   {include-group = "test-base"},
 ]
+# Includes non-TF runtime and vizier dependencies so the wheel can be installed
+# with --no-deps when testing against tf-nightly on new Python versions before
+# stable tensorflow/tf-keras wheels are released.
 test-nightly = [
+  # LINT.IfChange(test_nightly_non_tf_dependencies)
+  "ml-collections>=1.1.0",
+  "networkx>=3.4.2",
+  "pyarrow>=18.1.0",
+  "apache-beam>=2.57, <3",
+  "crcmod>=1.7, <2",
+  "tensorboard",
+  # LINT.ThenChange(:non_tf_dependencies)
   "tf-nightly",
   "tf-keras-nightly",
   "ai-edge-litert-nightly",
+  # Install and test with Vizier: b/394062744 does not affect tf-nightly.
+  # LINT.IfChange(test_nightly_vizier_dependency)
+  "google-vizier>=0.0.13, !=0.1.23",
+  # LINT.ThenChange(:vizier_dependency)
   {include-group = "test-base"},
 ]
 
