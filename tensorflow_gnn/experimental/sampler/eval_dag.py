@@ -208,7 +208,7 @@ def build_ordered_dag(sink: Node) -> List[Node]:
     for edge in unsorted_graph.out_edges(node):
       result.add_edge(*edge)
 
-  return result
+  return result  # pyrefly: ignore[bad-return]
 
 
 _FLATTEN_LAYER = tf.keras.layers.Lambda(
@@ -280,7 +280,7 @@ def _create_eval_dag(
 
   sink = (Sink(io_config=io_config)(output)).node
 
-  nodes_dag: nx.DiGraph = build_ordered_dag(sink)
+  nodes_dag: nx.DiGraph = build_ordered_dag(sink)  # pyrefly: ignore[bad-assignment]
   stages_dag: nx.DiGraph = create_stages_dag(nodes_dag)
   return _convert_stages_dag_to_eval_dag(stages_dag, layers, artifacts)
 
