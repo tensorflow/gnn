@@ -56,7 +56,7 @@ permissions:
 
 jobs:
   build-and-test:
-    runs-on: linux-x86-n2-32
+    runs-on: linux-x86-n4-32
     defaults:
       run:
         shell: bash
