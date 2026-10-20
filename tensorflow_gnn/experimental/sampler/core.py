@@ -776,8 +776,8 @@ class InMemUniformEdgesSampler(
     source_node_set = graph_tensor.node_sets[adj.node_set_name(source_tag)]
     return cls(
         num_source_nodes=source_node_set.total_size,
-        source=adj[source_tag],
-        target=adj[target_tag],
+        source=adj[source_tag],  # pyrefly: ignore[bad-argument-type]
+        target=adj[target_tag],  # pyrefly: ignore[bad-argument-type]
         edge_features=edge_set.features,
         name=name,
         sample_size=sample_size,

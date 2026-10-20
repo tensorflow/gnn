@@ -353,10 +353,10 @@ class EdgeFeaturesTest(tf.test.TestCase):
     def edge_sampler_factory(sampling_op):
       self.assertEqual(sampling_op.edge_set_name, 'a->a')
       return core.InMemUniformEdgesSampler(
-          num_source_nodes=3,
+          num_source_nodes=3,  # pyrefly: ignore[bad-argument-type]
           source=tf.constant([2, 0], tf.int32),
           target=tf.constant([0, 1], tf.int32),
-          edge_features={'f': [2.0, 0.0]},
+          edge_features={'f': [2.0, 0.0]},  # pyrefly: ignore[bad-assignment]
           seed=42,
           sample_size=sampling_op.sample_size,
           name=sampling_op.edge_set_name,

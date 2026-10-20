@@ -557,7 +557,7 @@ def GraphSAGEGraphUpdate(  # To be called like a class initializer.  pylint: dis
           sender_node_feature=feature_name,
           reduce_type=reduce_type,
           units=units,
-          hidden_units=hidden_units,
+          hidden_units=hidden_units,  # pyrefly: ignore[bad-argument-type]
           use_bias=use_bias,
           dropout_rate=dropout_rate,
           **kwargs)
