@@ -13,7 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for parsing."""
+from collections.abc import Callable
 import functools
+from typing import Union
 
 from absl.testing import parameterized
 import tensorflow as tf
@@ -88,42 +90,47 @@ class ParsingTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters([
       dict(
           testcase_name="SerializedGraphTensorElement",
-          ds=ds_from_tensor(random_serialized_graph_tensor()),
-          spec=random_graph_tensor().spec,
-          expected=random_graph_tensor(),
+          ds=lambda: ds_from_tensor(random_serialized_graph_tensor()),
+          spec=lambda: random_graph_tensor().spec,
+          expected=random_graph_tensor,
       ),
       dict(
           testcase_name="GraphTensorElement",
-          ds=ds_from_tensor(random_graph_tensor()),
-          spec=random_graph_tensor().spec,
-          expected=random_graph_tensor(),
+          ds=lambda: ds_from_tensor(random_graph_tensor()),
+          spec=lambda: random_graph_tensor().spec,
+          expected=random_graph_tensor,
       ),
       dict(
           testcase_name="SerializedGraphTensorElements",
-          ds=ds_from_tensor(random_serialized_graph_tensor()).repeat().batch(4),
-          spec=random_graph_tensor().spec,
-          expected=next(
-              iter(
-                  ds_from_tensor(random_graph_tensor()).repeat().batch(4)
-                  )
-              ),
+          ds=lambda: ds_from_tensor(random_serialized_graph_tensor())
+          .repeat()
+          .batch(4),
+          spec=lambda: random_graph_tensor().spec,
+          expected=lambda: next(
+              iter(ds_from_tensor(random_graph_tensor()).repeat().batch(4))
+          ),
       ),
       dict(
           testcase_name="GraphTensorElements",
-          ds=ds_from_tensor(random_graph_tensor()).repeat().batch(4),
-          spec=random_graph_tensor().spec,
-          expected=next(
-              iter(
-                  ds_from_tensor(random_graph_tensor()).repeat().batch(4)
-                  )
-              ),
+          ds=lambda: ds_from_tensor(random_graph_tensor()).repeat().batch(4),
+          spec=lambda: random_graph_tensor().spec,
+          expected=lambda: next(
+              iter(ds_from_tensor(random_graph_tensor()).repeat().batch(4))
+          ),
       ),
   ])
   def test_maybe_parse_graph_tensor_dataset(
       self,
-      ds: tf.data.Dataset,
-      spec: tfgnn.GraphTensorSpec,
-      expected: tfgnn.GraphTensor):
+      ds: Union[tf.data.Dataset, Callable[[], tf.data.Dataset]],
+      spec: Union[tfgnn.GraphTensorSpec, Callable[[], tfgnn.GraphTensorSpec]],
+      expected: Union[tfgnn.GraphTensor, Callable[[], tfgnn.GraphTensor]],
+  ):
+    if callable(ds):
+      ds = ds()
+    if callable(spec):
+      spec = spec()
+    if callable(expected):
+      expected = expected()
     ds = parsing_utils.maybe_parse_graph_tensor_dataset(ds, spec)
     self._assert_graph_tensors_equal(
         expected,
@@ -132,30 +139,36 @@ class ParsingTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters([
       dict(
           testcase_name="FloatElement",
-          ds=ds_from_tensor(tf.constant(8191.)),
-          spec=random_graph_tensor().spec,
+          ds=lambda: ds_from_tensor(tf.constant(8191.0)),
+          spec=lambda: random_graph_tensor().spec,
           expected_failure=r"Expected `GraphTensorSpec` \(got .*\)",
       ),
       dict(
           testcase_name="IncompatibleGraphTensorElement",
-          ds=ds_from_tensor(
+          ds=lambda: ds_from_tensor(
               tfgnn.homogeneous(
                   source=tf.constant((0, 3)),
                   target=tf.constant((1, 2)),
-                  node_set_sizes=tf.constant((4,))
-                  ),
+                  node_set_sizes=tf.constant((4,)),
               ),
-          spec=random_graph_tensor().spec,
+          ),
+          spec=lambda: random_graph_tensor().spec,
           expected_failure=r"Graph is not compatible with the graph schema.*",
       ),
   ])
   def test_maybe_parse_graph_tensor_dataset_fails(
       self,
-      ds: tf.data.Dataset,
-      spec: tfgnn.GraphTensorSpec,
-      expected_failure: str):
+      ds: Union[tf.data.Dataset, Callable[[], tf.data.Dataset]],
+      spec: Union[tfgnn.GraphTensorSpec, Callable[[], tfgnn.GraphTensorSpec]],
+      expected_failure: str,
+  ):
+    if callable(ds):
+      ds = ds()
+    if callable(spec):
+      spec = spec()
     with self.assertRaisesRegex(ValueError, expected_failure):
       _ = parsing_utils.maybe_parse_graph_tensor_dataset(ds, spec)
+
 
 if __name__ == "__main__":
   tf.test.main()
