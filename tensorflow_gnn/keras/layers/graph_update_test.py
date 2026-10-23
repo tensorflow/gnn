@@ -199,6 +199,82 @@ class GraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
                         graph.context[const.HIDDEN_STATE])
 
 
+class GraphUpdateSerializationTest(tf.test.TestCase):
+
+  def test_graph_update_from_config_deserializes_nested_layers(self):
+    layer = graph_update.GraphUpdate(
+        edge_sets={
+            "edge": graph_update.EdgeSetUpdate(
+                next_state=next_state_lib.NextStateFromConcat(
+                    tf.keras.layers.Dense(4, name="edge_dense")),
+                name="edge_set_update")
+        },
+        node_sets={
+            "node": graph_update.NodeSetUpdate(
+                edge_set_inputs={
+                    "edge": graph_ops.Pool(const.TARGET, "sum")
+                },
+                next_state=next_state_lib.NextStateFromConcat(
+                    tf.keras.layers.Dense(4, name="node_dense")),
+                name="node_set_update")
+        },
+        context=None,
+        name="graph_update")
+
+    rebuilt = graph_update.GraphUpdate.from_config(layer.get_config())
+
+    self.assertIsInstance(rebuilt, graph_update.GraphUpdate)
+    self.assertIsInstance(rebuilt._edge_set_updates["edge"],
+                          graph_update.EdgeSetUpdate)
+    self.assertIsInstance(rebuilt._node_set_updates["node"],
+                          graph_update.NodeSetUpdate)
+
+  def test_edge_set_update_from_config_deserializes_next_state(self):
+    layer = graph_update.EdgeSetUpdate(
+        next_state=next_state_lib.NextStateFromConcat(
+            tf.keras.layers.Dense(4, name="edge_dense")),
+        name="edge_set_update")
+
+    rebuilt = graph_update.EdgeSetUpdate.from_config(layer.get_config())
+
+    self.assertIsInstance(rebuilt._next_state,
+                          next_state_lib.NextStateFromConcat)
+
+  def test_node_set_update_from_config_deserializes_nested_layers(self):
+    layer = graph_update.NodeSetUpdate(
+        edge_set_inputs={
+            "edge": graph_ops.Pool(const.TARGET, "sum")
+        },
+        next_state=next_state_lib.NextStateFromConcat(
+            tf.keras.layers.Dense(4, name="node_dense")),
+        name="node_set_update")
+
+    rebuilt = graph_update.NodeSetUpdate.from_config(layer.get_config())
+
+    self.assertIsInstance(rebuilt._edge_set_inputs["edge"], graph_ops.Pool)
+    self.assertIsInstance(rebuilt._next_state,
+                          next_state_lib.NextStateFromConcat)
+
+  def test_context_update_from_config_deserializes_nested_layers(self):
+    layer = graph_update.ContextUpdate(
+        node_set_inputs={
+            "node": graph_ops.Pool(const.CONTEXT, "sum")
+        },
+        edge_set_inputs={
+            "edge": graph_ops.Pool(const.SOURCE, "sum")
+        },
+        next_state=next_state_lib.NextStateFromConcat(
+            tf.keras.layers.Dense(4, name="context_dense")),
+        name="context_update")
+
+    rebuilt = graph_update.ContextUpdate.from_config(layer.get_config())
+
+    self.assertIsInstance(rebuilt._node_set_inputs["node"], graph_ops.Pool)
+    self.assertIsInstance(rebuilt._edge_set_inputs["edge"], graph_ops.Pool)
+    self.assertIsInstance(rebuilt._next_state,
+                          next_state_lib.NextStateFromConcat)
+
+
 def _make_test_graph_with_singleton_node_sets(nodes, edges, context=None):
   """Returns graph with singleton node sets and edge sets of given values."""
   # pylint: disable=g-complex-comprehension
