@@ -99,11 +99,12 @@ python --version
 pip install --upgrade pip
 
 if [[ "$TEST_TF_NIGHTLY" == "true" ]]; then
-  # Install and test with Vizier: b/394062744 does not affect tf-nightly.
-  tf_wheels=(dist/tensorflow_gnn-*.whl)
-  pip install "${tf_wheels[0]}[vizier]"
-  pip uninstall -y tensorflow tf-keras ai-edge-litert
+  # Install the wheel with --no-deps so pip does not try to resolve released
+  # tensorflow/tf-keras packages (which may not have wheels for the latest
+  # Python version yet); test-nightly provides tf-nightly and all runtime deps.
   pip install --group test-nightly --progress-bar off --upgrade
+  tf_wheels=(dist/tensorflow_gnn-*.whl)
+  pip install --no-deps "${tf_wheels[0]}"
 
   # Check that tf-nightly is installed but tensorflow is not
   # Also check that tf-keras-nightly is installed.
