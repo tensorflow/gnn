@@ -107,7 +107,6 @@ tf_py_test(
     srcs = ["graph_ops_test.py"],
     deps = [
         ":graph_ops",
-        "//third_party/py/mock",
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:adjacency",
         "//tensorflow_gnn/graph:graph_constants",
