@@ -1,6 +1,7 @@
+load("//third_party/bazel_rules/rules_python/python:py_library.bzl", "py_library")
+
 # Copybara rewrites load() statements back and forth; do not reformat.
 # buildifier: disable=out-of-order-load, disable=same-origin-load
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_library")
 
 # buildifier: disable=out-of-order-load, disable=same-origin-load
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "tf_py_test")
@@ -16,9 +17,10 @@ package(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "keras",
     srcs = ["__init__.py"],
+    type_checking = True,
     deps = [
         ":builders",
         ":initializers",
@@ -28,9 +30,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "keras_tensors",
     srcs = ["keras_tensors.py"],
+    type_checking = True,
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:adjacency",
@@ -61,9 +64,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "builders",
     srcs = ["builders.py"],
+    type_checking = True,
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:adjacency",
@@ -91,9 +95,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "initializers",
     srcs = ["initializers.py"],
+    type_checking = True,
     deps = [
         "//:expect_tensorflow_installed",
     ],

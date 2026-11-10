@@ -1,12 +1,13 @@
+load("//third_party/bazel_rules/rules_python/python:py_test.bzl", "py_test")
+load("//third_party/bazel_rules/rules_python/python:py_library.bzl", "py_library")
+
 # Copybara rewrites load() statements back and forth; do not reformat.
 # buildifier: disable=out-of-order-load, disable=same-origin-load
 # Placeholder: load py_binary
 
 # buildifier: disable=out-of-order-load, disable=same-origin-load
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_contrib_test")
 
 # buildifier: disable=out-of-order-load, disable=same-origin-load
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_library")
 
 licenses(["notice"])
 
@@ -15,9 +16,10 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
-pytype_strict_library(
+py_library(
     name = "executor_lib",
     srcs = ["executor_lib.py"],
+    type_checking = True,
     deps = [
         ":utils",
         "//third_party/py/apache_beam",
@@ -29,9 +31,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_contrib_test(
+py_test(
     name = "executor_lib_test",
     srcs = ["executor_lib_test.py"],
+    type_checking = True,
     deps = [
         ":executor_lib",
         "//third_party/py/absl/testing:absltest",
@@ -44,9 +47,10 @@ pytype_strict_contrib_test(
     ],
 )
 
-pytype_strict_contrib_test(
+py_test(
     name = "subgraph_pipeline_test",
     srcs = ["subgraph_pipeline_test.py"],
+    type_checking = True,
     deps = [
         ":accessors",
         ":edge_samplers",
@@ -63,9 +67,10 @@ pytype_strict_contrib_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "accessors",
     srcs = ["accessors.py"],
+    type_checking = True,
     deps = [
         ":executor_lib",
         ":utils",
@@ -76,9 +81,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_contrib_test(
+py_test(
     name = "accessors_test",
     srcs = ["accessors_test.py"],
+    type_checking = True,
     deps = [
         ":accessors",
         ":executor_lib",
@@ -92,9 +98,10 @@ pytype_strict_contrib_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "edge_samplers",
     srcs = ["edge_samplers.py"],
+    type_checking = True,
     deps = [
         ":executor_lib",
         ":utils",
@@ -107,9 +114,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_contrib_test(
+py_test(
     name = "edge_samplers_test",
     srcs = ["edge_samplers_test.py"],
+    type_checking = True,
     deps = [
         ":accessors",
         ":edge_samplers",
@@ -124,9 +132,10 @@ pytype_strict_contrib_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "utils",
     srcs = ["utils.py"],
+    type_checking = True,
     deps = [
         "//third_party/py/apache_beam",
         "//:expect_numpy_installed",
@@ -135,9 +144,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_contrib_test(
+py_test(
     name = "utils_test",
     srcs = ["utils_test.py"],
+    type_checking = True,
     deps = [
         ":utils",
         "//third_party/py/absl/testing:absltest",
@@ -150,9 +160,10 @@ pytype_strict_contrib_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "unigraph_utils",
     srcs = ["unigraph_utils.py"],
+    type_checking = True,
     deps = [
         ":executor_lib",
         "//third_party/py/apache_beam",
@@ -164,9 +175,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "sampler-lib",
     srcs = ["sampler.py"],
+    type_checking = True,
     deps = [
         ":accessors",
         ":edge_samplers",
@@ -186,9 +198,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_contrib_test(
+py_test(
     name = "sampler_test",
     srcs = ["sampler_test.py"],
+    type_checking = True,
     deps = [
         ":sampler-lib",
         "//testing/pybase",
@@ -210,13 +223,14 @@ py_binary(
     ],
 )
 
-pytype_strict_contrib_test(
+py_test(
     name = "unigraph_utils_test",
     srcs = ["unigraph_utils_test.py"],
     data = [
         "@tensorflow_gnn//testdata/heterogeneous",
         "@tensorflow_gnn//testdata/homogeneous",
     ],
+    type_checking = True,
     deps = [
         ":unigraph_utils",
         "//testing/pybase",
