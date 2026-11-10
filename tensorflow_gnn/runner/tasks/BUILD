@@ -1,8 +1,8 @@
+load("//third_party/bazel_rules/rules_python/python:py_library.bzl", "py_library")
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "tf_py_test")
 
 # Copybara rewrites load() statements back and forth; do not reformat.
 # buildifier: disable=out-of-order-load, disable=same-origin-load
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_library")
 
 # buildifier: disable=out-of-order-load, disable=same-origin-load
 
@@ -13,9 +13,10 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
-pytype_strict_library(
+py_library(
     name = "classification",
     srcs = ["classification.py"],
+    type_checking = True,
     visibility = ["//tensorflow_gnn/runner:__pkg__"],
     deps = [
         "//:expect_tensorflow_installed",
@@ -37,9 +38,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "link_prediction",
     srcs = ["link_prediction.py"],
+    type_checking = True,
     visibility = ["//tensorflow_gnn/runner:__pkg__"],
     deps = [
         "//:expect_tensorflow_installed",
@@ -60,9 +62,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "regression",
     srcs = ["regression.py"],
+    type_checking = True,
     visibility = ["//tensorflow_gnn/runner:__pkg__"],
     deps = [
         "//:expect_tensorflow_installed",

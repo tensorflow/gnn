@@ -1,11 +1,11 @@
+load("//third_party/bazel_rules/rules_python/python:py_library.bzl", "py_library")
+# Placeholder: load py_binary
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "tf_py_test")
 
 # Copybara rewrites load() statements back and forth; do not reformat.
 # buildifier: disable=out-of-order-load, disable=same-origin-load
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_binary")
 
 # buildifier: disable=out-of-order-load, disable=same-origin-load
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_library")
 
 # buildifier: disable=out-of-order-load, disable=same-origin-load
 
@@ -16,9 +16,10 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
-pytype_strict_library(
+py_library(
     name = "attribution",
     srcs = ["attribution.py"],
+    type_checking = True,
     visibility = ["//tensorflow_gnn/runner:__pkg__"],
     deps = [
         "//:expect_numpy_installed",
@@ -28,9 +29,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "label_fns",
     srcs = ["label_fns.py"],
+    type_checking = True,
     visibility = ["//tensorflow_gnn/runner:__pkg__"],
     deps = [
         "//:expect_tensorflow_installed",
@@ -38,18 +40,20 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "model_dir",
     srcs = ["model_dir.py"],
+    type_checking = True,
     visibility = ["//tensorflow_gnn/runner:__pkg__"],
     deps = [
         "//:expect_tensorflow_installed",
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "model_export",
     srcs = ["model_export.py"],
+    type_checking = True,
     visibility = ["//tensorflow_gnn/runner:__pkg__"],
     deps = [
         "//:expect_tensorflow_installed",
@@ -57,9 +61,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "padding",
     srcs = ["padding.py"],
+    type_checking = True,
     visibility = ["//tensorflow_gnn/runner:__pkg__"],
     deps = [
         ":parsing",
@@ -69,9 +74,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "parsing",
     srcs = ["parsing.py"],
+    type_checking = True,
     visibility = ["//tensorflow_gnn/runner:__pkg__"],
     deps = [
         "//:expect_tensorflow_installed",
@@ -79,18 +85,20 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "strategies",
     srcs = ["strategies.py"],
+    type_checking = True,
     visibility = ["//tensorflow_gnn/runner:__pkg__"],
     deps = [
         "//:expect_tensorflow_installed",
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "test_utils",
     srcs = ["test_utils.py"],
+    type_checking = True,
     deps = [
         "//tensorflow_gnn/runner:interfaces",
     ],
@@ -133,9 +141,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_binary(
+py_binary(
     name = "saved_model_gen_testdata",
     srcs = ["saved_model_gen_testdata.py"],
+    type_checking = True,
     deps = [
         "//:expect_absl_installed_app",
         "//:expect_absl_installed_flags",
@@ -145,9 +154,10 @@ pytype_strict_binary(
     ],
 )
 
-pytype_strict_binary(
+py_binary(
     name = "saved_model_load_testdata",
     srcs = ["saved_model_load_testdata.py"],
+    type_checking = True,
     deps = [
         "//:expect_absl_installed_app",
         "//:expect_absl_installed_flags",
