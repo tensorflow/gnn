@@ -1,6 +1,7 @@
+load("//third_party/bazel_rules/rules_python/python:py_library.bzl", "py_library")
+
 # Copybara rewrites load() statements back and forth; do not reformat.
 # buildifier: disable=out-of-order-load, disable=same-origin-load
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_library")
 
 licenses(["notice"])
 
@@ -9,9 +10,10 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
-pytype_strict_library(
+py_library(
     name = "keras_fit",
     srcs = ["keras_fit.py"],
+    type_checking = True,
     visibility = ["//tensorflow_gnn/runner:__pkg__"],
     deps = [
         "//:expect_tensorflow_installed",

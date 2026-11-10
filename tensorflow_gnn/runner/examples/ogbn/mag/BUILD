@@ -1,9 +1,10 @@
+load("//third_party/bazel_rules/rules_python/python:py_library.bzl", "py_library")
+# Placeholder: load py_binary
+
 # Copybara rewrites load() statements back and forth; do not reformat.
 # buildifier: disable=out-of-order-load, disable=same-origin-load
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_binary")
 
 # buildifier: disable=out-of-order-load, disable=same-origin-load
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_library")
 
 # buildifier: disable=out-of-order-load, disable=same-origin-load
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "tf_py_test")
@@ -15,9 +16,10 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
-pytype_strict_library(
+py_library(
     name = "train_lib",
     srcs = ["train.py"],
+    type_checking = True,
     visibility = [
         ":__subpackages__",
     ],
@@ -39,15 +41,17 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_binary(
+py_binary(
     name = "train",
     srcs = ["train.py"],
+    type_checking = True,
     deps = [":train_lib"],
 )
 
-pytype_strict_library(
+py_library(
     name = "utils",
     srcs = ["utils.py"],
+    type_checking = True,
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
