@@ -1,6 +1,7 @@
+load("//third_party/bazel_rules/rules_python/python:py_library.bzl", "py_library")
+
 # Copybara rewrites load() statements back and forth; do not reformat.
 # buildifier: disable=out-of-order-load, disable=same-origin-load
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_library")
 
 # buildifier: disable=out-of-order-load, disable=same-origin-load
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "tf_py_test")
@@ -17,9 +18,10 @@ package(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "layers",
     srcs = ["__init__.py"],
+    type_checking = True,
     deps = [
         ":convolution_base",
         ":convolutions",
@@ -34,9 +36,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "convolutions",
     srcs = ["convolutions.py"],
+    type_checking = True,
     deps = [
         ":convolution_base",
         "//:expect_tensorflow_installed",
@@ -59,9 +62,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "convolution_base",
     srcs = ["convolution_base.py"],
+    type_checking = True,
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:broadcast_ops",
@@ -88,9 +92,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "graph_ops",
     srcs = ["graph_ops.py"],
+    type_checking = True,
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:broadcast_ops",
@@ -115,9 +120,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "graph_update",
     srcs = ["graph_update.py"],
+    type_checking = True,
     deps = [
         ":next_state",
         "//:expect_tensorflow_installed",
@@ -145,9 +151,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "item_dropout",
     srcs = ["item_dropout.py"],
+    type_checking = True,
     deps = ["//:expect_tensorflow_installed"],
 )
 
@@ -162,9 +169,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "map_features",
     srcs = ["map_features.py"],
+    type_checking = True,
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:dict_utils",
@@ -188,9 +196,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "next_state",
     srcs = ["next_state.py"],
+    type_checking = True,
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:graph_constants",
@@ -210,9 +219,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "parse_example",
     srcs = ["parse_example.py"],
+    type_checking = True,
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:graph_tensor",
@@ -220,9 +230,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "padding_ops",
     srcs = ["padding_ops.py"],
+    type_checking = True,
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn/graph:padding_ops",

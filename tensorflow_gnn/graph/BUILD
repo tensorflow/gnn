@@ -1,12 +1,12 @@
+load("//third_party/bazel_rules/rules_python/python:py_test.bzl", "py_test")
+load("//third_party/bazel_rules/rules_python/python:py_library.bzl", "py_library")
+
 # Copybara rewrites load() statements back and forth; do not reformat.
 # buildifier: disable=out-of-order-load, disable=same-origin-load
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_library")
 
 # buildifier: disable=out-of-order-load, disable=same-origin-load
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_contrib_test")
 
 # buildifier: disable=out-of-order-load, disable=same-origin-load
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_library")
 
 # buildifier: disable=out-of-order-load, disable=same-origin-load
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "tf_py_test")
@@ -27,17 +27,19 @@ package(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "graph_constants",
     srcs = ["graph_constants.py"],
+    type_checking = True,
     deps = [
         "//:expect_tensorflow_installed",
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "graph_tensor",
     srcs = ["graph_tensor.py"],
+    type_checking = True,
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -48,9 +50,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "graph_tensor_ops",
     srcs = ["graph_tensor_ops.py"],
+    type_checking = True,
     deps = [
         ":adjacency",
         ":broadcast_ops",
@@ -64,9 +67,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "graph_tensor_io",
     srcs = ["graph_tensor_io.py"],
+    type_checking = True,
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -76,9 +80,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "graph_tensor_encode",
     srcs = ["graph_tensor_encode.py"],
+    type_checking = True,
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -90,9 +95,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "graph_tensor_random",
     srcs = ["graph_tensor_random.py"],
+    type_checking = True,
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -102,9 +108,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "graph_tensor_pprint",
     srcs = ["graph_tensor_pprint.py"],
+    type_checking = True,
     deps = [
         ":graph_tensor",
         "//:expect_numpy_installed",
@@ -112,9 +119,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "tensor_utils",
     srcs = ["tensor_utils.py"],
+    type_checking = True,
     deps = [
         ":tf_internal",
         "//:expect_tensorflow_installed",
@@ -132,9 +140,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "readout",
     srcs = ["readout.py"],
+    type_checking = True,
     deps = [
         ":adjacency",
         ":broadcast_ops",
@@ -161,9 +170,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "schema_utils",
     srcs = ["schema_utils.py"],
+    type_checking = True,
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -191,9 +201,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "schema_validation",
     srcs = ["schema_validation.py"],
+    type_checking = True,
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -218,9 +229,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "graph_tensor_test_utils",
     srcs = ["graph_tensor_test_utils.py"],
+    type_checking = True,
     visibility = [
         "//tensorflow_gnn/compat:__subpackages__",
         "//tensorflow_gnn/tools:__subpackages__",
@@ -332,9 +344,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "graph_piece",
     srcs = ["graph_piece.py"],
+    type_checking = True,
     deps = [
         ":graph_constants",
         ":tensor_utils",
@@ -355,9 +368,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "adjacency",
     srcs = ["adjacency.py"],
+    type_checking = True,
     deps = [
         ":graph_constants",
         ":graph_piece",
@@ -378,9 +392,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "normalization_ops",
     srcs = ["normalization_ops.py"],
+    type_checking = True,
     deps = [
         ":broadcast_ops",
         ":graph_constants",
@@ -405,21 +420,24 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "dict_utils",
     srcs = ["dict_utils.py"],
+    type_checking = True,
     deps = [],
 )
 
-pytype_strict_contrib_test(
+py_test(
     name = "dict_utils_test",
     srcs = ["dict_utils_test.py"],
+    type_checking = True,
     deps = [":dict_utils"],
 )
 
-pytype_strict_library(
+py_library(
     name = "preprocessing_common",
     srcs = ["preprocessing_common.py"],
+    type_checking = True,
     deps = [
         ":graph_constants",
         "//:expect_tensorflow_installed",
@@ -438,9 +456,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "padding_ops",
     srcs = ["padding_ops.py"],
+    type_checking = True,
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -469,9 +488,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "pool_ops",
     srcs = ["pool_ops.py"],
+    type_checking = True,
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -496,9 +516,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "batching_utils",
     srcs = ["batching_utils.py"],
+    type_checking = True,
     deps = [
         ":adjacency",
         ":graph_constants",
@@ -511,18 +532,20 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "tag_utils",
     srcs = ["tag_utils.py"],
+    type_checking = True,
     deps = [
         ":graph_constants",
         ":graph_tensor",
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "broadcast_ops",
     srcs = ["broadcast_ops.py"],
+    type_checking = True,
     deps = [
         ":graph_constants",
         ":graph_tensor",
@@ -533,22 +556,25 @@ pytype_strict_library(
     ],
 )
 
-pytype_library(
+py_library(
     name = "tf_internal",
     srcs = ["tf_internal.py"],
+    # strict_deps = False,
     tags = [
         # Certain deps are not provided on purpose, so this cannot be a python_strict_library.
         "ignore_for_dep=third_party.tensorflow.python.framework.type_spec_registry",
     ],
+    type_checking = True,
     deps = [
         "//:expect_tensorflow_installed",
         "//:expect_tf_keras_installed",
     ],
 )
 
-pytype_strict_contrib_test(
+py_test(
     name = "tag_utils_test",
     srcs = ["tag_utils_test.py"],
+    type_checking = True,
     deps = [
         ":adjacency",
         ":graph_constants",
