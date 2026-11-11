@@ -16,12 +16,11 @@
 
 import copy
 from typing import List
+from unittest import mock
 
 from absl import logging
 from google.protobuf import text_format
-import mock
 import tensorflow as tf
-
 from tensorflow_gnn.graph import adjacency as adj
 from tensorflow_gnn.graph import graph_constants as gc
 from tensorflow_gnn.graph import graph_tensor as gt
