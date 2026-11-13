@@ -1,8 +1,8 @@
+load("//third_party/bazel_rules/rules_python/python:py_library.bzl", "py_library")
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "tf_py_test")
 
 # Copybara rewrites load() statements back and forth; do not reformat.
 # buildifier: disable=out-of-order-load, disable=same-origin-load
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_library")
 
 # buildifier: disable=out-of-order-load, disable=same-origin-load
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "distribute_py_test")
@@ -14,9 +14,10 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
-pytype_strict_library(
+py_library(
     name = "runner",
     srcs = ["__init__.py"],
+    type_checking = True,
     visibility = ["//visibility:public"],
     deps = [
         ":interfaces",
@@ -36,9 +37,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "interfaces",
     srcs = ["interfaces.py"],
+    type_checking = True,
     visibility = ["//tensorflow_gnn/runner:__subpackages__"],
     deps = [
         "//:expect_tensorflow_installed",
@@ -46,9 +48,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "orchestration",
     srcs = ["orchestration.py"],
+    type_checking = True,
     deps = [
         ":interfaces",
         "//:expect_tensorflow_installed",
