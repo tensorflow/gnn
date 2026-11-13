@@ -1,6 +1,7 @@
+load("//third_party/bazel_rules/rules_python/python:py_library.bzl", "py_library")
+
 # Copybara rewrites load() statements back and forth; do not reformat.
 # buildifier: disable=out-of-order-load, disable=same-origin-load
-load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "pytype_strict_library")
 
 # buildifier: disable=out-of-order-load, disable=same-origin-load
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "tf_py_test")
@@ -17,9 +18,10 @@ licenses(["notice"])
 
 package_group(name = "users")
 
-pytype_strict_library(
+py_library(
     name = "contrastive_losses",
     srcs = ["__init__.py"],
+    type_checking = True,
     visibility = [
         ":users",
     ],
@@ -31,9 +33,10 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "layers",
     srcs = ["layers.py"],
+    type_checking = True,
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
@@ -51,9 +54,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "losses",
     srcs = ["losses.py"],
+    type_checking = True,
     deps = [
         "//:expect_tensorflow_installed",
     ],
@@ -70,9 +74,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "metrics",
     srcs = ["metrics.py"],
+    type_checking = True,
     deps = [
         "//:expect_tensorflow_installed",
     ],
@@ -87,9 +92,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "utils",
     srcs = ["utils.py"],
+    type_checking = True,
     deps = [
         "//:expect_tensorflow_installed",
         "//tensorflow_gnn",
@@ -106,9 +112,10 @@ tf_py_test(
     ],
 )
 
-pytype_strict_library(
+py_library(
     name = "tasks",
     srcs = ["tasks.py"],
+    type_checking = True,
     deps = [
         ":layers",
         ":losses",
