@@ -214,8 +214,21 @@ class GraphUpdate(tf.keras.layers.Layer):
 
   @classmethod
   def from_config(cls, config):
+    config = config.copy()
     config["edge_sets"] = du.pop_by_prefix(config, "edge_sets/")
     config["node_sets"] = du.pop_by_prefix(config, "node_sets/")
+
+    config["edge_sets"] = {
+        key: _maybe_deserialize_layer(value)
+        for key, value in (config["edge_sets"] or {}).items()
+    }
+    config["node_sets"] = {
+        key: _maybe_deserialize_layer(value)
+        for key, value in (config["node_sets"] or {}).items()
+    }
+    if config.get("context") is not None:
+      config["context"] = _maybe_deserialize_layer(config["context"])
+
     return cls(**config)
 
   def call(self, graph: gt.GraphTensor) -> gt.GraphTensor:
@@ -319,6 +332,13 @@ class EdgeSetUpdate(tf.keras.layers.Layer):
         context_input_feature=self._context_input_feature,
         **super().get_config())
 
+  @classmethod
+  def from_config(cls, config):
+    config = config.copy()
+    if config.get("next_state") is not None:
+      config["next_state"] = _maybe_deserialize_layer(config["next_state"])
+    return cls(**config)
+
   def call(self, graph: gt.GraphTensor,
            edge_set_name: const.EdgeSetName) -> gt.GraphTensor:
     gt.check_scalar_graph_tensor(graph, "EdgeSetUpdate")
@@ -415,7 +435,14 @@ class NodeSetUpdate(tf.keras.layers.Layer):
 
   @classmethod
   def from_config(cls, config):
+    config = config.copy()
     config["edge_set_inputs"] = du.pop_by_prefix(config, "edge_set_inputs/")
+    config["edge_set_inputs"] = {
+        key: _maybe_deserialize_layer(value)
+        for key, value in (config["edge_set_inputs"] or {}).items()
+    }
+    if config.get("next_state") is not None:
+      config["next_state"] = _maybe_deserialize_layer(config["next_state"])
     return cls(**config)
 
   def call(self, graph: gt.GraphTensor,
@@ -516,9 +543,22 @@ class ContextUpdate(tf.keras.layers.Layer):
 
   @classmethod
   def from_config(cls, config):
+    config = config.copy()
     config["node_set_inputs"] = du.pop_by_prefix(config, "node_set_inputs/")
     config["edge_set_inputs"] = du.pop_by_prefix(config,
-                                                 "edge_set_inputs/") or None
+                                                 "edge_set_inputs/")
+    config["node_set_inputs"] = {
+        key: _maybe_deserialize_layer(value)
+        for key, value in (config["node_set_inputs"] or {}).items()
+    }
+    edge_set_inputs = config["edge_set_inputs"] or None
+    config["edge_set_inputs"] = (
+        None if edge_set_inputs is None else {
+            key: _maybe_deserialize_layer(value)
+            for key, value in edge_set_inputs.items()
+        })
+    if config.get("next_state") is not None:
+      config["next_state"] = _maybe_deserialize_layer(config["next_state"])
     return cls(**config)
 
   def call(self, graph: gt.GraphTensor) -> gt.GraphTensor:
@@ -575,4 +615,12 @@ def _check_is_layer(obj, description):
   if not isinstance(obj, tf.keras.layers.Layer):
     raise ValueError(f"{description} must be a tf.keras.layer.Layer, "
                      f"got type: {type(obj).__name__}")
+  return obj
+
+
+def _maybe_deserialize_layer(obj):
+  if isinstance(obj, tf.keras.layers.Layer):
+    return obj
+  if isinstance(obj, dict) and "class_name" in obj and "config" in obj:
+    return tf.keras.layers.deserialize(obj)
   return obj
