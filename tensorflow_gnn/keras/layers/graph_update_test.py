@@ -198,6 +198,85 @@ class GraphUpdateTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual([[16. + 2.+ 19.]],
                         graph.context[const.HIDDEN_STATE])
 
+class GraphUpdateSerializationTest(tf.test.TestCase):
+
+  def test_graph_update_from_config_deserializes_nested_layers(self):
+    edge_next_state = next_state_lib.NextStateFromConcat(
+        tf.keras.layers.Dense(4, name="edge_dense")
+    )
+    node_next_state = next_state_lib.NextStateFromConcat(
+        tf.keras.layers.Dense(4, name="node_dense")
+    )
+
+    layer = graph_update.GraphUpdate(
+        edge_sets={
+            "edge": graph_update.EdgeSetUpdate(
+                next_state=edge_next_state,
+                node_input_tags=[const.SOURCE, const.TARGET],
+                edge_input_feature=const.HIDDEN_STATE,
+                context_input_feature=None,
+                name="edge_set_update",
+            )
+        },
+        node_sets={
+            "node": graph_update.NodeSetUpdate(
+                edge_set_inputs={
+                    "edge": graph_ops.Pool(const.TARGET, "sum")
+                },
+                next_state=node_next_state,
+                context_input_feature=None,
+                name="node_set_update",
+            )
+        },
+        context=None,
+        name="graph_update",
+    )
+
+    config = layer.get_config()
+    rebuilt = graph_update.GraphUpdate.from_config(config)
+
+    self.assertIsInstance(rebuilt, graph_update.GraphUpdate)
+
+    rebuilt_config = rebuilt.get_config()
+    self.assertIn("edge_sets/edge", rebuilt_config)
+    self.assertIn("node_sets/node", rebuilt_config)
+
+  def test_edge_set_update_from_config_deserializes_next_state(self):
+    layer = graph_update.EdgeSetUpdate(
+        next_state=next_state_lib.NextStateFromConcat(
+            tf.keras.layers.Dense(4, name="edge_dense")
+        ),
+        node_input_tags=[const.SOURCE],
+        edge_input_feature=const.HIDDEN_STATE,
+        name="edge_set_update",
+    )
+
+    config = layer.get_config()
+    rebuilt = graph_update.EdgeSetUpdate.from_config(config)
+
+    self.assertIsInstance(rebuilt, graph_update.EdgeSetUpdate)
+    rebuilt_config = rebuilt.get_config()
+    self.assertIn("next_state", rebuilt_config)
+
+  def test_node_set_update_from_config_deserializes_nested_layers(self):
+    layer = graph_update.NodeSetUpdate(
+        edge_set_inputs={
+            "edge": graph_ops.Pool(const.TARGET, "sum")
+        },
+        next_state=next_state_lib.NextStateFromConcat(
+            tf.keras.layers.Dense(4, name="node_dense")
+        ),
+        context_input_feature=None,
+        name="node_set_update",
+    )
+
+    config = layer.get_config()
+    rebuilt = graph_update.NodeSetUpdate.from_config(config)
+
+    self.assertIsInstance(rebuilt, graph_update.NodeSetUpdate)
+    rebuilt_config = rebuilt.get_config()
+    self.assertIn("edge_set_inputs/edge", rebuilt_config)
+    self.assertIn("next_state", rebuilt_config)
 
 def _make_test_graph_with_singleton_node_sets(nodes, edges, context=None):
   """Returns graph with singleton node sets and edge sets of given values."""
