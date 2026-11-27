@@ -1,5 +1,6 @@
 # Placeholder: load py_library
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "py_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@tensorflow_gnn//tensorflow_gnn:tensorflow_gnn.bzl", "tf_py_test")
 
 # Copybara rewrites load() statements back and forth; do not reformat.
